@@ -1,0 +1,32 @@
+package com.logiRed.comercios.model;
+
+import jakarta.persistence.*;
+
+@Entity
+@Table(name = "sucursales")
+public class Sucursal {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private Long id;
+
+    private String nombre;
+    private String direccion;
+    private boolean activa;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "comercio_id")
+    private Comercio comercio;
+
+    public Sucursal() {}
+
+    public Long getId() { return id; }
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
+    public String getDireccion() { return direccion; }
+    public void setDireccion(String direccion) { this.direccion = direccion; }
+    public boolean isActiva() { return activa; }
+    public void setActiva(boolean activa) { this.activa = activa; }
+    public Comercio getComercio() { return comercio; }
+    public void setComercio(Comercio comercio) { this.comercio = comercio; }
+}
