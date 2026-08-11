@@ -1,0 +1,10 @@
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/dto/ComercioDTO.java
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/dto/DatosComercioDTO.java
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/dto/DatosFiscalesDTO.java
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/dto/SucursalDTO.java
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/model/Comercio.java
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/model/Sucursal.java
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/repository/ComercioRepository.java
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/resource/ComercioResource.java
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/resource/RestApp.java
+/Users/felipeforte/Desktop/servicio-comercios/src/main/java/com/logiRed/comercios/service/ComercioService.java

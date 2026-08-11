@@ -40,6 +40,13 @@ public class ComercioResource {
         return Response.ok().build();
     }
 
+    @DELETE
+    @Path("/{id}/eliminar")
+    public Response eliminarComercio(@PathParam("id") Long id) {
+        service.eliminarComercio(id);
+        return Response.noContent().build();
+    }
+
     // IConsultaComercios — lectura libre
 
     @GET

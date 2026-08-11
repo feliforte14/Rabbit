@@ -64,6 +64,12 @@ public class ComercioService {
         return comercio != null && comercio.isActivo();
     }
 
+    @Transactional
+    public void eliminarComercio(Long idComercio) {
+        Comercio comercio = obtenerOFallar(idComercio);
+        repository.eliminar(comercio);
+    }
+
     // helper
 
     private Comercio obtenerOFallar(Long id) {
