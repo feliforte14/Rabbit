@@ -1,5 +1,21 @@
 package com.logiRed.comercios.model;
 
+/**
+ * CAPA MODEL (Entidad JPA)
+ *
+ * Las clases en esta carpeta representan las tablas de la base de datos.
+ * Cada instancia de Comercio corresponde a una fila en la tabla "comercios".
+ *
+ * JPA (Jakarta Persistence API) se encarga de traducir automáticamente
+ * entre objetos Java y filas en la BD — no hay SQL manual.
+ *
+ * Comercio es la entidad principal del sistema. Tiene una relación
+ * OneToMany con Sucursal: un comercio puede tener muchas sucursales.
+ *
+ * IMPORTANTE: las entidades NUNCA se exponen directamente en la API.
+ * Para eso existen los DTOs en la carpeta dto/.
+ */
+
 import jakarta.persistence.*;
 import java.util.List;
 
@@ -18,6 +34,7 @@ public class Comercio {
     private String telefono;
     private boolean activo;
 
+    // Un comercio tiene muchas sucursales. Si se elimina el comercio, se eliminan sus sucursales.
     @OneToMany(mappedBy = "comercio", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Sucursal> sucursales;
 

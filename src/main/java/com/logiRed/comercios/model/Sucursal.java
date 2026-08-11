@@ -1,5 +1,11 @@
 package com.logiRed.comercios.model;
 
+/**
+ * Entidad JPA que representa una sucursal de un comercio.
+ * Cada sucursal pertenece a un comercio (relación ManyToOne).
+ * Se mapea a la tabla "sucursales" en la BD.
+ */
+
 import jakarta.persistence.*;
 
 @Entity
@@ -14,6 +20,7 @@ public class Sucursal {
     private String direccion;
     private boolean activa;
 
+    // Cada sucursal pertenece a un comercio — clave foránea comercio_id en la tabla
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "comercio_id")
     private Comercio comercio;
