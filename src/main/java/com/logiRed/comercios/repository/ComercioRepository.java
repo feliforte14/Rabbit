@@ -26,6 +26,10 @@ public class ComercioRepository {
         return em.find(Comercio.class, id);
     }
 
+    public void eliminar(Comercio comercio) {
+        em.remove(em.contains(comercio) ? comercio : em.merge(comercio));
+    }
+
     public List<Sucursal> listarSucursalesActivas(Long idComercio) {
         return em.createQuery(
                 "SELECT s FROM Sucursal s WHERE s.comercio.id = :idComercio AND s.activa = true",
