@@ -1,4 +1,4 @@
-package com.logiRed.comercios.model;
+package com.logiRed.comercios.datos.model;
 
 /**
  * Entidad JPA que representa una sucursal de un comercio.

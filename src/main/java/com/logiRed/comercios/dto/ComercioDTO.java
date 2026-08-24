@@ -14,7 +14,7 @@ package com.logiRed.comercios.dto;
  * y viceversa. Las capas quedan desacopladas.
  */
 
-import com.logiRed.comercios.model.Comercio;
+import com.logiRed.comercios.datos.model.Comercio;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -46,4 +46,15 @@ public class ComercioDTO {
         }
         return dto;
     }
+
+    // Getters JavaBean: los requiere Expression Language (JSF) para leer
+    // estos campos desde las vistas .xhtml (p. ej. #{c.nombre})
+    public Long getId() { return id; }
+    public String getNombre() { return nombre; }
+    public String getRazonSocial() { return razonSocial; }
+    public String getCuit() { return cuit; }
+    public String getEmail() { return email; }
+    public String getTelefono() { return telefono; }
+    public boolean isActivo() { return activo; }
+    public List<SucursalDTO> getSucursales() { return sucursales; }
 }
