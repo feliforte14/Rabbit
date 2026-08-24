@@ -6,7 +6,7 @@ package com.logiRed.comercios.dto;
  * Se usa dentro de ComercioDTO para listar las sucursales de un comercio.
  */
 
-import com.logiRed.comercios.model.Sucursal;
+import com.logiRed.comercios.datos.model.Sucursal;
 
 public class SucursalDTO {
 
@@ -24,4 +24,9 @@ public class SucursalDTO {
         dto.activa = s.isActiva();
         return dto;
     }
+
+    public Long getId() { return id; }
+    public String getNombre() { return nombre; }
+    public String getDireccion() { return direccion; }
+    public boolean isActiva() { return activa; }
 }

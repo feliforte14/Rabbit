@@ -1,11 +1,11 @@
-package com.logiRed.comercios.service;
+package com.logiRed.comercios.negocio;
 
 /**
- * CAPA SERVICE (Lógica de Negocio - EJB Stateless)
+ * CAPA DE NEGOCIO (EJB Stateless)
  *
  * Esta carpeta contiene la lógica de negocio del sistema.
  * El Service orquesta las operaciones: valida, transforma datos y delega
- * el acceso a la BD al Repository — nunca toca JPA directamente.
+ * el acceso a la BD a la capa de Datos — nunca toca JPA directamente.
  *
  * @Stateless significa que el servidor de aplicaciones (WildFly) administra
  * un pool de instancias de esta clase. Cada request toma una instancia libre,
@@ -20,8 +20,8 @@ package com.logiRed.comercios.service;
  */
 
 import com.logiRed.comercios.dto.*;
-import com.logiRed.comercios.model.Comercio;
-import com.logiRed.comercios.repository.ComercioRepository;
+import com.logiRed.comercios.datos.model.Comercio;
+import com.logiRed.comercios.datos.ComercioRepository;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -73,6 +73,14 @@ public class ComercioService {
     // Devuelve el comercio como DTO (nunca expone la entidad directamente)
     public ComercioDTO obtenerComercio(Long idComercio) {
         return ComercioDTO.desde(obtenerOFallar(idComercio));
+    }
+
+    // Devuelve todos los comercios como DTO — usado por la vista de listado (JSF)
+    public List<ComercioDTO> listarTodos() {
+        return repository.listarTodos()
+                .stream()
+                .map(ComercioDTO::desde)
+                .collect(Collectors.toList());
     }
 
     // Devuelve solo las sucursales activas del comercio

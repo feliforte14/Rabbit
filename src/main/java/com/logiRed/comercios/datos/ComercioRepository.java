@@ -1,11 +1,11 @@
-package com.logiRed.comercios.repository;
+package com.logiRed.comercios.datos;
 
 /**
- * CAPA REPOSITORY (Patrón DAO - Data Access Object)
+ * CAPA DE DATOS (Patrón DAO - Data Access Object, sobre JPA)
  *
  * Esta carpeta contiene las clases que se comunican directamente con la base de datos.
  * Su única responsabilidad es persistir, buscar, actualizar y eliminar datos.
- * NO contiene lógica de negocio — eso le pertenece al Service.
+ * NO contiene lógica de negocio — eso le pertenece a la capa de Negocio.
  *
  * ComercioRepository usa JPA a través del EntityManager para operar sobre
  * las entidades Comercio y Sucursal sin escribir SQL manual.
@@ -14,8 +14,8 @@ package com.logiRed.comercios.repository;
  * o de JPA a otra tecnología, solo se toca esta capa.
  */
 
-import com.logiRed.comercios.model.Comercio;
-import com.logiRed.comercios.model.Sucursal;
+import com.logiRed.comercios.datos.model.Comercio;
+import com.logiRed.comercios.datos.model.Sucursal;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -41,6 +41,11 @@ public class ComercioRepository {
     // Busca un comercio por su ID — devuelve null si no existe
     public Comercio buscarPorId(Long id) {
         return em.find(Comercio.class, id);
+    }
+
+    // Lista todos los comercios registrados — usada por la vista de listado
+    public List<Comercio> listarTodos() {
+        return em.createQuery("SELECT c FROM Comercio c", Comercio.class).getResultList();
     }
 
     // Elimina físicamente un comercio de la BD

@@ -1,7 +1,7 @@
-package com.logiRed.comercios.model;
+package com.logiRed.comercios.datos.model;
 
 /**
- * CAPA MODEL (Entidad JPA)
+ * ENTIDAD JPA (dentro de la capa de Datos)
  *
  * Las clases en esta carpeta representan las tablas de la base de datos.
  * Cada instancia de Comercio corresponde a una fila en la tabla "comercios".

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Muestra el listado de comercios registrados y permite dar de baja
+    o eliminar cada uno. Se bindea al Managed Bean comercioBean
+    (ComercioBean.java) via Expression Language.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+<h:head>
+    <title>LogiRed · Comercios</title>
+</h:head>
+<h:body>
+    <h1>Comercios registrados</h1>
+
+    <h:messages globalOnly="false" showDetail="true" showSummary="true" style="color:green;" />
+
+    <h:form>
+        <h:dataTable value="#{comercioBean.comercios}" var="c" border="1"
+                     cellpadding="6" cellspacing="0">
+            <h:column>
+                <f:facet name="header">ID</f:facet>
+                #{c.id}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Nombre</f:facet>
+                #{c.nombre}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Razón Social</f:facet>
+                #{c.razonSocial}
+            </h:column>
+            <h:column>
+                <f:facet name="header">CUIT</f:facet>
+                #{c.cuit}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Activo</f:facet>
+                #{c.activo ? 'Sí' : 'No'}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Acciones</f:facet>
+                <h:commandButton value="Dar de baja" action="#{comercioBean.darDeBaja(c.id)}" />
+                <h:commandButton value="Eliminar" action="#{comercioBean.eliminar(c.id)}" />
+            </h:column>
+        </h:dataTable>
+    </h:form>
+
+    <h2>Registrar nuevo comercio</h2>
+    <h:form>
+        <h:panelGrid columns="2">
+            <h:outputLabel value="Nombre:" for="nombre" />
+            <h:inputText id="nombre" value="#{comercioBean.nuevoComercio.nombre}" required="true" />
+
+            <h:outputLabel value="Razón Social:" for="razonSocial" />
+            <h:inputText id="razonSocial" value="#{comercioBean.nuevoComercio.razonSocial}" required="true" />
+
+            <h:outputLabel value="CUIT:" for="cuit" />
+            <h:inputText id="cuit" value="#{comercioBean.nuevoComercio.cuit}" required="true" />
+
+            <h:outputLabel value="Email:" for="email" />
+            <h:inputText id="email" value="#{comercioBean.nuevoComercio.email}" />
+
+            <h:outputLabel value="Teléfono:" for="telefono" />
+            <h:inputText id="telefono" value="#{comercioBean.nuevoComercio.telefono}" />
+        </h:panelGrid>
+
+        <h:commandButton value="Registrar" action="#{comercioBean.registrar}" />
+    </h:form>
+</h:body>
+</html>
