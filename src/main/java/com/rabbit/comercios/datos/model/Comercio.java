@@ -1,4 +1,4 @@
-package com.logiRed.comercios.datos.model;
+package com.rabbit.comercios.datos.model;
 
 /**
  * ENTIDAD JPA (dentro de la capa de Datos)
@@ -12,7 +12,7 @@ package com.logiRed.comercios.datos.model;
  * Comercio es la entidad principal del sistema. Tiene una relación
  * OneToMany con Sucursal: un comercio puede tener muchas sucursales.
  *
- * IMPORTANTE: las entidades NUNCA se exponen directamente en la API.
+ * IMPORTANTE: las entidades NUNCA se muestran directamente en la vista.
  * Para eso existen los DTOs en la carpeta dto/.
  */
 

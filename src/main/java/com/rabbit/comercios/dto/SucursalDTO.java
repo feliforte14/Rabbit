@@ -1,12 +1,12 @@
-package com.logiRed.comercios.dto;
+package com.rabbit.comercios.dto;
 
 /**
  * DTO de Sucursal.
- * Representa los datos de una sucursal tal como se exponen en la API.
+ * Representa los datos de una sucursal tal como se muestran en la vista.
  * Se usa dentro de ComercioDTO para listar las sucursales de un comercio.
  */
 
-import com.logiRed.comercios.datos.model.Sucursal;
+import com.rabbit.comercios.datos.model.Sucursal;
 
 public class SucursalDTO {
 
@@ -15,7 +15,7 @@ public class SucursalDTO {
     public String direccion;
     public boolean activa;
 
-    // Convierte una entidad Sucursal en un DTO para la respuesta JSON
+    // Convierte una entidad Sucursal en un DTO para mostrar en la vista
     public static SucursalDTO desde(Sucursal s) {
         SucursalDTO dto = new SucursalDTO();
         dto.id = s.getId();

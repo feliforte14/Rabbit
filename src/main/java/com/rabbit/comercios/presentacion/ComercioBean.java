@@ -1,4 +1,4 @@
-package com.logiRed.comercios.presentacion;
+package com.rabbit.comercios.presentacion;
 
 /**
  * CAPA DE PRESENTACIÓN (Managed Bean - Jakarta Faces / JSF)
@@ -9,18 +9,18 @@ package com.logiRed.comercios.presentacion;
  * sobre los atributos públicos de este bean vía Expression Language (#{...}).
  *
  * @Named lo expone a las vistas como "comercioBean".
- * @ViewScoped mantiene el estado del bean mientras el usuario interactúa
- * con la misma vista (por ejemplo, mientras completa el formulario de alta),
- * y lo descarta al navegar a otra página — evita recargar todo en cada request
- * sin mantener el estado indefinidamente como haría @SessionScoped.
+ * @ViewScoped guarda el estado del bean solo mientras el usuario se queda
+ * en la misma página (por ejemplo, mientras completa el formulario), y lo
+ * descarta apenas navega a otra. Ni se recrea en cada clic, ni queda guardado
+ * para siempre como pasaría con @SessionScoped.
  *
  * Esta capa NO tiene lógica de negocio: valida formato mínimo de la UI
  * y delega toda decisión real a ComercioService.
  */
 
-import com.logiRed.comercios.dto.ComercioDTO;
-import com.logiRed.comercios.dto.DatosComercioDTO;
-import com.logiRed.comercios.negocio.ComercioService;
+import com.rabbit.comercios.dto.ComercioDTO;
+import com.rabbit.comercios.dto.DatosComercioDTO;
+import com.rabbit.comercios.negocio.ComercioService;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.application.FacesMessage;
@@ -40,7 +40,7 @@ public class ComercioBean implements Serializable {
 
     private List<ComercioDTO> comercios;
 
-    // Campos que se bindean con el formulario de alta (comercio-form.xhtml)
+    // Campos que se bindean con el formulario de alta (comercios.xhtml)
     private DatosComercioDTO nuevoComercio = new DatosComercioDTO();
 
     @PostConstruct

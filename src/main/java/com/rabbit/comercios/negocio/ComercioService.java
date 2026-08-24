@@ -1,4 +1,4 @@
-package com.logiRed.comercios.negocio;
+package com.rabbit.comercios.negocio;
 
 /**
  * CAPA DE NEGOCIO (EJB Stateless)
@@ -19,9 +19,9 @@ package com.logiRed.comercios.negocio;
  *   - IConsultaComercios: consultas de solo lectura
  */
 
-import com.logiRed.comercios.dto.*;
-import com.logiRed.comercios.datos.model.Comercio;
-import com.logiRed.comercios.datos.ComercioRepository;
+import com.rabbit.comercios.dto.*;
+import com.rabbit.comercios.datos.model.Comercio;
+import com.rabbit.comercios.datos.ComercioRepository;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;

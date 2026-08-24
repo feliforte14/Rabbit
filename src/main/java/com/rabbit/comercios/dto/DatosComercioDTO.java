@@ -1,17 +1,22 @@
-package com.logiRed.comercios.dto;
+package com.rabbit.comercios.dto;
 
 /**
- * DTO de entrada para actualizar los datos fiscales de un comercio existente.
- * Contiene solo los campos modificables fiscalmente — no incluye nombre ni ID.
- * Se usa en el PUT /comercios/{id}/datos-fiscales.
+ * DTO de entrada para registrar un comercio nuevo.
+ * Contiene los datos que el usuario completa en el formulario de alta
+ * (comercios.xhtml). No incluye el ID porque todavía no existe — lo asigna la BD.
  */
 
-public class DatosFiscalesDTO {
+public class DatosComercioDTO {
+    public String nombre;
     public String razonSocial;
     public String cuit;
     public String email;
     public String telefono;
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF)
+    // para leer y escribir estos campos desde las vistas .xhtml
+    public String getNombre() { return nombre; }
+    public void setNombre(String nombre) { this.nombre = nombre; }
     public String getRazonSocial() { return razonSocial; }
     public void setRazonSocial(String razonSocial) { this.razonSocial = razonSocial; }
     public String getCuit() { return cuit; }
