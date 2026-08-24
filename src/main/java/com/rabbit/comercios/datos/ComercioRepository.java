@@ -1,4 +1,4 @@
-package com.logiRed.comercios.datos;
+package com.rabbit.comercios.datos;
 
 /**
  * CAPA DE DATOS (Patrón DAO - Data Access Object, sobre JPA)
@@ -14,8 +14,8 @@ package com.logiRed.comercios.datos;
  * o de JPA a otra tecnología, solo se toca esta capa.
  */
 
-import com.logiRed.comercios.datos.model.Comercio;
-import com.logiRed.comercios.datos.model.Sucursal;
+import com.rabbit.comercios.datos.model.Comercio;
+import com.rabbit.comercios.datos.model.Sucursal;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;

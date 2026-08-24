@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    Muestra el listado de comercios registrados y permite dar de baja
-    o eliminar cada uno. Se bindea al Managed Bean comercioBean
-    (ComercioBean.java) via Expression Language.
+    Muestra el listado de comercios registrados (con botones para dar de
+    baja o eliminar cada uno) y, mas abajo, el formulario para registrar
+    uno nuevo. Se bindea al Managed Bean comercioBean (ComercioBean.java)
+    via Expression Language: por ejemplo #{comercioBean.comercios}.
 -->
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core">
 <h:head>
-    <title>LogiRed · Comercios</title>
+    <title>Rabbit · Comercios</title>
 </h:head>
 <h:body>
     <h1>Comercios registrados</h1>
