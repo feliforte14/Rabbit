@@ -45,6 +45,12 @@
                 #{c.activo ? 'Sí' : 'No'}
             </h:column>
             <h:column>
+                <f:facet name="header">Sucursales</f:facet>
+                <h:link outcome="sucursales" value="Ver sucursales">
+                    <f:param name="idComercio" value="#{c.id}" />
+                </h:link>
+            </h:column>
+            <h:column>
                 <f:facet name="header">Acciones</f:facet>
                 <h:commandButton value="Dar de baja" action="#{comercioBean.darDeBaja(c.id)}"
                                  rendered="#{c.activo}" />

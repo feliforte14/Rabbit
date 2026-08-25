@@ -72,4 +72,29 @@ public class ComercioRepository {
                 .setParameter("idComercio", idComercio)
                 .getResultList();
     }
+
+    // Lista todas las sucursales de un comercio (activas e inactivas) — pantalla de administración
+    public List<Sucursal> listarSucursalesDeComercio(Long idComercio) {
+        return em.createQuery(
+                "SELECT s FROM Sucursal s WHERE s.comercio.id = :idComercio ORDER BY s.id",
+                Sucursal.class)
+                .setParameter("idComercio", idComercio)
+                .getResultList();
+    }
+
+    // Persiste una sucursal nueva
+    public Sucursal guardarSucursal(Sucursal sucursal) {
+        em.persist(sucursal);
+        return sucursal;
+    }
+
+    // Busca una sucursal por su ID — devuelve null si no existe
+    public Sucursal buscarSucursalPorId(Long id) {
+        return em.find(Sucursal.class, id);
+    }
+
+    // Actualiza una sucursal existente
+    public Sucursal actualizarSucursal(Sucursal sucursal) {
+        return em.merge(sucursal);
+    }
 }

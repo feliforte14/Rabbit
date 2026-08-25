@@ -21,6 +21,7 @@ package com.rabbit.comercios.negocio;
 
 import com.rabbit.comercios.dto.*;
 import com.rabbit.comercios.datos.model.Comercio;
+import com.rabbit.comercios.datos.model.Sucursal;
 import com.rabbit.comercios.datos.ComercioRepository;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
@@ -108,12 +109,19 @@ public class ComercioService {
         }
     }
 
-    // Baja lógica: el comercio sigue en la BD pero activo=false
+    // Baja lógica: el comercio sigue en la BD pero activo=false.
+    // Arrastra la baja a sus sucursales — una sucursal no puede quedar
+    // activa si el comercio dueño no lo está.
     @Transactional
     public void darDeBajaComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
         comercio.setActivo(false);
         repository.actualizar(comercio);
+
+        for (Sucursal sucursal : repository.listarSucursalesActivas(idComercio)) {
+            sucursal.setActiva(false);
+            repository.actualizarSucursal(sucursal);
+        }
     }
 
     // Reactiva un comercio dado de baja previamente — vuelve a activo=true
@@ -122,6 +130,76 @@ public class ComercioService {
         Comercio comercio = obtenerOFallar(idComercio);
         comercio.setActivo(true);
         repository.actualizar(comercio);
+    }
+
+    // --- Sucursales (Comercios es dueño de sus sucursales) ---
+
+    // Da de alta una sucursal nueva sobre un comercio existente
+    @Transactional
+    public Long registrarSucursal(Long idComercio, DatosSucursalDTO datos) {
+        Comercio comercio = obtenerOFallar(idComercio);
+        if (!comercio.isActivo()) {
+            throw new ValidacionException("No se pueden agregar sucursales a un comercio dado de baja");
+        }
+        validarNombreSucursal(datos.nombre);
+        validarDireccionSucursal(datos.direccion);
+
+        Sucursal sucursal = new Sucursal();
+        sucursal.setNombre(datos.nombre.trim());
+        sucursal.setDireccion(datos.direccion.trim());
+        sucursal.setActiva(true);
+        sucursal.setComercio(comercio);
+        return repository.guardarSucursal(sucursal).getId();
+    }
+
+    // Baja lógica de una sucursal — sigue en la BD pero activa=false
+    @Transactional
+    public void darDeBajaSucursal(Long idSucursal) {
+        Sucursal sucursal = obtenerSucursalOFallar(idSucursal);
+        sucursal.setActiva(false);
+        repository.actualizarSucursal(sucursal);
+    }
+
+    // Reactiva una sucursal dada de baja previamente. No tiene sentido si
+    // el comercio dueño sigue de baja — primero hay que reactivar el comercio.
+    @Transactional
+    public void reactivarSucursal(Long idSucursal) {
+        Sucursal sucursal = obtenerSucursalOFallar(idSucursal);
+        if (!sucursal.getComercio().isActivo()) {
+            throw new ValidacionException(
+                    "No se puede reactivar la sucursal porque el comercio está dado de baja. Reactive el comercio primero.");
+        }
+        sucursal.setActiva(true);
+        repository.actualizarSucursal(sucursal);
+    }
+
+    // Devuelve todas las sucursales de un comercio (activas e inactivas) — pantalla de administración
+    public List<SucursalDTO> listarSucursalesDeComercio(Long idComercio) {
+        obtenerOFallar(idComercio);
+        return repository.listarSucursalesDeComercio(idComercio)
+                .stream()
+                .map(SucursalDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    private void validarNombreSucursal(String nombre) {
+        if (nombre == null || nombre.isBlank()) {
+            throw new ValidacionException("El nombre de la sucursal es obligatorio");
+        }
+    }
+
+    private void validarDireccionSucursal(String direccion) {
+        if (direccion == null || direccion.isBlank()) {
+            throw new ValidacionException("La dirección de la sucursal es obligatoria");
+        }
+    }
+
+    private Sucursal obtenerSucursalOFallar(Long id) {
+        Sucursal sucursal = repository.buscarSucursalPorId(id);
+        if (sucursal == null) {
+            throw new ValidacionException("Sucursal no encontrada: " + id);
+        }
+        return sucursal;
     }
 
     // IConsultaComercios
