@@ -11,11 +11,15 @@
       xmlns:f="jakarta.faces.core">
 <h:head>
     <title>Rabbit · Comercios</title>
+    <style>
+        .mensaje-error { color: red; }
+        .mensaje-info { color: green; }
+    </style>
 </h:head>
 <h:body>
     <h1>Comercios registrados</h1>
 
-    <h:messages globalOnly="false" showDetail="true" showSummary="true" style="color:green;" />
+    <h:messages globalOnly="false" showDetail="true" showSummary="true" errorClass="mensaje-error" infoClass="mensaje-info" />
 
     <h:form>
         <h:dataTable value="#{comercioBean.comercios}" var="c" border="1"
@@ -42,8 +46,11 @@
             </h:column>
             <h:column>
                 <f:facet name="header">Acciones</f:facet>
-                <h:commandButton value="Dar de baja" action="#{comercioBean.darDeBaja(c.id)}" />
-                <h:commandButton value="Eliminar" action="#{comercioBean.eliminar(c.id)}" />
+                <h:commandButton value="Dar de baja" action="#{comercioBean.darDeBaja(c.id)}"
+                                 rendered="#{c.activo}" />
+                <h:commandButton value="Eliminar" action="#{comercioBean.eliminar(c.id)}"
+                                  rendered="#{not c.activo}"
+                                  onclick="return confirm('¿Eliminar definitivamente este comercio y todas sus sucursales? Esta acción no se puede deshacer.');" />
             </h:column>
         </h:dataTable>
     </h:form>
