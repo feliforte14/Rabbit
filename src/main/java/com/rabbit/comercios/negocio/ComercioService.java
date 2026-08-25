@@ -39,10 +39,15 @@ public class ComercioService {
     // Crea un comercio nuevo y devuelve su ID asignado por la BD
     @Transactional
     public Long registrarComercio(DatosComercioDTO datos) {
+        validarNombre(datos.nombre);
+        validarRazonSocial(datos.razonSocial);
+        validarCuit(datos.cuit, null);
+        validarEmail(datos.email);
+
         Comercio comercio = new Comercio();
-        comercio.setNombre(datos.nombre);
-        comercio.setRazonSocial(datos.razonSocial);
-        comercio.setCuit(datos.cuit);
+        comercio.setNombre(datos.nombre.trim());
+        comercio.setRazonSocial(datos.razonSocial.trim());
+        comercio.setCuit(datos.cuit.trim());
         comercio.setEmail(datos.email);
         comercio.setTelefono(datos.telefono);
         comercio.setActivo(true);
@@ -53,11 +58,54 @@ public class ComercioService {
     @Transactional
     public void actualizarDatosFiscales(Long idComercio, DatosFiscalesDTO datos) {
         Comercio comercio = obtenerOFallar(idComercio);
-        comercio.setRazonSocial(datos.razonSocial);
-        comercio.setCuit(datos.cuit);
+        validarRazonSocial(datos.razonSocial);
+        validarCuit(datos.cuit, idComercio);
+        validarEmail(datos.email);
+
+        comercio.setRazonSocial(datos.razonSocial.trim());
+        comercio.setCuit(datos.cuit.trim());
         comercio.setEmail(datos.email);
         comercio.setTelefono(datos.telefono);
         repository.actualizar(comercio);
+    }
+
+    // --- Validaciones de negocio ---
+    // Se centralizan acá (no en el Bean ni en la vista) porque son reglas del
+    // dominio: deben cumplirse sin importar desde dónde se invoque el Service.
+
+    private static final java.util.regex.Pattern PATRON_CUIT =
+            java.util.regex.Pattern.compile("^\\d{2}-?\\d{8}-?\\d$");
+    private static final java.util.regex.Pattern PATRON_EMAIL =
+            java.util.regex.Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
+    private void validarNombre(String nombre) {
+        if (nombre == null || nombre.isBlank()) {
+            throw new IllegalArgumentException("El nombre del comercio es obligatorio");
+        }
+    }
+
+    private void validarRazonSocial(String razonSocial) {
+        if (razonSocial == null || razonSocial.isBlank()) {
+            throw new IllegalArgumentException("La razón social es obligatoria");
+        }
+    }
+
+    private void validarCuit(String cuit, Long idComercioActual) {
+        if (cuit == null || cuit.isBlank()) {
+            throw new IllegalArgumentException("El CUIT es obligatorio");
+        }
+        if (!PATRON_CUIT.matcher(cuit.trim()).matches()) {
+            throw new IllegalArgumentException("El CUIT debe tener el formato XX-XXXXXXXX-X (11 dígitos)");
+        }
+        if (repository.existeCuit(cuit.trim(), idComercioActual)) {
+            throw new IllegalArgumentException("Ya existe un comercio registrado con el CUIT " + cuit);
+        }
+    }
+
+    private void validarEmail(String email) {
+        if (email != null && !email.isBlank() && !PATRON_EMAIL.matcher(email.trim()).matches()) {
+            throw new IllegalArgumentException("El email tiene un formato inválido");
+        }
     }
 
     // Baja lógica: el comercio sigue en la BD pero activo=false
@@ -97,10 +145,17 @@ public class ComercioService {
         return comercio != null && comercio.isActivo();
     }
 
-    // Eliminación física — borra el registro de la BD permanentemente
+    // Eliminación física — borra el registro de la BD permanentemente,
+    // junto con todas sus sucursales (cascade). Para evitar pérdidas de
+    // datos accidentales, solo se permite si el comercio ya fue dado de
+    // baja (activo=false) previamente.
     @Transactional
     public void eliminarComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
+        if (comercio.isActivo()) {
+            throw new IllegalStateException(
+                    "No se puede eliminar un comercio activo. Debe darse de baja primero.");
+        }
         repository.eliminar(comercio);
     }
 

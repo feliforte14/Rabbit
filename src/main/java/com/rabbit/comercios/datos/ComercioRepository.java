@@ -48,6 +48,17 @@ public class ComercioRepository {
         return em.createQuery("SELECT c FROM Comercio c", Comercio.class).getResultList();
     }
 
+    // Indica si ya existe otro comercio con ese CUIT (excluyendo idAExcluir, útil al actualizar)
+    public boolean existeCuit(String cuit, Long idAExcluir) {
+        String jpql = "SELECT COUNT(c) FROM Comercio c WHERE c.cuit = :cuit"
+                + (idAExcluir != null ? " AND c.id <> :idAExcluir" : "");
+        var query = em.createQuery(jpql, Long.class).setParameter("cuit", cuit);
+        if (idAExcluir != null) {
+            query.setParameter("idAExcluir", idAExcluir);
+        }
+        return query.getSingleResult() > 0;
+    }
+
     // Elimina físicamente un comercio de la BD
     public void eliminar(Comercio comercio) {
         em.remove(em.contains(comercio) ? comercio : em.merge(comercio));

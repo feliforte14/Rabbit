@@ -49,22 +49,34 @@ public class ComercioBean implements Serializable {
     }
 
     public void registrar() {
-        service.registrarComercio(nuevoComercio);
-        mensaje(FacesMessage.SEVERITY_INFO, "Comercio registrado correctamente");
-        nuevoComercio = new DatosComercioDTO();
-        cargar();
+        try {
+            service.registrarComercio(nuevoComercio);
+            mensaje(FacesMessage.SEVERITY_INFO, "Comercio registrado correctamente");
+            nuevoComercio = new DatosComercioDTO();
+            cargar();
+        } catch (IllegalArgumentException e) {
+            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        }
     }
 
     public void darDeBaja(Long id) {
-        service.darDeBajaComercio(id);
-        mensaje(FacesMessage.SEVERITY_INFO, "Comercio dado de baja");
-        cargar();
+        try {
+            service.darDeBajaComercio(id);
+            mensaje(FacesMessage.SEVERITY_INFO, "Comercio dado de baja");
+            cargar();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        }
     }
 
     public void eliminar(Long id) {
-        service.eliminarComercio(id);
-        mensaje(FacesMessage.SEVERITY_INFO, "Comercio eliminado");
-        cargar();
+        try {
+            service.eliminarComercio(id);
+            mensaje(FacesMessage.SEVERITY_INFO, "Comercio eliminado");
+            cargar();
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        }
     }
 
     private void mensaje(FacesMessage.Severity severidad, String texto) {
