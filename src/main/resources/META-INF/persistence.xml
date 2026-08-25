@@ -4,10 +4,42 @@
              xsi:schemaLocation="https://jakarta.ee/xml/ns/persistence https://jakarta.ee/xml/ns/persistence/persistence_3_0.xsd"
              version="3.0">
 
+    <!--
+        comerciosPU: unidad de persistencia usada por ComercioRepository
+        (ver @PersistenceContext(unitName = "comerciosPU") en esa clase).
+
+        transaction-type="JTA": las transacciones las administra el
+        contenedor (WildFly), no la aplicación. Por eso ComercioService
+        no abre/cierra transacciones manualmente — le alcanza con anotar
+        sus métodos de escritura con @Transactional y el contenedor hace
+        commit o rollback automáticamente al terminar el método.
+    -->
     <persistence-unit name="comerciosPU" transaction-type="JTA">
-        <jta-data-source>java:jboss/datasources/ExampleDS</jta-data-source>
+        <!--
+            Datasource JNDI configurado en WildFly (standalone.xml /
+            módulo del driver). Apunta a la base de datos real del
+            proyecto — no es una base en memoria de prueba.
+        -->
+        <jta-data-source>java:jboss/datasources/RabbitDS</jta-data-source>
         <properties>
-            <property name="jakarta.persistence.schema-generation.database.action" value="drop-and-create"/>
+            <!--
+                hibernate.hbm2ddl.auto=update: al arrancar, Hibernate compara
+                las entidades (@Entity) con las tablas existentes y aplica
+                solo los cambios que faltan (crea tablas/columnas nuevas).
+                NUNCA borra columnas ni datos existentes.
+
+                Antes se usaba "drop-and-create", que borraba y recreaba
+                todo el esquema en cada redeploy — perfecto para probar
+                rápido en desarrollo, pero destructivo: cualquier dato
+                cargado se perdía al reiniciar. Se cambió a "update" para
+                poder conservar los datos entre despliegues.
+
+                Nota: "update" tampoco es ideal para producción real (no
+                versiona el esquema ni permite revertir cambios) — para eso
+                se usarían migraciones explícitas (Flyway/Liquibase). Para
+                el alcance de este proyecto es suficiente.
+            -->
+            <property name="hibernate.hbm2ddl.auto" value="update"/>
         </properties>
     </persistence-unit>
 

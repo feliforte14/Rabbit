@@ -37,7 +37,15 @@ public class ComercioService {
 
     // IRegistroComercios
 
-    // Crea un comercio nuevo y devuelve su ID asignado por la BD
+    /**
+     * Crea un comercio nuevo. Valida los datos de negocio (ver métodos
+     * validar*) antes de tocar la BD; si alguna validación falla, no se
+     * persiste nada — la excepción interrumpe el método antes del guardar.
+     *
+     * @param datos datos ingresados en el formulario de alta
+     * @return el ID asignado por la BD al nuevo comercio
+     * @throws ValidacionException si algún dato es inválido o el CUIT ya existe
+     */
     @Transactional
     public Long registrarComercio(DatosComercioDTO datos) {
         validarNombre(datos.nombre);
@@ -55,7 +63,14 @@ public class ComercioService {
         return repository.guardar(comercio).getId();
     }
 
-    // Actualiza solo los campos fiscales sin tocar el nombre
+    /**
+     * Actualiza solo los campos fiscales de un comercio existente (razón
+     * social, CUIT, email, teléfono) sin tocar el nombre comercial.
+     *
+     * @param idComercio ID del comercio a actualizar
+     * @param datos nuevos datos fiscales
+     * @throws ValidacionException si el comercio no existe o los datos son inválidos
+     */
     @Transactional
     public void actualizarDatosFiscales(Long idComercio, DatosFiscalesDTO datos) {
         Comercio comercio = obtenerOFallar(idComercio);

@@ -23,6 +23,8 @@ import java.util.List;
 @Table(name = "comercios")
 public class Comercio {
 
+    // GenerationType.AUTO: la estrategia de generación del ID (secuencia,
+    // identity, etc.) queda a criterio del proveedor JPA/motor de BD.
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
@@ -32,9 +34,23 @@ public class Comercio {
     private String cuit;
     private String email;
     private String telefono;
+
+    // Baja lógica: false = dado de baja, sigue en la BD pero no opera.
+    // Ver ComercioService.darDeBajaComercio / reactivarComercio.
     private boolean activo;
 
-    // Un comercio tiene muchas sucursales. Si se elimina el comercio, se eliminan sus sucursales.
+    // Relación inversa (el dueño de la FK es Sucursal.comercio, ver @JoinColumn allá):
+    //  - mappedBy = "comercio": le dice a JPA que no gestione una columna
+    //    propia para esta relación, que ya existe del lado de Sucursal.
+    //  - cascade = CascadeType.ALL: cualquier operación de persistencia
+    //    sobre el Comercio (sobre todo remove) se propaga a sus sucursales.
+    //    Esto es lo que hace que eliminar un comercio borre en cascada
+    //    todas sus sucursales — por eso ComercioService.eliminarComercio
+    //    exige que el comercio ya esté dado de baja antes de permitirlo.
+    //  - fetch = FetchType.LAZY: las sucursales NO se cargan de la BD hasta
+    //    que se llama a getSucursales() (o se accede a la lista). Evita
+    //    traer sucursales de más en consultas que solo necesitan datos
+    //    del comercio (p. ej. el listado de comercios.xhtml).
     @OneToMany(mappedBy = "comercio", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Sucursal> sucursales;
 
