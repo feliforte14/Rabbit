@@ -21,6 +21,7 @@ package com.rabbit.comercios.presentacion;
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.dto.DatosComercioDTO;
 import com.rabbit.comercios.negocio.ComercioService;
+import com.rabbit.comercios.negocio.ValidacionException;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.faces.application.FacesMessage;
@@ -54,7 +55,7 @@ public class ComercioBean implements Serializable {
             mensaje(FacesMessage.SEVERITY_INFO, "Comercio registrado correctamente");
             nuevoComercio = new DatosComercioDTO();
             cargar();
-        } catch (IllegalArgumentException e) {
+        } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
         }
     }
@@ -64,7 +65,17 @@ public class ComercioBean implements Serializable {
             service.darDeBajaComercio(id);
             mensaje(FacesMessage.SEVERITY_INFO, "Comercio dado de baja");
             cargar();
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (ValidacionException e) {
+            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        }
+    }
+
+    public void reactivar(Long id) {
+        try {
+            service.reactivarComercio(id);
+            mensaje(FacesMessage.SEVERITY_INFO, "Comercio reactivado");
+            cargar();
+        } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
         }
     }
@@ -74,7 +85,7 @@ public class ComercioBean implements Serializable {
             service.eliminarComercio(id);
             mensaje(FacesMessage.SEVERITY_INFO, "Comercio eliminado");
             cargar();
-        } catch (IllegalArgumentException | IllegalStateException e) {
+        } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
         }
     }
