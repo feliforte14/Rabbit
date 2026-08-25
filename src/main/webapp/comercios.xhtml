@@ -19,7 +19,7 @@
 <h:body>
     <h1>Comercios registrados</h1>
 
-    <h:messages globalOnly="false" showDetail="true" showSummary="true" errorClass="mensaje-error" infoClass="mensaje-info" />
+    <h:messages globalOnly="false" showDetail="false" showSummary="true" errorClass="mensaje-error" infoClass="mensaje-info" />
 
     <h:form>
         <h:dataTable value="#{comercioBean.comercios}" var="c" border="1"
@@ -48,6 +48,8 @@
                 <f:facet name="header">Acciones</f:facet>
                 <h:commandButton value="Dar de baja" action="#{comercioBean.darDeBaja(c.id)}"
                                  rendered="#{c.activo}" />
+                <h:commandButton value="Reactivar" action="#{comercioBean.reactivar(c.id)}"
+                                 rendered="#{not c.activo}" />
                 <h:commandButton value="Eliminar" action="#{comercioBean.eliminar(c.id)}"
                                   rendered="#{not c.activo}"
                                   onclick="return confirm('¿Eliminar definitivamente este comercio y todas sus sucursales? Esta acción no se puede deshacer.');" />

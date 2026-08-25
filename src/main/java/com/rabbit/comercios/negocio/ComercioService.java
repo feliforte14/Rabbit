@@ -80,31 +80,31 @@ public class ComercioService {
 
     private void validarNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) {
-            throw new IllegalArgumentException("El nombre del comercio es obligatorio");
+            throw new ValidacionException("El nombre del comercio es obligatorio");
         }
     }
 
     private void validarRazonSocial(String razonSocial) {
         if (razonSocial == null || razonSocial.isBlank()) {
-            throw new IllegalArgumentException("La razón social es obligatoria");
+            throw new ValidacionException("La razón social es obligatoria");
         }
     }
 
     private void validarCuit(String cuit, Long idComercioActual) {
         if (cuit == null || cuit.isBlank()) {
-            throw new IllegalArgumentException("El CUIT es obligatorio");
+            throw new ValidacionException("El CUIT es obligatorio");
         }
         if (!PATRON_CUIT.matcher(cuit.trim()).matches()) {
-            throw new IllegalArgumentException("El CUIT debe tener el formato XX-XXXXXXXX-X (11 dígitos)");
+            throw new ValidacionException("El CUIT debe tener el formato XX-XXXXXXXX-X (11 dígitos)");
         }
         if (repository.existeCuit(cuit.trim(), idComercioActual)) {
-            throw new IllegalArgumentException("Ya existe un comercio registrado con el CUIT " + cuit);
+            throw new ValidacionException("Ya existe un comercio registrado con el CUIT " + cuit);
         }
     }
 
     private void validarEmail(String email) {
         if (email != null && !email.isBlank() && !PATRON_EMAIL.matcher(email.trim()).matches()) {
-            throw new IllegalArgumentException("El email tiene un formato inválido");
+            throw new ValidacionException("El email tiene un formato inválido");
         }
     }
 
@@ -113,6 +113,14 @@ public class ComercioService {
     public void darDeBajaComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
         comercio.setActivo(false);
+        repository.actualizar(comercio);
+    }
+
+    // Reactiva un comercio dado de baja previamente — vuelve a activo=true
+    @Transactional
+    public void reactivarComercio(Long idComercio) {
+        Comercio comercio = obtenerOFallar(idComercio);
+        comercio.setActivo(true);
         repository.actualizar(comercio);
     }
 
@@ -153,7 +161,7 @@ public class ComercioService {
     public void eliminarComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
         if (comercio.isActivo()) {
-            throw new IllegalStateException(
+            throw new ValidacionException(
                     "No se puede eliminar un comercio activo. Debe darse de baja primero.");
         }
         repository.eliminar(comercio);
@@ -163,7 +171,7 @@ public class ComercioService {
     private Comercio obtenerOFallar(Long id) {
         Comercio comercio = repository.buscarPorId(id);
         if (comercio == null) {
-            throw new IllegalArgumentException("Comercio no encontrado: " + id);
+            throw new ValidacionException("Comercio no encontrado: " + id);
         }
         return comercio;
     }
