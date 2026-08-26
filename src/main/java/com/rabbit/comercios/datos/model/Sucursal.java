@@ -1,10 +1,8 @@
 package com.rabbit.comercios.datos.model;
 
 /**
- * Entidad JPA que representa una sucursal de un comercio.
- * Cada sucursal pertenece a un comercio (relación ManyToOne — lado dueño
- * de la relación, ver Comercio.sucursales para el lado inverso).
- * Se mapea a la tabla "sucursales" en la BD.
+ * Entidad JPA: cada instancia es una fila de la tabla "sucursales".
+ * Cada sucursal pertenece a un comercio (relación ManyToOne).
  */
 
 import jakarta.persistence.*;
@@ -20,15 +18,13 @@ public class Sucursal {
     private String nombre;
     private String direccion;
 
-    // Baja lógica: false = dada de baja, sigue en la BD pero no opera.
-    // No puede quedar activa=true si el comercio dueño está inactivo
+    // Baja lógica: false = dada de baja (sigue en la BD pero no opera).
+    // No puede reactivarse si el comercio dueño sigue inactivo
     // (ver ComercioService.darDeBajaComercio / reactivarSucursal).
     private boolean activa;
 
-    // Lado dueño de la relación ManyToOne/OneToMany: acá vive físicamente
-    // la clave foránea comercio_id en la tabla "sucursales". fetch = LAZY
-    // evita traer el Comercio completo cada vez que se carga una Sucursal
-    // (solo se dispara la consulta si se llama a getComercio()).
+    // Acá vive la FK comercio_id. fetch LAZY: el Comercio se carga
+    // recién si se llama a getComercio(), no en cada consulta.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "comercio_id")
     private Comercio comercio;

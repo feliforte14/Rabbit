@@ -104,6 +104,49 @@ Para volver a desplegar después de un cambio de código:
 mvn clean package wildfly:redeploy
 ```
 
+## Arquitectura
+
+El proyecto sigue una arquitectura en 3 capas, con comunicación estrictamente
+unidireccional: **Presentación → Negocio → Datos**. Ninguna capa accede
+directo a una capa no adyacente (la Presentación nunca toca la base de
+datos, la capa de Datos nunca decide reglas de negocio).
+
+| Capa | Tecnología | Responsabilidad |
+|---|---|---|
+| **Presentación** | JSF (`@Named` + `@ViewScoped`) | Renderiza las vistas Facelets (`.xhtml`) y captura la entrada del usuario. No contiene reglas de negocio propias. |
+| **Negocio** | EJB `@Stateless` | Aplica las validaciones y reglas del dominio, orquesta las operaciones (`@Transactional`). No conoce detalles de la vista ni del motor de base de datos. |
+| **Datos** | JPA / Hibernate | Persiste y recupera información. Traduce entre objetos Java y filas de la tabla. |
+
+Cada componente de negocio (por ejemplo `comercios`) replica el mismo
+esqueleto de paquetes:
+
+```
+com.rabbit.comercios/
+├── presentacion/     ← Managed Beans JSF (ComercioBean, SucursalBean)
+├── negocio/          ← EJB (ComercioService, ValidacionException)
+├── datos/
+│   ├── model/         ← Entidades JPA (Comercio, Sucursal)
+│   └── ComercioRepository.java
+└── dto/               ← DTOs que viajan entre capas (ComercioDTO, SucursalDTO, ...)
+```
+
+### Por qué `model` y `dto` están separados
+
+- **`datos/model/`** contiene las **entidades JPA** (`Comercio`, `Sucursal`):
+  representan filas de la base de datos tal cual, con anotaciones de
+  persistencia (`@Entity`, `@OneToMany`, `@JoinColumn`) y relaciones lazy.
+  Están acopladas al motor de persistencia (Hibernate).
+- **`dto/`** contiene objetos planos (`ComercioDTO`, `SucursalDTO`, etc.) que
+  viajan entre capas, sobre todo hacia la Presentación. Las entidades **nunca**
+  se exponen directo a la vista: si `ComercioBean` trabajara con la entidad
+  `Comercio`, quedaría acoplado a detalles de Hibernate (por ejemplo, acceder
+  a una relación lazy fuera de una transacción tira `LazyInitializationException`),
+  y cualquier cambio en el modelo de datos rompería la vista.
+
+En resumen: `model` es "cómo se guarda", `dto` es "qué se muestra". Esta
+separación permite cambiar la capa de Datos (agregar una columna, una
+relación) sin tocar las vistas `.xhtml`.
+
 ## Funcionalidad disponible
 
 - Alta, baja lógica, reactivación y eliminación física de comercios
