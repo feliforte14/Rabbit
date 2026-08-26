@@ -1,19 +1,9 @@
 package com.rabbit.comercios.datos.model;
 
 /**
- * ENTIDAD JPA (dentro de la capa de Datos)
- *
- * Las clases en esta carpeta representan las tablas de la base de datos.
- * Cada instancia de Comercio corresponde a una fila en la tabla "comercios".
- *
- * JPA (Jakarta Persistence API) se encarga de traducir automáticamente
- * entre objetos Java y filas en la BD — no hay SQL manual.
- *
- * Comercio es la entidad principal del sistema. Tiene una relación
- * OneToMany con Sucursal: un comercio puede tener muchas sucursales.
- *
- * IMPORTANTE: las entidades NUNCA se muestran directamente en la vista.
- * Para eso existen los DTOs en la carpeta dto/.
+ * Entidad JPA: cada instancia es una fila de la tabla "comercios".
+ * Un comercio puede tener muchas sucursales (ver campo sucursales).
+ * No se expone directo a la vista: para eso están los DTOs (carpeta dto/).
  */
 
 import jakarta.persistence.*;
@@ -23,8 +13,7 @@ import java.util.List;
 @Table(name = "comercios")
 public class Comercio {
 
-    // GenerationType.AUTO: la estrategia de generación del ID (secuencia,
-    // identity, etc.) queda a criterio del proveedor JPA/motor de BD.
+    // AUTO: JPA elige cómo generar el ID (secuencia, identity, etc.)
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Long id;
@@ -35,22 +24,14 @@ public class Comercio {
     private String email;
     private String telefono;
 
-    // Baja lógica: false = dado de baja, sigue en la BD pero no opera.
+    // Baja lógica: false = dado de baja (sigue en la BD pero no opera).
     // Ver ComercioService.darDeBajaComercio / reactivarComercio.
     private boolean activo;
 
-    // Relación inversa (el dueño de la FK es Sucursal.comercio, ver @JoinColumn allá):
-    //  - mappedBy = "comercio": le dice a JPA que no gestione una columna
-    //    propia para esta relación, que ya existe del lado de Sucursal.
-    //  - cascade = CascadeType.ALL: cualquier operación de persistencia
-    //    sobre el Comercio (sobre todo remove) se propaga a sus sucursales.
-    //    Esto es lo que hace que eliminar un comercio borre en cascada
-    //    todas sus sucursales — por eso ComercioService.eliminarComercio
-    //    exige que el comercio ya esté dado de baja antes de permitirlo.
-    //  - fetch = FetchType.LAZY: las sucursales NO se cargan de la BD hasta
-    //    que se llama a getSucursales() (o se accede a la lista). Evita
-    //    traer sucursales de más en consultas que solo necesitan datos
-    //    del comercio (p. ej. el listado de comercios.xhtml).
+    // La FK vive del lado de Sucursal (mappedBy = "comercio"), acá solo
+    // se refleja. cascade ALL: borrar un comercio borra sus sucursales
+    // (por eso eliminarComercio exige que ya esté dado de baja).
+    // fetch LAZY: las sucursales se cargan recién cuando se piden.
     @OneToMany(mappedBy = "comercio", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Sucursal> sucursales;
 
