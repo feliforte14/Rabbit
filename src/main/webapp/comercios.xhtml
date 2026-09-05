@@ -5,84 +5,137 @@
     baja o eliminar cada uno) y, mas abajo, el formulario para registrar
     uno nuevo. Se bindea al Managed Bean comercioBean (ComercioBean.java)
     via Expression Language: por ejemplo #{comercioBean.comercios}.
+
+    El estilo visual vive aparte, en resources/rabbit/1_0/estilos.css
+    (recurso JSF versionado), linkeado con <h:outputStylesheet>. Es solo
+    CSS: no cambia ningun binding ni ninguna accion de los Managed Beans.
 -->
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core">
 <h:head>
     <title>Rabbit · Comercios</title>
-    <style>
-        .mensaje-error { color: red; }
-        .mensaje-info { color: green; }
-    </style>
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
 </h:head>
 <h:body>
-    <h1>Comercios registrados</h1>
+    <div class="container">
+        <h1>Comercios registrados</h1>
 
-    <h:messages globalOnly="false" showDetail="false" showSummary="true" errorClass="mensaje-error" infoClass="mensaje-info" />
+        <!--
+            globalOnly="true": aca SOLO se muestran los mensajes de negocio
+            (los que ComercioService lanza como ValidacionException y el Bean
+            publica con addMessage(null, ...)) y las confirmaciones de exito.
+            Los errores de cada campo se muestran inline, debajo del input
+            correspondiente, con <h:message for="..."> — ver el formulario.
+        -->
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
 
-    <h:form>
-        <h:dataTable value="#{comercioBean.comercios}" var="c" border="1"
-                     cellpadding="6" cellspacing="0">
-            <h:column>
-                <f:facet name="header">ID</f:facet>
-                #{c.id}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Nombre</f:facet>
-                #{c.nombre}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Razón Social</f:facet>
-                #{c.razonSocial}
-            </h:column>
-            <h:column>
-                <f:facet name="header">CUIT</f:facet>
-                #{c.cuit}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Activo</f:facet>
-                #{c.activo ? 'Sí' : 'No'}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Sucursales</f:facet>
-                <h:link outcome="sucursales" value="Ver sucursales">
-                    <f:param name="idComercio" value="#{c.id}" />
-                </h:link>
-            </h:column>
-            <h:column>
-                <f:facet name="header">Acciones</f:facet>
-                <h:commandButton value="Dar de baja" action="#{comercioBean.darDeBaja(c.id)}"
-                                 rendered="#{c.activo}" />
-                <h:commandButton value="Reactivar" action="#{comercioBean.reactivar(c.id)}"
-                                 rendered="#{not c.activo}" />
-                <h:commandButton value="Eliminar" action="#{comercioBean.eliminar(c.id)}"
-                                  rendered="#{not c.activo}"
-                                  onclick="return confirm('¿Eliminar definitivamente este comercio y todas sus sucursales? Esta acción no se puede deshacer.');" />
-            </h:column>
-        </h:dataTable>
-    </h:form>
+        <h:form id="formListado">
+            <h:dataTable value="#{comercioBean.comercios}" var="c"
+                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{c.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Nombre</f:facet>
+                    #{c.nombre}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Razón Social</f:facet>
+                    #{c.razonSocial}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">CUIT</f:facet>
+                    #{c.cuit}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Activo</f:facet>
+                    #{c.activo ? 'Sí' : 'No'}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Sucursales</f:facet>
+                    <h:link outcome="sucursales" value="Ver sucursales">
+                        <f:param name="idComercio" value="#{c.id}" />
+                    </h:link>
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Dar de baja" styleClass="btn btn-secondary"
+                                     action="#{comercioBean.darDeBaja(c.id)}"
+                                     rendered="#{c.activo}" />
+                    <h:commandButton value="Reactivar" styleClass="btn btn-secondary"
+                                     action="#{comercioBean.reactivar(c.id)}"
+                                     rendered="#{not c.activo}" />
+                    <h:commandButton value="Eliminar" styleClass="btn btn-danger"
+                                      action="#{comercioBean.eliminar(c.id)}"
+                                      rendered="#{not c.activo}"
+                                      onclick="return confirm('¿Eliminar definitivamente este comercio y todas sus sucursales? Esta acción no se puede deshacer.');" />
+                </h:column>
+            </h:dataTable>
+        </h:form>
 
-    <h2>Registrar nuevo comercio</h2>
-    <h:form>
-        <h:panelGrid columns="2">
-            <h:outputLabel value="Nombre:" for="nombre" />
-            <h:inputText id="nombre" value="#{comercioBean.nuevoComercio.nombre}" required="true" />
+        <h2>Registrar nuevo comercio</h2>
+        <!--
+            El form tiene id propio (formAlta). Si no se lo ponemos, JSF le
+            inventa uno tipo "j_idt36" — un numero inestable que cambia al
+            agregar o sacar componentes de la pagina, y que terminaba
+            filtrandose en los mensajes de error.
 
-            <h:outputLabel value="Razón Social:" for="razonSocial" />
-            <h:inputText id="razonSocial" value="#{comercioBean.nuevoComercio.razonSocial}" required="true" />
+            Cada input lleva:
+              - label:           nombre legible del campo, que JSF usa para
+                                 armar los mensajes en vez del client ID.
+              - requiredMessage: texto propio cuando el campo viene vacio,
+                                 en lugar del generico de JSF.
+            Y debajo, <h:message for="..."> muestra el error de ESE campo.
 
-            <h:outputLabel value="CUIT:" for="cuit" />
-            <h:inputText id="cuit" value="#{comercioBean.nuevoComercio.cuit}" required="true" />
+            El borde rojo del input invalido NO se resuelve en JSF sino con
+            CSS: .campo:has(.error-campo) input. h:message no renderiza nada
+            cuando el campo esta OK, asi que :has() solo matchea si hay error.
+        -->
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="nombre" value="Nombre" />
+                <h:inputText id="nombre" value="#{comercioBean.nuevoComercio.nombre}"
+                             required="true" label="Nombre"
+                             requiredMessage="Ingresá el nombre del comercio" />
+                <h:message for="nombre" styleClass="error-campo" />
+            </div>
 
-            <h:outputLabel value="Email:" for="email" />
-            <h:inputText id="email" value="#{comercioBean.nuevoComercio.email}" />
+            <div class="campo">
+                <h:outputLabel for="razonSocial" value="Razón Social" />
+                <h:inputText id="razonSocial" value="#{comercioBean.nuevoComercio.razonSocial}"
+                             required="true" label="Razón Social"
+                             requiredMessage="Ingresá la razón social" />
+                <h:message for="razonSocial" styleClass="error-campo" />
+            </div>
 
-            <h:outputLabel value="Teléfono:" for="telefono" />
-            <h:inputText id="telefono" value="#{comercioBean.nuevoComercio.telefono}" />
-        </h:panelGrid>
+            <div class="campo">
+                <h:outputLabel for="cuit" value="CUIT" />
+                <h:inputText id="cuit" value="#{comercioBean.nuevoComercio.cuit}"
+                             required="true" label="CUIT"
+                             requiredMessage="Ingresá el CUIT (formato XX-XXXXXXXX-X)" />
+                <h:message for="cuit" styleClass="error-campo" />
+            </div>
 
-        <h:commandButton value="Registrar" action="#{comercioBean.registrar}" />
-    </h:form>
+            <div class="campo">
+                <h:outputLabel for="email" value="Email" />
+                <h:inputText id="email" value="#{comercioBean.nuevoComercio.email}" label="Email" />
+                <h:message for="email" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="telefono" value="Teléfono" />
+                <h:inputText id="telefono" value="#{comercioBean.nuevoComercio.telefono}" label="Teléfono" />
+                <h:message for="telefono" styleClass="error-campo" />
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{comercioBean.registrar}" />
+            </div>
+        </h:form>
+    </div>
 </h:body>
 </html>

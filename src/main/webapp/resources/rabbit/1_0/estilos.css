@@ -1,0 +1,368 @@
+/*
+ * estilos.css - Capa de Presentacion (JSF/Facelets)
+ *
+ * Hoja de estilos compartida por comercios.xhtml y sucursales.xhtml.
+ * No toca Managed Beans, Services ni Repositories: es 100% presentacion.
+ *
+ * VERSIONADO DE RECURSOS
+ * Vive en resources/rabbit/1_0/ y se linkea con:
+ *     <h:outputStylesheet library="rabbit" name="estilos.css" />
+ * "rabbit" es la libreria y "1_0" su version. JSF genera una URL que
+ * incluye la version (?ln=rabbit&v=1_0), asi que al renombrar la carpeta
+ * a 1_1 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
+ * Sin esto, el navegador se queda con el CSS viejo cacheado aunque el
+ * WAR ya tenga el nuevo.
+ */
+
+/* ==================================================================
+   Tokens
+   ================================================================== */
+:root {
+    --azul: #2563eb;
+    --azul-oscuro: #1d4ed8;
+    --rojo: #dc2626;
+    --rojo-oscuro: #b91c1c;
+    --rojo-suave: #fef2f2;
+    --rojo-borde: #fca5a5;
+    --verde: #16a34a;
+    --verde-suave: #f0fdf4;
+    --verde-borde: #bbf7d0;
+
+    --fondo: #f1f5f9;
+    --superficie: #ffffff;
+    --texto: #0f172a;
+    --texto-suave: #475569;
+    --borde: #e2e8f0;
+
+    --radio: 10px;
+    --radio-chico: 6px;
+    --sombra: 0 1px 3px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+/* ==================================================================
+   Base
+   ================================================================== */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 2.5rem 1.5rem 4rem;
+    background: var(--fondo);
+    color: var(--texto);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+h1 {
+    font-size: 1.55rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0 0 1.5rem;
+    padding-bottom: 0.85rem;
+    border-bottom: 1px solid var(--borde);
+}
+
+h2 {
+    font-size: 1.15rem;
+    font-weight: 650;
+    letter-spacing: -0.005em;
+    margin: 2.75rem 0 1rem;
+}
+
+.enlace-volver {
+    display: inline-block;
+    margin-bottom: 1.25rem;
+    color: var(--azul);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.enlace-volver:hover {
+    text-decoration: underline;
+}
+
+/* ==================================================================
+   Mensajes globales (h:messages globalOnly="true")
+   Solo mensajes de NEGOCIO: los que ComercioService lanza como
+   ValidacionException y el Bean publica con addMessage(null, ...),
+   mas las confirmaciones de exito. Los errores de campo van inline
+   debajo de cada input (ver .error-campo).
+   ================================================================== */
+.mensajes {
+    list-style: none;
+    margin: 0 0 1.5rem;
+    padding: 0;
+}
+
+.mensaje-error,
+.mensaje-info {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.7rem;
+    padding: 0.85rem 1.05rem;
+    border-radius: var(--radio);
+    margin-bottom: 0.65rem;
+    font-size: 0.92rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+}
+
+/* Icono generado por CSS: sin librerias externas */
+.mensaje-error::before,
+.mensaje-info::before {
+    flex: 0 0 1.2rem;
+    height: 1.2rem;
+    border-radius: 50%;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1.2rem;
+    text-align: center;
+    color: #fff;
+}
+
+.mensaje-error {
+    color: #7f1d1d;
+    background: var(--rojo-suave);
+    border-color: var(--rojo-borde);
+}
+
+.mensaje-error::before {
+    content: "!";
+    background: var(--rojo);
+}
+
+.mensaje-info {
+    color: #14532d;
+    background: var(--verde-suave);
+    border-color: var(--verde-borde);
+}
+
+.mensaje-info::before {
+    content: "\2713";
+    background: var(--verde);
+}
+
+/* ==================================================================
+   Tablas de listado (h:dataTable)
+   ================================================================== */
+.tabla {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    overflow: hidden;
+    box-shadow: var(--sombra);
+}
+
+.tabla th {
+    background: var(--azul);
+    color: #fff;
+    text-align: left;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.tabla td {
+    padding: 0.7rem 1rem;
+    border-top: 1px solid var(--borde);
+    font-size: 0.92rem;
+    vertical-align: middle;
+}
+
+.tabla tbody tr:first-child td {
+    border-top: none;
+}
+
+.fila-par   { background: var(--superficie); }
+.fila-impar { background: #fbfcfe; }
+
+.tabla tbody tr:hover td {
+    background: #eff5ff;
+}
+
+.tabla a {
+    color: var(--azul);
+    font-weight: 500;
+}
+
+/* Columna de acciones: botones en fila, sin cortarse */
+.acciones {
+    white-space: nowrap;
+}
+
+.acciones .btn + .btn {
+    margin-left: 0.4rem;
+}
+
+/* ==================================================================
+   Formularios
+   Antes se maquetaban con <h:panelGrid columns="2">, que renderiza una
+   <table> real (herencia de JSF de los 2000). Ahora son <div> con
+   flexbox: se maqueta como en cualquier proyecto web moderno y queda
+   lugar para el mensaje de error debajo de cada campo.
+   ================================================================== */
+.formulario {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+    padding: 1.75rem;
+    max-width: 480px;
+}
+
+.campo {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    margin-bottom: 1.15rem;
+}
+
+.campo > label {
+    display: block;
+    margin-bottom: 0.35rem;
+    font-weight: 600;
+    font-size: 0.82rem;
+    color: var(--texto-suave);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.campo > input[type="text"] {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--texto);
+    background: #f8fafc;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.campo > input[type="text"]:focus {
+    outline: none;
+    border-color: var(--azul);
+    background: var(--superficie);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+/* Mensaje de error de UN campo puntual (h:message for="...").
+   display:block lo baja a su propia linea debajo del input, en vez de
+   quedar al costado — h:message renderiza un <span>, que es inline. */
+.error-campo {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--rojo-oscuro);
+    font-size: 0.83rem;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+.error-campo::before {
+    content: "\26A0";
+    margin-right: 0.35rem;
+}
+
+/* Campo invalido: borde rojo. Se resuelve 100% en CSS, sin tocar JSF.
+   <h:message> no renderiza nada cuando el campo esta OK, asi que
+   :has(.error-campo) solo matchea cuando ESE campo tiene un error. */
+.campo:has(.error-campo) > input[type="text"] {
+    border-color: var(--rojo);
+    background: var(--rojo-suave);
+}
+
+.campo:has(.error-campo) > input[type="text"]:focus {
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.form-acciones {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--borde);
+}
+
+/* ==================================================================
+   Botones (h:commandButton renderiza <input type="submit">)
+   ================================================================== */
+.btn {
+    display: inline-block;
+    padding: 0.55rem 1.1rem;
+    border: 1px solid transparent;
+    border-radius: var(--radio-chico);
+    font-size: 0.88rem;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.15s, border-color 0.15s;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--azul);
+    outline-offset: 2px;
+}
+
+.btn-primary {
+    background: var(--azul);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: var(--azul-oscuro);
+}
+
+.btn-secondary {
+    background: var(--superficie);
+    color: var(--texto-suave);
+    border-color: #cbd5e1;
+}
+
+.btn-secondary:hover {
+    background: #f1f5f9;
+    color: var(--texto);
+}
+
+.btn-danger {
+    background: var(--rojo);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background: var(--rojo-oscuro);
+}
+
+/* ==================================================================
+   Responsive
+   ================================================================== */
+@media (max-width: 640px) {
+    body {
+        padding: 1.5rem 1rem 3rem;
+    }
+
+    .formulario {
+        padding: 1.25rem;
+    }
+
+    .tabla {
+        display: block;
+        overflow-x: auto;
+    }
+}
