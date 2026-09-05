@@ -3,6 +3,10 @@
     VISTA (Facelet) - Capa de Presentacion.
     Administra las sucursales de un comercio puntual, recibido por
     query param (?idComercio=X). Se bindea a sucursalBean (SucursalBean.java).
+
+    El estilo visual vive aparte, en resources/rabbit/1_0/estilos.css
+    (recurso JSF versionado), linkeado con <h:outputStylesheet>. Es solo
+    CSS: no cambia ningun binding ni ninguna accion de los Managed Beans.
 -->
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
@@ -13,58 +17,73 @@
 </f:metadata>
 <h:head>
     <title>Rabbit · Sucursales</title>
-    <style>
-        .mensaje-error { color: red; }
-        .mensaje-info { color: green; }
-    </style>
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
 </h:head>
 <h:body>
-    <p><h:link outcome="comercios" value="&#8592; Volver a comercios" /></p>
+    <div class="container">
+        <p><h:link outcome="comercios" value="&#8592; Volver a comercios" styleClass="enlace-volver" /></p>
 
-    <h1>Sucursales de #{sucursalBean.comercio.nombre}</h1>
+        <h1>Sucursales de #{sucursalBean.comercio.nombre}</h1>
 
-    <h:messages globalOnly="false" showDetail="false" showSummary="true" errorClass="mensaje-error" infoClass="mensaje-info" />
+        <!-- Solo mensajes de negocio y confirmaciones; los errores de campo
+             van inline en el formulario de abajo (ver <h:message for="...">). -->
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
 
-    <h:form>
-        <h:dataTable value="#{sucursalBean.sucursales}" var="s" border="1"
-                     cellpadding="6" cellspacing="0">
-            <h:column>
-                <f:facet name="header">ID</f:facet>
-                #{s.id}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Nombre</f:facet>
-                #{s.nombre}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Dirección</f:facet>
-                #{s.direccion}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Activa</f:facet>
-                #{s.activa ? 'Sí' : 'No'}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Acciones</f:facet>
-                <h:commandButton value="Dar de baja" action="#{sucursalBean.darDeBaja(s.id)}"
-                                 rendered="#{s.activa}" />
-                <h:commandButton value="Reactivar" action="#{sucursalBean.reactivar(s.id)}"
-                                 rendered="#{not s.activa}" />
-            </h:column>
-        </h:dataTable>
-    </h:form>
+        <h:form id="formListado">
+            <h:dataTable value="#{sucursalBean.sucursales}" var="s"
+                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{s.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Nombre</f:facet>
+                    #{s.nombre}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Dirección</f:facet>
+                    #{s.direccion}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Activa</f:facet>
+                    #{s.activa ? 'Sí' : 'No'}
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Dar de baja" styleClass="btn btn-secondary"
+                                     action="#{sucursalBean.darDeBaja(s.id)}"
+                                     rendered="#{s.activa}" />
+                    <h:commandButton value="Reactivar" styleClass="btn btn-secondary"
+                                     action="#{sucursalBean.reactivar(s.id)}"
+                                     rendered="#{not s.activa}" />
+                </h:column>
+            </h:dataTable>
+        </h:form>
 
-    <h2>Agregar sucursal</h2>
-    <h:form>
-        <h:panelGrid columns="2">
-            <h:outputLabel value="Nombre:" for="nombre" />
-            <h:inputText id="nombre" value="#{sucursalBean.nuevaSucursal.nombre}" required="true" />
+        <h2>Agregar sucursal</h2>
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="nombre" value="Nombre" />
+                <h:inputText id="nombre" value="#{sucursalBean.nuevaSucursal.nombre}"
+                             required="true" label="Nombre"
+                             requiredMessage="Ingresá el nombre de la sucursal" />
+                <h:message for="nombre" styleClass="error-campo" />
+            </div>
 
-            <h:outputLabel value="Dirección:" for="direccion" />
-            <h:inputText id="direccion" value="#{sucursalBean.nuevaSucursal.direccion}" required="true" />
-        </h:panelGrid>
+            <div class="campo">
+                <h:outputLabel for="direccion" value="Dirección" />
+                <h:inputText id="direccion" value="#{sucursalBean.nuevaSucursal.direccion}"
+                             required="true" label="Dirección"
+                             requiredMessage="Ingresá la dirección de la sucursal" />
+                <h:message for="direccion" styleClass="error-campo" />
+            </div>
 
-        <h:commandButton value="Agregar sucursal" action="#{sucursalBean.registrar}" />
-    </h:form>
+            <div class="form-acciones">
+                <h:commandButton value="Agregar sucursal" styleClass="btn btn-primary" action="#{sucursalBean.registrar}" />
+            </div>
+        </h:form>
+    </div>
 </h:body>
 </html>
