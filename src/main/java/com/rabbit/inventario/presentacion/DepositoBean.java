@@ -7,7 +7,7 @@ package com.rabbit.inventario.presentacion;
 
 import com.rabbit.inventario.dto.DatosDepositoDTO;
 import com.rabbit.inventario.dto.DepositoDTO;
-import com.rabbit.inventario.negocio.InventarioService;
+import com.rabbit.inventario.negocio.IConsultaStock;
 import com.rabbit.inventario.negocio.ValidacionException;
 
 import jakarta.annotation.PostConstruct;
@@ -24,7 +24,7 @@ import java.util.List;
 public class DepositoBean implements Serializable {
 
     @Inject
-    private InventarioService service;
+    private IConsultaStock service;
 
     private List<DepositoDTO> depositos;
     private DatosDepositoDTO nuevoDeposito = new DatosDepositoDTO();
