@@ -294,10 +294,92 @@ h2 {
     box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
 }
 
+/* Los <select> (h:selectOneMenu) comparten el look de los inputs */
+.campo > select {
+    display: block;
+    width: 100%;
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    font-size: 0.95rem;
+    font-family: inherit;
+    color: var(--texto);
+    background: #f8fafc;
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.campo > select:focus {
+    outline: none;
+    border-color: var(--azul);
+    background: var(--superficie);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.campo:has(.error-campo) > select {
+    border-color: var(--rojo);
+    background: var(--rojo-suave);
+}
+
 .form-acciones {
     margin-top: 1.5rem;
     padding-top: 1.25rem;
     border-top: 1px solid var(--borde);
+}
+
+/* ==================================================================
+   Panel de reserva en curso (reservas.xhtml)
+   Muestra el estado conversacional del EJB @Stateful. Se destaca con
+   color de acento porque es informacion viva: existe solo mientras la
+   conversacion tenga una reserva abierta.
+   ================================================================== */
+.reserva-activa {
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-left: 4px solid #f59e0b;
+    border-radius: var(--radio);
+    padding: 1.25rem 1.5rem;
+    margin-bottom: 2rem;
+    box-shadow: var(--sombra);
+}
+
+.reserva-titulo {
+    margin: 0 0 1rem;
+    font-size: 1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #92400e;
+}
+
+.reserva-datos {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.4rem 1.25rem;
+    margin: 0 0 1.25rem;
+    font-size: 0.92rem;
+}
+
+.reserva-datos dt {
+    font-weight: 600;
+    color: var(--texto-suave);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    align-self: center;
+}
+
+.reserva-datos dd {
+    margin: 0;
+    font-weight: 500;
+}
+
+.reserva-activa .btn + .btn {
+    margin-left: 0.5rem;
+}
+
+.texto-peligro {
+    color: var(--rojo);
+    font-weight: 700;
 }
 
 /* ==================================================================
