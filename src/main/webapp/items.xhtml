@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Administra el stock de UN deposito puntual, recibido por query param
+    (?idDeposito=X). Se bindea a itemInventarioBean (ItemInventarioBean.java).
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+<f:metadata>
+    <f:viewParam name="idDeposito" value="#{itemInventarioBean.idDeposito}" required="true" />
+    <f:viewAction action="#{itemInventarioBean.cargar}" />
+</f:metadata>
+<h:head>
+    <title>Rabbit · Stock</title>
+    <style>
+        .mensaje-error { color: red; }
+        .mensaje-info { color: green; }
+    </style>
+</h:head>
+<h:body>
+    <p><h:link outcome="depositos" value="&#8592; Volver a depósitos" /></p>
+
+    <h1>Stock de #{itemInventarioBean.deposito.nombre}</h1>
+
+    <h:messages globalOnly="false" showDetail="false" showSummary="true" errorClass="mensaje-error" infoClass="mensaje-info" />
+
+    <h:form>
+        <h:dataTable value="#{itemInventarioBean.items}" var="i" border="1"
+                     cellpadding="6" cellspacing="0">
+            <h:column>
+                <f:facet name="header">ID</f:facet>
+                #{i.id}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Producto</f:facet>
+                #{i.producto}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Disponible</f:facet>
+                #{i.cantidadDisponible}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Reservada</f:facet>
+                #{i.cantidadReservada}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Libre</f:facet>
+                #{i.cantidadLibre}
+            </h:column>
+        </h:dataTable>
+    </h:form>
+
+    <h2>Cargar stock</h2>
+    <h:form>
+        <h:panelGrid columns="2">
+            <h:outputLabel value="Producto:" for="producto" />
+            <h:inputText id="producto" value="#{itemInventarioBean.nuevoItem.producto}" required="true" />
+
+            <h:outputLabel value="Cantidad:" for="cantidad" />
+            <h:inputText id="cantidad" value="#{itemInventarioBean.nuevoItem.cantidadDisponible}" required="true" />
+        </h:panelGrid>
+
+        <h:commandButton value="Cargar stock" action="#{itemInventarioBean.registrar}" />
+    </h:form>
+</h:body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Muestra el listado de depositos y el formulario para registrar uno
+    nuevo. Se bindea al Managed Bean depositoBean (DepositoBean.java).
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+<h:head>
+    <title>Rabbit · Depósitos</title>
+    <style>
+        .mensaje-error { color: red; }
+        .mensaje-info { color: green; }
+    </style>
+</h:head>
+<h:body>
+    <p><h:link outcome="comercios" value="&#8592; Ver comercios" /></p>
+
+    <h1>Depósitos</h1>
+
+    <h:messages globalOnly="false" showDetail="false" showSummary="true" errorClass="mensaje-error" infoClass="mensaje-info" />
+
+    <h:form>
+        <h:dataTable value="#{depositoBean.depositos}" var="d" border="1"
+                     cellpadding="6" cellspacing="0">
+            <h:column>
+                <f:facet name="header">ID</f:facet>
+                #{d.id}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Nombre</f:facet>
+                #{d.nombre}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Dirección</f:facet>
+                #{d.direccion}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Stock</f:facet>
+                <h:link outcome="items" value="Ver stock">
+                    <f:param name="idDeposito" value="#{d.id}" />
+                </h:link>
+            </h:column>
+        </h:dataTable>
+    </h:form>
+
+    <h2>Registrar nuevo depósito</h2>
+    <h:form>
+        <h:panelGrid columns="2">
+            <h:outputLabel value="Nombre:" for="nombre" />
+            <h:inputText id="nombre" value="#{depositoBean.nuevoDeposito.nombre}" required="true" />
+
+            <h:outputLabel value="Dirección:" for="direccion" />
+            <h:inputText id="direccion" value="#{depositoBean.nuevoDeposito.direccion}" required="true" />
+        </h:panelGrid>
+
+        <h:commandButton value="Registrar" action="#{depositoBean.registrar}" />
+    </h:form>
+</h:body>
+</html>
