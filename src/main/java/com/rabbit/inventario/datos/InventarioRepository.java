@@ -10,10 +10,13 @@ package com.rabbit.inventario.datos;
  */
 
 import com.rabbit.inventario.datos.model.Deposito;
+import com.rabbit.inventario.datos.model.EstadoReserva;
 import com.rabbit.inventario.datos.model.ItemInventario;
+import com.rabbit.inventario.datos.model.ReservaStock;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @ApplicationScoped
@@ -82,6 +85,58 @@ public class InventarioRepository {
                         + "WHERE i.producto = :producto AND (i.cantidadDisponible - i.cantidadReservada) > 0",
                 Deposito.class)
                 .setParameter("producto", producto)
+                .getResultList();
+    }
+
+    // --- Reservas de stock (IReservaStock) ---
+
+    public ReservaStock guardarReserva(ReservaStock reserva) {
+        em.persist(reserva);
+        return reserva;
+    }
+
+    public ReservaStock actualizarReserva(ReservaStock reserva) {
+        return em.merge(reserva);
+    }
+
+    public ReservaStock buscarReservaPorId(Long id) {
+        return em.find(ReservaStock.class, id);
+    }
+
+    /**
+     * Reservas de un item que siguen marcadas VIGENTE, sin importar si ya
+     * vencieron. Sirve para auditar cuanto stock hay comprometido.
+     *
+     * @param idItem ID del item de inventario
+     * @return reservas en estado VIGENTE de ese item
+     */
+    public List<ReservaStock> listarReservasVigentesDeItem(Long idItem) {
+        return em.createQuery(
+                "SELECT r FROM ReservaStock r WHERE r.item.id = :idItem AND r.estado = :estado "
+                        + "ORDER BY r.fechaCreacion",
+                ReservaStock.class)
+                .setParameter("idItem", idItem)
+                .setParameter("estado", EstadoReserva.VIGENTE)
+                .getResultList();
+    }
+
+    /**
+     * Reservas que siguen marcadas VIGENTE pero cuyo plazo ya paso. Es la
+     * consulta que usa el barredor automatico (BarredorDeReservas) para
+     * liberar el stock que quedo comprometido por reservas abandonadas.
+     *
+     * El filtro por fecha se hace en la consulta y no en memoria para no
+     * traer toda la tabla en cada pasada del barredor.
+     *
+     * @param ahora instante contra el que se compara el vencimiento
+     * @return reservas vencidas pendientes de liberar
+     */
+    public List<ReservaStock> listarReservasVencidas(LocalDateTime ahora) {
+        return em.createQuery(
+                "SELECT r FROM ReservaStock r WHERE r.estado = :estado AND r.fechaExpiracion < :ahora",
+                ReservaStock.class)
+                .setParameter("estado", EstadoReserva.VIGENTE)
+                .setParameter("ahora", ahora)
                 .getResultList();
     }
 }
