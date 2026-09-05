@@ -27,6 +27,7 @@
 <h:head>
     <title>Rabbit · Reserva de stock</title>
     <h:outputStylesheet library="rabbit" name="estilos.css" />
+    <h:outputScript library="rabbit" name="reserva.js" target="body" />
 </h:head>
 <h:body>
     <div class="container">
@@ -60,10 +61,17 @@
                     <dt>Vence</dt>
                     <dd>
                         #{reservaBean.reservaActual.fechaExpiracion}
-                        <h:outputText value=" (quedan #{reservaBean.reservaActual.segundosRestantes} s)"
-                                      rendered="#{reservaBean.reservaActual.vigente}" />
-                        <h:outputText value=" — VENCIDA" styleClass="texto-peligro"
-                                      rendered="#{not reservaBean.reservaActual.vigente}" />
+                        <!--
+                            El servidor deja los segundos iniciales en
+                            data-segundos y el texto como fallback si no hay
+                            JavaScript. reserva.js toma ese valor y hace
+                            correr la cuenta en el navegador: sin eso el
+                            numero queda congelado y parece que la reserva
+                            no vence nunca.
+                        -->
+                        <span id="cuentaRegresiva"
+                              class="cuenta-regresiva#{reservaBean.reservaActual.vigente ? '' : ' vencida'}"
+                              data-segundos="#{reservaBean.reservaActual.vigente ? reservaBean.reservaActual.segundosRestantes : 0}">#{reservaBean.reservaActual.vigente ? reservaBean.reservaActual.segundosRestantes : 'VENCIDA'}</span>
                     </dd>
                 </dl>
 
