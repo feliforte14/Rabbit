@@ -6,9 +6,7 @@ Beans) → Negocio (EJB `@Stateless`) → Datos (JPA/Hibernate) → PostgreSQL.
 
 > ⚠️ **Este README contiene credenciales reales** (WildFly admin y base de
 > datos Postgres en Supabase) para poder levantar el sistema rápido durante
-> el desarrollo. Como el repositorio es público en GitHub, estas credenciales
-> quedan expuestas a cualquiera. Antes de un uso más serio, rotarlas y
-> moverlas fuera del control de versiones (variables de entorno, vault, etc.).
+> el desarrollo.
 
 ## Requisitos
 
