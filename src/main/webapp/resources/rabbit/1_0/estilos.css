@@ -448,3 +448,45 @@ h2 {
         overflow-x: auto;
     }
 }
+
+/* ------------------------------------------------------------------
+   Cuenta regresiva de la reserva
+   El valor inicial lo renderiza el servidor; reserva.js lo hace correr
+   en el navegador. Ver reserva.js para el porque.
+   ------------------------------------------------------------------ */
+.cuenta-regresiva {
+    display: inline-block;
+    min-width: 3.5rem;
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.5rem;
+    border-radius: var(--radio-chico);
+    background: #fef3c7;
+    color: #92400e;
+    font-variant-numeric: tabular-nums;  /* evita que el ancho salte al cambiar de digito */
+    font-weight: 700;
+    font-size: 0.88rem;
+    text-align: center;
+}
+
+/* Ultimo minuto */
+.cuenta-regresiva.urgente {
+    background: #fee2e2;
+    color: var(--rojo-oscuro);
+    animation: latido 1s ease-in-out infinite;
+}
+
+.cuenta-regresiva.vencida {
+    background: var(--rojo);
+    color: #fff;
+    animation: none;
+}
+
+@keyframes latido {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+}
+
+/* Respeta a quien pidio menos movimiento en el sistema operativo */
+@media (prefers-reduced-motion: reduce) {
+    .cuenta-regresiva.urgente { animation: none; }
+}
