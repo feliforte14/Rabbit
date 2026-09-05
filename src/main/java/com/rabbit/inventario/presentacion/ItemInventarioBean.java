@@ -9,7 +9,7 @@ package com.rabbit.inventario.presentacion;
 import com.rabbit.inventario.dto.DatosItemInventarioDTO;
 import com.rabbit.inventario.dto.DepositoDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
-import com.rabbit.inventario.negocio.InventarioService;
+import com.rabbit.inventario.negocio.IConsultaStock;
 import com.rabbit.inventario.negocio.ValidacionException;
 
 import jakarta.faces.application.FacesMessage;
@@ -25,7 +25,7 @@ import java.util.List;
 public class ItemInventarioBean implements Serializable {
 
     @Inject
-    private InventarioService service;
+    private IConsultaStock service;
 
     private Long idDeposito;
     private DepositoDTO deposito;
