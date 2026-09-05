@@ -14,9 +14,18 @@ package com.rabbit.comercios.negocio;
  * @Transactional garantiza que cada operación de escritura sea atómica:
  * si algo falla a mitad, la BD vuelve al estado anterior (rollback automático).
  *
- * ComercioService implementa dos interfaces conceptuales del TPO:
- *   - IRegistroComercios: alta, modificación, baja
+ * ComercioService implementa las dos interfaces de negocio del componente
+ * ServicioDeComercios:
+ *   - IRegistroComercios: alta, modificación, baja (escritura)
  *   - IConsultaComercios: consultas de solo lectura
+ *
+ * Son interfaces Java explícitas (no un comentario ni una convención): son
+ * EL contrato del componente. Los consumidores inyectan la interfaz que
+ * necesitan, no esta clase — así dependen de QUÉ se puede pedir y no de
+ * CÓMO está implementado. Un componente que solo lee (por ejemplo
+ * ServicioDeInventario, que necesita saber si un comercio está activo antes
+ * de reservar stock) inyecta IConsultaComercios y con eso no obtiene, ni
+ * por accidente, la capacidad de dar de baja o eliminar un comercio.
  */
 
 import com.rabbit.comercios.dto.*;
@@ -30,7 +39,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Stateless
-public class ComercioService {
+public class ComercioService implements IRegistroComercios, IConsultaComercios {
 
     @Inject
     private ComercioRepository repository;
@@ -46,6 +55,7 @@ public class ComercioService {
      * @return el ID asignado por la BD al nuevo comercio
      * @throws ValidacionException si algún dato es inválido o el CUIT ya existe
      */
+    @Override
     @Transactional
     public Long registrarComercio(DatosComercioDTO datos) {
         validarNombre(datos.nombre);
@@ -71,6 +81,7 @@ public class ComercioService {
      * @param datos nuevos datos fiscales
      * @throws ValidacionException si el comercio no existe o los datos son inválidos
      */
+    @Override
     @Transactional
     public void actualizarDatosFiscales(Long idComercio, DatosFiscalesDTO datos) {
         Comercio comercio = obtenerOFallar(idComercio);
@@ -127,6 +138,7 @@ public class ComercioService {
     // Baja lógica: el comercio sigue en la BD pero activo=false.
     // Arrastra la baja a sus sucursales — una sucursal no puede quedar
     // activa si el comercio dueño no lo está.
+    @Override
     @Transactional
     public void darDeBajaComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
@@ -140,6 +152,7 @@ public class ComercioService {
     }
 
     // Reactiva un comercio dado de baja previamente — vuelve a activo=true
+    @Override
     @Transactional
     public void reactivarComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
@@ -150,6 +163,7 @@ public class ComercioService {
     // --- Sucursales (Comercios es dueño de sus sucursales) ---
 
     // Da de alta una sucursal nueva sobre un comercio existente
+    @Override
     @Transactional
     public Long registrarSucursal(Long idComercio, DatosSucursalDTO datos) {
         Comercio comercio = obtenerOFallar(idComercio);
@@ -168,6 +182,7 @@ public class ComercioService {
     }
 
     // Baja lógica de una sucursal — sigue en la BD pero activa=false
+    @Override
     @Transactional
     public void darDeBajaSucursal(Long idSucursal) {
         Sucursal sucursal = obtenerSucursalOFallar(idSucursal);
@@ -177,6 +192,7 @@ public class ComercioService {
 
     // Reactiva una sucursal dada de baja previamente. No tiene sentido si
     // el comercio dueño sigue de baja — primero hay que reactivar el comercio.
+    @Override
     @Transactional
     public void reactivarSucursal(Long idSucursal) {
         Sucursal sucursal = obtenerSucursalOFallar(idSucursal);
@@ -189,6 +205,7 @@ public class ComercioService {
     }
 
     // Devuelve todas las sucursales de un comercio (activas e inactivas) — pantalla de administración
+    @Override
     public List<SucursalDTO> listarSucursalesDeComercio(Long idComercio) {
         obtenerOFallar(idComercio);
         return repository.listarSucursalesDeComercio(idComercio)
@@ -220,11 +237,13 @@ public class ComercioService {
     // IConsultaComercios
 
     // Devuelve el comercio como DTO (nunca expone la entidad directamente)
+    @Override
     public ComercioDTO obtenerComercio(Long idComercio) {
         return ComercioDTO.desde(obtenerOFallar(idComercio));
     }
 
     // Devuelve todos los comercios como DTO — usado por la vista de listado (JSF)
+    @Override
     public List<ComercioDTO> listarTodos() {
         return repository.listarTodos()
                 .stream()
@@ -233,6 +252,7 @@ public class ComercioService {
     }
 
     // Devuelve solo las sucursales activas del comercio
+    @Override
     public List<SucursalDTO> listarSucursales(Long idComercio) {
         return repository.listarSucursalesActivas(idComercio)
                 .stream()
@@ -241,6 +261,7 @@ public class ComercioService {
     }
 
     // Usado por otros servicios para verificar si el comercio puede operar
+    @Override
     public boolean validarComercioActivo(Long idComercio) {
         Comercio comercio = repository.buscarPorId(idComercio);
         return comercio != null && comercio.isActivo();
@@ -250,6 +271,7 @@ public class ComercioService {
     // junto con todas sus sucursales (cascade). Para evitar pérdidas de
     // datos accidentales, solo se permite si el comercio ya fue dado de
     // baja (activo=false) previamente.
+    @Override
     @Transactional
     public void eliminarComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);

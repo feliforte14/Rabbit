@@ -5,13 +5,16 @@ package com.rabbit.comercios.presentacion;
  *
  * Administra las sucursales de UN comercio puntual (identificado por
  * idComercio, que llega como parámetro de la URL vía <f:viewParam>).
- * No tiene lógica de negocio: delega todo a ComercioService.
+ * No tiene lógica de negocio: delega todo al componente ServicioDeComercios,
+ * a través de sus interfaces (IRegistroComercios para escritura,
+ * IConsultaComercios para lectura) y no de la clase que las implementa.
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.dto.DatosSucursalDTO;
 import com.rabbit.comercios.dto.SucursalDTO;
-import com.rabbit.comercios.negocio.ComercioService;
+import com.rabbit.comercios.negocio.IConsultaComercios;
+import com.rabbit.comercios.negocio.IRegistroComercios;
 import com.rabbit.comercios.negocio.ValidacionException;
 
 import jakarta.faces.application.FacesMessage;
@@ -26,8 +29,13 @@ import java.util.List;
 @ViewScoped
 public class SucursalBean implements Serializable {
 
+    // Contrato de escritura: alta, baja y reactivación de sucursales.
     @Inject
-    private ComercioService service;
+    private IRegistroComercios registro;
+
+    // Contrato de lectura: datos del comercio y su listado de sucursales.
+    @Inject
+    private IConsultaComercios consulta;
 
     private Long idComercio;
     private ComercioDTO comercio;
@@ -36,13 +44,13 @@ public class SucursalBean implements Serializable {
     private DatosSucursalDTO nuevaSucursal = new DatosSucursalDTO();
 
     public void cargar() {
-        comercio = service.obtenerComercio(idComercio);
-        sucursales = service.listarSucursalesDeComercio(idComercio);
+        comercio = consulta.obtenerComercio(idComercio);
+        sucursales = consulta.listarSucursalesDeComercio(idComercio);
     }
 
     public void registrar() {
         try {
-            service.registrarSucursal(idComercio, nuevaSucursal);
+            registro.registrarSucursal(idComercio, nuevaSucursal);
             mensaje(FacesMessage.SEVERITY_INFO, "Sucursal registrada correctamente");
             nuevaSucursal = new DatosSucursalDTO();
             cargar();
@@ -53,7 +61,7 @@ public class SucursalBean implements Serializable {
 
     public void darDeBaja(Long id) {
         try {
-            service.darDeBajaSucursal(id);
+            registro.darDeBajaSucursal(id);
             mensaje(FacesMessage.SEVERITY_INFO, "Sucursal dada de baja");
             cargar();
         } catch (ValidacionException e) {
@@ -63,7 +71,7 @@ public class SucursalBean implements Serializable {
 
     public void reactivar(Long id) {
         try {
-            service.reactivarSucursal(id);
+            registro.reactivarSucursal(id);
             mensaje(FacesMessage.SEVERITY_INFO, "Sucursal reactivada");
             cargar();
         } catch (ValidacionException e) {

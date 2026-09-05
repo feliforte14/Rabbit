@@ -15,12 +15,18 @@ package com.rabbit.comercios.presentacion;
  * para siempre como pasaría con @SessionScoped.
  *
  * Esta capa NO tiene lógica de negocio: valida formato mínimo de la UI
- * y delega toda decisión real a ComercioService.
+ * y delega toda decisión real al componente ServicioDeComercios.
+ *
+ * Depende de las INTERFACES del componente (IRegistroComercios para las
+ * operaciones de escritura, IConsultaComercios para las de lectura), no de
+ * la clase que las implementa. La vista no sabe —ni necesita saber— que
+ * del otro lado hay un EJB llamado ComercioService.
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.dto.DatosComercioDTO;
-import com.rabbit.comercios.negocio.ComercioService;
+import com.rabbit.comercios.negocio.IConsultaComercios;
+import com.rabbit.comercios.negocio.IRegistroComercios;
 import com.rabbit.comercios.negocio.ValidacionException;
 
 import jakarta.annotation.PostConstruct;
@@ -36,8 +42,13 @@ import java.util.List;
 @ViewScoped
 public class ComercioBean implements Serializable {
 
+    // Contrato de escritura: alta, baja, reactivación y eliminación.
     @Inject
-    private ComercioService service;
+    private IRegistroComercios registro;
+
+    // Contrato de lectura: el listado que se muestra en la tabla.
+    @Inject
+    private IConsultaComercios consulta;
 
     private List<ComercioDTO> comercios;
 
@@ -46,12 +57,12 @@ public class ComercioBean implements Serializable {
 
     @PostConstruct
     public void cargar() {
-        comercios = service.listarTodos();
+        comercios = consulta.listarTodos();
     }
 
     public void registrar() {
         try {
-            service.registrarComercio(nuevoComercio);
+            registro.registrarComercio(nuevoComercio);
             mensaje(FacesMessage.SEVERITY_INFO, "Comercio registrado correctamente");
             nuevoComercio = new DatosComercioDTO();
             cargar();
@@ -62,7 +73,7 @@ public class ComercioBean implements Serializable {
 
     public void darDeBaja(Long id) {
         try {
-            service.darDeBajaComercio(id);
+            registro.darDeBajaComercio(id);
             mensaje(FacesMessage.SEVERITY_INFO, "Comercio dado de baja");
             cargar();
         } catch (ValidacionException e) {
@@ -72,7 +83,7 @@ public class ComercioBean implements Serializable {
 
     public void reactivar(Long id) {
         try {
-            service.reactivarComercio(id);
+            registro.reactivarComercio(id);
             mensaje(FacesMessage.SEVERITY_INFO, "Comercio reactivado");
             cargar();
         } catch (ValidacionException e) {
@@ -82,7 +93,7 @@ public class ComercioBean implements Serializable {
 
     public void eliminar(Long id) {
         try {
-            service.eliminarComercio(id);
+            registro.eliminarComercio(id);
             mensaje(FacesMessage.SEVERITY_INFO, "Comercio eliminado");
             cargar();
         } catch (ValidacionException e) {
