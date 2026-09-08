@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Formulario de login — primera pantalla de la app (ver welcome-file en
+    web.xml). Se bindea a loginBean (LoginBean.java), que dispara
+    HttpServletRequest.login() contra el ApplicationRealm de WildFly. Sirve
+    tanto para un usuario con rol ADMIN como uno con rol OPERADOR — el
+    rol no se elige acá, lo trae la cuenta.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+<h:head>
+    <title>Rabbit · Iniciar sesión</title>
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
+</h:head>
+<h:body>
+    <div class="container">
+        <h1>Iniciar sesión</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:panelGroup rendered="#{param.error}">
+            <p class="mensaje-error">Usuario o contraseña incorrectos.</p>
+        </h:panelGroup>
+
+        <h:form id="formLogin" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="username" value="Usuario" />
+                <h:inputText id="username" value="#{loginBean.username}" required="true" label="Usuario" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="password" value="Contraseña" />
+                <h:inputSecret id="password" value="#{loginBean.password}" required="true" label="Contraseña" />
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Ingresar" styleClass="btn btn-primary" action="#{loginBean.login}" />
+            </div>
+        </h:form>
+
+        <p>¿No tenés cuenta? <h:link outcome="usuarios" value="Registrate acá" /></p>
+    </div>
+</h:body>
+</html>

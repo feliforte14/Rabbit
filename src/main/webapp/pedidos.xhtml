@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Muestra el estado del componente ServicioDePedidos: los pedidos reales
+    de Rabbit, y debajo, el mock de lo que "llegaría del ERP" del comercio
+    junto con el botón para simular uno nuevo. Se bindea a pedidoBean
+    (PedidoBean.java).
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+<h:head>
+    <title>Rabbit · Pedidos</title>
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
+</h:head>
+<h:body>
+    <div class="container">
+        <p><h:link outcome="panel" value="&#8592; Panel principal" styleClass="enlace-volver" /></p>
+
+        <h1>Pedidos</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:form id="formPedidos">
+            <h:dataTable value="#{pedidoBean.pedidos}" var="p"
+                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{p.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Comercio</f:facet>
+                    #{p.idComercio}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Producto</f:facet>
+                    #{p.producto}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Cantidad</f:facet>
+                    #{p.cantidad}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    #{p.estado}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Creado</f:facet>
+                    #{p.fechaCreacion}
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Confirmar" styleClass="btn btn-secondary"
+                                     action="#{pedidoBean.confirmar(p.id)}"
+                                     rendered="#{p.estado == 'PENDIENTE'}" />
+                    <h:commandButton value="Cancelar" styleClass="btn btn-danger"
+                                     action="#{pedidoBean.cancelar(p.id)}"
+                                     rendered="#{p.estado != 'CANCELADO'}" />
+                </h:column>
+            </h:dataTable>
+        </h:form>
+
+        <h2>Mock del ERP del comercio</h2>
+        <p>
+            Rabbit no origina pedidos: los consume desde el sistema del comercio (ver documento técnico,
+            Sección 1.1). Esta tabla simula esas filas — el sincronizador (@Schedule, cada 1 min) las toma
+            y genera el pedido real de arriba.
+        </p>
+        <h:form id="formExternos">
+            <h:dataTable value="#{pedidoBean.pedidosExternos}" var="pe"
+                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{pe.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Comercio</f:facet>
+                    #{pe.idComercio}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Ítem</f:facet>
+                    #{pe.idItem}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Cantidad</f:facet>
+                    #{pe.cantidad}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Llegó</f:facet>
+                    #{pe.fechaPedido}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Sincronizado</f:facet>
+                    #{pe.sincronizado ? 'Sí' : 'Pendiente'}
+                </h:column>
+            </h:dataTable>
+        </h:form>
+
+        <h2>Simular pedido nuevo desde el ERP</h2>
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="comercio" value="Comercio" />
+                <h:selectOneMenu id="comercio" value="#{pedidoBean.nuevoPedido.idComercio}"
+                                 required="true" label="Comercio">
+                    <f:selectItem itemLabel="— Elegí un comercio —" itemValue="#{null}" />
+                    <f:selectItems value="#{pedidoBean.listaComercios}" var="c"
+                                   itemValue="#{c.id}"
+                                   itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
+                </h:selectOneMenu>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="deposito" value="Depósito" />
+                <h:selectOneMenu id="deposito" value="#{pedidoBean.idDepositoSeleccionado}">
+                    <f:selectItem itemLabel="— Elegí un depósito —" itemValue="#{null}" />
+                    <f:selectItems value="#{pedidoBean.listaDepositos}" var="d"
+                                   itemValue="#{d.id}" itemLabel="#{d.nombre}" />
+                    <f:ajax listener="#{pedidoBean.onDepositoCambiado}" render="item" />
+                </h:selectOneMenu>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="item" value="Producto" />
+                <h:selectOneMenu id="item" value="#{pedidoBean.nuevoPedido.idItem}"
+                                 required="true" label="Producto">
+                    <f:selectItem itemLabel="— Elegí un producto —" itemValue="#{null}" />
+                    <f:selectItems value="#{pedidoBean.listaItems}" var="i"
+                                   itemValue="#{i.id}"
+                                   itemLabel="#{i.producto} (#{i.cantidadLibre} libres)" />
+                </h:selectOneMenu>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="cantidad" value="Cantidad" />
+                <h:inputText id="cantidad" value="#{pedidoBean.nuevoPedido.cantidad}"
+                             required="true" label="Cantidad" />
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Simular pedido" styleClass="btn btn-primary"
+                                 action="#{pedidoBean.registrarPedidoExterno}" />
+            </div>
+        </h:form>
+    </div>
+</h:body>
+</html>

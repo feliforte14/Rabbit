@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Alta y listado de usuarios del sistema. Se bindea a usuarioBean
+    (UsuarioBean.java). Es la pantalla de administracion del tercer
+    componente (ServicioDeUsuariosYSeguridad).
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+<h:head>
+    <title>Rabbit · Usuarios</title>
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
+</h:head>
+<h:body>
+    <div class="container">
+        <p><h:link outcome="panel" value="&#8592; Panel principal" styleClass="enlace-volver" /></p>
+
+        <h1>Usuarios del sistema</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:form id="formListado">
+            <h:dataTable value="#{usuarioBean.usuarios}" var="u"
+                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{u.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Usuario</f:facet>
+                    #{u.username}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Rol</f:facet>
+                    #{u.rol}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Activo</f:facet>
+                    #{u.activo ? 'Sí' : 'No'}
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Dar de baja" styleClass="btn btn-secondary"
+                                     action="#{usuarioBean.darDeBaja(u.id)}"
+                                     rendered="#{u.activo}" />
+                </h:column>
+            </h:dataTable>
+        </h:form>
+
+        <h2>Registrar nuevo usuario</h2>
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="username" value="Usuario" />
+                <h:inputText id="username" value="#{usuarioBean.nuevoUsuario.username}"
+                             required="true" label="Usuario" />
+                <h:message for="username" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="password" value="Contraseña" />
+                <h:inputSecret id="password" value="#{usuarioBean.nuevoUsuario.password}"
+                               required="true" label="Contraseña" />
+                <h:message for="password" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="rol" value="Rol" />
+                <h:selectOneMenu id="rol" value="#{usuarioBean.nuevoUsuario.rol}" required="true" label="Rol">
+                    <f:selectItems value="#{usuarioBean.roles}" var="r" itemValue="#{r}" itemLabel="#{r}" />
+                </h:selectOneMenu>
+                <h:message for="rol" styleClass="error-campo" />
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{usuarioBean.registrar}" />
+            </div>
+        </h:form>
+    </div>
+</h:body>
+</html>

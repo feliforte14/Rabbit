@@ -1,15 +1,23 @@
 package com.rabbit.comercios.datos.model;
 
 /**
- * Entidad JPA: cada instancia es una fila de la tabla "sucursales".
- * Cada sucursal pertenece a un comercio (relación ManyToOne).
+ * Entidad JPA: cada instancia es una fila de la tabla "puntos_picking".
+ * Cada punto de picking pertenece a un comercio (relación ManyToOne).
+ *
+ * Renombrada desde "Sucursal" (ver Sección 1.2 del documento técnico):
+ * es una sucursal, depósito o punto de stock que pertenece y administra
+ * el COMERCIO, no Rabbit. Rabbit conoce su ubicación para poder coordinar
+ * el retiro de mercadería, pero no gestiona ni expone el detalle de su
+ * stock interno — esa responsabilidad es exclusiva del comercio. Por eso
+ * es una entidad completamente distinta de Deposito (infraestructura
+ * propia de Rabbit, ver esa clase): no hay relación entre ambas.
  */
 
 import jakarta.persistence.*;
 
 @Entity
-@Table(name = "sucursales")
-public class Sucursal {
+@Table(name = "puntos_picking")
+public class PuntoPicking {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
@@ -18,9 +26,9 @@ public class Sucursal {
     private String nombre;
     private String direccion;
 
-    // Baja lógica: false = dada de baja (sigue en la BD pero no opera).
+    // Baja lógica: false = dado de baja (sigue en la BD pero no opera).
     // No puede reactivarse si el comercio dueño sigue inactivo
-    // (ver ComercioService.darDeBajaComercio / reactivarSucursal).
+    // (ver ComercioService.darDeBajaComercio / reactivarPuntoPicking).
     private boolean activa;
 
     // Acá vive la FK comercio_id. fetch LAZY: el Comercio se carga
@@ -29,7 +37,7 @@ public class Sucursal {
     @JoinColumn(name = "comercio_id")
     private Comercio comercio;
 
-    public Sucursal() {}
+    public PuntoPicking() {}
 
     public Long getId() { return id; }
     public String getNombre() { return nombre; }

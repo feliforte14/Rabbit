@@ -29,7 +29,7 @@ package com.rabbit.comercios.negocio;
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
-import com.rabbit.comercios.dto.SucursalDTO;
+import com.rabbit.comercios.dto.PuntoPickingDTO;
 import jakarta.ejb.Local;
 import java.util.List;
 
@@ -53,25 +53,25 @@ public interface IConsultaComercios {
     List<ComercioDTO> listarTodos();
 
     /**
-     * Devuelve solo las sucursales ACTIVAS de un comercio — la vista
-     * operativa, la que interesa a otros componentes que necesitan saber
-     * donde puede operar el comercio hoy.
+     * Devuelve solo los puntos de picking ACTIVOS de un comercio — la
+     * vista operativa, la que interesa a otros componentes que necesitan
+     * saber donde puede coordinarse el retiro de mercadería hoy.
      *
      * @param idComercio identificador del comercio
-     * @return sucursales con activa = true
+     * @return puntos de picking con activa = true
      */
-    List<SucursalDTO> listarSucursales(Long idComercio);
+    List<PuntoPickingDTO> listarPuntosPicking(Long idComercio);
 
     /**
-     * Devuelve TODAS las sucursales de un comercio, activas e inactivas —
-     * la vista de administracion, que necesita mostrar tambien las dadas
-     * de baja para poder reactivarlas.
+     * Devuelve TODOS los puntos de picking de un comercio, activos e
+     * inactivos — la vista de administracion, que necesita mostrar
+     * tambien los dados de baja para poder reactivarlos.
      *
      * @param idComercio identificador del comercio
-     * @return todas las sucursales del comercio
+     * @return todos los puntos de picking del comercio
      * @throws ValidacionException si el comercio no existe
      */
-    List<SucursalDTO> listarSucursalesDeComercio(Long idComercio);
+    List<PuntoPickingDTO> listarPuntosPickingDeComercio(Long idComercio);
 
     /**
      * Indica si un comercio existe y esta habilitado para operar.

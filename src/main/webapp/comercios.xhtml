@@ -19,7 +19,18 @@
 </h:head>
 <h:body>
     <div class="container">
-        <p><h:link outcome="depositos" value="Ver depósitos &#8594;" styleClass="enlace-volver" /></p>
+        <!--
+            A propósito NO se muestra qué usuario ni qué rol está
+            conectado en esta pantalla — la autorización real de
+            "Eliminar" la impone el servidor con @RolesAllowed("ADMINISTRADOR")
+            en ComercioService, así que no hace falta exponerlo acá.
+        -->
+        <p>
+            <h:link outcome="panel" value="&#8592; Panel principal" styleClass="enlace-volver" />
+            <h:form rendered="#{sesionBean.autenticado}">
+                <h:commandButton value="Cerrar sesión" styleClass="btn btn-secondary" action="#{loginBean.logout}" />
+            </h:form>
+        </p>
 
         <h1>Comercios registrados</h1>
 
@@ -58,8 +69,8 @@
                     #{c.activo ? 'Sí' : 'No'}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Sucursales</f:facet>
-                    <h:link outcome="sucursales" value="Ver sucursales">
+                    <f:facet name="header">Puntos de picking</f:facet>
+                    <h:link outcome="puntos-picking" value="Ver puntos de picking">
                         <f:param name="idComercio" value="#{c.id}" />
                     </h:link>
                 </h:column>
@@ -73,8 +84,8 @@
                                      rendered="#{not c.activo}" />
                     <h:commandButton value="Eliminar" styleClass="btn btn-danger"
                                       action="#{comercioBean.eliminar(c.id)}"
-                                      rendered="#{not c.activo}"
-                                      onclick="return confirm('¿Eliminar definitivamente este comercio y todas sus sucursales? Esta acción no se puede deshacer.');" />
+                                      rendered="#{not c.activo and sesionBean.admin}"
+                                      onclick="return confirm('¿Eliminar definitivamente este comercio y todos sus puntos de picking? Esta acción no se puede deshacer.');" />
                 </h:column>
             </h:dataTable>
         </h:form>
