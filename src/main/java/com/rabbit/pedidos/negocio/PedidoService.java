@@ -168,6 +168,23 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (pedido.getEstado() == EstadoPedido.CANCELADO) {
             throw new ValidacionException("El pedido ya está cancelado");
         }
+
+        // El stock de este pedido se descontó al sincronizarlo (reservar +
+        // confirmar juntos). Cancelar sin devolverlo dejaría la mercadería
+        // del comercio "consumida" por un pedido que nunca se despachó, así
+        // que hay que revertir esa confirmación contra ServicioDeInventario.
+        if (pedido.getIdReservaStock() != null) {
+            IReservaStock reserva = reservaProvider.get();
+            try {
+                reserva.registrarDevolucion(pedido.getIdReservaStock());
+            } catch (RuntimeException e) {
+                throw new ValidacionException(
+                        "No se pudo devolver el stock del pedido: " + e.getMessage());
+            } finally {
+                reservaProvider.destroy(reserva);
+            }
+        }
+
         pedido.setEstado(EstadoPedido.CANCELADO);
         pedido.setFechaActualizacion(LocalDateTime.now());
         repository.actualizarPedido(pedido);

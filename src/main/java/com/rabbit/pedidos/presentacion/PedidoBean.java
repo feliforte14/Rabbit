@@ -101,7 +101,7 @@ public class PedidoBean implements Serializable {
     public void cancelar(Long idPedido) {
         try {
             gestion.cancelarPedido(idPedido);
-            mensaje(FacesMessage.SEVERITY_INFO, "Pedido cancelado");
+            mensaje(FacesMessage.SEVERITY_INFO, "Pedido cancelado — el stock volvió al disponible");
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
