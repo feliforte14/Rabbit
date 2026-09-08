@@ -75,11 +75,6 @@ public class HistorialReservasBean implements Serializable {
         reservas = stock.listarHistorialReservas(filtro);
     }
 
-    public void limpiar() {
-        filtro = new FiltroHistorialDTO();
-        buscar();
-    }
-
     /** Los estados posibles, para el desplegable. */
     public EstadoReserva[] getEstados() {
         return EstadoReserva.values();
@@ -115,6 +110,22 @@ public class HistorialReservasBean implements Serializable {
             case "DEVUELTA":   return "estado-devuelta";
             default:           return "";
         }
+    }
+
+    /**
+     * Texto de la columna "Cerrada".
+     *
+     * fechaCierre en null significa dos cosas distintas y no hay que
+     * confundirlas: si la reserva sigue VIGENTE, es que todavia no cerro;
+     * si ya esta en un estado final, es una reserva anterior a que
+     * existiera la columna, y la fecha simplemente no quedo registrada.
+     * Mostrar "en curso" para esas ultimas seria mentir.
+     */
+    public String textoCierre(ReservaStockDTO r) {
+        if (r.getFechaCierre() != null) {
+            return r.getFechaCierre();
+        }
+        return "VIGENTE".equals(r.getEstado()) ? "— en curso —" : "— sin registro —";
     }
 
     public boolean isHayResultados() {
