@@ -42,6 +42,27 @@ public class ItemInventario {
     // ítem sin dueño asignado.
     private Long idComercio;
 
+    /**
+     * BLOQUEO OPTIMISTA contra la sobreventa por concurrencia.
+     *
+     * reservarStock lee los contadores, calcula lo libre, decide y escribe.
+     * Sin esto, dos sesiones que reservan el mismo item a la vez leen ambas
+     * cantidadReservada = 0, ambas pasan el chequeo de stock y ambas
+     * escriben: la segunda pisa a la primera y quedan dos reservas VIGENTE
+     * contra un contador que solo refleja una. Al confirmarse las dos,
+     * cantidadDisponible puede terminar en negativo.
+     *
+     * Con @Version, Hibernate agrega "AND version = ?" al UPDATE y sube el
+     * numero. La segunda transaccion no encuentra la fila que esperaba y
+     * falla con OptimisticLockException, que InventarioService traduce a un
+     * mensaje entendible en vez de dejar sobrevender.
+     *
+     * Long y no int: las filas anteriores a esta columna quedan en NULL y
+     * un primitivo no las puede cargar. Se rellenan con 0 por migracion.
+     */
+    @Version
+    private Long version;
+
     // Acá vive la FK deposito_id. fetch LAZY: el Deposito se carga
     // recién si se llama a getDeposito().
     @ManyToOne(fetch = FetchType.LAZY)
@@ -59,6 +80,8 @@ public class ItemInventario {
     public void setCantidadReservada(int cantidadReservada) { this.cantidadReservada = cantidadReservada; }
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
+    /** Lo administra Hibernate; no tiene setter a proposito. */
+    public Long getVersion() { return version; }
     public Deposito getDeposito() { return deposito; }
     public void setDeposito(Deposito deposito) { this.deposito = deposito; }
 }

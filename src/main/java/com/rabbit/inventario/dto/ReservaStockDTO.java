@@ -19,12 +19,17 @@ public class ReservaStockDTO {
     public String producto;
     public int cantidad;
     public Long idComercio;
+    public Long idItem;
+    public Long idDeposito;
     public String estado;
     public String fechaExpiracion;
+    public String fechaCreacion;
+    public String fechaCierre;
     public boolean vigente;
     public long segundosRestantes;
 
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm:ss");
+    private static final DateTimeFormatter FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm:ss");
 
     public static ReservaStockDTO desde(ReservaStock r) {
         ReservaStockDTO dto = new ReservaStockDTO();
@@ -34,6 +39,21 @@ public class ReservaStockDTO {
         dto.idComercio = r.getIdComercio();
         dto.estado = r.getEstado() != null ? r.getEstado().name() : null;
         dto.vigente = r.estaVigente();
+
+        // El item es LAZY: se toca solo dentro de la transaccion de lectura
+        // que armo esta lista. Se copia el ID acá para que la vista nunca
+        // tenga que navegar la relacion (ver README, model vs dto).
+        if (r.getItem() != null) {
+            dto.idItem = r.getItem().getId();
+            dto.idDeposito = r.getItem().getDeposito() != null ? r.getItem().getDeposito().getId() : null;
+        }
+
+        if (r.getFechaCreacion() != null) {
+            dto.fechaCreacion = r.getFechaCreacion().format(FECHA_HORA);
+        }
+        if (r.getFechaCierre() != null) {
+            dto.fechaCierre = r.getFechaCierre().format(FECHA_HORA);
+        }
 
         if (r.getFechaExpiracion() != null) {
             dto.fechaExpiracion = r.getFechaExpiracion().format(HORA);
@@ -48,8 +68,12 @@ public class ReservaStockDTO {
     public String getProducto() { return producto; }
     public int getCantidad() { return cantidad; }
     public Long getIdComercio() { return idComercio; }
+    public Long getIdItem() { return idItem; }
+    public Long getIdDeposito() { return idDeposito; }
     public String getEstado() { return estado; }
     public String getFechaExpiracion() { return fechaExpiracion; }
+    public String getFechaCreacion() { return fechaCreacion; }
+    public String getFechaCierre() { return fechaCierre; }
     public boolean isVigente() { return vigente; }
     public long getSegundosRestantes() { return segundosRestantes; }
 }

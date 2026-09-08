@@ -13,10 +13,12 @@ import com.rabbit.inventario.datos.model.Deposito;
 import com.rabbit.inventario.datos.model.EstadoReserva;
 import com.rabbit.inventario.datos.model.ItemInventario;
 import com.rabbit.inventario.datos.model.ReservaStock;
+import com.rabbit.inventario.dto.FiltroHistorialDTO;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @ApplicationScoped
@@ -45,6 +47,21 @@ public class InventarioRepository {
 
     public ItemInventario actualizarItem(ItemInventario item) {
         return em.merge(item);
+    }
+
+    /**
+     * Fuerza el envio a la base de lo que este pendiente en el contexto de
+     * persistencia, sin esperar al commit.
+     *
+     * Lo necesita reservarStock para el bloqueo optimista: si el UPDATE
+     * viaja recien al cerrar la transaccion, la OptimisticLockException
+     * salta DESPUES del metodo, donde ya no se puede traducir a un mensaje
+     * entendible — el usuario veria un RollbackException crudo. Con el
+     * flush explicito la excepcion ocurre dentro del metodo y se puede
+     * atrapar.
+     */
+    public void sincronizar() {
+        em.flush();
     }
 
     public ItemInventario buscarItemPorId(Long id) {
@@ -161,6 +178,70 @@ public class InventarioRepository {
                 .setParameter("idItem", idItem)
                 .setParameter("estado", EstadoReserva.VIGENTE)
                 .getResultList();
+    }
+
+    /**
+     * HISTORIAL: todas las reservas que cumplen los criterios recibidos,
+     * de la mas reciente a la mas vieja.
+     *
+     * Cada fila de reservas_stock queda para siempre con su estado final
+     * (CONFIRMADA / LIBERADA / EXPIRADA / DEVUELTA), asi que la tabla YA
+     * es el registro historico — esta consulta solo lo hace consultable.
+     *
+     * El JPQL se arma sumando unicamente las condiciones que vengan
+     * completas en el filtro, en vez de tener una consulta distinta por
+     * cada combinacion. Los valores se pasan siempre como parametros
+     * nombrados: nunca se concatena entrada del usuario dentro del JPQL.
+     *
+     * @param filtro criterios opcionales; ninguno es obligatorio
+     * @return las reservas que matchean, mas recientes primero
+     */
+    public List<ReservaStock> listarHistorial(FiltroHistorialDTO filtro) {
+        StringBuilder jpql = new StringBuilder("SELECT r FROM ReservaStock r WHERE 1 = 1");
+
+        if (filtro.idComercio != null) {
+            jpql.append(" AND r.idComercio = :idComercio");
+        }
+        if (filtro.idDeposito != null) {
+            jpql.append(" AND r.item.deposito.id = :idDeposito");
+        }
+        if (filtro.estado != null && !filtro.estado.isBlank()) {
+            jpql.append(" AND r.estado = :estado");
+        }
+        if (filtro.producto != null && !filtro.producto.isBlank()) {
+            jpql.append(" AND LOWER(r.producto) LIKE :producto");
+        }
+        if (filtro.desde != null) {
+            jpql.append(" AND r.fechaCreacion >= :desde");
+        }
+        if (filtro.hasta != null) {
+            jpql.append(" AND r.fechaCreacion <= :hasta");
+        }
+        jpql.append(" ORDER BY r.fechaCreacion DESC, r.id DESC");
+
+        var query = em.createQuery(jpql.toString(), ReservaStock.class);
+
+        if (filtro.idComercio != null) {
+            query.setParameter("idComercio", filtro.idComercio);
+        }
+        if (filtro.idDeposito != null) {
+            query.setParameter("idDeposito", filtro.idDeposito);
+        }
+        if (filtro.estado != null && !filtro.estado.isBlank()) {
+            query.setParameter("estado", EstadoReserva.valueOf(filtro.estado));
+        }
+        if (filtro.producto != null && !filtro.producto.isBlank()) {
+            query.setParameter("producto", "%" + filtro.producto.trim().toLowerCase() + "%");
+        }
+        if (filtro.desde != null) {
+            query.setParameter("desde", filtro.desde.atStartOfDay());
+        }
+        if (filtro.hasta != null) {
+            // Hasta el final del dia elegido, si no un filtro "hasta hoy"
+            // dejaria afuera todo lo de hoy.
+            query.setParameter("hasta", filtro.hasta.atTime(LocalTime.MAX));
+        }
+        return query.getResultList();
     }
 
     /**

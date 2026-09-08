@@ -53,6 +53,13 @@ public class ReservaStock {
 
     private LocalDateTime fechaExpiracion;
 
+    // Cuando la reserva salio de VIGENTE, sea por confirmarse, liberarse,
+    // vencer o devolverse. Sin esto el estado final se sabe pero no cuando
+    // ocurrio, y el historial no se puede ordenar ni filtrar por eso.
+    // Null mientras la reserva sigue VIGENTE (y en las filas anteriores a
+    // este campo, que ya estaban cerradas cuando se agrego).
+    private LocalDateTime fechaCierre;
+
     // Sobre que producto/deposito puntual pesa la reserva.
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "item_id")
@@ -100,6 +107,8 @@ public class ReservaStock {
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public LocalDateTime getFechaExpiracion() { return fechaExpiracion; }
     public void setFechaExpiracion(LocalDateTime fechaExpiracion) { this.fechaExpiracion = fechaExpiracion; }
+    public LocalDateTime getFechaCierre() { return fechaCierre; }
+    public void setFechaCierre(LocalDateTime fechaCierre) { this.fechaCierre = fechaCierre; }
     public ItemInventario getItem() { return item; }
     public void setItem(ItemInventario item) { this.item = item; }
 }

@@ -22,7 +22,9 @@ package com.rabbit.inventario.negocio;
 import com.rabbit.inventario.dto.DatosDepositoDTO;
 import com.rabbit.inventario.dto.DatosItemInventarioDTO;
 import com.rabbit.inventario.dto.DepositoDTO;
+import com.rabbit.inventario.dto.FiltroHistorialDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
+import com.rabbit.inventario.dto.ReservaStockDTO;
 import jakarta.ejb.Local;
 import java.util.List;
 
@@ -123,4 +125,18 @@ public interface IConsultaStock {
      * @return depositos con cantidad libre mayor a cero
      */
     List<DepositoDTO> listarDepositosConStock(String producto);
+
+    /**
+     * HISTORIAL de reservas: que paso con cada una, filtrable.
+     *
+     * Cada reserva queda persistida para siempre con su estado final
+     * (CONFIRMADA / LIBERADA / EXPIRADA / DEVUELTA) y su fecha de cierre,
+     * asi que la tabla es el registro historico completo del componente:
+     * quien comprometio stock, cuanto, cuando y como termino.
+     *
+     * @param filtro criterios opcionales (comercio, deposito, estado,
+     *        producto, rango de fechas); todos en null trae todo
+     * @return las reservas que matchean, mas recientes primero
+     */
+    List<ReservaStockDTO> listarHistorialReservas(FiltroHistorialDTO filtro);
 }
