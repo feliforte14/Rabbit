@@ -51,24 +51,47 @@ public interface IConsultaStock {
     List<DepositoDTO> listarDepositos();
 
     /**
-     * Carga stock de un producto en un deposito. Un mismo producto no
-     * puede cargarse dos veces como filas separadas en el mismo deposito.
+     * Registra una consignacion: un comercio deja stock de un producto en
+     * un deposito de Rabbit. Un mismo comercio no puede cargar dos veces
+     * el mismo producto en el mismo deposito, pero dos comercios distintos
+     * si pueden tener el mismo producto ahi — son consignaciones separadas.
      *
      * @param idDeposito deposito donde se carga el stock
-     * @param datos producto y cantidad
+     * @param datos producto, cantidad y comercio dueño
      * @return el ID del item creado
      * @throws ValidacionException si el deposito no existe, el producto
-     *         esta vacio, la cantidad es negativa o el producto ya estaba
-     *         cargado en ese deposito
+     *         esta vacio, la cantidad es negativa, falta el comercio o
+     *         esta dado de baja, o ese comercio ya cargo ese producto en
+     *         ese deposito
      */
     Long registrarItem(Long idDeposito, DatosItemInventarioDTO datos);
 
     /**
+     * TODO el stock de un deposito, de todos los comercios. Es la vista de
+     * operador de Rabbit: quien administra el galpon ve todo lo que hay
+     * adentro, sin importar de quien sea. Para las pantallas donde se
+     * opera EN NOMBRE DE un comercio, usar
+     * {@link #listarItemsPorComercioYDeposito}.
+     *
      * @param idDeposito deposito a consultar
      * @return los items de stock de ese deposito
      * @throws ValidacionException si el deposito no existe
      */
     List<ItemInventarioDTO> listarItemsPorDeposito(Long idDeposito);
+
+    /**
+     * Solo el stock de UN comercio dentro de un deposito. Es la vista que
+     * corresponde cuando se opera en nombre de ese comercio (reservar
+     * stock, simular un pedido): ofrecer stock ajeno seria ofrecer algo
+     * que reservarStock va a rechazar despues.
+     *
+     * @param idComercio comercio dueño de la mercaderia consignada
+     * @param idDeposito deposito a consultar
+     * @return los items de ese comercio en ese deposito; lista vacia si
+     *         falta alguno de los dos parametros
+     * @throws ValidacionException si el deposito no existe
+     */
+    List<ItemInventarioDTO> listarItemsPorComercioYDeposito(Long idComercio, Long idDeposito);
 
     /**
      * Cantidad libre para comprometer: lo disponible menos lo que ya esta

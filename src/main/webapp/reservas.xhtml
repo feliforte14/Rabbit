@@ -86,8 +86,26 @@
             </div>
         </h:panelGroup>
 
-        <h2>Stock del depósito</h2>
-        <h:form id="formDeposito">
+        <!--
+            CONTEXTO DE LA OPERACION: en nombre de que comercio y sobre que
+            deposito se trabaja. Los dos filtran el stock que se muestra
+            abajo: un comercio solo ve y reserva su propia mercaderia
+            consignada.
+        -->
+        <h2>Stock disponible</h2>
+        <h:form id="formContexto">
+            <div class="campo">
+                <h:outputLabel for="comercio" value="Comercio" />
+                <h:selectOneMenu id="comercio" value="#{reservaBean.idComercio}">
+                    <f:selectItem itemLabel="— Elegí un comercio —" itemValue="#{null}" />
+                    <f:selectItems value="#{reservaBean.listaComercios}" var="c"
+                                   itemValue="#{c.id}"
+                                   itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
+                    <f:ajax listener="#{reservaBean.refrescarItems}"
+                            render=":tablaStock :formAlta" />
+                </h:selectOneMenu>
+            </div>
+
             <div class="campo">
                 <h:outputLabel for="deposito" value="Depósito" />
                 <h:selectOneMenu id="deposito" value="#{reservaBean.idDeposito}">
@@ -97,13 +115,18 @@
                     <!--
                         IDs absolutos (con ":" adelante): tablaStock y formAlta
                         son hermanos de este form, no hijos. Con IDs relativos
-                        JSF los busca dentro de formDeposito y no los encuentra,
+                        JSF los busca dentro de formContexto y no los encuentra,
                         con lo cual el desplegable de productos nunca se llena.
                     -->
                     <f:ajax listener="#{reservaBean.refrescarItems}"
                             render=":tablaStock :formAlta" />
                 </h:selectOneMenu>
             </div>
+
+            <p class="ayuda">
+                Solo se muestra la mercadería consignada por el comercio elegido: el depósito
+                es de Rabbit, pero el stock que hay adentro tiene dueño.
+            </p>
         </h:form>
 
         <h:panelGroup id="tablaStock">
@@ -135,19 +158,11 @@
 
         <h2>Reservar</h2>
         <h:form id="formAlta" styleClass="formulario">
-            <div class="campo">
-                <h:outputLabel for="comercio" value="Comercio" />
-                <h:selectOneMenu id="comercio" value="#{reservaBean.idComercio}"
-                                 required="true" label="Comercio"
-                                 requiredMessage="Elegí el comercio que reserva">
-                    <f:selectItem itemLabel="— Elegí un comercio —" itemValue="#{null}" />
-                    <f:selectItems value="#{reservaBean.listaComercios}" var="c"
-                                   itemValue="#{c.id}"
-                                   itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
-                </h:selectOneMenu>
-                <h:message for="comercio" styleClass="error-campo" />
-            </div>
-
+            <!--
+                El comercio ya se eligio arriba, en formContexto: es el
+                contexto de toda la operacion, no un dato mas del formulario.
+                Los productos que se ofrecen aca ya vienen filtrados por el.
+            -->
             <div class="campo">
                 <h:outputLabel for="item" value="Producto" />
                 <h:selectOneMenu id="item" value="#{reservaBean.idItem}"
@@ -159,6 +174,8 @@
                                    itemLabel="#{i.producto} (#{i.cantidadLibre} libres)" />
                 </h:selectOneMenu>
                 <h:message for="item" styleClass="error-campo" />
+                <h:outputText styleClass="ayuda" rendered="#{empty reservaBean.listaItems}"
+                              value="Elegí un comercio y un depósito arriba para ver sus productos." />
             </div>
 
             <div class="campo">

@@ -74,11 +74,21 @@ public class ReservaBean implements Serializable {
         refrescarItems();
     }
 
-    /** Recarga los items al cambiar el deposito elegido. */
+    /**
+     * Recarga los items al cambiar el comercio o el deposito elegido.
+     *
+     * Filtra por AMBOS: acá se opera EN NOMBRE DE un comercio, así que
+     * mostrar stock ajeno sería ofrecer algo que reservarStock va a
+     * rechazar después. La validación de fondo igual está en el negocio
+     * (InventarioService.reservarStock); esto es la capa de presentación
+     * evitando que el error sea siquiera posible desde la pantalla.
+     */
     public void refrescarItems() {
-        listaItems = (idDeposito != null)
-                ? stock.listarItemsPorDeposito(idDeposito)
+        listaItems = (idComercio != null && idDeposito != null)
+                ? stock.listarItemsPorComercioYDeposito(idComercio, idDeposito)
                 : List.of();
+        // El producto elegido puede haber quedado fuera de la lista nueva.
+        idItem = null;
     }
 
     public void reservar() {

@@ -4,12 +4,17 @@ package com.rabbit.pedidos.presentacion;
  * CAPA DE PRESENTACIÓN (Managed Bean - JSF) — ver ComercioBean para la
  * explicación completa de @Named/@ViewScoped, se aplica igual acá.
  *
- * El combo depósito→ítem para "simular pedido nuevo" sigue el mismo
- * patrón en cascada que ReservaBean (comercio→depósito→ítem):
- * getListaItems() se recalcula en vivo a partir de idDepositoSeleccionado
- * en cada render, en vez de depender de que el listener del f:ajax se
- * haya disparado — así el combo queda correcto incluso si ese postback
- * puntual no llegó a invocar el listener.
+ * El combo comercio→depósito→ítem para "simular pedido nuevo" sigue el
+ * mismo patrón en cascada que ReservaBean: getListaItems() se recalcula
+ * en vivo a partir del comercio y el depósito elegidos en cada render, en
+ * vez de depender de que el listener del f:ajax se haya disparado — así
+ * el combo queda correcto incluso si ese postback puntual no llegó a
+ * invocar el listener.
+ *
+ * Solo ofrece los ítems del comercio elegido: un pedido del ERP de Kiosco
+ * El Sol nunca referenciaría stock de otro comercio, y si igual llegara
+ * una combinación incoherente, InventarioService.reservarStock la
+ * rechaza al sincronizar.
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
@@ -65,13 +70,24 @@ public class PedidoBean implements Serializable {
         listaDepositos = stock.listarDepositos();
     }
 
-    /** Ítems del depósito elegido en el primer combo — recalculado en cada render. */
+    /**
+     * Ítems del comercio y depósito elegidos — recalculado en cada render.
+     * Filtra por comercio: solo se puede pedir stock propio.
+     */
     public List<ItemInventarioDTO> getListaItems() {
-        return idDepositoSeleccionado != null ? stock.listarItemsPorDeposito(idDepositoSeleccionado) : List.of();
+        Long idComercio = nuevoPedido.getIdComercio();
+        if (idComercio == null || idDepositoSeleccionado == null) {
+            return List.of();
+        }
+        return stock.listarItemsPorComercioYDeposito(idComercio, idDepositoSeleccionado);
     }
 
-    /** Se llama por ajax al cambiar el depósito elegido — limpia el ítem ya seleccionado. */
-    public void onDepositoCambiado() {
+    /**
+     * Se llama por ajax al cambiar el comercio o el depósito elegido:
+     * limpia el ítem ya seleccionado, que puede haber quedado fuera de la
+     * lista nueva.
+     */
+    public void onContextoCambiado() {
         nuevoPedido.setIdItem(null);
     }
 

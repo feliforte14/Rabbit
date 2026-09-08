@@ -490,3 +490,13 @@ h2 {
 @media (prefers-reduced-motion: reduce) {
     .cuenta-regresiva.urgente { animation: none; }
 }
+
+/* Texto de apoyo bajo un campo o seccion: aclara una regla del dominio
+   sin competir visualmente con el contenido. */
+.ayuda {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: #6b6b6b;
+}

@@ -164,6 +164,19 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         }
 
         ItemInventario item = obtenerItemOFallar(idItem);
+
+        // El deposito es de Rabbit, pero la mercaderia adentro es del
+        // comercio que la consigno: solo el puede comprometerla. Sin esto,
+        // cualquier comercio podria reservar stock ajeno.
+        if (item.getIdComercio() == null) {
+            throw new ValidacionException("El stock de \"" + item.getProducto()
+                    + "\" no tiene comercio asignado: no se puede reservar hasta que se le asigne uno.");
+        }
+        if (!item.getIdComercio().equals(idComercio)) {
+            throw new ValidacionException("El stock de \"" + item.getProducto()
+                    + "\" pertenece a otro comercio: no se puede reservar.");
+        }
+
         int libre = item.getCantidadDisponible() - item.getCantidadReservada();
         if (cantidad > libre) {
             throw new ValidacionException("No hay stock suficiente de \"" + item.getProducto()
@@ -357,9 +370,19 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         Deposito deposito = obtenerDepositoOFallar(idDeposito);
         validarProducto(datos.producto);
         validarCantidad(datos.cantidadDisponible);
-        if (repository.existeProductoEnDeposito(datos.producto.trim(), idDeposito, null)) {
+
+        // Cargar stock es registrar una consignacion: sin comercio dueño,
+        // la mercaderia no seria de nadie y nadie podria reservarla.
+        if (datos.idComercio == null) {
+            throw new ValidacionException("Hay que indicar de qué comercio es el stock que se carga");
+        }
+        if (!comercios.validarComercioActivo(datos.idComercio)) {
             throw new ValidacionException(
-                    "El producto \"" + datos.producto + "\" ya tiene stock cargado en este depósito");
+                    "El comercio no existe o está dado de baja: no puede consignar stock.");
+        }
+        if (repository.existeProductoEnDeposito(datos.producto.trim(), idDeposito, datos.idComercio, null)) {
+            throw new ValidacionException("El producto \"" + datos.producto
+                    + "\" ya tiene stock de este comercio cargado en este depósito");
         }
 
         ItemInventario item = new ItemInventario();
@@ -367,6 +390,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         item.setCantidadDisponible(datos.cantidadDisponible);
         item.setCantidadReservada(0);
         item.setDeposito(deposito);
+        item.setIdComercio(datos.idComercio);
         return repository.guardarItem(item).getId();
     }
 
@@ -374,6 +398,18 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     public List<ItemInventarioDTO> listarItemsPorDeposito(Long idDeposito) {
         obtenerDepositoOFallar(idDeposito);
         return repository.listarItemsPorDeposito(idDeposito)
+                .stream()
+                .map(ItemInventarioDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ItemInventarioDTO> listarItemsPorComercioYDeposito(Long idComercio, Long idDeposito) {
+        if (idComercio == null || idDeposito == null) {
+            return List.of();
+        }
+        obtenerDepositoOFallar(idDeposito);
+        return repository.listarItemsPorComercioYDeposito(idComercio, idDeposito)
                 .stream()
                 .map(ItemInventarioDTO::desde)
                 .collect(Collectors.toList());

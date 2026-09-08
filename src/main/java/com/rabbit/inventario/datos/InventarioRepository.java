@@ -60,15 +60,42 @@ public class InventarioRepository {
     }
 
     /**
-     * Indica si ya existe otro ítem con ese producto en el mismo depósito
-     * (evita cargar el mismo producto dos veces como filas separadas).
+     * Ítems de un comercio puntual dentro de un depósito puntual. Es la
+     * consulta que alimenta los desplegables de las pantallas donde se
+     * opera EN NOMBRE DE un comercio (reservar stock, simular pedido):
+     * ahí no se puede ofrecer stock ajeno.
+     *
+     * @param idComercio comercio dueño de la mercadería consignada
+     * @param idDeposito depósito de Rabbit donde está guardada
+     * @return los ítems de ese comercio en ese depósito
      */
-    public boolean existeProductoEnDeposito(String producto, Long idDeposito, Long idExcluir) {
-        String jpql = "SELECT COUNT(i) FROM ItemInventario i WHERE i.producto = :producto AND i.deposito.id = :idDeposito"
+    public List<ItemInventario> listarItemsPorComercioYDeposito(Long idComercio, Long idDeposito) {
+        return em.createQuery(
+                "SELECT i FROM ItemInventario i "
+                        + "WHERE i.idComercio = :idComercio AND i.deposito.id = :idDeposito ORDER BY i.id",
+                ItemInventario.class)
+                .setParameter("idComercio", idComercio)
+                .setParameter("idDeposito", idDeposito)
+                .getResultList();
+    }
+
+    /**
+     * Indica si ese comercio ya tiene cargado ese producto en ese depósito
+     * (evita cargar el mismo producto dos veces como filas separadas).
+     *
+     * El comercio entra en la comparación a propósito: "Coca-Cola de
+     * Kiosco El Sol" y "Coca-Cola de Pepe El Pollo" en el mismo depósito
+     * son dos consignaciones distintas y legítimas, y deben poder convivir
+     * como dos filas.
+     */
+    public boolean existeProductoEnDeposito(String producto, Long idDeposito, Long idComercio, Long idExcluir) {
+        String jpql = "SELECT COUNT(i) FROM ItemInventario i "
+                + "WHERE i.producto = :producto AND i.deposito.id = :idDeposito AND i.idComercio = :idComercio"
                 + (idExcluir != null ? " AND i.id <> :idExcluir" : "");
         var query = em.createQuery(jpql, Long.class)
                 .setParameter("producto", producto)
-                .setParameter("idDeposito", idDeposito);
+                .setParameter("idDeposito", idDeposito)
+                .setParameter("idComercio", idComercio);
         if (idExcluir != null) {
             query.setParameter("idExcluir", idExcluir);
         }
