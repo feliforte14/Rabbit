@@ -1,8 +1,10 @@
-# Rabbit — Gestión de Comercios
+# Rabbit — Gestión de Comercios, Inventario y Pedidos
 
-Aplicación Jakarta EE / JSF para el alta, baja, modificación y consulta de
-comercios y sus sucursales. Arquitectura en capas: Presentación (JSF Managed
-Beans) → Negocio (EJB `@Stateless`) → Datos (JPA/Hibernate) → PostgreSQL.
+Aplicación Jakarta EE / JSF para la gestión de comercios, sus puntos de
+picking, inventario (depósitos, ítems y reservas de stock), pedidos y
+usuarios/seguridad. Arquitectura en capas: Presentación (JSF Managed Beans) →
+Negocio (EJB `@Stateless` / `@Stateful`) → Datos (JPA/Hibernate) →
+PostgreSQL.
 
 > ⚠️ **Este README contiene credenciales reales** (WildFly admin y base de
 > datos Postgres en Supabase) para poder levantar el sistema rápido durante
@@ -92,10 +94,11 @@ eligiendo "Management User" y usando el mismo usuario/contraseña de arriba
    ```
 3. Abrir en el navegador:
    ```
-   http://localhost:8080/Rabbit/comercios.xhtml
+   http://localhost:8080/Rabbit/login.xhtml
    ```
-   (`comercios.xhtml` es la página de bienvenida configurada en
-   [`web.xml`](src/main/webapp/WEB-INF/web.xml)).
+   (`login.xhtml` es la página de bienvenida configurada en
+   [`web.xml`](src/main/webapp/WEB-INF/web.xml); desde ahí se accede al
+   resto del sistema autenticándose con un usuario existente).
 
 Para volver a desplegar después de un cambio de código:
 ```bash
@@ -115,27 +118,55 @@ datos, la capa de Datos nunca decide reglas de negocio).
 | **Negocio** | EJB `@Stateless` | Aplica las validaciones y reglas del dominio, orquesta las operaciones (`@Transactional`). No conoce detalles de la vista ni del motor de base de datos. |
 | **Datos** | JPA / Hibernate | Persiste y recupera información. Traduce entre objetos Java y filas de la tabla. |
 
-Cada componente de negocio (por ejemplo `comercios`) replica el mismo
-esqueleto de paquetes:
+Cada componente de negocio replica el mismo esqueleto de paquetes, por
+ejemplo `comercios`:
 
 ```
 com.rabbit.comercios/
-├── presentacion/     ← Managed Beans JSF (ComercioBean, SucursalBean)
-├── negocio/          ← EJB (ComercioService, ValidacionException)
+├── presentacion/     ← Managed Beans JSF (ComercioBean, PuntoPickingBean)
+├── negocio/          ← EJB (ComercioService, IConsultaComercios, IRegistroComercios)
 ├── datos/
-│   ├── model/         ← Entidades JPA (Comercio, Sucursal)
-│   └── ComercioRepository.java
-└── dto/               ← DTOs que viajan entre capas (ComercioDTO, SucursalDTO, ...)
+│   ├── model/         ← Entidades JPA (Comercio, PuntoPicking, Producto)
+│   └── ComercioRepository.java, ProductoRepository.java
+└── dto/               ← DTOs que viajan entre capas (ComercioDTO, PuntoPickingDTO, ...)
 ```
+
+El sistema está organizado en cuatro componentes de negocio:
+
+| Componente | Paquete | Responsabilidad |
+|---|---|---|
+| **Comercios** | `com.rabbit.comercios` | Alta/baja/consulta de comercios, sus puntos de picking y productos. |
+| **Inventario** | `com.rabbit.inventario` | Depósitos, ítems de inventario y reservas de stock (`ReservaStock`). |
+| **Pedidos** | `com.rabbit.pedidos` | Gestión y seguimiento de pedidos, sincronización con pedidos externos. |
+| **Seguridad** | `com.rabbit.seguridad` | Usuarios, login y sincronización de roles contra el `ApplicationRealm` de WildFly. |
+
+La mayoría de los servicios de negocio son EJB `@Stateless`, salvo
+[`InventarioService`](src/main/java/com/rabbit/inventario/negocio/InventarioService.java),
+que es `@Stateful` (con `@StatefulTimeout`) para poder mantener el estado de
+una reserva de stock en curso durante la conversación del usuario; un
+[`BarredorDeReservas`](src/main/java/com/rabbit/inventario/negocio/BarredorDeReservas.java)
+libera automáticamente las reservas vencidas. La decisión de por qué
+Inventario es stateful y el resto stateless está documentada como ADR en el
+historial de commits del proyecto.
+
+La seguridad es declarativa: los roles (`ADMINISTRADOR`, `OPERADOR`, ver
+[`Rol`](src/main/java/com/rabbit/seguridad/datos/model/Rol.java)) se
+sincronizan contra el `ApplicationRealm` de WildFly
+([`ApplicationRealmSync`](src/main/java/com/rabbit/seguridad/negocio/ApplicationRealmSync.java)),
+y las operaciones sensibles se protegen con `@RolesAllowed` a nivel de método
+en los EJB (por ejemplo,
+[`ComercioService.eliminarComercio`](src/main/java/com/rabbit/comercios/negocio/ComercioService.java)).
 
 ### Por qué `model` y `dto` están separados
 
-- **`datos/model/`** contiene las **entidades JPA** (`Comercio`, `Sucursal`):
-  representan filas de la base de datos tal cual, con anotaciones de
-  persistencia (`@Entity`, `@OneToMany`, `@JoinColumn`) y relaciones lazy.
-  Están acopladas al motor de persistencia (Hibernate).
-- **`dto/`** contiene objetos planos (`ComercioDTO`, `SucursalDTO`, etc.) que
-  viajan entre capas, sobre todo hacia la Presentación. Las entidades **nunca**
+- **`datos/model/`** contiene las **entidades JPA** (`Comercio`,
+  `PuntoPicking`, `ReservaStock`, `Pedido`, `Usuario`, etc.): representan
+  filas de la base de datos tal cual, con anotaciones de persistencia
+  (`@Entity`, `@OneToMany`, `@JoinColumn`) y relaciones lazy. Están acopladas
+  al motor de persistencia (Hibernate).
+- **`dto/`** contiene objetos planos (`ComercioDTO`, `PuntoPickingDTO`, etc.)
+  que viajan entre capas, sobre todo hacia la Presentación. Las entidades
+  **nunca**
   se exponen directo a la vista: si `ComercioBean` trabajara con la entidad
   `Comercio`, quedaría acoplado a detalles de Hibernate (por ejemplo, acceder
   a una relación lazy fuera de una transacción tira `LazyInitializationException`),
@@ -147,13 +178,28 @@ relación) sin tocar las vistas `.xhtml`.
 
 ## Funcionalidad disponible
 
-- Alta, baja lógica, reactivación y eliminación física de comercios
-  (`comercios.xhtml`) — la eliminación física solo se permite si el
-  comercio ya está dado de baja, y borra en cascada sus sucursales.
-- Alta, baja lógica y reactivación de sucursales por comercio
-  (`sucursales.xhtml`, accesible desde el link "Ver sucursales" de cada
-  comercio).
-- Validaciones de negocio centralizadas en
-  [`ComercioService`](src/main/java/com/rabbit/comercios/negocio/ComercioService.java):
-  nombre/razón social obligatorios, formato y unicidad de CUIT, formato de
-  email.
+- **Login y seguridad** (`login.xhtml`, `panel.xhtml`): autenticación contra
+  el `ApplicationRealm` de WildFly y navegación protegida por rol.
+- **Comercios** (`comercios.xhtml`): alta, baja lógica, reactivación y
+  eliminación física de comercios — la eliminación física solo se permite si
+  el comercio ya está dado de baja, y borra en cascada sus puntos de
+  picking.
+- **Puntos de picking** (`puntos-picking.xhtml`, accesible desde cada
+  comercio): alta, baja lógica y reactivación de puntos de picking por
+  comercio.
+- **Inventario** (`depositos.xhtml`, `items.xhtml`): gestión de depósitos e
+  ítems de inventario.
+- **Reservas de stock** (`reservas.xhtml`): reserva de stock con
+  vencimiento; una cuenta regresiva en pantalla (`reserva.js`) refleja el
+  tiempo restante y el
+  [`BarredorDeReservas`](src/main/java/com/rabbit/inventario/negocio/BarredorDeReservas.java)
+  libera automáticamente las reservas vencidas.
+- **Pedidos** (`pedidos.xhtml`): gestión y seguimiento de pedidos, con
+  sincronización de pedidos externos vía
+  [`SincronizadorDePedidos`](src/main/java/com/rabbit/pedidos/negocio/SincronizadorDePedidos.java).
+- **Usuarios** (`usuarios.xhtml`): alta y consulta de usuarios del sistema,
+  con asignación de rol (`ADMINISTRADOR` / `OPERADOR`).
+- Validaciones de negocio centralizadas en el `negocio` de cada componente
+  (por ejemplo,
+  [`ComercioService`](src/main/java/com/rabbit/comercios/negocio/ComercioService.java)):
+  campos obligatorios, formato y unicidad de CUIT, formato de email.
