@@ -19,6 +19,8 @@ public class PedidoExternoDTO {
     public int cantidad;
     public String fechaPedido;
     public boolean sincronizado;
+    public String errorSincronizacion;
+    public String resultado;
 
     public static PedidoExternoDTO desde(PedidoExterno pe) {
         PedidoExternoDTO dto = new PedidoExternoDTO();
@@ -28,6 +30,16 @@ public class PedidoExternoDTO {
         dto.cantidad = pe.getCantidad();
         dto.fechaPedido = pe.getFechaPedido() != null ? pe.getFechaPedido().format(FORMATO) : null;
         dto.sincronizado = pe.isSincronizado();
+        dto.errorSincronizacion = pe.getErrorSincronizacion();
+        // Los tres desenlaces posibles, ya resueltos acá para que la vista
+        // no tenga que combinar dos campos en Expression Language.
+        if (!pe.isSincronizado()) {
+            dto.resultado = "Pendiente";
+        } else if (pe.getErrorSincronizacion() == null) {
+            dto.resultado = "Sincronizado";
+        } else {
+            dto.resultado = "Descartado";
+        }
         return dto;
     }
 
@@ -37,4 +49,6 @@ public class PedidoExternoDTO {
     public int getCantidad() { return cantidad; }
     public String getFechaPedido() { return fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }
+    public String getErrorSincronizacion() { return errorSincronizacion; }
+    public String getResultado() { return resultado; }
 }
