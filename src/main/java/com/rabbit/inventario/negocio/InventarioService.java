@@ -460,9 +460,17 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     }
 
     /**
-     * Historial de reservas. Va @Transactional aunque solo lee: el mapeo a
-     * DTO navega ReservaStock.item (LAZY) para sacar el deposito, y sin
-     * transaccion abierta eso tira LazyInitializationException.
+     * Historial de reservas.
+     *
+     * Necesita transaccion aunque solo lea: el mapeo a DTO navega
+     * ReservaStock.item (LAZY) para sacar el deposito, y sin transaccion
+     * abierta eso tira LazyInitializationException.
+     *
+     * La transaccion la da el contenedor, no la anotacion: este es un EJB
+     * (@Stateful) y todos sus metodos de negocio corren con REQUIRED por
+     * defecto. Se deja @Transactional por consistencia con el resto de la
+     * clase, pero conviene tener presente que en un EJB es decorativa —
+     * ver el comentario de PedidoService, donde esa diferencia si importo.
      */
     @Override
     @Transactional

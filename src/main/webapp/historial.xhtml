@@ -84,8 +84,16 @@
             <div class="form-acciones">
                 <h:commandButton value="Buscar" styleClass="btn btn-primary"
                                  action="#{historialReservasBean.buscar}" />
-                <h:commandButton value="Limpiar filtros" styleClass="btn btn-secondary"
-                                 action="#{historialReservasBean.limpiar}" immediate="true" />
+                <!--
+                    Limpiar es un GET a la misma vista, no un postback: eso
+                    descarta el Bean @ViewScoped y lo recrea vacio. Con un
+                    commandButton los inputs conservarian sus valores
+                    enviados y se re-renderizarian con esos aunque el filtro
+                    del Bean ya estuviera reseteado — y si ademas hay un
+                    error de conversion en una fecha, que es justo cuando
+                    mas querés limpiar, el postback ni siquiera llega.
+                -->
+                <h:button outcome="historial" value="Limpiar filtros" styleClass="btn btn-secondary" />
             </div>
 
             <h:messages globalOnly="false" showDetail="false" showSummary="true"
@@ -133,9 +141,8 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Cerrada</f:facet>
-                    <h:outputText value="#{r.fechaCierre}" rendered="#{not empty r.fechaCierre}" />
-                    <h:outputText value="— en curso —" styleClass="ayuda"
-                                  rendered="#{empty r.fechaCierre}" />
+                    <h:outputText value="#{historialReservasBean.textoCierre(r)}"
+                                  styleClass="#{empty r.fechaCierre ? 'ayuda' : ''}" />
                 </h:column>
             </h:dataTable>
 
