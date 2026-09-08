@@ -71,15 +71,32 @@ public class PedidoBean implements Serializable {
     }
 
     /**
-     * Ítems del comercio y depósito elegidos — recalculado en cada render.
-     * Filtra por comercio: solo se puede pedir stock propio.
+     * Ítems del comercio elegido — recalculado en cada render.
+     *
+     * El comercio es obligatorio (solo se puede pedir stock propio); el
+     * depósito es un filtro opcional, igual que en ReservaBean. Sin
+     * elegirlo se ve todo el stock del comercio en la red.
      */
     public List<ItemInventarioDTO> getListaItems() {
         Long idComercio = nuevoPedido.getIdComercio();
-        if (idComercio == null || idDepositoSeleccionado == null) {
+        if (idComercio == null) {
             return List.of();
         }
-        return stock.listarItemsPorComercioYDeposito(idComercio, idDepositoSeleccionado);
+        return (idDepositoSeleccionado == null)
+                ? stock.listarItemsPorComercio(idComercio)
+                : stock.listarItemsPorComercioYDeposito(idComercio, idDepositoSeleccionado);
+    }
+
+    /** Nombre del depósito de un ítem, para distinguirlos en el desplegable. */
+    public String nombreDeposito(Long id) {
+        if (id == null || listaDepositos == null) {
+            return "—";
+        }
+        return listaDepositos.stream()
+                .filter(d -> d.getId().equals(id))
+                .map(DepositoDTO::getNombre)
+                .findFirst()
+                .orElse("Depósito " + id);
     }
 
     /**

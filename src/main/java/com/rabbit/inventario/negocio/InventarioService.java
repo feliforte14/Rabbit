@@ -54,6 +54,7 @@ import jakarta.ejb.Remove;
 import jakarta.ejb.Stateful;
 import jakarta.ejb.StatefulTimeout;
 import jakarta.inject.Inject;
+import jakarta.persistence.OptimisticLockException;
 import jakarta.transaction.Transactional;
 
 import java.io.Serializable;
@@ -188,6 +189,19 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         item.setCantidadReservada(item.getCantidadReservada() + cantidad);
         repository.actualizarItem(item);
 
+        // Se fuerza el UPDATE ahora, sin esperar al commit, para que el
+        // bloqueo optimista (@Version en ItemInventario) falle ACA y no
+        // despues del metodo: si otra sesion toco el mismo item entre la
+        // lectura y esta escritura, la version ya no coincide. Sin este
+        // flush el error saldria como un RollbackException crudo en la
+        // pantalla, en vez de un mensaje que el usuario entienda.
+        try {
+            repository.sincronizar();
+        } catch (OptimisticLockException e) {
+            throw new ValidacionException("Otro usuario acaba de reservar \"" + item.getProducto()
+                    + "\" al mismo tiempo. Volvé a intentarlo para ver el stock actualizado.");
+        }
+
         LocalDateTime ahora = LocalDateTime.now();
         ReservaStock reserva = new ReservaStock();
         reserva.setProducto(item.getProducto());
@@ -226,6 +240,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         repository.actualizarItem(item);
 
         reserva.setEstado(EstadoReserva.CONFIRMADA);
+        reserva.setFechaCierre(LocalDateTime.now());
         repository.actualizarReserva(reserva);
 
         LOG.info("[Inventario] Reserva " + idReservaActual + " confirmada");
@@ -246,6 +261,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
             repository.actualizarItem(item);
 
             reserva.setEstado(EstadoReserva.LIBERADA);
+            reserva.setFechaCierre(LocalDateTime.now());
             repository.actualizarReserva(reserva);
         }
 
@@ -307,6 +323,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         repository.actualizarItem(item);
 
         reserva.setEstado(EstadoReserva.DEVUELTA);
+        reserva.setFechaCierre(LocalDateTime.now());
         repository.actualizarReserva(reserva);
 
         // Si justo era la reserva en curso de esta conversacion, ya no lo es.
@@ -439,6 +456,21 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         return repository.listarDepositosConStock(producto)
                 .stream()
                 .map(DepositoDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Historial de reservas. Va @Transactional aunque solo lee: el mapeo a
+     * DTO navega ReservaStock.item (LAZY) para sacar el deposito, y sin
+     * transaccion abierta eso tira LazyInitializationException.
+     */
+    @Override
+    @Transactional
+    public List<ReservaStockDTO> listarHistorialReservas(FiltroHistorialDTO filtro) {
+        FiltroHistorialDTO criterios = (filtro != null) ? filtro : new FiltroHistorialDTO();
+        return repository.listarHistorial(criterios)
+                .stream()
+                .map(ReservaStockDTO::desde)
                 .collect(Collectors.toList());
     }
 

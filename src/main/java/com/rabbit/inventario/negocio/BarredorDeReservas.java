@@ -90,6 +90,7 @@ public class BarredorDeReservas {
                 repository.actualizarItem(item);
             }
             reserva.setEstado(EstadoReserva.EXPIRADA);
+            reserva.setFechaCierre(LocalDateTime.now());
             repository.actualizarReserva(reserva);
 
             LOG.info("[Barredor] Reserva " + reserva.getId() + " expirada: se devolvieron "
