@@ -47,12 +47,17 @@ public interface IReservaStock {
      * Valida contra IConsultaComercios que el comercio exista y este
      * activo: un comercio dado de baja no puede comprometer stock.
      *
+     * Valida ademas que el item le PERTENEZCA: el deposito es de Rabbit,
+     * pero la mercaderia adentro es del comercio que la consigno, y solo
+     * el puede reservarla (ver ItemInventario.idComercio).
+     *
      * @param idComercio comercio que pide la reserva
      * @param idItem item de stock a comprometer
      * @param cantidad unidades a reservar
      * @return la reserva creada, ya vigente
      * @throws ValidacionException si el comercio no esta activo, el item no
-     *         existe, la cantidad no es positiva, no hay stock libre
+     *         existe, el item es de otro comercio o no tiene dueño
+     *         asignado, la cantidad no es positiva, no hay stock libre
      *         suficiente, o esta conversacion ya tiene una reserva vigente
      */
     ReservaStockDTO reservarStock(Long idComercio, Long idItem, int cantidad);

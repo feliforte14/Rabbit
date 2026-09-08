@@ -15,6 +15,7 @@ public class ItemInventarioDTO {
     public int cantidadReservada;
     public int cantidadLibre;
     public Long idDeposito;
+    public Long idComercio;
 
     public static ItemInventarioDTO desde(ItemInventario i) {
         ItemInventarioDTO dto = new ItemInventarioDTO();
@@ -24,6 +25,7 @@ public class ItemInventarioDTO {
         dto.cantidadReservada = i.getCantidadReservada();
         dto.cantidadLibre = i.getCantidadDisponible() - i.getCantidadReservada();
         dto.idDeposito = i.getDeposito() != null ? i.getDeposito().getId() : null;
+        dto.idComercio = i.getIdComercio();
         return dto;
     }
 
@@ -34,4 +36,5 @@ public class ItemInventarioDTO {
     public int getCantidadReservada() { return cantidadReservada; }
     public int getCantidadLibre() { return cantidadLibre; }
     public Long getIdDeposito() { return idDeposito; }
+    public Long getIdComercio() { return idComercio; }
 }

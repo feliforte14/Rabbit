@@ -114,6 +114,7 @@
                     <f:selectItems value="#{pedidoBean.listaComercios}" var="c"
                                    itemValue="#{c.id}"
                                    itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
+                    <f:ajax listener="#{pedidoBean.onContextoCambiado}" render="item" />
                 </h:selectOneMenu>
             </div>
 
@@ -123,12 +124,16 @@
                     <f:selectItem itemLabel="— Elegí un depósito —" itemValue="#{null}" />
                     <f:selectItems value="#{pedidoBean.listaDepositos}" var="d"
                                    itemValue="#{d.id}" itemLabel="#{d.nombre}" />
-                    <f:ajax listener="#{pedidoBean.onDepositoCambiado}" render="item" />
+                    <f:ajax listener="#{pedidoBean.onContextoCambiado}" render="item" />
                 </h:selectOneMenu>
             </div>
 
             <div class="campo">
                 <h:outputLabel for="item" value="Producto" />
+                <!--
+                    Solo el stock consignado por el comercio elegido: el ERP
+                    de un comercio nunca pediria mercaderia de otro.
+                -->
                 <h:selectOneMenu id="item" value="#{pedidoBean.nuevoPedido.idItem}"
                                  required="true" label="Producto">
                     <f:selectItem itemLabel="— Elegí un producto —" itemValue="#{null}" />
