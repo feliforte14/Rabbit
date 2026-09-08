@@ -404,6 +404,17 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     }
 
     @Override
+    public List<ItemInventarioDTO> listarItemsPorComercio(Long idComercio) {
+        if (idComercio == null) {
+            return List.of();
+        }
+        return repository.listarItemsPorComercio(idComercio)
+                .stream()
+                .map(ItemInventarioDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    @Override
     public List<ItemInventarioDTO> listarItemsPorComercioYDeposito(Long idComercio, Long idDeposito) {
         if (idComercio == null || idDeposito == null) {
             return List.of();

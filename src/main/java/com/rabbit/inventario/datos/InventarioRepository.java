@@ -60,10 +60,26 @@ public class InventarioRepository {
     }
 
     /**
-     * Ítems de un comercio puntual dentro de un depósito puntual. Es la
-     * consulta que alimenta los desplegables de las pantallas donde se
-     * opera EN NOMBRE DE un comercio (reservar stock, simular pedido):
-     * ahí no se puede ofrecer stock ajeno.
+     * TODO el stock consignado por un comercio, en todos los depósitos de
+     * Rabbit. Es la vista por defecto al operar en nombre de un comercio:
+     * "qué mercadería mía hay guardada, y dónde".
+     *
+     * @param idComercio comercio dueño de la mercadería consignada
+     * @return sus ítems, ordenados por depósito
+     */
+    public List<ItemInventario> listarItemsPorComercio(Long idComercio) {
+        return em.createQuery(
+                "SELECT i FROM ItemInventario i WHERE i.idComercio = :idComercio "
+                        + "ORDER BY i.deposito.id, i.id",
+                ItemInventario.class)
+                .setParameter("idComercio", idComercio)
+                .getResultList();
+    }
+
+    /**
+     * Ítems de un comercio puntual dentro de un depósito puntual. Misma
+     * idea que arriba, pero acotado a un depósito — el filtro opcional de
+     * la pantalla de reserva.
      *
      * @param idComercio comercio dueño de la mercadería consignada
      * @param idDeposito depósito de Rabbit donde está guardada
