@@ -92,8 +92,14 @@
                     #{pe.fechaPedido}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Sincronizado</f:facet>
-                    #{pe.sincronizado ? 'Sí' : 'Pendiente'}
+                    <f:facet name="header">Resultado</f:facet>
+                    #{pe.resultado}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Motivo del descarte</f:facet>
+                    <h:outputText value="#{pe.errorSincronizacion}" styleClass="error-campo"
+                                  rendered="#{not empty pe.errorSincronizacion}" />
+                    <h:outputText value="—" rendered="#{empty pe.errorSincronizacion}" />
                 </h:column>
             </h:dataTable>
         </h:form>
@@ -108,27 +114,32 @@
                     <f:selectItems value="#{pedidoBean.listaComercios}" var="c"
                                    itemValue="#{c.id}"
                                    itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
+                    <f:ajax listener="#{pedidoBean.onContextoCambiado}" render="item" />
                 </h:selectOneMenu>
             </div>
 
             <div class="campo">
-                <h:outputLabel for="deposito" value="Depósito" />
+                <h:outputLabel for="deposito" value="Depósito (opcional)" />
                 <h:selectOneMenu id="deposito" value="#{pedidoBean.idDepositoSeleccionado}">
-                    <f:selectItem itemLabel="— Elegí un depósito —" itemValue="#{null}" />
+                    <f:selectItem itemLabel="Todos los depósitos" itemValue="#{null}" />
                     <f:selectItems value="#{pedidoBean.listaDepositos}" var="d"
                                    itemValue="#{d.id}" itemLabel="#{d.nombre}" />
-                    <f:ajax listener="#{pedidoBean.onDepositoCambiado}" render="item" />
+                    <f:ajax listener="#{pedidoBean.onContextoCambiado}" render="item" />
                 </h:selectOneMenu>
             </div>
 
             <div class="campo">
                 <h:outputLabel for="item" value="Producto" />
+                <!--
+                    Solo el stock consignado por el comercio elegido: el ERP
+                    de un comercio nunca pediria mercaderia de otro.
+                -->
                 <h:selectOneMenu id="item" value="#{pedidoBean.nuevoPedido.idItem}"
                                  required="true" label="Producto">
                     <f:selectItem itemLabel="— Elegí un producto —" itemValue="#{null}" />
                     <f:selectItems value="#{pedidoBean.listaItems}" var="i"
                                    itemValue="#{i.id}"
-                                   itemLabel="#{i.producto} (#{i.cantidadLibre} libres)" />
+                                   itemLabel="#{i.producto} — #{pedidoBean.nombreDeposito(i.idDeposito)} (#{i.cantidadLibre} libres)" />
                 </h:selectOneMenu>
             </div>
 

@@ -34,9 +34,10 @@ public class Pedido {
     private EstadoPedido estado;
 
     // Reserva de stock ya CONFIRMADA en ServicioDeInventario que este
-    // pedido comprometió al sincronizarse. Se guarda para trazabilidad;
-    // no hay, en este alcance, una operación que la revierta al cancelar
-    // (ver PedidoService.cancelarPedido).
+    // pedido comprometió al sincronizarse. Se guarda para trazabilidad y
+    // para poder revertirla: cancelarPedido() llama a
+    // IReservaStock.registrarDevolucion(idReservaStock) y el stock vuelve
+    // al disponible.
     private Long idReservaStock;
 
     private LocalDateTime fechaCreacion;

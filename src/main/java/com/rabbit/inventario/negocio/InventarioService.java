@@ -54,6 +54,7 @@ import jakarta.ejb.Remove;
 import jakarta.ejb.Stateful;
 import jakarta.ejb.StatefulTimeout;
 import jakarta.inject.Inject;
+import jakarta.persistence.OptimisticLockException;
 import jakarta.transaction.Transactional;
 
 import java.io.Serializable;
@@ -164,6 +165,19 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         }
 
         ItemInventario item = obtenerItemOFallar(idItem);
+
+        // El deposito es de Rabbit, pero la mercaderia adentro es del
+        // comercio que la consigno: solo el puede comprometerla. Sin esto,
+        // cualquier comercio podria reservar stock ajeno.
+        if (item.getIdComercio() == null) {
+            throw new ValidacionException("El stock de \"" + item.getProducto()
+                    + "\" no tiene comercio asignado: no se puede reservar hasta que se le asigne uno.");
+        }
+        if (!item.getIdComercio().equals(idComercio)) {
+            throw new ValidacionException("El stock de \"" + item.getProducto()
+                    + "\" pertenece a otro comercio: no se puede reservar.");
+        }
+
         int libre = item.getCantidadDisponible() - item.getCantidadReservada();
         if (cantidad > libre) {
             throw new ValidacionException("No hay stock suficiente de \"" + item.getProducto()
@@ -174,6 +188,19 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         // disponible. El stock recien sale del deposito al confirmar.
         item.setCantidadReservada(item.getCantidadReservada() + cantidad);
         repository.actualizarItem(item);
+
+        // Se fuerza el UPDATE ahora, sin esperar al commit, para que el
+        // bloqueo optimista (@Version en ItemInventario) falle ACA y no
+        // despues del metodo: si otra sesion toco el mismo item entre la
+        // lectura y esta escritura, la version ya no coincide. Sin este
+        // flush el error saldria como un RollbackException crudo en la
+        // pantalla, en vez de un mensaje que el usuario entienda.
+        try {
+            repository.sincronizar();
+        } catch (OptimisticLockException e) {
+            throw new ValidacionException("Otro usuario acaba de reservar \"" + item.getProducto()
+                    + "\" al mismo tiempo. Volvé a intentarlo para ver el stock actualizado.");
+        }
 
         LocalDateTime ahora = LocalDateTime.now();
         ReservaStock reserva = new ReservaStock();
@@ -213,6 +240,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         repository.actualizarItem(item);
 
         reserva.setEstado(EstadoReserva.CONFIRMADA);
+        reserva.setFechaCierre(LocalDateTime.now());
         repository.actualizarReserva(reserva);
 
         LOG.info("[Inventario] Reserva " + idReservaActual + " confirmada");
@@ -233,6 +261,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
             repository.actualizarItem(item);
 
             reserva.setEstado(EstadoReserva.LIBERADA);
+            reserva.setFechaCierre(LocalDateTime.now());
             repository.actualizarReserva(reserva);
         }
 
@@ -269,6 +298,41 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         }
         ReservaStock reserva = repository.buscarReservaPorId(idReservaActual);
         return reserva != null && reserva.estaVigente();
+    }
+
+    @Override
+    @Transactional
+    public void registrarDevolucion(Long idReserva) {
+        if (idReserva == null) {
+            throw new ValidacionException("Falta el identificador de la reserva a devolver");
+        }
+        ReservaStock reserva = repository.buscarReservaPorId(idReserva);
+        if (reserva == null) {
+            throw new ValidacionException("La reserva " + idReserva + " no existe");
+        }
+        if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
+            // Solo se devuelve stock que efectivamente se habia descontado.
+            // LIBERADA / EXPIRADA / DEVUELTA ya devolvieron la cantidad en su
+            // momento; sumarla otra vez dejaria cantidadDisponible inflado.
+            throw new ValidacionException("Solo se puede devolver una reserva CONFIRMADA (la "
+                    + idReserva + " esta " + reserva.getEstado() + ")");
+        }
+
+        ItemInventario item = reserva.getItem();
+        item.setCantidadDisponible(item.getCantidadDisponible() + reserva.getCantidad());
+        repository.actualizarItem(item);
+
+        reserva.setEstado(EstadoReserva.DEVUELTA);
+        reserva.setFechaCierre(LocalDateTime.now());
+        repository.actualizarReserva(reserva);
+
+        // Si justo era la reserva en curso de esta conversacion, ya no lo es.
+        if (idReserva.equals(idReservaActual)) {
+            idReservaActual = null;
+        }
+
+        LOG.info("[Inventario] Devolucion de reserva " + idReserva + ": +" + reserva.getCantidad()
+                + " x " + reserva.getProducto() + " al stock disponible");
     }
 
     /** La reserva que esta conversacion dejo abierta, o error si no hay. */
@@ -323,9 +387,19 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         Deposito deposito = obtenerDepositoOFallar(idDeposito);
         validarProducto(datos.producto);
         validarCantidad(datos.cantidadDisponible);
-        if (repository.existeProductoEnDeposito(datos.producto.trim(), idDeposito, null)) {
+
+        // Cargar stock es registrar una consignacion: sin comercio dueño,
+        // la mercaderia no seria de nadie y nadie podria reservarla.
+        if (datos.idComercio == null) {
+            throw new ValidacionException("Hay que indicar de qué comercio es el stock que se carga");
+        }
+        if (!comercios.validarComercioActivo(datos.idComercio)) {
             throw new ValidacionException(
-                    "El producto \"" + datos.producto + "\" ya tiene stock cargado en este depósito");
+                    "El comercio no existe o está dado de baja: no puede consignar stock.");
+        }
+        if (repository.existeProductoEnDeposito(datos.producto.trim(), idDeposito, datos.idComercio, null)) {
+            throw new ValidacionException("El producto \"" + datos.producto
+                    + "\" ya tiene stock de este comercio cargado en este depósito");
         }
 
         ItemInventario item = new ItemInventario();
@@ -333,6 +407,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         item.setCantidadDisponible(datos.cantidadDisponible);
         item.setCantidadReservada(0);
         item.setDeposito(deposito);
+        item.setIdComercio(datos.idComercio);
         return repository.guardarItem(item).getId();
     }
 
@@ -340,6 +415,29 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     public List<ItemInventarioDTO> listarItemsPorDeposito(Long idDeposito) {
         obtenerDepositoOFallar(idDeposito);
         return repository.listarItemsPorDeposito(idDeposito)
+                .stream()
+                .map(ItemInventarioDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ItemInventarioDTO> listarItemsPorComercio(Long idComercio) {
+        if (idComercio == null) {
+            return List.of();
+        }
+        return repository.listarItemsPorComercio(idComercio)
+                .stream()
+                .map(ItemInventarioDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public List<ItemInventarioDTO> listarItemsPorComercioYDeposito(Long idComercio, Long idDeposito) {
+        if (idComercio == null || idDeposito == null) {
+            return List.of();
+        }
+        obtenerDepositoOFallar(idDeposito);
+        return repository.listarItemsPorComercioYDeposito(idComercio, idDeposito)
                 .stream()
                 .map(ItemInventarioDTO::desde)
                 .collect(Collectors.toList());
@@ -358,6 +456,29 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         return repository.listarDepositosConStock(producto)
                 .stream()
                 .map(DepositoDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Historial de reservas.
+     *
+     * Necesita transaccion aunque solo lea: el mapeo a DTO navega
+     * ReservaStock.item (LAZY) para sacar el deposito, y sin transaccion
+     * abierta eso tira LazyInitializationException.
+     *
+     * La transaccion la da el contenedor, no la anotacion: este es un EJB
+     * (@Stateful) y todos sus metodos de negocio corren con REQUIRED por
+     * defecto. Se deja @Transactional por consistencia con el resto de la
+     * clase, pero conviene tener presente que en un EJB es decorativa —
+     * ver el comentario de PedidoService, donde esa diferencia si importo.
+     */
+    @Override
+    @Transactional
+    public List<ReservaStockDTO> listarHistorialReservas(FiltroHistorialDTO filtro) {
+        FiltroHistorialDTO criterios = (filtro != null) ? filtro : new FiltroHistorialDTO();
+        return repository.listarHistorial(criterios)
+                .stream()
+                .map(ReservaStockDTO::desde)
                 .collect(Collectors.toList());
     }
 
