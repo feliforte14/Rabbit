@@ -39,6 +39,10 @@ public interface IGestionPedidos {
      * procesada. La invoca SincronizadorDePedidos en cada pasada — no es
      * un alta manual, ver Sección 1.1 y 5.3 del documento técnico.
      *
+     * Corre en su PROPIA transacción (REQUIRES_NEW): si una fila falla, su
+     * rollback no debe arrastrar al resto de la pasada del sincronizador
+     * ni a la transacción del timer.
+     *
      * @param idPedidoExterno fila del mock a sincronizar
      * @return el ID del Pedido creado
      * @throws ValidacionException si la fila no existe, ya fue
@@ -46,6 +50,21 @@ public interface IGestionPedidos {
      *         suficiente
      */
     Long sincronizarPedidoExterno(Long idPedidoExterno);
+
+    /**
+     * Marca una fila del mock como procesada SIN generar Pedido, dejando
+     * asentado por qué se descartó. La usa SincronizadorDePedidos cuando
+     * la fila falla por una regla de negocio (comercio dado de baja, sin
+     * stock, ítem inexistente): son fallas permanentes, y sin esto la fila
+     * se reintentaría en cada pasada, para siempre.
+     *
+     * También corre en su propia transacción, porque se invoca justo
+     * después de que la transacción de la sincronización hizo rollback.
+     *
+     * @param idPedidoExterno fila a descartar
+     * @param motivo texto que se guarda y se muestra en la vista
+     */
+    void descartarPedidoExterno(Long idPedidoExterno, String motivo);
 
     /**
      * Avanza el pedido a CONFIRMADO. El stock ya se comprometió al
@@ -59,15 +78,14 @@ public interface IGestionPedidos {
     void confirmarPedido(Long idPedido);
 
     /**
-     * Cancela el pedido.
-     *
-     * LIMITACIÓN CONOCIDA DE ESTE ALCANCE: no revierte el stock ya
-     * confirmado en ServicioDeInventario — esa operación (devolver stock
-     * de un pedido cancelado) queda fuera del alcance de esta entrega,
-     * documentada como pendiente en la Sección 5.3 del documento técnico.
+     * Cancela el pedido y DEVUELVE el stock que había comprometido: llama
+     * a IReservaStock.registrarDevolucion() sobre la reserva que quedó
+     * CONFIRMADA al sincronizar, con lo que la cantidad vuelve al stock
+     * disponible del ítem y la reserva pasa a DEVUELTA.
      *
      * @param idPedido ID del pedido a cancelar
-     * @throws ValidacionException si el pedido no existe o ya está CANCELADO
+     * @throws ValidacionException si el pedido no existe, ya está
+     *         CANCELADO, o no se pudo devolver el stock
      */
     void cancelarPedido(Long idPedido);
 }

@@ -92,8 +92,14 @@
                     #{pe.fechaPedido}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Sincronizado</f:facet>
-                    #{pe.sincronizado ? 'Sí' : 'Pendiente'}
+                    <f:facet name="header">Resultado</f:facet>
+                    #{pe.resultado}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Motivo del descarte</f:facet>
+                    <h:outputText value="#{pe.errorSincronizacion}" styleClass="error-campo"
+                                  rendered="#{not empty pe.errorSincronizacion}" />
+                    <h:outputText value="—" rendered="#{empty pe.errorSincronizacion}" />
                 </h:column>
             </h:dataTable>
         </h:form>
