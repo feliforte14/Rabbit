@@ -25,6 +25,12 @@ package com.rabbit.inventario.negocio;
  *
  * Solo se admite UNA reserva vigente por conversacion.
  *
+ * EXCEPCION A LA REGLA DEL "SIN ID POR PARAMETRO": registrarDevolucion()
+ * si recibe el ID. No es parte de la conversacion reservar->confirmar: es
+ * una correccion contable fuera de banda (un pedido ya confirmado que
+ * despues se cancela), que puede pedir cualquier cliente sobre cualquier
+ * reserva, sin haberla abierto el mismo.
+ *
  * Implementada por {@link InventarioService}.
  */
 
@@ -85,4 +91,21 @@ public interface IReservaStock {
      * @return true si esta conversacion tiene una reserva abierta y sin vencer
      */
     boolean hayReservaVigente();
+
+    /**
+     * Revierte una reserva CONFIRMADA: devuelve su cantidad al stock
+     * disponible del item y la deja en estado DEVUELTA. La usa
+     * ServicioDePedidos cuando se cancela un pedido cuyo stock ya se habia
+     * descontado.
+     *
+     * A diferencia de las operaciones de cierre, recibe el ID: no opera
+     * sobre "la reserva de esta conversacion" sino sobre una puntual,
+     * identificada desde afuera.
+     *
+     * @param idReserva reserva a revertir
+     * @throws ValidacionException si la reserva no existe o no esta CONFIRMADA
+     *         (si ya se libero, vencio o devolvio, su cantidad ya volvio al
+     *         stock y devolverla otra vez lo dejaria inflado)
+     */
+    void registrarDevolucion(Long idReserva);
 }

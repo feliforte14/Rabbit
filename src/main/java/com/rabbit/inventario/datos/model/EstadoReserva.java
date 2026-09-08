@@ -13,9 +13,17 @@ package com.rabbit.inventario.datos.model;
  *             |            |            |
  *             v            v            v
  *       [CONFIRMADA]  [LIBERADA]   [EXPIRADA]
+ *             |
+ *      registrarDevolucion()   (el pedido que la confirmo se cancelo)
+ *             |
+ *             v
+ *        [DEVUELTA]
  *
- * Los tres estados finales son terminales: una vez que la reserva sale de
- * VIGENTE, no vuelve. Para reservar de nuevo hay que crear otra reserva.
+ * VIGENTE es el unico estado no terminal. Los demas no vuelven atras: para
+ * comprometer stock otra vez hay que crear una reserva nueva. DEVUELTA es
+ * el unico que se alcanza desde otro estado final (CONFIRMADA), y solo por
+ * esa via: es la contracara contable de la confirmacion, no un paso normal
+ * del flujo.
  */
 public enum EstadoReserva {
 
@@ -29,5 +37,12 @@ public enum EstadoReserva {
     LIBERADA,
 
     /** Se vencio el plazo sin confirmar. La libera el barredor automatico. */
-    EXPIRADA
+    EXPIRADA,
+
+    /**
+     * La reserva estaba CONFIRMADA (stock ya descontado) pero el pedido que
+     * la origino se cancelo: la cantidad se devolvio al stock disponible.
+     * Ver InventarioService.registrarDevolucion.
+     */
+    DEVUELTA
 }

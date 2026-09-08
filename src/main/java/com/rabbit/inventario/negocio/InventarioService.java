@@ -271,6 +271,40 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         return reserva != null && reserva.estaVigente();
     }
 
+    @Override
+    @Transactional
+    public void registrarDevolucion(Long idReserva) {
+        if (idReserva == null) {
+            throw new ValidacionException("Falta el identificador de la reserva a devolver");
+        }
+        ReservaStock reserva = repository.buscarReservaPorId(idReserva);
+        if (reserva == null) {
+            throw new ValidacionException("La reserva " + idReserva + " no existe");
+        }
+        if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
+            // Solo se devuelve stock que efectivamente se habia descontado.
+            // LIBERADA / EXPIRADA / DEVUELTA ya devolvieron la cantidad en su
+            // momento; sumarla otra vez dejaria cantidadDisponible inflado.
+            throw new ValidacionException("Solo se puede devolver una reserva CONFIRMADA (la "
+                    + idReserva + " esta " + reserva.getEstado() + ")");
+        }
+
+        ItemInventario item = reserva.getItem();
+        item.setCantidadDisponible(item.getCantidadDisponible() + reserva.getCantidad());
+        repository.actualizarItem(item);
+
+        reserva.setEstado(EstadoReserva.DEVUELTA);
+        repository.actualizarReserva(reserva);
+
+        // Si justo era la reserva en curso de esta conversacion, ya no lo es.
+        if (idReserva.equals(idReservaActual)) {
+            idReservaActual = null;
+        }
+
+        LOG.info("[Inventario] Devolucion de reserva " + idReserva + ": +" + reserva.getCantidad()
+                + " x " + reserva.getProducto() + " al stock disponible");
+    }
+
     /** La reserva que esta conversacion dejo abierta, o error si no hay. */
     private ReservaStock reservaEnCursoOFallar() {
         if (idReservaActual == null) {
