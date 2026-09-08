@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+
+    Historial de reservas de stock: el registro de que paso con cada hold
+    que abrio ServicioDeInventario. Cada fila de reservas_stock queda para
+    siempre con su estado final y su fecha de cierre, asi que esta pantalla
+    no "arma" un historial: solo hace consultable el que la tabla ya es.
+
+    Es la contracara de reservas.xhtml — aquella muestra la reserva EN
+    CURSO (el estado conversacional vivo del @Stateful), esta muestra todas
+    las que ya terminaron y como.
+
+    Se bindea a historialReservasBean (HistorialReservasBean.java).
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+<h:head>
+    <title>Rabbit · Historial de reservas</title>
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
+</h:head>
+<h:body>
+    <div class="container">
+        <p>
+            <h:link outcome="reservas" value="&#8592; Volver a reservar stock" styleClass="enlace-volver" />
+        </p>
+
+        <h1>Historial de reservas</h1>
+        <p class="ayuda">
+            Toda reserva queda registrada con su desenlace: se confirmó (el stock salió del
+            depósito), se liberó (el usuario desistió), venció sin confirmarse, o se devolvió
+            porque se canceló el pedido que la había consumido.
+        </p>
+
+        <h:form id="formFiltros" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="comercio" value="Comercio" />
+                <h:selectOneMenu id="comercio" value="#{historialReservasBean.filtro.idComercio}">
+                    <f:selectItem itemLabel="Todos" itemValue="#{null}" />
+                    <f:selectItems value="#{historialReservasBean.listaComercios}" var="c"
+                                   itemValue="#{c.id}" itemLabel="#{c.nombre}" />
+                </h:selectOneMenu>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="deposito" value="Depósito" />
+                <h:selectOneMenu id="deposito" value="#{historialReservasBean.filtro.idDeposito}">
+                    <f:selectItem itemLabel="Todos" itemValue="#{null}" />
+                    <f:selectItems value="#{historialReservasBean.listaDepositos}" var="d"
+                                   itemValue="#{d.id}" itemLabel="#{d.nombre}" />
+                </h:selectOneMenu>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="estado" value="Estado" />
+                <h:selectOneMenu id="estado" value="#{historialReservasBean.filtro.estado}">
+                    <f:selectItem itemLabel="Todos" itemValue="#{null}" />
+                    <f:selectItems value="#{historialReservasBean.estados}" var="e"
+                                   itemValue="#{e}" itemLabel="#{e}" />
+                </h:selectOneMenu>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="producto" value="Producto contiene" />
+                <h:inputText id="producto" value="#{historialReservasBean.filtro.producto}"
+                             styleClass="input-texto" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="desde" value="Desde" />
+                <h:inputText id="desde" value="#{historialReservasBean.filtro.desde}" styleClass="input-texto">
+                    <f:convertDateTime type="localDate" pattern="dd/MM/yyyy" />
+                </h:inputText>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="hasta" value="Hasta" />
+                <h:inputText id="hasta" value="#{historialReservasBean.filtro.hasta}" styleClass="input-texto">
+                    <f:convertDateTime type="localDate" pattern="dd/MM/yyyy" />
+                </h:inputText>
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Buscar" styleClass="btn btn-primary"
+                                 action="#{historialReservasBean.buscar}" />
+                <!--
+                    Limpiar es un GET a la misma vista, no un postback: eso
+                    descarta el Bean @ViewScoped y lo recrea vacio. Con un
+                    commandButton los inputs conservarian sus valores
+                    enviados y se re-renderizarian con esos aunque el filtro
+                    del Bean ya estuviera reseteado — y si ademas hay un
+                    error de conversion en una fecha, que es justo cuando
+                    mas querés limpiar, el postback ni siquiera llega.
+                -->
+                <h:button outcome="historial" value="Limpiar filtros" styleClass="btn btn-secondary" />
+            </div>
+
+            <h:messages globalOnly="false" showDetail="false" showSummary="true"
+                        layout="list" styleClass="mensajes" errorClass="mensaje-error" />
+        </h:form>
+
+        <p class="ayuda">
+            <strong>#{historialReservasBean.cantidadResultados}</strong> reserva(s),
+            <strong>#{historialReservasBean.totalUnidades}</strong> unidad(es) en total.
+            Las fechas se ingresan como dd/MM/yyyy.
+        </p>
+
+        <h:panelGroup id="tablaHistorial">
+            <h:dataTable value="#{historialReservasBean.reservas}" var="r"
+                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         rendered="#{historialReservasBean.hayResultados}">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{r.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Producto</f:facet>
+                    #{r.producto}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Cant.</f:facet>
+                    #{r.cantidad}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Comercio</f:facet>
+                    #{historialReservasBean.nombreComercio(r.idComercio)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Depósito</f:facet>
+                    #{historialReservasBean.nombreDeposito(r.idDeposito)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{r.estado}"
+                                  styleClass="#{historialReservasBean.claseEstado(r.estado)}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Abierta</f:facet>
+                    #{r.fechaCreacion}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Cerrada</f:facet>
+                    <h:outputText value="#{historialReservasBean.textoCierre(r)}"
+                                  styleClass="#{empty r.fechaCierre ? 'ayuda' : ''}" />
+                </h:column>
+            </h:dataTable>
+
+            <h:panelGroup rendered="#{not historialReservasBean.hayResultados}">
+                <p class="ayuda">No hay reservas que cumplan estos criterios.</p>
+            </h:panelGroup>
+        </h:panelGroup>
+    </div>
+</h:body>
+</html>

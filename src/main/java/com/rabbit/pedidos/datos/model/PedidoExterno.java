@@ -29,10 +29,20 @@ public class PedidoExterno {
     private int cantidad;
     private LocalDateTime fechaPedido;
 
-    // false = todavía no lo tomó el sincronizador. true = ya generó su
-    // Pedido correspondiente (o falló al validarse, ver
-    // SincronizadorDePedidos) y no se vuelve a procesar.
+    // false = todavía no lo tomó el sincronizador. true = ya se procesó y
+    // no se vuelve a mirar, sea porque generó su Pedido (errorSincronizacion
+    // null) o porque se descartó por una regla de negocio
+    // (errorSincronizacion con el motivo).
     private boolean sincronizado;
+
+    // null = sincronizó bien, o todavía no se intentó.
+    // Con texto = el sincronizador la descartó por este motivo (comercio
+    // dado de baja, sin stock suficiente, ítem inexistente). Se guarda en
+    // vez de reintentar para siempre: son fallas de negocio, no baches
+    // transitorios, y una fila así se reintentaba cada minuto sin fin.
+    // Ver SincronizadorDePedidos.
+    @Column(length = 500)
+    private String errorSincronizacion;
 
     public PedidoExterno() {}
 
@@ -47,4 +57,6 @@ public class PedidoExterno {
     public void setFechaPedido(LocalDateTime fechaPedido) { this.fechaPedido = fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }
     public void setSincronizado(boolean sincronizado) { this.sincronizado = sincronizado; }
+    public String getErrorSincronizacion() { return errorSincronizacion; }
+    public void setErrorSincronizacion(String errorSincronizacion) { this.errorSincronizacion = errorSincronizacion; }
 }

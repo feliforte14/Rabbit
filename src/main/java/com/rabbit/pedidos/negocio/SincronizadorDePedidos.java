@@ -35,10 +35,13 @@ import jakarta.annotation.PostConstruct;
 import jakarta.ejb.Schedule;
 import jakarta.ejb.Singleton;
 import jakarta.ejb.Startup;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 import jakarta.inject.Inject;
 
 import java.util.List;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @Singleton
 @Startup
@@ -60,27 +63,63 @@ public class SincronizadorDePedidos {
     /**
      * Corre una vez por minuto. persistent = false: igual que
      * BarredorDeReservas, el timer vive mientras vive el servidor.
+     *
+     * NOT_SUPPORTED: este método solo lee qué falta y reparte trabajo, no
+     * escribe nada. Que no abra transacción propia garantiza que ninguna
+     * fila pueda ensuciar una transacción compartida con las demás — cada
+     * llamada de abajo abre y cierra la suya (REQUIRES_NEW en
+     * PedidoService).
+     *
+     * Antes no era así: todas las filas de una pasada compartían la
+     * transacción del timer, y como ValidacionException esta anotada
+     * @ApplicationException(rollback = true), una sola fila invalida la
+     * marcaba rollback-only. El catch atrapaba la excepcion pero la
+     * transaccion ya estaba condenada, asi que las filas siguientes
+     * fallaban con errores fantasma (un em.find() sobre una transaccion
+     * marcada devuelve null: se veia "item no encontrado" sobre items que
+     * existian) y ni las que habian sincronizado bien quedaban guardadas.
      */
     @Schedule(hour = "*", minute = "*", second = "30", persistent = false)
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void sincronizarPendientes() {
-        List<PedidoExterno> pendientes = repository.listarNoSincronizados();
+        // Solo los IDs: sin transaccion las entidades vienen detached, y
+        // cada llamada de abajo recarga la suya en su propio contexto.
+        List<Long> pendientes = repository.listarNoSincronizados()
+                .stream()
+                .map(PedidoExterno::getId)
+                .collect(Collectors.toList());
         if (pendientes.isEmpty()) {
             return;
         }
 
-        for (PedidoExterno externo : pendientes) {
+        for (Long idExterno : pendientes) {
             try {
-                Long idPedido = gestionPedidos.sincronizarPedidoExterno(externo.getId());
-                LOG.info("[Sincronizador] Pedido externo " + externo.getId() + " -> pedido " + idPedido);
+                Long idPedido = gestionPedidos.sincronizarPedidoExterno(idExterno);
+                LOG.info("[Sincronizador] Pedido externo " + idExterno + " -> pedido " + idPedido);
+            } catch (ValidacionException e) {
+                // Falla de negocio (comercio dado de baja, sin stock, item
+                // inexistente): no se arregla sola con el tiempo. Se marca
+                // la fila como descartada con el motivo, en vez de
+                // reintentarla cada minuto para siempre.
+                descartar(idExterno, e.getMessage());
             } catch (RuntimeException e) {
-                // Una fila con datos inválidos (comercio dado de baja, sin
-                // stock) no debe trabar el resto de la pasada — se loguea
-                // y se sigue con la próxima. Queda sin sincronizar: no se
-                // marca sincronizado=true dentro de PedidoService salvo
-                // que la transacción haya llegado a confirmar.
-                LOG.warning("[Sincronizador] No se pudo sincronizar el pedido externo "
-                        + externo.getId() + ": " + e.getMessage());
+                // Cualquier otra cosa (la base no responde, etc.) si puede
+                // ser transitoria: se loguea y la fila queda pendiente
+                // para la proxima pasada.
+                LOG.warning("[Sincronizador] Error transitorio con el pedido externo "
+                        + idExterno + ", se reintenta en la proxima pasada: " + e.getMessage());
             }
+        }
+    }
+
+    private void descartar(Long idExterno, String motivo) {
+        try {
+            gestionPedidos.descartarPedidoExterno(idExterno, motivo);
+        } catch (RuntimeException e) {
+            // Si ni siquiera se pudo marcar, se reintentara en la proxima
+            // pasada; peor seria dejar que esto corte el resto del lote.
+            LOG.warning("[Sincronizador] No se pudo descartar el pedido externo "
+                    + idExterno + ": " + e.getMessage());
         }
     }
 }

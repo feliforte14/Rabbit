@@ -25,7 +25,23 @@
 
     <h:messages globalOnly="false" showDetail="false" showSummary="true" errorClass="mensaje-error" infoClass="mensaje-info" />
 
-    <h:form>
+    <!--
+        Vista de operador: por defecto muestra TODO el stock del deposito.
+        El filtro permite aislar la consignacion de un comercio puntual.
+    -->
+    <h:form id="formFiltro">
+        <h:panelGrid columns="2">
+            <h:outputLabel value="Ver stock de:" for="filtro" />
+            <h:selectOneMenu id="filtro" value="#{itemInventarioBean.idComercioFiltro}">
+                <f:selectItem itemLabel="Todos los comercios" itemValue="#{null}" />
+                <f:selectItems value="#{itemInventarioBean.listaComercios}" var="c"
+                               itemValue="#{c.id}" itemLabel="#{c.nombre}" />
+                <f:ajax listener="#{itemInventarioBean.filtrar}" render=":formTabla" />
+            </h:selectOneMenu>
+        </h:panelGrid>
+    </h:form>
+
+    <h:form id="formTabla">
         <h:dataTable value="#{itemInventarioBean.items}" var="i" border="1"
                      cellpadding="6" cellspacing="0">
             <h:column>
@@ -35,6 +51,10 @@
             <h:column>
                 <f:facet name="header">Producto</f:facet>
                 #{i.producto}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Comercio</f:facet>
+                #{itemInventarioBean.nombreComercio(i.idComercio)}
             </h:column>
             <h:column>
                 <f:facet name="header">Disponible</f:facet>
@@ -52,8 +72,22 @@
     </h:form>
 
     <h2>Cargar stock</h2>
+    <p>
+        Cargar stock es registrar una <strong>consignación</strong>: el depósito es de Rabbit,
+        pero la mercadería que entra es del comercio que la deja, y solo él va a poder reservarla.
+    </p>
     <h:form>
         <h:panelGrid columns="2">
+            <h:outputLabel value="Comercio:" for="comercio" />
+            <h:selectOneMenu id="comercio" value="#{itemInventarioBean.nuevoItem.idComercio}"
+                             required="true" label="Comercio"
+                             requiredMessage="Elegí de qué comercio es el stock">
+                <f:selectItem itemLabel="— Elegí el comercio dueño —" itemValue="#{null}" />
+                <f:selectItems value="#{itemInventarioBean.listaComercios}" var="c"
+                               itemValue="#{c.id}"
+                               itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
+            </h:selectOneMenu>
+
             <h:outputLabel value="Producto:" for="producto" />
             <h:inputText id="producto" value="#{itemInventarioBean.nuevoItem.producto}" required="true" />
 

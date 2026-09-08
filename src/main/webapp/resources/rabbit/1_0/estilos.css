@@ -490,3 +490,35 @@ h2 {
 @media (prefers-reduced-motion: reduce) {
     .cuenta-regresiva.urgente { animation: none; }
 }
+
+/* Texto de apoyo bajo un campo o seccion: aclara una regla del dominio
+   sin competir visualmente con el contenido. */
+.ayuda {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.85rem;
+    line-height: 1.4;
+    color: #6b6b6b;
+}
+
+/* --- Historial de reservas ---------------------------------------- */
+
+/* El desenlace de cada reserva, legible de un vistazo sin leer palabra
+   por palabra. Se usa color + peso, nunca solo color. */
+.estado-vigente,
+.estado-confirmada,
+.estado-liberada,
+.estado-expirada,
+.estado-devuelta {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+.estado-vigente    { background: #e3f0ff; color: #1a4f9c; }
+.estado-confirmada { background: #e2f5e8; color: #1c6b3a; }
+.estado-liberada   { background: #eeeeee; color: #555555; }
+.estado-expirada   { background: #fdeaea; color: #97302c; }
+.estado-devuelta   { background: #fdf0dc; color: #8a5a12; }

@@ -33,6 +33,31 @@ package com.rabbit.pedidos.negocio;
  * (reservaProvider.destroy(...)) — la conversación stateful sigue
  * existiendo, solo que ahora la abre y cierra este método en vez de una
  * sesión de usuario como hace ReservaBean.
+ *
+ * POR QUÉ ACÁ CONVIVEN @Transactional Y @TransactionAttribute
+ * Esta clase es un EJB (@Stateless), y en un EJB las transacciones las
+ * gobierna el contenedor vía @TransactionAttribute (jakarta.ejb), no vía
+ * @Transactional (jakarta.transaction), que es la anotación de los beans
+ * CDI comunes. Los métodos marcados solo con @Transactional funcionan
+ * igual porque el default de todo método de negocio de un EJB ya es
+ * REQUIRED — la anotación no aporta nada, es el default el que actúa.
+ *
+ * Eso alcanza mientras REQUIRED sea lo que se quiere. No alcanza para
+ * sincronizarPedidoExterno ni descartarPedidoExterno, que necesitan
+ * REQUIRES_NEW: ahí sí hay que usar @TransactionAttribute, porque
+ * @Transactional(REQUIRES_NEW) sobre un EJB se ignora en silencio y el
+ * método seguiría corriendo en la transacción del llamador.
+ *
+ * Por qué necesitan transacción propia: SincronizadorDePedidos recorre
+ * varias filas del mock en una sola pasada. Si una falla con
+ * ValidacionException —anotada @ApplicationException(rollback = true)— y
+ * todas comparten transacción, esa transacción queda marcada
+ * rollback-only y ya no se puede des-marcar: el catch del loop atrapa la
+ * excepción pero NO salva la pasada, y las filas que venían después
+ * fallan con errores fantasma (un em.find() sobre una transacción
+ * condenada devuelve null, y se ve como "ítem no encontrado" sobre un
+ * ítem que existe). Con REQUIRES_NEW cada fila se juega su propia
+ * transacción y una mala no arrastra a las demás.
  */
 
 import com.rabbit.comercios.negocio.IConsultaComercios;
@@ -47,6 +72,8 @@ import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
 
 import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -100,7 +127,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     }
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     public Long sincronizarPedidoExterno(Long idPedidoExterno) {
         PedidoExterno externo = obtenerExternoOFallar(idPedidoExterno);
         if (externo.isSincronizado()) {
@@ -150,6 +177,24 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     }
 
     @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public void descartarPedidoExterno(Long idPedidoExterno, String motivo) {
+        PedidoExterno externo = obtenerExternoOFallar(idPedidoExterno);
+        externo.setSincronizado(true);
+        externo.setErrorSincronizacion(recortar(motivo));
+        repository.actualizarPedidoExterno(externo);
+        LOG.warning("[Pedidos] Pedido externo " + idPedidoExterno + " descartado: " + motivo);
+    }
+
+    /** La columna admite 500 caracteres; los mensajes anidados se pasan. */
+    private String recortar(String motivo) {
+        if (motivo == null) {
+            return "Sin detalle";
+        }
+        return motivo.length() <= 500 ? motivo : motivo.substring(0, 497) + "...";
+    }
+
+    @Override
     @Transactional
     public void confirmarPedido(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
@@ -168,6 +213,23 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (pedido.getEstado() == EstadoPedido.CANCELADO) {
             throw new ValidacionException("El pedido ya está cancelado");
         }
+
+        // El stock de este pedido se descontó al sincronizarlo (reservar +
+        // confirmar juntos). Cancelar sin devolverlo dejaría la mercadería
+        // del comercio "consumida" por un pedido que nunca se despachó, así
+        // que hay que revertir esa confirmación contra ServicioDeInventario.
+        if (pedido.getIdReservaStock() != null) {
+            IReservaStock reserva = reservaProvider.get();
+            try {
+                reserva.registrarDevolucion(pedido.getIdReservaStock());
+            } catch (RuntimeException e) {
+                throw new ValidacionException(
+                        "No se pudo devolver el stock del pedido: " + e.getMessage());
+            } finally {
+                reservaProvider.destroy(reserva);
+            }
+        }
+
         pedido.setEstado(EstadoPedido.CANCELADO);
         pedido.setFechaActualizacion(LocalDateTime.now());
         repository.actualizarPedido(pedido);

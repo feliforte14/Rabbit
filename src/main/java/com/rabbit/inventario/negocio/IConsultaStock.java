@@ -22,7 +22,9 @@ package com.rabbit.inventario.negocio;
 import com.rabbit.inventario.dto.DatosDepositoDTO;
 import com.rabbit.inventario.dto.DatosItemInventarioDTO;
 import com.rabbit.inventario.dto.DepositoDTO;
+import com.rabbit.inventario.dto.FiltroHistorialDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
+import com.rabbit.inventario.dto.ReservaStockDTO;
 import jakarta.ejb.Local;
 import java.util.List;
 
@@ -51,24 +53,60 @@ public interface IConsultaStock {
     List<DepositoDTO> listarDepositos();
 
     /**
-     * Carga stock de un producto en un deposito. Un mismo producto no
-     * puede cargarse dos veces como filas separadas en el mismo deposito.
+     * Registra una consignacion: un comercio deja stock de un producto en
+     * un deposito de Rabbit. Un mismo comercio no puede cargar dos veces
+     * el mismo producto en el mismo deposito, pero dos comercios distintos
+     * si pueden tener el mismo producto ahi — son consignaciones separadas.
      *
      * @param idDeposito deposito donde se carga el stock
-     * @param datos producto y cantidad
+     * @param datos producto, cantidad y comercio dueño
      * @return el ID del item creado
      * @throws ValidacionException si el deposito no existe, el producto
-     *         esta vacio, la cantidad es negativa o el producto ya estaba
-     *         cargado en ese deposito
+     *         esta vacio, la cantidad es negativa, falta el comercio o
+     *         esta dado de baja, o ese comercio ya cargo ese producto en
+     *         ese deposito
      */
     Long registrarItem(Long idDeposito, DatosItemInventarioDTO datos);
 
     /**
+     * TODO el stock de un deposito, de todos los comercios. Es la vista de
+     * operador de Rabbit: quien administra el galpon ve todo lo que hay
+     * adentro, sin importar de quien sea. Para las pantallas donde se
+     * opera EN NOMBRE DE un comercio, usar
+     * {@link #listarItemsPorComercioYDeposito}.
+     *
      * @param idDeposito deposito a consultar
      * @return los items de stock de ese deposito
      * @throws ValidacionException si el deposito no existe
      */
     List<ItemInventarioDTO> listarItemsPorDeposito(Long idDeposito);
+
+    /**
+     * TODO el stock consignado por un comercio, en todos los depositos.
+     * Es la vista por defecto al operar en nombre de un comercio: "que
+     * mercaderia mia hay guardada, y donde".
+     *
+     * @param idComercio comercio dueño de la mercaderia consignada
+     * @return sus items en toda la red de depositos; lista vacia si el
+     *         parametro es null
+     */
+    List<ItemInventarioDTO> listarItemsPorComercio(Long idComercio);
+
+    /**
+     * Solo el stock de UN comercio dentro de UN deposito. Es la misma
+     * vista que la anterior, acotada a un deposito.
+     *
+     * Ambas filtran por comercio a proposito: al operar en nombre de uno,
+     * ofrecer stock ajeno seria ofrecer algo que reservarStock va a
+     * rechazar despues.
+     *
+     * @param idComercio comercio dueño de la mercaderia consignada
+     * @param idDeposito deposito a consultar
+     * @return los items de ese comercio en ese deposito; lista vacia si
+     *         falta alguno de los dos parametros
+     * @throws ValidacionException si el deposito no existe
+     */
+    List<ItemInventarioDTO> listarItemsPorComercioYDeposito(Long idComercio, Long idDeposito);
 
     /**
      * Cantidad libre para comprometer: lo disponible menos lo que ya esta
@@ -87,4 +125,18 @@ public interface IConsultaStock {
      * @return depositos con cantidad libre mayor a cero
      */
     List<DepositoDTO> listarDepositosConStock(String producto);
+
+    /**
+     * HISTORIAL de reservas: que paso con cada una, filtrable.
+     *
+     * Cada reserva queda persistida para siempre con su estado final
+     * (CONFIRMADA / LIBERADA / EXPIRADA / DEVUELTA) y su fecha de cierre,
+     * asi que la tabla es el registro historico completo del componente:
+     * quien comprometio stock, cuanto, cuando y como termino.
+     *
+     * @param filtro criterios opcionales (comercio, deposito, estado,
+     *        producto, rango de fechas); todos en null trae todo
+     * @return las reservas que matchean, mas recientes primero
+     */
+    List<ReservaStockDTO> listarHistorialReservas(FiltroHistorialDTO filtro);
 }
