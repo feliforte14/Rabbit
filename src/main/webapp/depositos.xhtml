@@ -43,7 +43,14 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Stock</f:facet>
-                    <h:link outcome="reservas" value="Reservar stock" /> &#183; <h:link outcome="items" value="Ver stock">
+                    <!--
+                        Los dos links llevan el deposito de la fila: al llegar
+                        a la pantalla destino ya viene preseleccionado, en vez
+                        de pedirle al usuario que lo vuelva a elegir.
+                    -->
+                    <h:link outcome="reservas" value="Reservar stock">
+                        <f:param name="idDeposito" value="#{d.id}" />
+                    </h:link> &#183; <h:link outcome="items" value="Ver stock">
                         <f:param name="idDeposito" value="#{d.id}" />
                     </h:link>
                 </h:column>

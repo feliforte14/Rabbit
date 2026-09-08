@@ -80,10 +80,23 @@ public interface IConsultaStock {
     List<ItemInventarioDTO> listarItemsPorDeposito(Long idDeposito);
 
     /**
-     * Solo el stock de UN comercio dentro de un deposito. Es la vista que
-     * corresponde cuando se opera en nombre de ese comercio (reservar
-     * stock, simular un pedido): ofrecer stock ajeno seria ofrecer algo
-     * que reservarStock va a rechazar despues.
+     * TODO el stock consignado por un comercio, en todos los depositos.
+     * Es la vista por defecto al operar en nombre de un comercio: "que
+     * mercaderia mia hay guardada, y donde".
+     *
+     * @param idComercio comercio dueño de la mercaderia consignada
+     * @return sus items en toda la red de depositos; lista vacia si el
+     *         parametro es null
+     */
+    List<ItemInventarioDTO> listarItemsPorComercio(Long idComercio);
+
+    /**
+     * Solo el stock de UN comercio dentro de UN deposito. Es la misma
+     * vista que la anterior, acotada a un deposito.
+     *
+     * Ambas filtran por comercio a proposito: al operar en nombre de uno,
+     * ofrecer stock ajeno seria ofrecer algo que reservarStock va a
+     * rechazar despues.
      *
      * @param idComercio comercio dueño de la mercaderia consignada
      * @param idDeposito deposito a consultar

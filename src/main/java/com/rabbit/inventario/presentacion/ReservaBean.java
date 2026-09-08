@@ -39,7 +39,9 @@ import jakarta.faces.context.FacesContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.Serializable;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Named
 @SessionScoped
@@ -61,6 +63,7 @@ public class ReservaBean implements Serializable {
     private List<ComercioDTO> listaComercios;
     private List<DepositoDTO> listaDepositos;
     private List<ItemInventarioDTO> listaItems;
+    private Map<Long, String> nombresDeposito = new HashMap<>();
 
     private Long idComercio;
     private Long idDeposito;
@@ -71,24 +74,71 @@ public class ReservaBean implements Serializable {
     public void cargar() {
         listaComercios = comercios.listarTodos();
         listaDepositos = stock.listarDepositos();
+
+        nombresDeposito = new HashMap<>();
+        for (DepositoDTO d : listaDepositos) {
+            nombresDeposito.put(d.getId(), d.getNombre());
+        }
+
+        tomarDepositoDeLaUrl();
         refrescarItems();
+    }
+
+    /**
+     * Si se llegó desde el listado de depósitos ("Reservar stock" de una
+     * fila puntual), ese depósito llega como ?idDeposito=N y queda
+     * preseleccionado: sería absurdo pedirle al usuario que lo vuelva a
+     * elegir después de haberlo elegido en la pantalla anterior.
+     *
+     * Se lee del request a mano en vez de con <f:viewParam> porque este
+     * Bean es @SessionScoped: un viewParam escribiría null en el campo en
+     * cada carga SIN el parámetro, borrando la selección que el usuario ya
+     * había hecho.
+     */
+    private void tomarDepositoDeLaUrl() {
+        String param = FacesContext.getCurrentInstance()
+                .getExternalContext().getRequestParameterMap().get("idDeposito");
+        if (param == null || param.isBlank()) {
+            return;
+        }
+        try {
+            idDeposito = Long.valueOf(param.trim());
+        } catch (NumberFormatException e) {
+            // URL manipulada a mano: se ignora y queda "Todos los depósitos".
+        }
     }
 
     /**
      * Recarga los items al cambiar el comercio o el deposito elegido.
      *
-     * Filtra por AMBOS: acá se opera EN NOMBRE DE un comercio, así que
-     * mostrar stock ajeno sería ofrecer algo que reservarStock va a
-     * rechazar después. La validación de fondo igual está en el negocio
+     * El COMERCIO es obligatorio: acá se opera EN NOMBRE DE uno, y mostrar
+     * stock ajeno sería ofrecer algo que reservarStock va a rechazar
+     * después. La validación de fondo igual está en el negocio
      * (InventarioService.reservarStock); esto es la capa de presentación
      * evitando que el error sea siquiera posible desde la pantalla.
+     *
+     * El DEPÓSITO es un filtro opcional: sin elegir ninguno se ve todo el
+     * stock del comercio en la red, que es la pregunta más frecuente
+     * ("¿qué mercadería mía hay, y dónde?").
      */
     public void refrescarItems() {
-        listaItems = (idComercio != null && idDeposito != null)
-                ? stock.listarItemsPorComercioYDeposito(idComercio, idDeposito)
-                : List.of();
+        if (idComercio == null) {
+            listaItems = List.of();
+        } else if (idDeposito == null) {
+            listaItems = stock.listarItemsPorComercio(idComercio);
+        } else {
+            listaItems = stock.listarItemsPorComercioYDeposito(idComercio, idDeposito);
+        }
         // El producto elegido puede haber quedado fuera de la lista nueva.
         idItem = null;
+    }
+
+    /** Nombre del depósito de un ítem, para no mostrar un ID pelado. */
+    public String nombreDeposito(Long id) {
+        if (id == null) {
+            return "—";
+        }
+        return nombresDeposito.getOrDefault(id, "Depósito " + id);
     }
 
     public void reservar() {
