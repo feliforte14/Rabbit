@@ -8,7 +8,7 @@ package com.rabbit.comercios.datos;
  * NO contiene lógica de negocio — eso le pertenece a la capa de Negocio.
  *
  * ComercioRepository usa JPA a través del EntityManager para operar sobre
- * las entidades Comercio y Sucursal sin escribir SQL manual: los métodos de
+ * las entidades Comercio y PuntoPicking sin escribir SQL manual: los métodos de
  * abajo o bien delegan directamente en el EntityManager (persist/merge/find/
  * remove) o ejecutan JPQL (una variante de SQL que opera sobre entidades y
  * sus atributos Java en vez de sobre tablas y columnas).
@@ -25,7 +25,7 @@ package com.rabbit.comercios.datos;
  */
 
 import com.rabbit.comercios.datos.model.Comercio;
-import com.rabbit.comercios.datos.model.Sucursal;
+import com.rabbit.comercios.datos.model.PuntoPicking;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
@@ -120,11 +120,11 @@ public class ComercioRepository {
      * no (por ejemplo, vino detachado de otra capa) se lo vuelve a adjuntar
      * con merge() antes de removerlo.
      *
-     * Por el cascade = CascadeType.ALL en Comercio.sucursales, este borrado
-     * se propaga en cascada: también se eliminan físicamente todas las
-     * sucursales del comercio. ComercioService exige que el comercio esté
-     * dado de baja antes de permitir llegar hasta acá, precisamente para
-     * evitar perder sucursales por accidente.
+     * Por el cascade = CascadeType.ALL en Comercio.puntosPicking, este
+     * borrado se propaga en cascada: también se eliminan físicamente todos
+     * los puntos de picking del comercio. ComercioService exige que el
+     * comercio esté dado de baja antes de permitir llegar hasta acá,
+     * precisamente para evitar perder datos por accidente.
      *
      * @param comercio comercio a eliminar
      */
@@ -133,68 +133,68 @@ public class ComercioRepository {
     }
 
     /**
-     * Lista solo las sucursales activas de un comercio, vía JPQL con
-     * parámetro nombrado (:idComercio) — evita concatenar el valor en el
-     * string de la consulta y así previene inyección JPQL.
+     * Lista solo los puntos de picking activos de un comercio, vía JPQL
+     * con parámetro nombrado (:idComercio) — evita concatenar el valor en
+     * el string de la consulta y así previene inyección JPQL.
      *
-     * @param idComercio ID del comercio dueño de las sucursales
-     * @return sucursales de ese comercio con activa = true
+     * @param idComercio ID del comercio dueño de los puntos de picking
+     * @return puntos de picking de ese comercio con activa = true
      */
-    public List<Sucursal> listarSucursalesActivas(Long idComercio) {
+    public List<PuntoPicking> listarPuntosPickingActivos(Long idComercio) {
         return em.createQuery(
-                "SELECT s FROM Sucursal s WHERE s.comercio.id = :idComercio AND s.activa = true",
-                Sucursal.class)
+                "SELECT p FROM PuntoPicking p WHERE p.comercio.id = :idComercio AND p.activa = true",
+                PuntoPicking.class)
                 .setParameter("idComercio", idComercio)
                 .getResultList();
     }
 
     /**
-     * Lista todas las sucursales de un comercio (activas e inactivas),
-     * ordenadas por ID — la usa la pantalla de administración de sucursales
-     * (sucursales.xhtml), que necesita ver también las dadas de baja.
+     * Lista todos los puntos de picking de un comercio (activos e
+     * inactivos), ordenados por ID — la usa la pantalla de administración
+     * (puntos-picking.xhtml), que necesita ver también los dados de baja.
      *
-     * @param idComercio ID del comercio dueño de las sucursales
-     * @return todas las sucursales de ese comercio
+     * @param idComercio ID del comercio dueño de los puntos de picking
+     * @return todos los puntos de picking de ese comercio
      */
-    public List<Sucursal> listarSucursalesDeComercio(Long idComercio) {
+    public List<PuntoPicking> listarPuntosPickingDeComercio(Long idComercio) {
         return em.createQuery(
-                "SELECT s FROM Sucursal s WHERE s.comercio.id = :idComercio ORDER BY s.id",
-                Sucursal.class)
+                "SELECT p FROM PuntoPicking p WHERE p.comercio.id = :idComercio ORDER BY p.id",
+                PuntoPicking.class)
                 .setParameter("idComercio", idComercio)
                 .getResultList();
     }
 
     /**
-     * Persiste una sucursal nueva, ya asociada a su comercio
-     * (sucursal.setComercio(...) debe haberse hecho antes de llamar acá,
-     * para que la FK comercio_id no quede nula).
+     * Persiste un punto de picking nuevo, ya asociado a su comercio
+     * (puntoPicking.setComercio(...) debe haberse hecho antes de llamar
+     * acá, para que la FK comercio_id no quede nula).
      *
-     * @param sucursal entidad transitoria (recién creada con new, sin ID)
+     * @param puntoPicking entidad transitoria (recién creada con new, sin ID)
      * @return el mismo objeto, ya con el ID asignado por la BD
      */
-    public Sucursal guardarSucursal(Sucursal sucursal) {
-        em.persist(sucursal);
-        return sucursal;
+    public PuntoPicking guardarPuntoPicking(PuntoPicking puntoPicking) {
+        em.persist(puntoPicking);
+        return puntoPicking;
     }
 
     /**
-     * Busca una sucursal por su ID.
+     * Busca un punto de picking por su ID.
      *
-     * @param id identificador de la sucursal
-     * @return la sucursal encontrada, o null si no existe
+     * @param id identificador del punto de picking
+     * @return el punto de picking encontrado, o null si no existe
      */
-    public Sucursal buscarSucursalPorId(Long id) {
-        return em.find(Sucursal.class, id);
+    public PuntoPicking buscarPuntoPickingPorId(Long id) {
+        return em.find(PuntoPicking.class, id);
     }
 
     /**
-     * Actualiza una sucursal existente (equivalente a {@link #actualizar}
-     * pero para la entidad Sucursal).
+     * Actualiza un punto de picking existente (equivalente a
+     * {@link #actualizar} pero para la entidad PuntoPicking).
      *
-     * @param sucursal entidad con el ID de un registro existente y los campos actualizados
+     * @param puntoPicking entidad con el ID de un registro existente y los campos actualizados
      * @return la entidad managed con los cambios ya aplicados
      */
-    public Sucursal actualizarSucursal(Sucursal sucursal) {
-        return em.merge(sucursal);
+    public PuntoPicking actualizarPuntoPicking(PuntoPicking puntoPicking) {
+        return em.merge(puntoPicking);
     }
 }

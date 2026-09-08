@@ -1,7 +1,7 @@
 package com.rabbit.inventario.presentacion;
 
 /**
- * CAPA DE PRESENTACIÓN (Managed Bean - JSF) — ver SucursalBean para el
+ * CAPA DE PRESENTACIÓN (Managed Bean - JSF) — ver PuntoPickingBean para el
  * mismo patrón: administra los ítems de UN depósito puntual, identificado
  * por idDeposito (llega como parámetro de la URL vía <f:viewParam>).
  */

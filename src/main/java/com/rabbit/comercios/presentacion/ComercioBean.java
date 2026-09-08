@@ -30,6 +30,7 @@ import com.rabbit.comercios.negocio.IRegistroComercios;
 import com.rabbit.comercios.negocio.ValidacionException;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJBAccessException;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
@@ -98,6 +99,11 @@ public class ComercioBean implements Serializable {
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        } catch (EJBAccessException e) {
+            // Lanzada por el contenedor cuando @RolesAllowed("ADMINISTRADOR") rechaza
+            // al caller — ni siquiera llegó a ejecutarse el método.
+            mensaje(FacesMessage.SEVERITY_ERROR,
+                    "No tenés permisos para eliminar comercios. Iniciá sesión como administrador.");
         }
     }
 

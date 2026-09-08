@@ -2,7 +2,7 @@ package com.rabbit.comercios.datos.model;
 
 /**
  * Entidad JPA: cada instancia es una fila de la tabla "comercios".
- * Un comercio puede tener muchas sucursales (ver campo sucursales).
+ * Un comercio puede tener muchos puntos de picking (ver campo puntosPicking).
  * No se expone directo a la vista: para eso están los DTOs (carpeta dto/).
  */
 
@@ -28,12 +28,12 @@ public class Comercio {
     // Ver ComercioService.darDeBajaComercio / reactivarComercio.
     private boolean activo;
 
-    // La FK vive del lado de Sucursal (mappedBy = "comercio"), acá solo
-    // se refleja. cascade ALL: borrar un comercio borra sus sucursales
-    // (por eso eliminarComercio exige que ya esté dado de baja).
-    // fetch LAZY: las sucursales se cargan recién cuando se piden.
+    // La FK vive del lado de PuntoPicking (mappedBy = "comercio"), acá solo
+    // se refleja. cascade ALL: borrar un comercio borra sus puntos de
+    // picking (por eso eliminarComercio exige que ya esté dado de baja).
+    // fetch LAZY: se cargan recién cuando se piden.
     @OneToMany(mappedBy = "comercio", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Sucursal> sucursales;
+    private List<PuntoPicking> puntosPicking;
 
     public Comercio() {}
 
@@ -50,6 +50,6 @@ public class Comercio {
     public void setTelefono(String telefono) { this.telefono = telefono; }
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
-    public List<Sucursal> getSucursales() { return sucursales; }
-    public void setSucursales(List<Sucursal> sucursales) { this.sucursales = sucursales; }
+    public List<PuntoPicking> getPuntosPicking() { return puntosPicking; }
+    public void setPuntosPicking(List<PuntoPicking> puntosPicking) { this.puntosPicking = puntosPicking; }
 }

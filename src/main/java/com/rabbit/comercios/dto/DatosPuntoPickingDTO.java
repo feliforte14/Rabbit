@@ -1,10 +1,11 @@
 package com.rabbit.comercios.dto;
 
 /**
- * DTO de entrada para registrar una sucursal nueva en un comercio existente.
- * Se usa en el formulario de alta de sucursales (sucursales.xhtml).
+ * DTO de entrada para registrar un punto de picking nuevo en un comercio
+ * existente (renombrado desde DatosSucursalDTO). Se usa en el formulario
+ * de alta (puntos-picking.xhtml).
  */
-public class DatosSucursalDTO {
+public class DatosPuntoPickingDTO {
     public String nombre;
     public String direccion;
 

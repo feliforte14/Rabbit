@@ -30,14 +30,37 @@ package com.rabbit.comercios.negocio;
 
 import com.rabbit.comercios.dto.*;
 import com.rabbit.comercios.datos.model.Comercio;
-import com.rabbit.comercios.datos.model.Sucursal;
+import com.rabbit.comercios.datos.model.PuntoPicking;
 import com.rabbit.comercios.datos.ComercioRepository;
+import jakarta.annotation.security.DeclareRoles;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import java.util.List;
 import java.util.stream.Collectors;
 
+// SEGURIDAD DECLARATIVA (Jakarta Security / Jakarta Authorization):
+// @DeclareRoles documenta qué roles existen para este componente (ver
+// también SecurityConfig, que los declara a nivel de toda la app).
+//
+// @PermitAll a nivel de clase: este WildFly tiene
+// default-missing-method-permissions-deny-access=true (standalone.xml,
+// subsystem ejb3) — apenas un bean usa CUALQUIER anotación de seguridad,
+// todo método sin permiso explícito queda denegado a todo el mundo. Hay
+// que decir explícitamente "esto es público" para no romper el resto del
+// componente.
+//
+// @RolesAllowed en eliminarComercio, en el método puntual, es la única
+// restricción real: el contenedor rechaza la llamada con
+// EJBAccessException si el caller no autenticó con el rol ADMINISTRADOR.
+// El rol lo resuelve WildFly contra ApplicationRealm (ver LoginBean para
+// el porqué de usar el realm nativo del servidor en vez de un
+// IdentityStore propio). Es la operación más sensible del componente —
+// borra físicamente datos sin vuelta atrás.
+@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})
+@PermitAll
 @Stateless
 public class ComercioService implements IRegistroComercios, IConsultaComercios {
 
@@ -136,8 +159,8 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     }
 
     // Baja lógica: el comercio sigue en la BD pero activo=false.
-    // Arrastra la baja a sus sucursales — una sucursal no puede quedar
-    // activa si el comercio dueño no lo está.
+    // Arrastra la baja a sus puntos de picking — uno no puede quedar
+    // activo si el comercio dueño no lo está.
     @Override
     @Transactional
     public void darDeBajaComercio(Long idComercio) {
@@ -145,9 +168,9 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
         comercio.setActivo(false);
         repository.actualizar(comercio);
 
-        for (Sucursal sucursal : repository.listarSucursalesActivas(idComercio)) {
-            sucursal.setActiva(false);
-            repository.actualizarSucursal(sucursal);
+        for (PuntoPicking puntoPicking : repository.listarPuntosPickingActivos(idComercio)) {
+            puntoPicking.setActiva(false);
+            repository.actualizarPuntoPicking(puntoPicking);
         }
     }
 
@@ -160,78 +183,79 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
         repository.actualizar(comercio);
     }
 
-    // --- Sucursales (Comercios es dueño de sus sucursales) ---
+    // --- Puntos de picking (Comercios es dueño de sus puntos de picking) ---
 
-    // Da de alta una sucursal nueva sobre un comercio existente
+    // Da de alta un punto de picking nuevo sobre un comercio existente
     @Override
     @Transactional
-    public Long registrarSucursal(Long idComercio, DatosSucursalDTO datos) {
+    public Long registrarPuntoPicking(Long idComercio, DatosPuntoPickingDTO datos) {
         Comercio comercio = obtenerOFallar(idComercio);
         if (!comercio.isActivo()) {
-            throw new ValidacionException("No se pueden agregar sucursales a un comercio dado de baja");
+            throw new ValidacionException("No se pueden agregar puntos de picking a un comercio dado de baja");
         }
-        validarNombreSucursal(datos.nombre);
-        validarDireccionSucursal(datos.direccion);
+        validarNombrePuntoPicking(datos.nombre);
+        validarDireccionPuntoPicking(datos.direccion);
 
-        Sucursal sucursal = new Sucursal();
-        sucursal.setNombre(datos.nombre.trim());
-        sucursal.setDireccion(datos.direccion.trim());
-        sucursal.setActiva(true);
-        sucursal.setComercio(comercio);
-        return repository.guardarSucursal(sucursal).getId();
+        PuntoPicking puntoPicking = new PuntoPicking();
+        puntoPicking.setNombre(datos.nombre.trim());
+        puntoPicking.setDireccion(datos.direccion.trim());
+        puntoPicking.setActiva(true);
+        puntoPicking.setComercio(comercio);
+        return repository.guardarPuntoPicking(puntoPicking).getId();
     }
 
-    // Baja lógica de una sucursal — sigue en la BD pero activa=false
+    // Baja lógica de un punto de picking — sigue en la BD pero activa=false
     @Override
     @Transactional
-    public void darDeBajaSucursal(Long idSucursal) {
-        Sucursal sucursal = obtenerSucursalOFallar(idSucursal);
-        sucursal.setActiva(false);
-        repository.actualizarSucursal(sucursal);
+    public void darDeBajaPuntoPicking(Long idPuntoPicking) {
+        PuntoPicking puntoPicking = obtenerPuntoPickingOFallar(idPuntoPicking);
+        puntoPicking.setActiva(false);
+        repository.actualizarPuntoPicking(puntoPicking);
     }
 
-    // Reactiva una sucursal dada de baja previamente. No tiene sentido si
-    // el comercio dueño sigue de baja — primero hay que reactivar el comercio.
+    // Reactiva un punto de picking dado de baja previamente. No tiene
+    // sentido si el comercio dueño sigue de baja — primero hay que
+    // reactivar el comercio.
     @Override
     @Transactional
-    public void reactivarSucursal(Long idSucursal) {
-        Sucursal sucursal = obtenerSucursalOFallar(idSucursal);
-        if (!sucursal.getComercio().isActivo()) {
+    public void reactivarPuntoPicking(Long idPuntoPicking) {
+        PuntoPicking puntoPicking = obtenerPuntoPickingOFallar(idPuntoPicking);
+        if (!puntoPicking.getComercio().isActivo()) {
             throw new ValidacionException(
-                    "No se puede reactivar la sucursal porque el comercio está dado de baja. Reactive el comercio primero.");
+                    "No se puede reactivar el punto de picking porque el comercio está dado de baja. Reactive el comercio primero.");
         }
-        sucursal.setActiva(true);
-        repository.actualizarSucursal(sucursal);
+        puntoPicking.setActiva(true);
+        repository.actualizarPuntoPicking(puntoPicking);
     }
 
-    // Devuelve todas las sucursales de un comercio (activas e inactivas) — pantalla de administración
+    // Devuelve todos los puntos de picking de un comercio (activos e inactivos) — pantalla de administración
     @Override
-    public List<SucursalDTO> listarSucursalesDeComercio(Long idComercio) {
+    public List<PuntoPickingDTO> listarPuntosPickingDeComercio(Long idComercio) {
         obtenerOFallar(idComercio);
-        return repository.listarSucursalesDeComercio(idComercio)
+        return repository.listarPuntosPickingDeComercio(idComercio)
                 .stream()
-                .map(SucursalDTO::desde)
+                .map(PuntoPickingDTO::desde)
                 .collect(Collectors.toList());
     }
 
-    private void validarNombreSucursal(String nombre) {
+    private void validarNombrePuntoPicking(String nombre) {
         if (nombre == null || nombre.isBlank()) {
-            throw new ValidacionException("El nombre de la sucursal es obligatorio");
+            throw new ValidacionException("El nombre del punto de picking es obligatorio");
         }
     }
 
-    private void validarDireccionSucursal(String direccion) {
+    private void validarDireccionPuntoPicking(String direccion) {
         if (direccion == null || direccion.isBlank()) {
-            throw new ValidacionException("La dirección de la sucursal es obligatoria");
+            throw new ValidacionException("La dirección del punto de picking es obligatoria");
         }
     }
 
-    private Sucursal obtenerSucursalOFallar(Long id) {
-        Sucursal sucursal = repository.buscarSucursalPorId(id);
-        if (sucursal == null) {
-            throw new ValidacionException("Sucursal no encontrada: " + id);
+    private PuntoPicking obtenerPuntoPickingOFallar(Long id) {
+        PuntoPicking puntoPicking = repository.buscarPuntoPickingPorId(id);
+        if (puntoPicking == null) {
+            throw new ValidacionException("Punto de picking no encontrado: " + id);
         }
-        return sucursal;
+        return puntoPicking;
     }
 
     // IConsultaComercios
@@ -251,12 +275,12 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
                 .collect(Collectors.toList());
     }
 
-    // Devuelve solo las sucursales activas del comercio
+    // Devuelve solo los puntos de picking activos del comercio
     @Override
-    public List<SucursalDTO> listarSucursales(Long idComercio) {
-        return repository.listarSucursalesActivas(idComercio)
+    public List<PuntoPickingDTO> listarPuntosPicking(Long idComercio) {
+        return repository.listarPuntosPickingActivos(idComercio)
                 .stream()
-                .map(SucursalDTO::desde)
+                .map(PuntoPickingDTO::desde)
                 .collect(Collectors.toList());
     }
 
@@ -268,11 +292,12 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     }
 
     // Eliminación física — borra el registro de la BD permanentemente,
-    // junto con todas sus sucursales (cascade). Para evitar pérdidas de
-    // datos accidentales, solo se permite si el comercio ya fue dado de
-    // baja (activo=false) previamente.
+    // junto con todos sus puntos de picking (cascade). Para evitar
+    // pérdidas de datos accidentales, solo se permite si el comercio ya
+    // fue dado de baja (activo=false) previamente.
     @Override
     @Transactional
+    @RolesAllowed("ADMINISTRADOR")
     public void eliminarComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
         if (comercio.isActivo()) {

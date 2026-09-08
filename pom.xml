@@ -21,6 +21,19 @@
             <version>10.0.0</version>
             <scope>provided</scope>
         </dependency>
+        <!--
+            provided: WildFly ya trae Hibernate como módulo del servidor
+            (ver logs de despliegue: "org.hibernate@7.4.5.Final"). Esta
+            dependencia es solo para que Maven vea en compilación
+            @JdbcTypeCode/SqlTypes (usados por Producto.atributos, columna
+            JSONB) — no se empaqueta en el WAR.
+        -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-core</artifactId>
+            <version>7.4.5.Final</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>

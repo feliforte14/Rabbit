@@ -2,7 +2,14 @@ package com.rabbit.inventario.datos.model;
 
 /**
  * Entidad JPA: cada instancia es una fila de la tabla "depositos".
- * Un depósito puede tener muchos ítems de stock (ver campo items).
+ *
+ * Infraestructura logística PROPIA de Rabbit, distribuida por zona,
+ * pensada para casos puntuales que requieren consolidación (ver Sección
+ * 1.2 del documento técnico). Deliberadamente NO tiene relación con
+ * ningún comercio ni PuntoPicking: es independiente de a quién le
+ * pertenece la mercadería, a diferencia de PuntoPicking, que sí es
+ * propio de un comercio puntual. Un depósito puede tener muchos ítems de
+ * stock (ver campo items).
  */
 
 import jakarta.persistence.*;

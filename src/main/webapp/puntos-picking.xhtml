@@ -1,8 +1,10 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    Administra las sucursales de un comercio puntual, recibido por
-    query param (?idComercio=X). Se bindea a sucursalBean (SucursalBean.java).
+    Administra los puntos de picking de un comercio puntual, recibido por
+    query param (?idComercio=X). Se bindea a puntoPickingBean
+    (PuntoPickingBean.java). Renombrada desde sucursales.xhtml (ver
+    Sección 1.2 del documento técnico).
 
     El estilo visual vive aparte, en resources/rabbit/1_0/estilos.css
     (recurso JSF versionado), linkeado con <h:outputStylesheet>. Es solo
@@ -12,18 +14,18 @@
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core">
 <f:metadata>
-    <f:viewParam name="idComercio" value="#{sucursalBean.idComercio}" required="true" />
-    <f:viewAction action="#{sucursalBean.cargar}" />
+    <f:viewParam name="idComercio" value="#{puntoPickingBean.idComercio}" required="true" />
+    <f:viewAction action="#{puntoPickingBean.cargar}" />
 </f:metadata>
 <h:head>
-    <title>Rabbit · Sucursales</title>
+    <title>Rabbit · Puntos de picking</title>
     <h:outputStylesheet library="rabbit" name="estilos.css" />
 </h:head>
 <h:body>
     <div class="container">
         <p><h:link outcome="comercios" value="&#8592; Volver a comercios" styleClass="enlace-volver" /></p>
 
-        <h1>Sucursales de #{sucursalBean.comercio.nombre}</h1>
+        <h1>Puntos de picking de #{puntoPickingBean.comercio.nombre}</h1>
 
         <!-- Solo mensajes de negocio y confirmaciones; los errores de campo
              van inline en el formulario de abajo (ver <h:message for="...">). -->
@@ -32,56 +34,56 @@
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
         <h:form id="formListado">
-            <h:dataTable value="#{sucursalBean.sucursales}" var="s"
+            <h:dataTable value="#{puntoPickingBean.puntosPicking}" var="p"
                          styleClass="tabla" rowClasses="fila-impar,fila-par">
                 <h:column>
                     <f:facet name="header">ID</f:facet>
-                    #{s.id}
+                    #{p.id}
                 </h:column>
                 <h:column>
                     <f:facet name="header">Nombre</f:facet>
-                    #{s.nombre}
+                    #{p.nombre}
                 </h:column>
                 <h:column>
                     <f:facet name="header">Dirección</f:facet>
-                    #{s.direccion}
+                    #{p.direccion}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Activa</f:facet>
-                    #{s.activa ? 'Sí' : 'No'}
+                    <f:facet name="header">Activo</f:facet>
+                    #{p.activa ? 'Sí' : 'No'}
                 </h:column>
                 <h:column styleClass="acciones">
                     <f:facet name="header">Acciones</f:facet>
                     <h:commandButton value="Dar de baja" styleClass="btn btn-secondary"
-                                     action="#{sucursalBean.darDeBaja(s.id)}"
-                                     rendered="#{s.activa}" />
+                                     action="#{puntoPickingBean.darDeBaja(p.id)}"
+                                     rendered="#{p.activa}" />
                     <h:commandButton value="Reactivar" styleClass="btn btn-secondary"
-                                     action="#{sucursalBean.reactivar(s.id)}"
-                                     rendered="#{not s.activa}" />
+                                     action="#{puntoPickingBean.reactivar(p.id)}"
+                                     rendered="#{not p.activa}" />
                 </h:column>
             </h:dataTable>
         </h:form>
 
-        <h2>Agregar sucursal</h2>
+        <h2>Agregar punto de picking</h2>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
                 <h:outputLabel for="nombre" value="Nombre" />
-                <h:inputText id="nombre" value="#{sucursalBean.nuevaSucursal.nombre}"
+                <h:inputText id="nombre" value="#{puntoPickingBean.nuevoPuntoPicking.nombre}"
                              required="true" label="Nombre"
-                             requiredMessage="Ingresá el nombre de la sucursal" />
+                             requiredMessage="Ingresá el nombre del punto de picking" />
                 <h:message for="nombre" styleClass="error-campo" />
             </div>
 
             <div class="campo">
                 <h:outputLabel for="direccion" value="Dirección" />
-                <h:inputText id="direccion" value="#{sucursalBean.nuevaSucursal.direccion}"
+                <h:inputText id="direccion" value="#{puntoPickingBean.nuevoPuntoPicking.direccion}"
                              required="true" label="Dirección"
-                             requiredMessage="Ingresá la dirección de la sucursal" />
+                             requiredMessage="Ingresá la dirección del punto de picking" />
                 <h:message for="direccion" styleClass="error-campo" />
             </div>
 
             <div class="form-acciones">
-                <h:commandButton value="Agregar sucursal" styleClass="btn btn-primary" action="#{sucursalBean.registrar}" />
+                <h:commandButton value="Agregar punto de picking" styleClass="btn btn-primary" action="#{puntoPickingBean.registrar}" />
             </div>
         </h:form>
     </div>
