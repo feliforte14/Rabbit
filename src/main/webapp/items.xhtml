@@ -4,98 +4,105 @@
     Administra el stock de UN deposito puntual, recibido por query param
     (?idDeposito=X). Se bindea a itemInventarioBean (ItemInventarioBean.java).
 -->
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-<f:metadata>
-    <f:viewParam name="idDeposito" value="#{itemInventarioBean.idDeposito}" required="true" />
-    <f:viewAction action="#{itemInventarioBean.cargar}" />
-</f:metadata>
-<h:head>
-    <title>Rabbit · Stock</title>
-    <style>
-        .mensaje-error { color: red; }
-        .mensaje-info { color: green; }
-    </style>
-</h:head>
-<h:body>
-    <p><h:link outcome="depositos" value="&#8592; Volver a depósitos" /></p>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirSesion}" />
+        <f:viewParam name="idDeposito" value="#{itemInventarioBean.idDeposito}" required="true" />
+        <f:viewAction action="#{itemInventarioBean.cargar}" />
+    </f:metadata>
 
-    <h1>Stock de #{itemInventarioBean.deposito.nombre}</h1>
+    <ui:define name="titulo">Rabbit · Stock</ui:define>
 
-    <h:messages globalOnly="false" showDetail="false" showSummary="true" errorClass="mensaje-error" infoClass="mensaje-info" />
+    <ui:define name="contenido">
+        <p><h:link outcome="depositos" value="&#8592; Volver a depósitos" styleClass="enlace-volver" /></p>
 
-    <!--
-        Vista de operador: por defecto muestra TODO el stock del deposito.
-        El filtro permite aislar la consignacion de un comercio puntual.
-    -->
-    <h:form id="formFiltro">
-        <h:panelGrid columns="2">
-            <h:outputLabel value="Ver stock de:" for="filtro" />
-            <h:selectOneMenu id="filtro" value="#{itemInventarioBean.idComercioFiltro}">
-                <f:selectItem itemLabel="Todos los comercios" itemValue="#{null}" />
-                <f:selectItems value="#{itemInventarioBean.listaComercios}" var="c"
-                               itemValue="#{c.id}" itemLabel="#{c.nombre}" />
-                <f:ajax listener="#{itemInventarioBean.filtrar}" render=":formTabla" />
-            </h:selectOneMenu>
-        </h:panelGrid>
-    </h:form>
+        <h1>Stock de #{itemInventarioBean.deposito.nombre}</h1>
 
-    <h:form id="formTabla">
-        <h:dataTable value="#{itemInventarioBean.items}" var="i" border="1"
-                     cellpadding="6" cellspacing="0">
-            <h:column>
-                <f:facet name="header">ID</f:facet>
-                #{i.id}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Producto</f:facet>
-                #{i.producto}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Comercio</f:facet>
-                #{itemInventarioBean.nombreComercio(i.idComercio)}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Disponible</f:facet>
-                #{i.cantidadDisponible}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Reservada</f:facet>
-                #{i.cantidadReservada}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Libre</f:facet>
-                #{i.cantidadLibre}
-            </h:column>
-        </h:dataTable>
-    </h:form>
+        <h:messages globalOnly="false" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
 
-    <h2>Cargar stock</h2>
-    <p>
-        Cargar stock es registrar una <strong>consignación</strong>: el depósito es de Rabbit,
-        pero la mercadería que entra es del comercio que la deja, y solo él va a poder reservarla.
-    </p>
-    <h:form>
-        <h:panelGrid columns="2">
-            <h:outputLabel value="Comercio:" for="comercio" />
-            <h:selectOneMenu id="comercio" value="#{itemInventarioBean.nuevoItem.idComercio}"
-                             required="true" label="Comercio"
-                             requiredMessage="Elegí de qué comercio es el stock">
-                <f:selectItem itemLabel="— Elegí el comercio dueño —" itemValue="#{null}" />
-                <f:selectItems value="#{itemInventarioBean.listaComercios}" var="c"
-                               itemValue="#{c.id}"
-                               itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
-            </h:selectOneMenu>
+        <!--
+            Vista de operador: por defecto muestra TODO el stock del deposito.
+            El filtro permite aislar la consignacion de un comercio puntual.
+        -->
+        <h:form id="formFiltro" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel value="Ver stock de:" for="filtro" />
+                <h:selectOneMenu id="filtro" value="#{itemInventarioBean.idComercioFiltro}">
+                    <f:selectItem itemLabel="Todos los comercios" itemValue="#{null}" />
+                    <f:selectItems value="#{itemInventarioBean.listaComercios}" var="c"
+                                   itemValue="#{c.id}" itemLabel="#{c.nombre}" />
+                    <f:ajax listener="#{itemInventarioBean.filtrar}" render=":formTabla" />
+                </h:selectOneMenu>
+            </div>
+        </h:form>
 
-            <h:outputLabel value="Producto:" for="producto" />
-            <h:inputText id="producto" value="#{itemInventarioBean.nuevoItem.producto}" required="true" />
+        <h:form id="formTabla">
+            <h:dataTable value="#{itemInventarioBean.items}" var="i"
+                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{i.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Producto</f:facet>
+                    #{i.producto}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Comercio</f:facet>
+                    #{itemInventarioBean.nombreComercio(i.idComercio)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Disponible</f:facet>
+                    #{i.cantidadDisponible}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Reservada</f:facet>
+                    #{i.cantidadReservada}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Libre</f:facet>
+                    #{i.cantidadLibre}
+                </h:column>
+            </h:dataTable>
+        </h:form>
 
-            <h:outputLabel value="Cantidad:" for="cantidad" />
-            <h:inputText id="cantidad" value="#{itemInventarioBean.nuevoItem.cantidadDisponible}" required="true" />
-        </h:panelGrid>
+        <h2>Cargar stock</h2>
+        <p class="ayuda">
+            Cargar stock es registrar una <strong>consignación</strong>: el depósito es de Rabbit,
+            pero la mercadería que entra es del comercio que la deja, y solo él va a poder reservarla.
+        </p>
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel value="Comercio:" for="comercio" />
+                <h:selectOneMenu id="comercio" value="#{itemInventarioBean.nuevoItem.idComercio}"
+                                 required="true" label="Comercio"
+                                 requiredMessage="Elegí de qué comercio es el stock">
+                    <f:selectItem itemLabel="— Elegí el comercio dueño —" itemValue="#{null}" />
+                    <f:selectItems value="#{itemInventarioBean.listaComercios}" var="c"
+                                   itemValue="#{c.id}"
+                                   itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
+                </h:selectOneMenu>
+            </div>
 
-        <h:commandButton value="Cargar stock" action="#{itemInventarioBean.registrar}" />
-    </h:form>
-</h:body>
-</html>
+            <div class="campo">
+                <h:outputLabel value="Producto:" for="producto" />
+                <h:inputText id="producto" value="#{itemInventarioBean.nuevoItem.producto}" required="true" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel value="Cantidad:" for="cantidad" />
+                <h:inputText id="cantidad" value="#{itemInventarioBean.nuevoItem.cantidadDisponible}" required="true" />
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Cargar stock" styleClass="btn btn-primary" action="#{itemInventarioBean.registrar}" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

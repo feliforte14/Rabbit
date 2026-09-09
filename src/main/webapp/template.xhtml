@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<!--
+    TEMPLATE (Facelets) - Capa de Presentacion.
+
+    Layout compartido por todas las pantallas que requieren sesión
+    iniciada: sidebar de navegación (tomado del prototipo de Figma del
+    equipo) + área de contenido. Cada página lo usa con
+    <ui:composition template="/template.xhtml"> y define su contenido en
+    <ui:define name="contenido">.
+
+    La sesión NO se exige acá: cada página conserva su propio
+    <f:metadata> (algunas ya lo necesitan para <f:viewParam>), y ahí
+    agrega \#{sesionBean.exigirSesion} — mantiene el patrón explícito que
+    ya usa el resto del proyecto en vez de esconder la regla en el
+    template.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<h:head>
+    <title><ui:insert name="titulo">Rabbit</ui:insert></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
+    <ui:insert name="cabecera" />
+</h:head>
+<h:body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <p class="marca">rabbit</p>
+                <p class="slogan">Plataforma de entregas urbanas</p>
+            </div>
+
+            <nav class="sidebar-nav">
+                <h:link outcome="comercios" value="Comercios"
+                        styleClass="#{view.viewId == '/comercios.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="depositos" value="Depósitos"
+                        styleClass="#{view.viewId == '/depositos.xhtml' or view.viewId == '/items.xhtml' or view.viewId == '/reservas.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="pedidos" value="Pedidos"
+                        styleClass="#{view.viewId == '/pedidos.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="historial" value="Historial de reservas"
+                        styleClass="#{view.viewId == '/historial.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="usuarios" value="Usuarios"
+                        styleClass="#{view.viewId == '/usuarios.xhtml' ? 'activo' : ''}" />
+            </nav>
+
+            <div class="sidebar-foot">
+                <p class="sidebar-usuario">
+                    Conectado como<br />
+                    <b>#{sesionBean.usuarioActual}</b> · #{sesionBean.admin ? 'ADMINISTRADOR' : 'OPERADOR'}
+                </p>
+                <h:form>
+                    <h:commandButton value="Cerrar sesión" styleClass="btn btn-secondary"
+                                     style="width:100%" action="#{loginBean.logout}" />
+                </h:form>
+            </div>
+        </aside>
+
+        <main class="app-contenido">
+            <ui:insert name="contenido" />
+        </main>
+    </div>
+</h:body>
+</html>

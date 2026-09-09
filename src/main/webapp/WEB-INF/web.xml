@@ -4,7 +4,7 @@
     el FacesServlet (el motor de JSF), y que la pagina de inicio de la
     app es login.xhtml — la primera pantalla que ve cualquiera al entrar,
     sin importar el rol. Tras autenticarse, LoginBean.login() manda a
-    panel.xhtml, que sí requiere sesión iniciada (ver SesionBean.exigirSesion).
+    comercios.xhtml, que sí requiere sesión iniciada (ver SesionBean.exigirSesion).
 -->
 <web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

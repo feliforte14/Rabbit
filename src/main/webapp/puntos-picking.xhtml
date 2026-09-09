@@ -5,24 +5,21 @@
     query param (?idComercio=X). Se bindea a puntoPickingBean
     (PuntoPickingBean.java). Renombrada desde sucursales.xhtml (ver
     Sección 1.2 del documento técnico).
-
-    El estilo visual vive aparte, en resources/rabbit/1_0/estilos.css
-    (recurso JSF versionado), linkeado con <h:outputStylesheet>. Es solo
-    CSS: no cambia ningun binding ni ninguna accion de los Managed Beans.
 -->
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-<f:metadata>
-    <f:viewParam name="idComercio" value="#{puntoPickingBean.idComercio}" required="true" />
-    <f:viewAction action="#{puntoPickingBean.cargar}" />
-</f:metadata>
-<h:head>
-    <title>Rabbit · Puntos de picking</title>
-    <h:outputStylesheet library="rabbit" name="estilos.css" />
-</h:head>
-<h:body>
-    <div class="container">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirSesion}" />
+        <f:viewParam name="idComercio" value="#{puntoPickingBean.idComercio}" required="true" />
+        <f:viewAction action="#{puntoPickingBean.cargar}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Puntos de picking</ui:define>
+
+    <ui:define name="contenido">
         <p><h:link outcome="comercios" value="&#8592; Volver a comercios" styleClass="enlace-volver" /></p>
 
         <h1>Puntos de picking de #{puntoPickingBean.comercio.nombre}</h1>
@@ -86,6 +83,5 @@
                 <h:commandButton value="Agregar punto de picking" styleClass="btn btn-primary" action="#{puntoPickingBean.registrar}" />
             </div>
         </h:form>
-    </div>
-</h:body>
-</html>
+    </ui:define>
+</ui:composition>

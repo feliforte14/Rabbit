@@ -13,15 +13,18 @@
 
     Se bindea a historialReservasBean (HistorialReservasBean.java).
 -->
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-<h:head>
-    <title>Rabbit · Historial de reservas</title>
-    <h:outputStylesheet library="rabbit" name="estilos.css" />
-</h:head>
-<h:body>
-    <div class="container">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirSesion}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Historial de reservas</ui:define>
+
+    <ui:define name="contenido">
         <p>
             <h:link outcome="reservas" value="&#8592; Volver a reservar stock" styleClass="enlace-volver" />
         </p>
@@ -150,6 +153,5 @@
                 <p class="ayuda">No hay reservas que cumplan estos criterios.</p>
             </h:panelGroup>
         </h:panelGroup>
-    </div>
-</h:body>
-</html>
+    </ui:define>
+</ui:composition>
