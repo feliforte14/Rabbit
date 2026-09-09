@@ -56,6 +56,9 @@ public class ItemInventarioBean implements Serializable {
 
     private DatosItemInventarioDTO nuevoItem = new DatosItemInventarioDTO();
 
+    // Se invoca vía <f:viewAction> apenas idDeposito queda seteado por el
+    // <f:viewParam> de items.xhtml (no hay @PostConstruct porque en ese
+    // momento del ciclo de vida idDeposito todavía no llegó).
     public void cargar() {
         deposito = service.obtenerDeposito(idDeposito);
         listaComercios = comercios.listarTodos();
@@ -86,6 +89,8 @@ public class ItemInventarioBean implements Serializable {
         return nombresComercio.getOrDefault(idComercio, "Comercio " + idComercio);
     }
 
+    // Carga stock nuevo en idDeposito, a nombre del comercio elegido en
+    // nuevoItem (registra la consignación, ver DatosItemInventarioDTO).
     public void registrar() {
         try {
             service.registrarItem(idDeposito, nuevoItem);
@@ -97,10 +102,14 @@ public class ItemInventarioBean implements Serializable {
         }
     }
 
+    // Helper para publicar un FacesMessage global (sin componente asociado)
+    // — lo consume <h:messages> en items.xhtml.
     private void mensaje(FacesMessage.Severity severidad, String texto) {
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF),
+    // incluido idDeposito, que <f:viewParam> escribe vía su setter.
     public Long getIdDeposito() { return idDeposito; }
     public void setIdDeposito(Long idDeposito) { this.idDeposito = idDeposito; }
     public DepositoDTO getDeposito() { return deposito; }

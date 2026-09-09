@@ -56,11 +56,18 @@ public class ComercioBean implements Serializable {
     // Campos que se bindean con el formulario de alta (comercios.xhtml)
     private DatosComercioDTO nuevoComercio = new DatosComercioDTO();
 
+    // @PostConstruct: corre una sola vez, apenas el contenedor termina de
+    // inyectar registro/consulta — así la tabla ya llega llena en el primer
+    // render de la página, sin esperar una acción del usuario.
     @PostConstruct
     public void cargar() {
         comercios = consulta.listarTodos();
     }
 
+    // Alta de un comercio nuevo a partir de nuevoComercio (bindeado al
+    // formulario). Si ComercioService rechaza los datos (CUIT inválido,
+    // duplicado, etc.) el mensaje de negocio se muestra tal cual llega en
+    // la excepción, sin volcar el formulario.
     public void registrar() {
         try {
             registro.registrarComercio(nuevoComercio);
@@ -72,6 +79,8 @@ public class ComercioBean implements Serializable {
         }
     }
 
+    // Baja lógica: el comercio sigue en la BD pero deja de operar (ver
+    // Comercio.activo). Recarga el listado para reflejar el nuevo estado.
     public void darDeBaja(Long id) {
         try {
             registro.darDeBajaComercio(id);
@@ -82,6 +91,7 @@ public class ComercioBean implements Serializable {
         }
     }
 
+    // Reactiva un comercio dado de baja.
     public void reactivar(Long id) {
         try {
             registro.reactivarComercio(id);
@@ -92,6 +102,10 @@ public class ComercioBean implements Serializable {
         }
     }
 
+    // Eliminación FÍSICA (no baja lógica): borra el comercio y, en cascada,
+    // sus puntos de picking. Es la única operación del componente protegida
+    // con @RolesAllowed("ADMINISTRADOR") a nivel de EJB — por eso, además
+    // del error de negocio, hay que atrapar el rechazo de permisos.
     public void eliminar(Long id) {
         try {
             registro.eliminarComercio(id);
@@ -107,10 +121,15 @@ public class ComercioBean implements Serializable {
         }
     }
 
+    // Helper para publicar un FacesMessage global (sin componente asociado,
+    // por eso el primer argumento a addMessage es null) — lo consume
+    // <h:messages globalOnly="true"> en comercios.xhtml.
     private void mensaje(FacesMessage.Severity severidad, String texto) {
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF) para
+    // leer y escribir estos campos desde comercios.xhtml.
     public List<ComercioDTO> getComercios() {
         return comercios;
     }

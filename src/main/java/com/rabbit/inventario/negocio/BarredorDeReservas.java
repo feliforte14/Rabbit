@@ -63,6 +63,8 @@ public class BarredorDeReservas {
     @Inject
     private InventarioRepository repository;
 
+    // @Startup fuerza a crearlo al desplegar (ver comentario de clase);
+    // esto solo deja constancia en el log de que ya está activo.
     @PostConstruct
     public void alArrancar() {
         LOG.info("[Barredor] Activo — revisa reservas vencidas cada 1 minuto");

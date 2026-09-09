@@ -43,6 +43,9 @@ public class LoginBean implements Serializable {
     private String username;
     private String password;
 
+    // Autentica contra el ApplicationRealm vía la API estándar de Servlet
+    // (ver el porqué en el comentario de clase) y, si funciona, redirige
+    // al primer listado protegido de la app.
     public void login() throws IOException {
         FacesContext facesContext = FacesContext.getCurrentInstance();
         HttpServletRequest request = (HttpServletRequest) facesContext.getExternalContext().getRequest();
@@ -58,6 +61,10 @@ public class LoginBean implements Serializable {
         }
     }
 
+    // Cierra la sesión de contenedor (request.logout()) y además invalida
+    // la HttpSession: no alcanza con lo primero, porque atributos propios
+    // de la aplicación guardados en sesión (como el EJB @Stateful de
+    // ReservaBean) sobrevivirían a un logout que solo desautentique.
     public void logout() throws IOException {
         FacesContext facesContext = FacesContext.getCurrentInstance();
         HttpServletRequest request = (HttpServletRequest) facesContext.getExternalContext().getRequest();
@@ -70,10 +77,13 @@ public class LoginBean implements Serializable {
         facesContext.getExternalContext().redirect(request.getContextPath() + "/login.xhtml");
     }
 
+    // Helper para publicar un FacesMessage global (sin componente asociado)
+    // — lo consume <h:messages> en login.xhtml.
     private void mensaje(FacesMessage.Severity severidad, String texto) {
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
     public String getPassword() { return password; }

@@ -17,7 +17,15 @@ import java.util.List;
 @Local
 public interface IConsultaUsuarios {
 
+    /**
+     * @return todos los usuarios registrados (activos e inactivos)
+     */
     List<UsuarioDTO> listarTodos();
 
+    /**
+     * @param id ID del usuario
+     * @return el usuario, nunca con su passwordHash expuesto
+     * @throws ValidacionException si el usuario no existe
+     */
     UsuarioDTO obtenerUsuario(Long id);
 }

@@ -55,6 +55,8 @@ public class SincronizadorDePedidos {
     @Inject
     private IGestionPedidos gestionPedidos;
 
+    // @Startup fuerza a crearlo al desplegar (ver comentario de clase);
+    // esto solo deja constancia en el log de que ya está activo.
     @PostConstruct
     public void alArrancar() {
         LOG.info("[Sincronizador] Activo — revisa pedidos externos sin sincronizar cada 1 minuto");

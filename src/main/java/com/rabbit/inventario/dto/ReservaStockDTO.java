@@ -31,6 +31,8 @@ public class ReservaStockDTO {
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final DateTimeFormatter FECHA_HORA = DateTimeFormatter.ofPattern("dd/MM/yy HH:mm:ss");
 
+    // Convierte una entidad ReservaStock en un DTO listo para la vista,
+    // ya con las fechas formateadas y los segundos restantes calculados.
     public static ReservaStockDTO desde(ReservaStock r) {
         ReservaStockDTO dto = new ReservaStockDTO();
         dto.id = r.getId();

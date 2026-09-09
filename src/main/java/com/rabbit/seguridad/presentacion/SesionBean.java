@@ -23,7 +23,8 @@ public class SesionBean {
     private SecurityContext securityContext;
 
     /**
-     * Gatekeeper de páginas que requieren sesión iniciada (ver panel.xhtml).
+     * Gatekeeper de páginas que requieren sesión iniciada: cada .xhtml
+     * protegido lo llama desde su propio <f:metadata><f:viewAction>.
      * Sin esto, cualquiera que tipee la URL directo entra igual — un
      * f:viewAction corre antes del renderizado, a diferencia de un simple
      * "rendered" que solo oculta contenido pero deja la página accesible.
@@ -41,6 +42,8 @@ public class SesionBean {
         }
     }
 
+    // Nombre del usuario logueado, para mostrarlo en el sidebar
+    // (template.xhtml); null si no hay sesión iniciada.
     public String getUsuarioActual() {
         return isAutenticado() ? securityContext.getCallerPrincipal().getName() : null;
     }
@@ -56,6 +59,9 @@ public class SesionBean {
         return principal != null && !"anonymous".equals(principal.getName());
     }
 
+    // Usado en la vista para mostrar/ocultar acciones de administrador
+    // (por ejemplo "Eliminar" en comercios.xhtml) — es solo una comodidad
+    // de UI: la autorización real la impone @RolesAllowed en el EJB.
     public boolean isAdmin() {
         return securityContext.isCallerInRole("ADMINISTRADOR");
     }

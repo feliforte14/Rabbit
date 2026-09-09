@@ -45,6 +45,7 @@ public class Pedido {
 
     public Pedido() {}
 
+    // Getters/setters JavaBean estándar de la entidad.
     public Long getId() { return id; }
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }

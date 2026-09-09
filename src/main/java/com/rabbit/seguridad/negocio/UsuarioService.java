@@ -49,11 +49,13 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
     @Inject
     private UsuarioRepository repository;
 
+    /** El contenedor tomó una instancia del pool para atender una llamada. */
     @PostConstruct
     public void alCrear() {
         LOG.info("[Usuarios] Instancia tomada del pool por el contenedor — " + hashCode());
     }
 
+    /** El contenedor devuelve la instancia al pool (o la descarta). */
     @PreDestroy
     public void alDestruir() {
         LOG.info("[Usuarios] Instancia devuelta/descartada por el contenedor — " + hashCode());
@@ -61,6 +63,16 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
 
     // IRegistroUsuarios
 
+    /**
+     * Crea un usuario nuevo: lo persiste en la tabla "usuarios" (con el
+     * password ya hasheado, ver PasswordUtil) y lo sincroniza contra el
+     * ApplicationRealm de WildFly para que pueda loguearse (ver
+     * ApplicationRealmSync).
+     *
+     * @param datos datos ingresados en el formulario de alta
+     * @return el ID asignado por la BD al nuevo usuario
+     * @throws ValidacionException si el username/password son inválidos o el username ya existe
+     */
     @Override
     @Transactional
     public Long registrarUsuario(DatosUsuarioDTO datos) {
@@ -84,6 +96,14 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         return id;
     }
 
+    /**
+     * Baja lógica: el usuario deja de poder autenticarse (ver
+     * Usuario.activo), tanto en la tabla propia como en el
+     * ApplicationRealm de WildFly.
+     *
+     * @param id ID del usuario a dar de baja
+     * @throws ValidacionException si el usuario no existe
+     */
     @Override
     @Transactional
     public void darDeBaja(Long id) {
@@ -93,12 +113,16 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         ApplicationRealmSync.bajaUsuario(usuario.getUsername());
     }
 
+    // Username obligatorio, sin más restricción de formato: el TP no exige
+    // reglas de complejidad de usuario, solo que no venga vacío.
     private void validarUsername(String username) {
         if (username == null || username.isBlank()) {
             throw new ValidacionException("El nombre de usuario es obligatorio");
         }
     }
 
+    // Password obligatoria y con un mínimo de longitud — la única regla de
+    // complejidad que exige este alcance.
     private void validarPassword(String password) {
         if (password == null || password.isBlank()) {
             throw new ValidacionException("La contraseña es obligatoria");
@@ -110,16 +134,21 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
 
     // IConsultaUsuarios
 
+    // Devuelve todos los usuarios como DTO — usado por la vista de listado (JSF)
     @Override
     public List<UsuarioDTO> listarTodos() {
         return repository.listarTodos().stream().map(UsuarioDTO::desde).collect(Collectors.toList());
     }
 
+    // Devuelve el usuario como DTO (nunca expone la entidad, ni su passwordHash)
     @Override
     public UsuarioDTO obtenerUsuario(Long id) {
         return UsuarioDTO.desde(obtenerOFallar(id));
     }
 
+    // Busca un usuario o falla con un mensaje de negocio entendible, en vez
+    // de dejar que el resto del método reciba un null y explote más abajo
+    // con un NullPointerException sin contexto.
     private Usuario obtenerOFallar(Long id) {
         Usuario usuario = repository.buscarPorId(id);
         if (usuario == null) {

@@ -26,6 +26,7 @@ public class PuntoPickingDTO {
         return dto;
     }
 
+    // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getId() { return id; }
     public String getNombre() { return nombre; }
     public String getDireccion() { return direccion; }

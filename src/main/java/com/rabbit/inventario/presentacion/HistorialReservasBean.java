@@ -53,6 +53,8 @@ public class HistorialReservasBean implements Serializable {
     private Map<Long, String> nombresComercio = new HashMap<>();
     private Map<Long, String> nombresDeposito = new HashMap<>();
 
+    // @PostConstruct: llena los combos de filtro y hace la primera
+    // búsqueda (sin criterios, trae todo) para que la tabla no arranque vacía.
     @PostConstruct
     public void cargar() {
         listaComercios = comercios.listarTodos();
@@ -80,6 +82,7 @@ public class HistorialReservasBean implements Serializable {
         return EstadoReserva.values();
     }
 
+    /** Nombre del comercio de una reserva, para no mostrar un ID pelado. */
     public String nombreComercio(Long id) {
         if (id == null) {
             return "—";
@@ -87,6 +90,7 @@ public class HistorialReservasBean implements Serializable {
         return nombresComercio.getOrDefault(id, "Comercio " + id);
     }
 
+    /** Nombre del depósito de una reserva, para no mostrar un ID pelado. */
     public String nombreDeposito(Long id) {
         if (id == null) {
             return "—";
@@ -128,6 +132,7 @@ public class HistorialReservasBean implements Serializable {
         return "VIGENTE".equals(r.getEstado()) ? "— en curso —" : "— sin registro —";
     }
 
+    // Controla si se muestra la tabla o el mensaje "sin resultados".
     public boolean isHayResultados() {
         return reservas != null && !reservas.isEmpty();
     }

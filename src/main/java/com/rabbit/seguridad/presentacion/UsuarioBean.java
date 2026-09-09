@@ -40,11 +40,17 @@ public class UsuarioBean implements Serializable {
     private List<UsuarioDTO> usuarios;
     private DatosUsuarioDTO nuevoUsuario = new DatosUsuarioDTO();
 
+    // @PostConstruct: corre una sola vez al crear el Bean, así la tabla ya
+    // llega llena en el primer render de usuarios.xhtml.
     @PostConstruct
     public void cargar() {
         usuarios = consulta.listarTodos();
     }
 
+    // Alta de un usuario nuevo: UsuarioService lo persiste (con el
+    // password ya hasheado, ver PasswordUtil) y lo sincroniza contra el
+    // ApplicationRealm de WildFly (ver ApplicationRealmSync) para que
+    // pueda loguearse.
     public void registrar() {
         try {
             registro.registrarUsuario(nuevoUsuario);
@@ -56,6 +62,7 @@ public class UsuarioBean implements Serializable {
         }
     }
 
+    // Baja lógica: el usuario deja de poder autenticarse (ver Usuario.activo).
     public void darDeBaja(Long id) {
         try {
             registro.darDeBaja(id);
@@ -66,12 +73,17 @@ public class UsuarioBean implements Serializable {
         }
     }
 
+    // Helper para publicar un FacesMessage global (sin componente asociado)
+    // — lo consume <h:messages> en usuarios.xhtml.
     private void mensaje(FacesMessage.Severity severidad, String texto) {
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public List<UsuarioDTO> getUsuarios() { return usuarios; }
     public DatosUsuarioDTO getNuevoUsuario() { return nuevoUsuario; }
     public void setNuevoUsuario(DatosUsuarioDTO nuevoUsuario) { this.nuevoUsuario = nuevoUsuario; }
+
+    // Los roles posibles, para el desplegable del formulario de alta.
     public com.rabbit.seguridad.datos.model.Rol[] getRoles() { return com.rabbit.seguridad.datos.model.Rol.values(); }
 }
