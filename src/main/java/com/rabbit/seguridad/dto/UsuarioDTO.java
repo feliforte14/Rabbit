@@ -14,6 +14,8 @@ public class UsuarioDTO {
     public String rol;
     public boolean activo;
 
+    // Convierte una entidad Usuario en un DTO listo para mostrar en la
+    // vista — a propósito nunca copia passwordHash.
     public static UsuarioDTO desde(Usuario u) {
         UsuarioDTO dto = new UsuarioDTO();
         dto.id = u.getId();
@@ -23,6 +25,7 @@ public class UsuarioDTO {
         return dto;
     }
 
+    // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getId() { return id; }
     public String getUsername() { return username; }
     public String getRol() { return rol; }

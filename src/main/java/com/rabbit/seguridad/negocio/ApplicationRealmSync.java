@@ -38,6 +38,15 @@ public final class ApplicationRealmSync {
 
     private ApplicationRealmSync() {}
 
+    /**
+     * Da de alta al usuario en el ApplicationRealm: escribe su hash en
+     * application-users.properties y su rol en application-roles.properties.
+     * A partir de acá ya puede loguearse (ver LoginBean.login).
+     *
+     * @param username usuario, igual al de la tabla "usuarios"
+     * @param passwordEnClaro contraseña sin hashear (se hashea acá, con el algoritmo propio del realm)
+     * @param rol nombre del rol (ver Rol) que WildFly va a exponer como "group" al autenticar
+     */
     public static void altaUsuario(String username, String passwordEnClaro, String rol) {
         try {
             Path configDir = configDir();
@@ -49,6 +58,14 @@ public final class ApplicationRealmSync {
         }
     }
 
+    /**
+     * Quita al usuario del ApplicationRealm (borra su línea de ambos
+     * archivos de properties) — a partir de acá ya no puede autenticarse,
+     * aunque la fila siga existiendo en la tabla "usuarios" (ver
+     * UsuarioService.darDeBaja, que es baja lógica, no elimina la fila).
+     *
+     * @param username usuario a remover del realm
+     */
     public static void bajaUsuario(String username) {
         try {
             Path configDir = configDir();
@@ -60,6 +77,10 @@ public final class ApplicationRealmSync {
         }
     }
 
+    // Carpeta de configuración de ESTE WildFly (donde viven los .properties
+    // del realm), expuesta por el propio contenedor como system property al
+    // arrancar. Falla explícito si se corre fuera de WildFly (por ejemplo,
+    // un test unitario) en vez de fallar más adelante con un path nulo.
     private static Path configDir() {
         String dir = System.getProperty("jboss.server.config.dir");
         if (dir == null) {
@@ -69,22 +90,34 @@ public final class ApplicationRealmSync {
         return Path.of(dir);
     }
 
+    // Reemplaza (o agrega) la línea "username=valor" de un archivo de
+    // properties del realm — primero saca la línea vieja si existía, para
+    // no dejar duplicados que el properties-realm de WildFly no sabría
+    // resolver.
     private static void escribir(Path archivo, String username, String valor) throws IOException {
         List<String> lineas = sinLineaDe(archivo, username);
         lineas.add(username + "=" + valor);
         Files.write(archivo, lineas, StandardCharsets.UTF_8);
     }
 
+    // Elimina la línea "username=..." de un archivo de properties del realm.
     private static void quitar(Path archivo, String username) throws IOException {
         Files.write(archivo, sinLineaDe(archivo, username), StandardCharsets.UTF_8);
     }
 
+    // Lee un archivo de properties del realm y devuelve sus líneas sin la
+    // que empieza con "username=" (si no había ninguna, no cambia nada).
     private static List<String> sinLineaDe(Path archivo, String username) throws IOException {
         return Files.readAllLines(archivo).stream()
                 .filter(linea -> !linea.startsWith(username + "="))
                 .collect(Collectors.toList());
     }
 
+    // Hash MD5 de "usuario:realm:contraseña" — el formato exacto que
+    // exige el properties-realm de WildFly para ApplicationRealm (ver
+    // digest-realm-name en standalone.xml). Distinto del SHA-256 de
+    // PasswordUtil: ese es el hash que guarda la tabla "usuarios", este es
+    // el que entiende el archivo de properties del servidor.
     private static String hashDigest(String username, String passwordEnClaro) {
         try {
             MessageDigest md5 = MessageDigest.getInstance("MD5");

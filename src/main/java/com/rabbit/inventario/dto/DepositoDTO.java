@@ -13,6 +13,7 @@ public class DepositoDTO {
     public String nombre;
     public String direccion;
 
+    // Convierte una entidad Deposito en un DTO listo para mostrar en la vista.
     public static DepositoDTO desde(Deposito d) {
         DepositoDTO dto = new DepositoDTO();
         dto.id = d.getId();
@@ -21,6 +22,7 @@ public class DepositoDTO {
         return dto;
     }
 
+    // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getId() { return id; }
     public String getNombre() { return nombre; }
     public String getDireccion() { return direccion; }

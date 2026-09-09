@@ -70,6 +70,9 @@ public class ReservaBean implements Serializable {
     private Long idItem;
     private int cantidad = 1;
 
+    // @PostConstruct: corre una sola vez por sesión (el Bean es
+    // @SessionScoped), no en cada carga de página — llena los combos y
+    // resuelve la preselección que pudo venir por URL.
     @PostConstruct
     public void cargar() {
         listaComercios = comercios.listarTodos();
@@ -141,6 +144,7 @@ public class ReservaBean implements Serializable {
         return nombresDeposito.getOrDefault(id, "Depósito " + id);
     }
 
+    // Abre la reserva (deja la conversación del EJB stateful en curso).
     public void reservar() {
         try {
             ReservaStockDTO reserva = reservas.reservarStock(idComercio, idItem, cantidad);
@@ -152,6 +156,7 @@ public class ReservaBean implements Serializable {
         }
     }
 
+    // Confirma la reserva en curso: el stock sale definitivamente del depósito.
     public void confirmar() {
         try {
             reservas.confirmarReserva();
@@ -162,6 +167,7 @@ public class ReservaBean implements Serializable {
         }
     }
 
+    // Libera la reserva en curso sin confirmarla: el stock vuelve a libre.
     public void liberar() {
         try {
             reservas.liberarReserva();
@@ -172,6 +178,7 @@ public class ReservaBean implements Serializable {
         }
     }
 
+    // Empuja el vencimiento de la reserva en curso otros MINUTOS_DE_HOLD.
     public void extender() {
         try {
             reservas.extenderReserva();
@@ -188,10 +195,13 @@ public class ReservaBean implements Serializable {
         return reservas.obtenerReservaActual();
     }
 
+    // Controla si se muestra el panel "Reserva en curso" en reservas.xhtml.
     public boolean isHayReserva() {
         return reservas.obtenerReservaActual() != null;
     }
 
+    // Helper para publicar un FacesMessage global (sin componente asociado)
+    // — lo consume <h:messages> en reservas.xhtml.
     private void mensaje(FacesMessage.Severity severidad, String texto) {
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }

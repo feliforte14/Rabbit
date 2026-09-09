@@ -17,6 +17,8 @@ public class ItemInventarioDTO {
     public Long idDeposito;
     public Long idComercio;
 
+    // Convierte una entidad ItemInventario en un DTO listo para la vista,
+    // calculando cantidadLibre = disponible - reservada de una vez.
     public static ItemInventarioDTO desde(ItemInventario i) {
         ItemInventarioDTO dto = new ItemInventarioDTO();
         dto.id = i.getId();

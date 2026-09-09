@@ -12,6 +12,7 @@ public class DatosPedidoExternoDTO {
     public Long idItem;
     public int cantidad;
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
     public Long getIdItem() { return idItem; }

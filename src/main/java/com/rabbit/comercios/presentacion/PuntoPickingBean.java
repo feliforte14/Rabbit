@@ -45,11 +45,16 @@ public class PuntoPickingBean implements Serializable {
 
     private DatosPuntoPickingDTO nuevoPuntoPicking = new DatosPuntoPickingDTO();
 
+    // Se invoca vía <f:viewAction> apenas idComercio queda seteado por el
+    // <f:viewParam> de puntos-picking.xhtml — no hay @PostConstruct porque
+    // en ese momento del ciclo de vida idComercio todavía no llegó.
     public void cargar() {
         comercio = consulta.obtenerComercio(idComercio);
         puntosPicking = consulta.listarPuntosPickingDeComercio(idComercio);
     }
 
+    // Alta de un punto de picking nuevo para idComercio, a partir de
+    // nuevoPuntoPicking (bindeado al formulario de la página).
     public void registrar() {
         try {
             registro.registrarPuntoPicking(idComercio, nuevoPuntoPicking);
@@ -61,6 +66,7 @@ public class PuntoPickingBean implements Serializable {
         }
     }
 
+    // Baja lógica del punto de picking (ver PuntoPicking.activa).
     public void darDeBaja(Long id) {
         try {
             registro.darDeBajaPuntoPicking(id);
@@ -71,6 +77,8 @@ public class PuntoPickingBean implements Serializable {
         }
     }
 
+    // Reactiva un punto de picking dado de baja. ComercioService rechaza
+    // esto si el comercio dueño sigue inactivo (ver PuntoPicking.activa).
     public void reactivar(Long id) {
         try {
             registro.reactivarPuntoPicking(id);
@@ -81,10 +89,14 @@ public class PuntoPickingBean implements Serializable {
         }
     }
 
+    // Helper para publicar un FacesMessage global (sin componente asociado)
+    // — lo consume <h:messages globalOnly="true"> en puntos-picking.xhtml.
     private void mensaje(FacesMessage.Severity severidad, String texto) {
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF),
+    // incluido idComercio, que <f:viewParam> escribe vía su setter.
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
     public ComercioDTO getComercio() { return comercio; }

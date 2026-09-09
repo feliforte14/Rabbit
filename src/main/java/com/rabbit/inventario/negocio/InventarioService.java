@@ -368,11 +368,13 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         return repository.guardarDeposito(deposito).getId();
     }
 
+    // Devuelve el depósito como DTO (nunca expone la entidad directamente)
     @Override
     public DepositoDTO obtenerDeposito(Long idDeposito) {
         return DepositoDTO.desde(obtenerDepositoOFallar(idDeposito));
     }
 
+    // Devuelve todos los depósitos como DTO — usado por la vista de listado (JSF)
     @Override
     public List<DepositoDTO> listarDepositos() {
         return repository.listarDepositos()
@@ -411,6 +413,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         return repository.guardarItem(item).getId();
     }
 
+    // TODO el stock de un depósito, de todos los comercios — vista de operador.
     @Override
     public List<ItemInventarioDTO> listarItemsPorDeposito(Long idDeposito) {
         obtenerDepositoOFallar(idDeposito);
@@ -420,6 +423,9 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
                 .collect(Collectors.toList());
     }
 
+    // TODO el stock consignado por un comercio, en todos los depósitos.
+    // idComercio == null devuelve lista vacía en vez de fallar: la vista lo
+    // usa como "todavía no se eligió comercio", no como un error.
     @Override
     public List<ItemInventarioDTO> listarItemsPorComercio(Long idComercio) {
         if (idComercio == null) {
@@ -431,6 +437,8 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
                 .collect(Collectors.toList());
     }
 
+    // Stock de un comercio puntual dentro de un depósito puntual (filtro
+    // combinado de las dos consultas anteriores).
     @Override
     public List<ItemInventarioDTO> listarItemsPorComercioYDeposito(Long idComercio, Long idDeposito) {
         if (idComercio == null || idDeposito == null) {
@@ -484,30 +492,37 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
 
     // --- Validaciones de negocio ---
 
+    // Nombre obligatorio, sin más restricción de formato.
     private void validarNombreDeposito(String nombre) {
         if (nombre == null || nombre.isBlank()) {
             throw new ValidacionException("El nombre del depósito es obligatorio");
         }
     }
 
+    // Dirección obligatoria, sin más restricción de formato.
     private void validarDireccionDeposito(String direccion) {
         if (direccion == null || direccion.isBlank()) {
             throw new ValidacionException("La dirección del depósito es obligatoria");
         }
     }
 
+    // Nombre de producto obligatorio, sin más restricción de formato.
     private void validarProducto(String producto) {
         if (producto == null || producto.isBlank()) {
             throw new ValidacionException("El nombre del producto es obligatorio");
         }
     }
 
+    // Solo rechaza negativos: 0 es una carga válida (por ejemplo, para
+    // reservar el registro de un producto sin stock todavía).
     private void validarCantidad(int cantidad) {
         if (cantidad < 0) {
             throw new ValidacionException("La cantidad no puede ser negativa");
         }
     }
 
+    // Lanza excepción si el depósito no existe — evita repetir este
+    // chequeo en cada método que opera sobre uno puntual.
     private Deposito obtenerDepositoOFallar(Long id) {
         Deposito deposito = repository.buscarDepositoPorId(id);
         if (deposito == null) {
@@ -516,6 +531,8 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         return deposito;
     }
 
+    // Lanza excepción si el ítem no existe — evita repetir este chequeo en
+    // cada método que opera sobre uno puntual.
     private ItemInventario obtenerItemOFallar(Long id) {
         ItemInventario item = repository.buscarItemPorId(id);
         if (item == null) {

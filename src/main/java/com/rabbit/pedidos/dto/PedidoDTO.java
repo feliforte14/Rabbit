@@ -19,6 +19,7 @@ public class PedidoDTO {
     public String estado;
     public String fechaCreacion;
 
+    // Convierte una entidad Pedido en un DTO listo para mostrar en la vista.
     public static PedidoDTO desde(Pedido p) {
         PedidoDTO dto = new PedidoDTO();
         dto.id = p.getId();
@@ -30,6 +31,7 @@ public class PedidoDTO {
         return dto;
     }
 
+    // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getId() { return id; }
     public Long getIdComercio() { return idComercio; }
     public String getProducto() { return producto; }

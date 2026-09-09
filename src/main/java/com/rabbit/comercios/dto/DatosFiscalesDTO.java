@@ -13,6 +13,7 @@ public class DatosFiscalesDTO {
     public String email;
     public String telefono;
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public String getRazonSocial() { return razonSocial; }
     public void setRazonSocial(String razonSocial) { this.razonSocial = razonSocial; }
     public String getCuit() { return cuit; }

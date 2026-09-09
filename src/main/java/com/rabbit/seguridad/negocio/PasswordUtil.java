@@ -21,6 +21,9 @@ public final class PasswordUtil {
 
     private PasswordUtil() {}
 
+    // Calcula el hash SHA-256 en hexadecimal de una contraseña en texto
+    // plano; determinístico, así el mismo texto siempre produce el mismo
+    // hash (necesario para poder comparar en el login).
     public static String hash(String passwordEnClaro) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");

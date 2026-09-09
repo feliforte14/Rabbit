@@ -22,6 +22,7 @@ public class PedidoExternoDTO {
     public String errorSincronizacion;
     public String resultado;
 
+    // Convierte una entidad PedidoExterno en un DTO listo para la vista.
     public static PedidoExternoDTO desde(PedidoExterno pe) {
         PedidoExternoDTO dto = new PedidoExternoDTO();
         dto.id = pe.getId();
@@ -43,6 +44,7 @@ public class PedidoExternoDTO {
         return dto;
     }
 
+    // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getId() { return id; }
     public Long getIdComercio() { return idComercio; }
     public Long getIdItem() { return idItem; }

@@ -128,18 +128,24 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     private static final java.util.regex.Pattern PATRON_EMAIL =
             java.util.regex.Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
+    // Nombre comercial obligatorio, sin más restricción de formato.
     private void validarNombre(String nombre) {
         if (nombre == null || nombre.isBlank()) {
             throw new ValidacionException("El nombre del comercio es obligatorio");
         }
     }
 
+    // Razón social obligatoria, sin más restricción de formato.
     private void validarRazonSocial(String razonSocial) {
         if (razonSocial == null || razonSocial.isBlank()) {
             throw new ValidacionException("La razón social es obligatoria");
         }
     }
 
+    // Tres chequeos en cadena: obligatorio, formato (con o sin guiones) y
+    // unicidad. idComercioActual se excluye de la unicidad para poder
+    // reusar este mismo método al actualizar un comercio existente (si no
+    // se excluyera, el propio comercio siempre "chocaría" con su CUIT).
     private void validarCuit(String cuit, Long idComercioActual) {
         if (cuit == null || cuit.isBlank()) {
             throw new ValidacionException("El CUIT es obligatorio");
@@ -152,6 +158,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
         }
     }
 
+    // Email opcional: solo se valida el formato si se cargó alguno.
     private void validarEmail(String email) {
         if (email != null && !email.isBlank() && !PATRON_EMAIL.matcher(email.trim()).matches()) {
             throw new ValidacionException("El email tiene un formato inválido");
@@ -238,18 +245,22 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
                 .collect(Collectors.toList());
     }
 
+    // Nombre obligatorio, sin más restricción de formato.
     private void validarNombrePuntoPicking(String nombre) {
         if (nombre == null || nombre.isBlank()) {
             throw new ValidacionException("El nombre del punto de picking es obligatorio");
         }
     }
 
+    // Dirección obligatoria, sin más restricción de formato.
     private void validarDireccionPuntoPicking(String direccion) {
         if (direccion == null || direccion.isBlank()) {
             throw new ValidacionException("La dirección del punto de picking es obligatoria");
         }
     }
 
+    // Lanza excepción si el punto de picking no existe — evita repetir
+    // este chequeo en cada método que opera sobre uno puntual.
     private PuntoPicking obtenerPuntoPickingOFallar(Long id) {
         PuntoPicking puntoPicking = repository.buscarPuntoPickingPorId(id);
         if (puntoPicking == null) {

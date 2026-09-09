@@ -239,16 +239,19 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     // ISeguimientoPedido
     // ===============================================================
 
+    // Devuelve el pedido como DTO (nunca expone la entidad directamente)
     @Override
     public PedidoDTO consultarEstadoPedido(Long idPedido) {
         return PedidoDTO.desde(obtenerOFallar(idPedido));
     }
 
+    // Devuelve todos los pedidos reales como DTO — usado por la vista de listado
     @Override
     public List<PedidoDTO> listarTodos() {
         return repository.listarTodos().stream().map(PedidoDTO::desde).collect(Collectors.toList());
     }
 
+    // Pedidos reales de un comercio puntual.
     @Override
     public List<PedidoDTO> listarPedidosDeComercio(Long idComercio) {
         return repository.listarPedidosDeComercio(idComercio).stream()
@@ -256,6 +259,8 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
                 .collect(Collectors.toList());
     }
 
+    // Todas las filas del mock del ERP (sincronizadas y pendientes) —
+    // deja ver en la vista el "antes y después" de la sincronización.
     @Override
     public List<PedidoExternoDTO> listarPedidosExternos() {
         return repository.listarTodosLosExternos().stream()
@@ -265,6 +270,8 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     // --- privados ---
 
+    // Lanza excepción si el pedido no existe — evita repetir este chequeo
+    // en cada método que opera sobre uno puntual.
     private Pedido obtenerOFallar(Long id) {
         Pedido pedido = repository.buscarPedidoPorId(id);
         if (pedido == null) {
@@ -273,6 +280,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         return pedido;
     }
 
+    // Lanza excepción si el pedido externo (mock del ERP) no existe.
     private PedidoExterno obtenerExternoOFallar(Long id) {
         PedidoExterno externo = repository.buscarPedidoExternoPorId(id);
         if (externo == null) {

@@ -94,6 +94,7 @@ public class ReservaStock {
                 && LocalDateTime.now().isAfter(fechaExpiracion);
     }
 
+    // Getters/setters JavaBean estándar de la entidad.
     public Long getId() { return id; }
     public String getProducto() { return producto; }
     public void setProducto(String producto) { this.producto = producto; }

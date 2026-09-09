@@ -62,6 +62,9 @@ public class PedidoBean implements Serializable {
     private Long idDepositoSeleccionado;
     private DatosPedidoExternoDTO nuevoPedido = new DatosPedidoExternoDTO();
 
+    // @PostConstruct: corre una sola vez al crear el Bean, así las tres
+    // tablas de pedidos.xhtml (reales, mock del ERP, combos de alta) ya
+    // llegan llenas en el primer render.
     @PostConstruct
     public void cargar() {
         pedidos = seguimiento.listarTodos();
@@ -108,6 +111,9 @@ public class PedidoBean implements Serializable {
         nuevoPedido.setIdItem(null);
     }
 
+    // Crea la fila mock "recién llegada del ERP" (PedidoExterno), NO un
+    // pedido real: el pedido real lo genera SincronizadorDePedidos cuando
+    // la levanta en su próxima pasada.
     public void registrarPedidoExterno() {
         try {
             gestion.registrarPedidoExterno(nuevoPedido);
@@ -121,6 +127,7 @@ public class PedidoBean implements Serializable {
         }
     }
 
+    // Avanza el pedido de PENDIENTE a CONFIRMADO (ver EstadoPedido).
     public void confirmar(Long idPedido) {
         try {
             gestion.confirmarPedido(idPedido);
@@ -131,6 +138,8 @@ public class PedidoBean implements Serializable {
         }
     }
 
+    // Cancela el pedido y devuelve el stock que tenía comprometido (ver
+    // Pedido.idReservaStock e IReservaStock.registrarDevolucion).
     public void cancelar(Long idPedido) {
         try {
             gestion.cancelarPedido(idPedido);
@@ -141,10 +150,13 @@ public class PedidoBean implements Serializable {
         }
     }
 
+    // Helper para publicar un FacesMessage global (sin componente asociado)
+    // — lo consume <h:messages> en pedidos.xhtml.
     private void mensaje(FacesMessage.Severity severidad, String texto) {
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public List<PedidoDTO> getPedidos() { return pedidos; }
     public List<PedidoExternoDTO> getPedidosExternos() { return pedidosExternos; }
     public List<ComercioDTO> getListaComercios() { return listaComercios; }

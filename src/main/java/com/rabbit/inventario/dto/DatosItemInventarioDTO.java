@@ -13,6 +13,7 @@ public class DatosItemInventarioDTO {
     public int cantidadDisponible;
     public Long idComercio;
 
+    // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public String getProducto() { return producto; }
     public void setProducto(String producto) { this.producto = producto; }
     public int getCantidadDisponible() { return cantidadDisponible; }

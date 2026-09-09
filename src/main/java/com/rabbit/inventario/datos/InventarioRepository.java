@@ -24,27 +24,62 @@ import java.util.List;
 @ApplicationScoped
 public class InventarioRepository {
 
+    // Puente hacia la base de datos: sabe traducir entidades @Entity a filas
+    // y viceversa. Lo administra el contenedor (WildFly), no se instancia a mano.
     @PersistenceContext(unitName = "comerciosPU")
     private EntityManager em;
 
+    /**
+     * Persiste un depósito nuevo (sin ID) en la BD.
+     *
+     * @param deposito entidad transitoria (recién creada con new, sin ID)
+     * @return el mismo objeto, ya con el ID asignado por la BD
+     */
     public Deposito guardarDeposito(Deposito deposito) {
         em.persist(deposito);
         return deposito;
     }
 
+    /**
+     * Busca un depósito por su ID.
+     *
+     * @param id identificador del depósito
+     * @return el depósito encontrado, o null si no existe
+     */
     public Deposito buscarDepositoPorId(Long id) {
         return em.find(Deposito.class, id);
     }
 
+    /**
+     * Lista todos los depósitos registrados — usada por la vista de listado.
+     *
+     * @return todos los depósitos persistidos
+     */
     public List<Deposito> listarDepositos() {
         return em.createQuery("SELECT d FROM Deposito d", Deposito.class).getResultList();
     }
 
+    /**
+     * Persiste un ítem de inventario nuevo (sin ID) en la BD.
+     *
+     * @param item entidad transitoria (recién creada con new, sin ID), ya con su Deposito asignado
+     * @return el mismo objeto, ya con el ID asignado por la BD
+     */
     public ItemInventario guardarItem(ItemInventario item) {
         em.persist(item);
         return item;
     }
 
+    /**
+     * Actualiza un ítem existente — típicamente para ajustar
+     * cantidadDisponible/cantidadReservada al reservar o confirmar stock
+     * (ver InventarioService). El @Version de la entidad hace que este
+     * merge falle con OptimisticLockException si otra transacción ya
+     * modificó la misma fila (ver ItemInventario.version).
+     *
+     * @param item entidad con el ID de un registro existente y los campos actualizados
+     * @return la entidad managed con los cambios ya aplicados
+     */
     public ItemInventario actualizarItem(ItemInventario item) {
         return em.merge(item);
     }
@@ -64,10 +99,23 @@ public class InventarioRepository {
         em.flush();
     }
 
+    /**
+     * Busca un ítem de inventario por su ID.
+     *
+     * @param id identificador del ítem
+     * @return el ítem encontrado, o null si no existe
+     */
     public ItemInventario buscarItemPorId(Long id) {
         return em.find(ItemInventario.class, id);
     }
 
+    /**
+     * Lista todo el stock de un depósito, de todos los comercios — la
+     * vista de operador (ver ItemInventarioBean).
+     *
+     * @param idDeposito ID del depósito
+     * @return los ítems de ese depósito
+     */
     public List<ItemInventario> listarItemsPorDeposito(Long idDeposito) {
         return em.createQuery(
                 "SELECT i FROM ItemInventario i WHERE i.deposito.id = :idDeposito ORDER BY i.id",
@@ -150,15 +198,34 @@ public class InventarioRepository {
 
     // --- Reservas de stock (IReservaStock) ---
 
+    /**
+     * Persiste una reserva nueva (sin ID) en la BD, en estado VIGENTE.
+     *
+     * @param reserva entidad transitoria (recién creada con new, sin ID)
+     * @return el mismo objeto, ya con el ID asignado por la BD
+     */
     public ReservaStock guardarReserva(ReservaStock reserva) {
         em.persist(reserva);
         return reserva;
     }
 
+    /**
+     * Actualiza una reserva existente — típicamente para cambiar su
+     * estado (confirmar, liberar, expirar, devolver — ver EstadoReserva).
+     *
+     * @param reserva entidad con el ID de un registro existente y los campos actualizados
+     * @return la entidad managed con los cambios ya aplicados
+     */
     public ReservaStock actualizarReserva(ReservaStock reserva) {
         return em.merge(reserva);
     }
 
+    /**
+     * Busca una reserva por su ID.
+     *
+     * @param id identificador de la reserva
+     * @return la reserva encontrada, o null si no existe
+     */
     public ReservaStock buscarReservaPorId(Long id) {
         return em.find(ReservaStock.class, id);
     }
