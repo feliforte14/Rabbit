@@ -9,28 +9,30 @@
 
     Se bindea a reservaBean (ReservaBean.java), que es @SessionScoped para
     que la conversacion sobreviva a las recargas de pagina.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/template.xhtml">
+    <!--
+        El Bean es @SessionScoped para que la conversacion sobreviva a las
+        recargas, pero eso hace que las listas cargadas en @PostConstruct
+        queden viejas: un comercio o un deposito creado despues no aparece.
+        Este viewAction las refresca en cada carga de la pagina.
+    -->
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirSesion}" />
+        <f:viewAction action="#{reservaBean.cargar}" />
+    </f:metadata>
 
-    El estilo visual vive en resources/rabbit/1_0/estilos.css.
--->
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-<!--
-    El Bean es @SessionScoped para que la conversacion sobreviva a las
-    recargas, pero eso hace que las listas cargadas en @PostConstruct
-    queden viejas: un comercio o un deposito creado despues no aparece.
-    Este viewAction las refresca en cada carga de la pagina.
--->
-<f:metadata>
-    <f:viewAction action="#{reservaBean.cargar}" />
-</f:metadata>
-<h:head>
-    <title>Rabbit · Reserva de stock</title>
-    <h:outputStylesheet library="rabbit" name="estilos.css" />
-    <h:outputScript library="rabbit" name="reserva.js" target="body" />
-</h:head>
-<h:body>
-    <div class="container">
+    <ui:define name="titulo">Rabbit · Reserva de stock</ui:define>
+
+    <ui:define name="cabecera">
+        <h:outputScript library="rabbit" name="reserva.js" target="body" />
+    </ui:define>
+
+    <ui:define name="contenido">
         <p>
             <h:link outcome="depositos" value="&#8592; Volver a depósitos" styleClass="enlace-volver" />
             &#160;&#183;&#160;
@@ -205,6 +207,5 @@
                                  action="#{reservaBean.reservar}" />
             </div>
         </h:form>
-    </div>
-</h:body>
-</html>
+    </ui:define>
+</ui:composition>

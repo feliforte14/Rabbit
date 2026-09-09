@@ -7,31 +7,27 @@
     via Expression Language: por ejemplo #{comercioBean.comercios}.
 
     El estilo visual vive aparte, en resources/rabbit/1_0/estilos.css
-    (recurso JSF versionado), linkeado con <h:outputStylesheet>. Es solo
+    (recurso JSF versionado), linkeado desde template.xhtml. Es solo
     CSS: no cambia ningun binding ni ninguna accion de los Managed Beans.
 -->
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-<h:head>
-    <title>Rabbit · Comercios</title>
-    <h:outputStylesheet library="rabbit" name="estilos.css" />
-</h:head>
-<h:body>
-    <div class="container">
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirSesion}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Comercios</ui:define>
+
+    <ui:define name="contenido">
         <!--
             A propósito NO se muestra qué usuario ni qué rol está
             conectado en esta pantalla — la autorización real de
             "Eliminar" la impone el servidor con @RolesAllowed("ADMINISTRADOR")
             en ComercioService, así que no hace falta exponerlo acá.
         -->
-        <p>
-            <h:link outcome="panel" value="&#8592; Panel principal" styleClass="enlace-volver" />
-            <h:form rendered="#{sesionBean.autenticado}">
-                <h:commandButton value="Cerrar sesión" styleClass="btn btn-secondary" action="#{loginBean.logout}" />
-            </h:form>
-        </p>
-
         <h1>Comercios registrados</h1>
 
         <!--
@@ -149,6 +145,5 @@
                 <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{comercioBean.registrar}" />
             </div>
         </h:form>
-    </div>
-</h:body>
-</html>
+    </ui:define>
+</ui:composition>

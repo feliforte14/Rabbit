@@ -6,17 +6,18 @@
     junto con el botón para simular uno nuevo. Se bindea a pedidoBean
     (PedidoBean.java).
 -->
-<html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:h="jakarta.faces.html"
-      xmlns:f="jakarta.faces.core">
-<h:head>
-    <title>Rabbit · Pedidos</title>
-    <h:outputStylesheet library="rabbit" name="estilos.css" />
-</h:head>
-<h:body>
-    <div class="container">
-        <p><h:link outcome="panel" value="&#8592; Panel principal" styleClass="enlace-volver" /></p>
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirSesion}" />
+    </f:metadata>
 
+    <ui:define name="titulo">Rabbit · Pedidos</ui:define>
+
+    <ui:define name="contenido">
         <h1>Pedidos</h1>
 
         <h:messages globalOnly="true" showDetail="false" showSummary="true"
@@ -154,6 +155,5 @@
                                  action="#{pedidoBean.registrarPedidoExterno}" />
             </div>
         </h:form>
-    </div>
-</h:body>
-</html>
+    </ui:define>
+</ui:composition>

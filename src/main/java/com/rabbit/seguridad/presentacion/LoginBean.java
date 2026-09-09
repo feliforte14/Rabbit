@@ -49,7 +49,10 @@ public class LoginBean implements Serializable {
 
         try {
             request.login(username, password);
-            facesContext.getExternalContext().redirect(request.getContextPath() + "/panel.xhtml");
+            // El sidebar (ver template.xhtml) reemplaza a lo que antes era
+            // panel.xhtml como menú — ya no hace falta una pantalla
+            // intermedia post-login, se entra directo al listado de comercios.
+            facesContext.getExternalContext().redirect(request.getContextPath() + "/comercios.xhtml");
         } catch (ServletException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, "Usuario o contraseña incorrectos");
         }
