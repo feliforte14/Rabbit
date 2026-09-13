@@ -41,6 +41,14 @@
 
         <h1>Reserva de stock</h1>
 
+        <p class="ayuda">
+            Esta reserva es manual: la usa un operador de Rabbit para comprometer stock propio
+            (los depósitos, a diferencia de los puntos de picking, son infraestructura de Rabbit,
+            no de un comercio) antes de que exista un pedido formal, o para resolver a mano un
+            caso que el sincronizador automático no pudo procesar. El flujo normal — un pedido que
+            ya nació en el ERP del comercio — se ve en la pantalla de Pedidos y no pasa por acá.
+        </p>
+
         <h:messages globalOnly="true" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
