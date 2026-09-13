@@ -77,6 +77,17 @@ body {
 /* Paginas sin sidebar (login): mismo padding que antes tenia .container */
 body.pagina-sola {
     padding: 2.5rem 1.5rem 4rem;
+    display: flex;
+    justify-content: center;
+}
+
+body.pagina-sola .container {
+    text-align: center;
+}
+
+body.pagina-sola .formulario {
+    margin: 0 auto;
+    text-align: left;
 }
 
 .container {
