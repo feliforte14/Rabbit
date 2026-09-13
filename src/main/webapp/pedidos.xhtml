@@ -65,9 +65,9 @@
 
         <h2>Mock del ERP del comercio</h2>
         <p>
-            Rabbit no origina pedidos: los consume desde el sistema del comercio (ver documento técnico,
-            Sección 1.1). Esta tabla simula esas filas — el sincronizador (@Schedule, cada 1 min) las toma
-            y genera el pedido real de arriba.
+            Rabbit no origina pedidos: los consume desde el sistema del comercio. Esta tabla simula, desde
+            el punto de vista de negocio de Rabbit, esas filas — el sincronizador las toma y genera el
+            pedido real de arriba.
         </p>
         <h:form id="formExternos">
             <h:dataTable value="#{pedidoBean.pedidosExternos}" var="pe"

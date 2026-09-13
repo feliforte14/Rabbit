@@ -25,6 +25,9 @@ public class Deposito {
 
     private String nombre;
     private String direccion;
+    private String provincia;
+    private String localidad;
+    private String codigoPostal;
 
     // La FK vive del lado de ItemInventario (mappedBy = "deposito").
     // fetch LAZY: los items se cargan recién si se piden.
@@ -39,6 +42,12 @@ public class Deposito {
     public void setNombre(String nombre) { this.nombre = nombre; }
     public String getDireccion() { return direccion; }
     public void setDireccion(String direccion) { this.direccion = direccion; }
+    public String getProvincia() { return provincia; }
+    public void setProvincia(String provincia) { this.provincia = provincia; }
+    public String getLocalidad() { return localidad; }
+    public void setLocalidad(String localidad) { this.localidad = localidad; }
+    public String getCodigoPostal() { return codigoPostal; }
+    public void setCodigoPostal(String codigoPostal) { this.codigoPostal = codigoPostal; }
     public List<ItemInventario> getItems() { return items; }
     public void setItems(List<ItemInventario> items) { this.items = items; }
 }

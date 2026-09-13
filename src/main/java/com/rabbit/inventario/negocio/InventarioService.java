@@ -361,10 +361,16 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     public Long registrarDeposito(DatosDepositoDTO datos) {
         validarNombreDeposito(datos.nombre);
         validarDireccionDeposito(datos.direccion);
+        validarProvinciaDeposito(datos.provincia);
+        validarLocalidadDeposito(datos.localidad);
+        validarCodigoPostalDeposito(datos.codigoPostal);
 
         Deposito deposito = new Deposito();
         deposito.setNombre(datos.nombre.trim());
         deposito.setDireccion(datos.direccion.trim());
+        deposito.setProvincia(datos.provincia.trim());
+        deposito.setLocalidad(datos.localidad.trim());
+        deposito.setCodigoPostal(datos.codigoPostal.trim());
         return repository.guardarDeposito(deposito).getId();
     }
 
@@ -503,6 +509,27 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     private void validarDireccionDeposito(String direccion) {
         if (direccion == null || direccion.isBlank()) {
             throw new ValidacionException("La dirección del depósito es obligatoria");
+        }
+    }
+
+    // Provincia obligatoria, sin más restricción de formato.
+    private void validarProvinciaDeposito(String provincia) {
+        if (provincia == null || provincia.isBlank()) {
+            throw new ValidacionException("La provincia del depósito es obligatoria");
+        }
+    }
+
+    // Localidad obligatoria, sin más restricción de formato.
+    private void validarLocalidadDeposito(String localidad) {
+        if (localidad == null || localidad.isBlank()) {
+            throw new ValidacionException("La localidad del depósito es obligatoria");
+        }
+    }
+
+    // Código postal obligatorio, sin más restricción de formato.
+    private void validarCodigoPostalDeposito(String codigoPostal) {
+        if (codigoPostal == null || codigoPostal.isBlank()) {
+            throw new ValidacionException("El código postal del depósito es obligatorio");
         }
     }
 
