@@ -20,6 +20,13 @@
     <ui:define name="contenido">
         <h1>Pedidos</h1>
 
+        <p class="ayuda">
+            Este es el canal normal: una venta que ya se cerró del lado del comercio y llega
+            automáticamente via su ERP. Es distinto de la reserva manual de la pantalla de
+            Depósitos, pensada para que un operador de Rabbit comprometa stock propio por fuera
+            de este flujo (por ejemplo, ante un caso descartado abajo en "Motivo del descarte").
+        </p>
+
         <h:messages globalOnly="true" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
