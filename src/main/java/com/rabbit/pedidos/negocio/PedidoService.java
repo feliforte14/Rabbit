@@ -60,13 +60,18 @@ package com.rabbit.pedidos.negocio;
  * transacción y una mala no arrastra a las demás.
  */
 
+import com.rabbit.comercios.dto.PuntoPickingDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.negocio.IReservaStock;
 import com.rabbit.inventario.dto.ReservaStockDTO;
 import com.rabbit.pedidos.datos.PedidoRepository;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
+import com.rabbit.pedidos.datos.model.LineaPedido;
+import com.rabbit.pedidos.datos.model.LineaPedidoExterno;
+import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
+import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
@@ -79,6 +84,7 @@ import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -110,20 +116,60 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (datos.idComercio == null) {
             throw new ValidacionException("Debe indicar el comercio del pedido");
         }
-        if (datos.idItem == null) {
-            throw new ValidacionException("Debe indicar el producto del pedido");
+        if (datos.lineas == null || datos.lineas.isEmpty()) {
+            throw new ValidacionException("El pedido debe tener al menos un producto");
         }
-        if (datos.cantidad <= 0) {
-            throw new ValidacionException("La cantidad debe ser mayor a cero");
-        }
+        OrigenPedido origen = datos.origen != null ? datos.origen : OrigenPedido.STOCK_CONSIGNADO;
 
         PedidoExterno externo = new PedidoExterno();
         externo.setIdComercio(datos.idComercio);
-        externo.setIdItem(datos.idItem);
-        externo.setCantidad(datos.cantidad);
+        externo.setOrigen(origen);
         externo.setFechaPedido(LocalDateTime.now());
         externo.setSincronizado(false);
+
+        List<LineaPedidoExterno> lineas = new ArrayList<>();
+        if (origen == OrigenPedido.PUNTO_PICKING) {
+            // El comercio ya validó el pedido en su propio punto de picking:
+            // Rabbit no gestiona ese stock (ver PuntoPicking), así que no hay
+            // ítem que referenciar — solo qué retirar y de dónde. El punto de
+            // picking es del pedido completo: todas sus líneas salen de ahí.
+            if (datos.idPuntoPicking == null) {
+                throw new ValidacionException("Debe indicar el punto de picking del pedido");
+            }
+            externo.setIdPuntoPicking(datos.idPuntoPicking);
+            for (DatosLineaPedidoDTO datosLinea : datos.lineas) {
+                if (datosLinea.producto == null || datosLinea.producto.isBlank()) {
+                    throw new ValidacionException("Debe indicar qué se va a retirar del punto de picking");
+                }
+                validarCantidadLinea(datosLinea.cantidad);
+                LineaPedidoExterno linea = new LineaPedidoExterno();
+                linea.setPedidoExterno(externo);
+                linea.setProducto(datosLinea.producto.trim());
+                linea.setCantidad(datosLinea.cantidad);
+                lineas.add(linea);
+            }
+        } else {
+            for (DatosLineaPedidoDTO datosLinea : datos.lineas) {
+                if (datosLinea.idItem == null) {
+                    throw new ValidacionException("Debe indicar el producto del pedido");
+                }
+                validarCantidadLinea(datosLinea.cantidad);
+                LineaPedidoExterno linea = new LineaPedidoExterno();
+                linea.setPedidoExterno(externo);
+                linea.setIdItem(datosLinea.idItem);
+                linea.setCantidad(datosLinea.cantidad);
+                lineas.add(linea);
+            }
+        }
+        externo.setLineas(lineas);
+
         return repository.guardarPedidoExterno(externo).getId();
+    }
+
+    private void validarCantidadLinea(int cantidad) {
+        if (cantidad <= 0) {
+            throw new ValidacionException("La cantidad debe ser mayor a cero");
+        }
     }
 
     @Override
@@ -138,41 +184,74 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
                     "El comercio " + externo.getIdComercio() + " no existe o está dado de baja");
         }
 
-        // Reservar + confirmar en la MISMA instancia stateful, fresca
-        // para este pedido puntual (ver comentario de clase).
-        IReservaStock reserva = reservaProvider.get();
-        ReservaStockDTO reservaCreada;
-        try {
-            reservaCreada = reserva.reservarStock(externo.getIdComercio(), externo.getIdItem(), externo.getCantidad());
-            reserva.confirmarReserva();
-        } catch (RuntimeException e) {
-            // Traduce la excepción de Inventario a la propia de este
-            // componente: cada ServicioDeX no expone hacia afuera las
-            // excepciones internas de otro (mismo criterio que
-            // ComercioService.validarComercioActivo, que devuelve
-            // boolean en vez de dejar pasar su propia ValidacionException).
-            throw new ValidacionException("No se pudo comprometer el stock del pedido: " + e.getMessage());
-        } finally {
-            reservaProvider.destroy(reserva);
-        }
-
         LocalDateTime ahora = LocalDateTime.now();
         Pedido pedido = new Pedido();
         pedido.setIdComercio(externo.getIdComercio());
-        pedido.setIdItem(externo.getIdItem());
-        pedido.setProducto(reservaCreada.getProducto());
-        pedido.setCantidad(externo.getCantidad());
+        pedido.setOrigen(externo.getOrigen());
         pedido.setEstado(EstadoPedido.PENDIENTE);
-        pedido.setIdReservaStock(reservaCreada.getId());
         pedido.setFechaCreacion(ahora);
         pedido.setFechaActualizacion(ahora);
+
+        List<LineaPedido> lineasPedido = new ArrayList<>();
+        if (externo.getOrigen() == OrigenPedido.PUNTO_PICKING) {
+            // El comercio ya validó y armó el pedido en su propio punto de
+            // picking (ver PuntoPicking): Rabbit no gestiona ese stock, así
+            // que acá no hay nada que reservar — solo confirmar que el
+            // punto de picking existe y está operativo para coordinar el
+            // retiro.
+            validarPuntoPickingActivo(externo.getIdComercio(), externo.getIdPuntoPicking());
+            pedido.setIdPuntoPicking(externo.getIdPuntoPicking());
+            for (LineaPedidoExterno lineaExterna : externo.getLineas()) {
+                LineaPedido linea = new LineaPedido();
+                linea.setPedido(pedido);
+                linea.setProducto(lineaExterna.getProducto());
+                linea.setCantidad(lineaExterna.getCantidad());
+                lineasPedido.add(linea);
+            }
+        } else {
+            // Cada línea reserva + confirma en su PROPIA instancia stateful,
+            // fresca (ver comentario de clase): un pedido con varios
+            // productos compromete varias reservas independientes. Al correr
+            // todas dentro de esta misma transacción REQUIRES_NEW, si una
+            // línea falla su rollback deshace también las reservas ya
+            // confirmadas de las líneas anteriores — el pedido es atómico,
+            // todo o nada.
+            for (LineaPedidoExterno lineaExterna : externo.getLineas()) {
+                IReservaStock reserva = reservaProvider.get();
+                ReservaStockDTO reservaCreada;
+                try {
+                    reservaCreada = reserva.reservarStock(
+                            externo.getIdComercio(), lineaExterna.getIdItem(), lineaExterna.getCantidad());
+                    reserva.confirmarReserva();
+                } catch (RuntimeException e) {
+                    // Traduce la excepción de Inventario a la propia de este
+                    // componente: cada ServicioDeX no expone hacia afuera las
+                    // excepciones internas de otro (mismo criterio que
+                    // ComercioService.validarComercioActivo, que devuelve
+                    // boolean en vez de dejar pasar su propia ValidacionException).
+                    throw new ValidacionException("No se pudo comprometer el stock del pedido: " + e.getMessage());
+                } finally {
+                    reservaProvider.destroy(reserva);
+                }
+
+                LineaPedido linea = new LineaPedido();
+                linea.setPedido(pedido);
+                linea.setIdItem(lineaExterna.getIdItem());
+                linea.setProducto(reservaCreada.getProducto());
+                linea.setCantidad(lineaExterna.getCantidad());
+                linea.setIdReservaStock(reservaCreada.getId());
+                lineasPedido.add(linea);
+            }
+        }
+        pedido.setLineas(lineasPedido);
+
         repository.guardarPedido(pedido);
 
         externo.setSincronizado(true);
         repository.actualizarPedidoExterno(externo);
 
         LOG.info("[Pedidos] Sincronizado pedido externo " + idPedidoExterno + " -> pedido "
-                + pedido.getId() + " (" + externo.getCantidad() + " x " + reservaCreada.getProducto() + ")");
+                + pedido.getId() + " (" + lineasPedido.size() + " línea(s))");
         return pedido.getId();
     }
 
@@ -214,14 +293,19 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             throw new ValidacionException("El pedido ya está cancelado");
         }
 
-        // El stock de este pedido se descontó al sincronizarlo (reservar +
-        // confirmar juntos). Cancelar sin devolverlo dejaría la mercadería
-        // del comercio "consumida" por un pedido que nunca se despachó, así
-        // que hay que revertir esa confirmación contra ServicioDeInventario.
-        if (pedido.getIdReservaStock() != null) {
+        // El stock de cada línea con reserva se descontó al sincronizarla
+        // (reservar + confirmar juntos). Cancelar sin devolverlo dejaría la
+        // mercadería del comercio "consumida" por un pedido que nunca se
+        // despachó, así que hay que revertir esa confirmación contra
+        // ServicioDeInventario — una línea de PUNTO_PICKING no tiene
+        // idReservaStock (nunca reservó nada) y se salta.
+        for (LineaPedido linea : pedido.getLineas()) {
+            if (linea.getIdReservaStock() == null) {
+                continue;
+            }
             IReservaStock reserva = reservaProvider.get();
             try {
-                reserva.registrarDevolucion(pedido.getIdReservaStock());
+                reserva.registrarDevolucion(linea.getIdReservaStock());
             } catch (RuntimeException e) {
                 throw new ValidacionException(
                         "No se pudo devolver el stock del pedido: " + e.getMessage());
@@ -287,5 +371,18 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             throw new ValidacionException("Pedido externo no encontrado: " + id);
         }
         return externo;
+    }
+
+    // Confirma que el punto de picking exista, pertenezca a ESE comercio y
+    // esté activo — mismo criterio que validarComercioActivo: sin esto,
+    // Rabbit coordinaría un retiro en un punto que el comercio ya dio de baja.
+    private void validarPuntoPickingActivo(Long idComercio, Long idPuntoPicking) {
+        boolean activo = comercios.listarPuntosPicking(idComercio).stream()
+                .map(PuntoPickingDTO::getId)
+                .anyMatch(id -> id.equals(idPuntoPicking));
+        if (!activo) {
+            throw new ValidacionException(
+                    "El punto de picking " + idPuntoPicking + " no existe, no pertenece a este comercio, o está dado de baja");
+        }
     }
 }

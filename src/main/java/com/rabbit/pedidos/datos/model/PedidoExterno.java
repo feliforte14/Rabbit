@@ -11,10 +11,16 @@ package com.rabbit.pedidos.datos.model;
  * barre periódicamente y convierte cada fila no sincronizada en un
  * Pedido real del modelo de Rabbit — la única "alta" de pedido que existe
  * en este alcance es esta sincronización, no un formulario de alta común.
+ *
+ * Un mismo pedido del ERP puede traer varios productos distintos, cada
+ * uno con su propia cantidad — ver lineas (LineaPedidoExterno). El origen
+ * (STOCK_CONSIGNADO / PUNTO_PICKING) y el punto de picking, si aplica, son
+ * del pedido completo: todas sus líneas salen del mismo lugar.
  */
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "pedidos_externos")
@@ -25,8 +31,20 @@ public class PedidoExterno {
     private Long id;
 
     private Long idComercio;
-    private Long idItem;
-    private int cantidad;
+
+    @Enumerated(EnumType.STRING)
+    private OrigenPedido origen;
+
+    // Con origen PUNTO_PICKING: el punto de picking del propio comercio
+    // del que hay que retirar TODAS las líneas. Con STOCK_CONSIGNADO, null.
+    private Long idPuntoPicking;
+
+    // cascade ALL + orphanRemoval: las líneas no tienen sentido sin su
+    // pedido dueño, así que su ciclo de vida va pegado al de éste (se
+    // guardan/borran junto con él, nunca sueltas).
+    @OneToMany(mappedBy = "pedidoExterno", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<LineaPedidoExterno> lineas;
+
     private LocalDateTime fechaPedido;
 
     // false = todavía no lo tomó el sincronizador. true = ya se procesó y
@@ -50,10 +68,12 @@ public class PedidoExterno {
     public Long getId() { return id; }
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
-    public Long getIdItem() { return idItem; }
-    public void setIdItem(Long idItem) { this.idItem = idItem; }
-    public int getCantidad() { return cantidad; }
-    public void setCantidad(int cantidad) { this.cantidad = cantidad; }
+    public OrigenPedido getOrigen() { return origen; }
+    public void setOrigen(OrigenPedido origen) { this.origen = origen; }
+    public Long getIdPuntoPicking() { return idPuntoPicking; }
+    public void setIdPuntoPicking(Long idPuntoPicking) { this.idPuntoPicking = idPuntoPicking; }
+    public List<LineaPedidoExterno> getLineas() { return lineas; }
+    public void setLineas(List<LineaPedidoExterno> lineas) { this.lineas = lineas; }
     public LocalDateTime getFechaPedido() { return fechaPedido; }
     public void setFechaPedido(LocalDateTime fechaPedido) { this.fechaPedido = fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }

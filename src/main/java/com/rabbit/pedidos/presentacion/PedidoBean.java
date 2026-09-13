@@ -18,10 +18,13 @@ package com.rabbit.pedidos.presentacion;
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
+import com.rabbit.comercios.dto.PuntoPickingDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.dto.DepositoDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
 import com.rabbit.inventario.negocio.IConsultaStock;
+import com.rabbit.pedidos.datos.model.OrigenPedido;
+import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
@@ -60,7 +63,7 @@ public class PedidoBean implements Serializable {
     private List<DepositoDTO> listaDepositos;
 
     private Long idDepositoSeleccionado;
-    private DatosPedidoExternoDTO nuevoPedido = new DatosPedidoExternoDTO();
+    private DatosPedidoExternoDTO nuevoPedido = nuevoPedidoVacio();
 
     // @PostConstruct: corre una sola vez al crear el Bean, así las tres
     // tablas de pedidos.xhtml (reales, mock del ERP, combos de alta) ya
@@ -73,21 +76,55 @@ public class PedidoBean implements Serializable {
         listaDepositos = stock.listarDepositos();
     }
 
+    // Un pedido nuevo siempre arranca con una línea vacía, así el
+    // formulario ya muestra la primera fila sin que el usuario tenga que
+    // tocar "Agregar producto".
+    private static DatosPedidoExternoDTO nuevoPedidoVacio() {
+        DatosPedidoExternoDTO datos = new DatosPedidoExternoDTO();
+        datos.getLineas().add(new DatosLineaPedidoDTO());
+        return datos;
+    }
+
+    // Agrega una línea de producto vacía al pedido en curso — la usa el
+    // botón "Agregar producto" del formulario.
+    public void agregarLinea() {
+        nuevoPedido.getLineas().add(new DatosLineaPedidoDTO());
+    }
+
+    // Quita una línea puntual del pedido en curso. Nunca deja la lista
+    // vacía: un pedido sin líneas no tiene nada que sincronizar.
+    public void quitarLinea(DatosLineaPedidoDTO linea) {
+        if (nuevoPedido.getLineas().size() > 1) {
+            nuevoPedido.getLineas().remove(linea);
+        }
+    }
+
     /**
-     * Ítems del comercio elegido — recalculado en cada render.
+     * Ítems del comercio y depósito elegidos — recalculado en cada render.
      *
-     * El comercio es obligatorio (solo se puede pedir stock propio); el
-     * depósito es un filtro opcional, igual que en ReservaBean. Sin
-     * elegirlo se ve todo el stock del comercio en la red.
+     * A diferencia de ReservaBean, acá el depósito NO es un filtro
+     * opcional: un pedido de stock consignado tiene que salir de un
+     * depósito puntual (ver el campo en pedidos.xhtml), así que sin los
+     * dos elegidos no hay nada para ofrecer todavía.
      */
     public List<ItemInventarioDTO> getListaItems() {
+        Long idComercio = nuevoPedido.getIdComercio();
+        if (idComercio == null || idDepositoSeleccionado == null) {
+            return List.of();
+        }
+        return stock.listarItemsPorComercioYDeposito(idComercio, idDepositoSeleccionado);
+    }
+
+    /**
+     * Puntos de picking ACTIVOS del comercio elegido — solo tiene sentido
+     * cuando el origen del pedido es PUNTO_PICKING (ver OrigenPedido).
+     */
+    public List<PuntoPickingDTO> getListaPuntosPicking() {
         Long idComercio = nuevoPedido.getIdComercio();
         if (idComercio == null) {
             return List.of();
         }
-        return (idDepositoSeleccionado == null)
-                ? stock.listarItemsPorComercio(idComercio)
-                : stock.listarItemsPorComercioYDeposito(idComercio, idDepositoSeleccionado);
+        return comercios.listarPuntosPicking(idComercio);
     }
 
     /** Nombre del depósito de un ítem, para distinguirlos en el desplegable. */
@@ -108,7 +145,15 @@ public class PedidoBean implements Serializable {
      * lista nueva.
      */
     public void onContextoCambiado() {
-        nuevoPedido.setIdItem(null);
+        nuevoPedido.setIdPuntoPicking(null);
+        for (DatosLineaPedidoDTO linea : nuevoPedido.getLineas()) {
+            linea.setIdItem(null);
+        }
+    }
+
+    // Valores del enum para el desplegable de origen en pedidos.xhtml.
+    public OrigenPedido[] getOrigenes() {
+        return OrigenPedido.values();
     }
 
     // Crea la fila mock "recién llegada del ERP" (PedidoExterno), NO un
@@ -119,7 +164,7 @@ public class PedidoBean implements Serializable {
             gestion.registrarPedidoExterno(nuevoPedido);
             mensaje(FacesMessage.SEVERITY_INFO,
                     "Pedido simulado como recién llegado del ERP — el sincronizador lo va a tomar en su próxima pasada (máx. 1 min).");
-            nuevoPedido = new DatosPedidoExternoDTO();
+            nuevoPedido = nuevoPedidoVacio();
             idDepositoSeleccionado = null;
             cargar();
         } catch (ValidacionException e) {
@@ -138,8 +183,8 @@ public class PedidoBean implements Serializable {
         }
     }
 
-    // Cancela el pedido y devuelve el stock que tenía comprometido (ver
-    // Pedido.idReservaStock e IReservaStock.registrarDevolucion).
+    // Cancela el pedido y devuelve el stock que tenía comprometido en cada
+    // línea (ver LineaPedido.idReservaStock e IReservaStock.registrarDevolucion).
     public void cancelar(Long idPedido) {
         try {
             gestion.cancelarPedido(idPedido);

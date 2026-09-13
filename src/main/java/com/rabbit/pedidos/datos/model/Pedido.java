@@ -5,14 +5,20 @@ package com.rabbit.pedidos.datos.model;
  * modelo REAL de Rabbit, resultado de sincronizar un PedidoExterno (el
  * mock del ERP del comercio). Ver SincronizadorDePedidos.
  *
- * idComercio e idItem son referencias cross-módulo (Comercios e
- * Inventario respectivamente), guardadas como Long plano y no como
- * relación JPA — mismo criterio que ReservaStock.idComercio: las
- * entidades no se comparten entre componentes.
+ * idComercio es una referencia cross-módulo (Comercios), guardada como
+ * Long plano y no como relación JPA — mismo criterio que
+ * ReservaStock.idComercio: las entidades no se comparten entre
+ * componentes.
+ *
+ * Un mismo pedido puede comprometer varios productos distintos, cada uno
+ * con su propia cantidad — ver lineas (LineaPedido). El origen
+ * (STOCK_CONSIGNADO / PUNTO_PICKING) y el punto de picking, si aplica, son
+ * del pedido completo: todas sus líneas salen del mismo lugar.
  */
 
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "pedidos")
@@ -23,22 +29,21 @@ public class Pedido {
     private Long id;
 
     private Long idComercio;
-    private Long idItem;
 
-    // Denormalizado (igual que ReservaStock.producto): el pedido queda
-    // legible como registro histórico aunque el ítem cambie o se elimine.
-    private String producto;
-    private int cantidad;
+    @Enumerated(EnumType.STRING)
+    private OrigenPedido origen;
+
+    // Con origen PUNTO_PICKING: el punto de picking del que Rabbit va a
+    // retirar TODAS las líneas. Con STOCK_CONSIGNADO, null.
+    private Long idPuntoPicking;
+
+    // cascade ALL + orphanRemoval: las líneas no tienen sentido sin su
+    // pedido dueño, así que su ciclo de vida va pegado al de éste.
+    @OneToMany(mappedBy = "pedido", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<LineaPedido> lineas;
 
     @Enumerated(EnumType.STRING)
     private EstadoPedido estado;
-
-    // Reserva de stock ya CONFIRMADA en ServicioDeInventario que este
-    // pedido comprometió al sincronizarse. Se guarda para trazabilidad y
-    // para poder revertirla: cancelarPedido() llama a
-    // IReservaStock.registrarDevolucion(idReservaStock) y el stock vuelve
-    // al disponible.
-    private Long idReservaStock;
 
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
@@ -49,16 +54,14 @@ public class Pedido {
     public Long getId() { return id; }
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
-    public Long getIdItem() { return idItem; }
-    public void setIdItem(Long idItem) { this.idItem = idItem; }
-    public String getProducto() { return producto; }
-    public void setProducto(String producto) { this.producto = producto; }
-    public int getCantidad() { return cantidad; }
-    public void setCantidad(int cantidad) { this.cantidad = cantidad; }
+    public OrigenPedido getOrigen() { return origen; }
+    public void setOrigen(OrigenPedido origen) { this.origen = origen; }
+    public Long getIdPuntoPicking() { return idPuntoPicking; }
+    public void setIdPuntoPicking(Long idPuntoPicking) { this.idPuntoPicking = idPuntoPicking; }
+    public List<LineaPedido> getLineas() { return lineas; }
+    public void setLineas(List<LineaPedido> lineas) { this.lineas = lineas; }
     public EstadoPedido getEstado() { return estado; }
     public void setEstado(EstadoPedido estado) { this.estado = estado; }
-    public Long getIdReservaStock() { return idReservaStock; }
-    public void setIdReservaStock(Long idReservaStock) { this.idReservaStock = idReservaStock; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
