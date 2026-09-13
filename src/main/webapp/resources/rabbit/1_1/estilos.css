@@ -228,6 +228,8 @@ h2 {
 .app-contenido {
     flex: 1;
     min-width: 0;
+    max-width: 1200px;
+    margin: 0 auto;
     padding: 2.25rem 2.5rem 4rem;
 }
 
