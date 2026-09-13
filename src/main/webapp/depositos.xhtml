@@ -43,6 +43,18 @@
                     #{d.direccion}
                 </h:column>
                 <h:column>
+                    <f:facet name="header">Provincia</f:facet>
+                    #{d.provincia}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Localidad</f:facet>
+                    #{d.localidad}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Código Postal</f:facet>
+                    #{d.codigoPostal}
+                </h:column>
+                <h:column>
                     <f:facet name="header">Stock</f:facet>
                     <!--
                         Los dos links llevan el deposito de la fila: al llegar
@@ -68,6 +80,21 @@
             <div class="campo">
                 <h:outputLabel for="direccion" value="Dirección" />
                 <h:inputText id="direccion" value="#{depositoBean.nuevoDeposito.direccion}" required="true" label="Dirección" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="provincia" value="Provincia" />
+                <h:inputText id="provincia" value="#{depositoBean.nuevoDeposito.provincia}" required="true" label="Provincia" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="localidad" value="Localidad" />
+                <h:inputText id="localidad" value="#{depositoBean.nuevoDeposito.localidad}" required="true" label="Localidad" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="codigoPostal" value="Código Postal" />
+                <h:inputText id="codigoPostal" value="#{depositoBean.nuevoDeposito.codigoPostal}" required="true" label="Código Postal" />
             </div>
 
             <div class="form-acciones">
