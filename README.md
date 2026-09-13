@@ -70,7 +70,8 @@ Alta/baja/consulta de comercios, sus puntos de picking y productos.
   (`registrarPuntoPicking`, `darDeBajaPuntoPicking`,
   `reactivarPuntoPicking`).
 - **`IConsultaComercios`** — lectura: `obtenerComercio`, `listarTodos`,
-  `listarPuntosPicking`, `validarComercioActivo`.
+  `listarPuntosPicking`, `listarPuntosPickingDeComercio`,
+  `validarComercioActivo`.
 
 Las implementa `ComercioService` (`@Stateless`). La usan `ComercioBean` y
 `PuntoPickingBean` (`comercios.xhtml`, `puntos-picking.xhtml`), y también
@@ -82,8 +83,9 @@ otros componentes que necesitan validar un comercio o resolver su nombre
 Depósitos, ítems de inventario y reservas de stock.
 
 - **`IConsultaStock`** — depósitos e ítems: `registrarDeposito`,
-  `listarDepositos`, `registrarItem`, `listarItemsPorDeposito` /
-  `PorComercio` / `PorComercioYDeposito`, `consultarDisponibilidad`,
+  `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`,
+  `registrarItem`, `listarItemsPorDeposito` / `PorComercio` /
+  `PorComercioYDeposito`, `consultarDisponibilidad`,
   `listarHistorialReservas`.
 - **`IReservaStock`** — el ciclo de vida de una reserva:
   `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`,
@@ -113,8 +115,16 @@ Gestión de pedidos y su sincronización con el "ERP" de cada comercio
 Las implementa `PedidoService` (`@Stateless`); cada operación es
 autocontenida, sin estado entre llamadas. Un `SincronizadorDePedidos`
 (`@Schedule`, cada 1 minuto) revisa los pedidos externos sin sincronizar y
-genera el pedido real correspondiente, tomando stock libre disponible vía
-Inventario. Las usa `PedidoBean` (`pedidos.xhtml`).
+genera el pedido real correspondiente. Las usa `PedidoBean`
+(`pedidos.xhtml`).
+
+Un pedido es multi-línea (`LineaPedido` / `LineaPedidoExterno`, una por
+producto y cantidad), y cada línea tiene su propio `OrigenPedido`:
+`STOCK_CONSIGNADO` reserva y confirma stock en Inventario para esa línea
+(vía `Instance<IReservaStock>`, una instancia stateful por línea); `PUNTO_PICKING`
+solo valida que el punto de picking del comercio exista y esté activo, sin
+tocar stock. Al cancelar un pedido solo se devuelve stock de las líneas que
+tenían reserva (`idReservaStock`); las de `PUNTO_PICKING` se saltean.
 
 ### Seguridad (`com.rabbit.seguridad`)
 
@@ -129,6 +139,14 @@ Las implementa `UsuarioService` (`@Stateless`). Las usa `UsuarioBean`
 vistas) para autenticación y consulta de sesión — estos dos no pasan por
 una interfaz de negocio: hablan directo contra el `SecurityContext` /
 `ApplicationRealm` de WildFly.
+
+Al registrar un usuario, la contraseña se hashea dos veces para dos
+destinos distintos: `PasswordUtil.hash` (SHA-256, sin salt — simplificación
+a propósito para el alcance del TP, no apto para producción) para la
+columna `passwordHash` de la tabla `usuarios`, y
+`ApplicationRealmSync.hashDigest` (MD5 de `usuario:ApplicationRealm:contraseña`,
+el formato que exige el propio `ApplicationRealm`) para escribir
+`application-users.properties` de WildFly.
 
 ## Patrones de diseño implementados
 
