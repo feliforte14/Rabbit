@@ -26,7 +26,7 @@ public interface IGestionPedidos {
      * reemplazo, para esta etapa, de lo que en producción sería el
      * webhook o polling contra el sistema del comercio (ver Sección 1.6).
      *
-     * @param datos comercio, ítem y cantidad del pedido simulado
+     * @param datos comercio, origen y las líneas de producto+cantidad del pedido simulado
      * @return el ID de la fila mock creada
      * @throws ValidacionException si los datos son inválidos
      */
@@ -34,10 +34,12 @@ public interface IGestionPedidos {
 
     /**
      * Convierte una fila del mock del ERP (PedidoExterno) en un Pedido
-     * real de Rabbit: valida que el comercio esté activo, reserva y
-     * confirma el stock correspondiente, y marca la fila externa como
-     * procesada. La invoca SincronizadorDePedidos en cada pasada — no es
-     * un alta manual, ver Sección 1.1 y 5.3 del documento técnico.
+     * real de Rabbit: valida que el comercio esté activo y, para cada
+     * línea del pedido, reserva y confirma el stock correspondiente (con
+     * origen STOCK_CONSIGNADO) o valida el punto de picking (con
+     * PUNTO_PICKING); marca la fila externa como procesada. La invoca
+     * SincronizadorDePedidos en cada pasada — no es un alta manual, ver
+     * Sección 1.1 y 5.3 del documento técnico.
      *
      * Corre en su PROPIA transacción (REQUIRES_NEW): si una fila falla, su
      * rollback no debe arrastrar al resto de la pasada del sincronizador
@@ -78,10 +80,12 @@ public interface IGestionPedidos {
     void confirmarPedido(Long idPedido);
 
     /**
-     * Cancela el pedido y DEVUELVE el stock que había comprometido: llama
-     * a IReservaStock.registrarDevolucion() sobre la reserva que quedó
+     * Cancela el pedido y DEVUELVE el stock que había comprometido: por
+     * cada línea con origen STOCK_CONSIGNADO llama a
+     * IReservaStock.registrarDevolucion() sobre la reserva que quedó
      * CONFIRMADA al sincronizar, con lo que la cantidad vuelve al stock
-     * disponible del ítem y la reserva pasa a DEVUELTA.
+     * disponible del ítem y la reserva pasa a DEVUELTA. Las líneas de
+     * origen PUNTO_PICKING no reservaron nada y se ignoran.
      *
      * @param idPedido ID del pedido a cancelar
      * @throws ValidacionException si el pedido no existe, ya está

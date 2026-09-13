@@ -43,12 +43,16 @@
                     #{p.idComercio}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Producto</f:facet>
-                    #{p.producto}
+                    <f:facet name="header">Origen</f:facet>
+                    #{p.origen == 'PUNTO_PICKING' ? 'Punto de picking' : 'Stock consignado'}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Cantidad</f:facet>
-                    #{p.cantidad}
+                    <f:facet name="header">Productos</f:facet>
+                    #{p.productos}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Cantidad total</f:facet>
+                    #{p.cantidadTotal}
                 </h:column>
                 <h:column>
                     <f:facet name="header">Estado</f:facet>
@@ -88,12 +92,20 @@
                     #{pe.idComercio}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Ítem</f:facet>
-                    #{pe.idItem}
+                    <f:facet name="header">Origen</f:facet>
+                    #{pe.origen == 'PUNTO_PICKING' ? 'Punto de picking' : 'Stock consignado'}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Cantidad</f:facet>
-                    #{pe.cantidad}
+                    <f:facet name="header">Punto de picking</f:facet>
+                    #{pe.origen == 'PUNTO_PICKING' ? pe.idPuntoPicking : '—'}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Productos</f:facet>
+                    #{pe.descripcionLineas}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Cantidad total</f:facet>
+                    #{pe.cantidadTotal}
                 </h:column>
                 <h:column>
                     <f:facet name="header">Llegó</f:facet>
@@ -113,7 +125,7 @@
         </h:form>
 
         <h2>Simular pedido nuevo desde el ERP</h2>
-        <h:form id="formAlta" styleClass="formulario">
+        <h:form id="formAlta" styleClass="formulario formulario-ancho">
             <div class="campo">
                 <h:outputLabel for="comercio" value="Comercio" />
                 <h:selectOneMenu id="comercio" value="#{pedidoBean.nuevoPedido.idComercio}"
@@ -122,40 +134,121 @@
                     <f:selectItems value="#{pedidoBean.listaComercios}" var="c"
                                    itemValue="#{c.id}"
                                    itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
-                    <f:ajax listener="#{pedidoBean.onContextoCambiado}" render="item" />
+                    <f:ajax listener="#{pedidoBean.onContextoCambiado}" render="camposOrigen" />
                 </h:selectOneMenu>
             </div>
 
             <div class="campo">
-                <h:outputLabel for="deposito" value="Depósito (opcional)" />
-                <h:selectOneMenu id="deposito" value="#{pedidoBean.idDepositoSeleccionado}">
-                    <f:selectItem itemLabel="Todos los depósitos" itemValue="#{null}" />
-                    <f:selectItems value="#{pedidoBean.listaDepositos}" var="d"
-                                   itemValue="#{d.id}" itemLabel="#{d.nombre}" />
-                    <f:ajax listener="#{pedidoBean.onContextoCambiado}" render="item" />
-                </h:selectOneMenu>
-            </div>
-
-            <div class="campo">
-                <h:outputLabel for="item" value="Producto" />
+                <h:outputLabel for="origen" value="Origen" />
                 <!--
-                    Solo el stock consignado por el comercio elegido: el ERP
-                    de un comercio nunca pediria mercaderia de otro.
+                    STOCK_CONSIGNADO: sale de un deposito de Rabbit (flujo de
+                    siempre). PUNTO_PICKING: el comercio ya armo y valido el
+                    pedido en su propio punto de picking, Rabbit solo lo
+                    retira y transporta (ver OrigenPedido).
                 -->
-                <h:selectOneMenu id="item" value="#{pedidoBean.nuevoPedido.idItem}"
-                                 required="true" label="Producto">
-                    <f:selectItem itemLabel="— Elegí un producto —" itemValue="#{null}" />
-                    <f:selectItems value="#{pedidoBean.listaItems}" var="i"
-                                   itemValue="#{i.id}"
-                                   itemLabel="#{i.producto} — #{pedidoBean.nombreDeposito(i.idDeposito)} (#{i.cantidadLibre} libres)" />
+                <h:selectOneMenu id="origen" value="#{pedidoBean.nuevoPedido.origen}">
+                    <f:selectItems value="#{pedidoBean.origenes}" var="o"
+                                   itemValue="#{o}"
+                                   itemLabel="#{o == 'PUNTO_PICKING' ? 'Punto de picking del comercio' : 'Stock consignado en depósito'}" />
+                    <f:ajax listener="#{pedidoBean.onContextoCambiado}" render="camposOrigen" />
                 </h:selectOneMenu>
+                <p class="ayuda">
+                    "Punto de picking" asume que el comercio ya validó el pedido en su propia
+                    sucursal: Rabbit no reserva stock, solo coordina el retiro para transportarlo.
+                </p>
             </div>
 
-            <div class="campo">
-                <h:outputLabel for="cantidad" value="Cantidad" />
-                <h:inputText id="cantidad" value="#{pedidoBean.nuevoPedido.cantidad}"
-                             required="true" label="Cantidad" />
-            </div>
+            <h:panelGroup id="camposOrigen" layout="block">
+                <h:panelGroup rendered="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}" layout="block">
+                    <div class="campo">
+                        <h:outputLabel for="puntoPicking" value="Punto de picking" />
+                        <h:selectOneMenu id="puntoPicking" value="#{pedidoBean.nuevoPedido.idPuntoPicking}"
+                                         required="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}"
+                                         label="Punto de picking">
+                            <f:selectItem itemLabel="— Elegí un punto de picking —" itemValue="#{null}" />
+                            <f:selectItems value="#{pedidoBean.listaPuntosPicking}" var="pp"
+                                           itemValue="#{pp.id}" itemLabel="#{pp.nombre} — #{pp.direccion}" />
+                        </h:selectOneMenu>
+                        <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.listaPuntosPicking}"
+                                      value="Elegí un comercio arriba para ver sus puntos de picking activos." />
+                    </div>
+                </h:panelGroup>
+
+                <h:panelGroup rendered="#{pedidoBean.nuevoPedido.origen != 'PUNTO_PICKING'}" layout="block">
+                    <div class="campo">
+                        <h:outputLabel for="deposito" value="Depósito" />
+                        <!--
+                            Obligatorio: un pedido de stock consignado tiene
+                            que salir de un deposito puntual de Rabbit, no
+                            "de la red" en general — sin elegirlo, los items
+                            de abajo podrian venir de depositos distintos sin
+                            que quede explicito de cual sale cada uno.
+                        -->
+                        <h:selectOneMenu id="deposito" value="#{pedidoBean.idDepositoSeleccionado}"
+                                         required="#{pedidoBean.nuevoPedido.origen != 'PUNTO_PICKING'}"
+                                         label="Depósito" requiredMessage="Elegí de qué depósito sale el pedido">
+                            <f:selectItem itemLabel="— Elegí un depósito —" itemValue="#{null}" />
+                            <f:selectItems value="#{pedidoBean.listaDepositos}" var="d"
+                                           itemValue="#{d.id}" itemLabel="#{d.nombre}" />
+                            <f:ajax listener="#{pedidoBean.onContextoCambiado}" render="camposOrigen" />
+                        </h:selectOneMenu>
+                    </div>
+                </h:panelGroup>
+
+                <h2 style="margin-top: 1.5rem;">Productos del pedido</h2>
+                <!--
+                    UN pedido puede traer VARIAS lineas de producto+cantidad
+                    (ver DatosPedidoExternoDTO.lineas). Los botones Agregar/
+                    Quitar van con immediate="true" y execute="@this": solo
+                    corren el action del boton, sin validar/actualizar el
+                    resto del formulario — asi se puede agregar una fila
+                    aunque otra este a medio completar.
+                -->
+                <h:dataTable value="#{pedidoBean.nuevoPedido.lineas}" var="linea"
+                             styleClass="tabla" rowClasses="fila-impar,fila-par">
+                    <h:column>
+                        <f:facet name="header">Producto</f:facet>
+                        <h:inputText id="producto" value="#{linea.producto}" label="Producto"
+                                     rendered="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}"
+                                     required="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}"
+                                     requiredMessage="Indicá qué producto se retira" />
+                        <!--
+                            Solo el stock consignado por el comercio elegido: el ERP
+                            de un comercio nunca pediria mercaderia de otro.
+                        -->
+                        <h:selectOneMenu id="item" value="#{linea.idItem}" label="Producto"
+                                         rendered="#{pedidoBean.nuevoPedido.origen != 'PUNTO_PICKING'}"
+                                         required="#{pedidoBean.nuevoPedido.origen != 'PUNTO_PICKING'}"
+                                         requiredMessage="Elegí un producto">
+                            <f:selectItem itemLabel="— Elegí un producto —" itemValue="#{null}" />
+                            <f:selectItems value="#{pedidoBean.listaItems}" var="i"
+                                           itemValue="#{i.id}"
+                                           itemLabel="#{i.producto} — #{pedidoBean.nombreDeposito(i.idDeposito)} (#{i.cantidadLibre} libres)" />
+                        </h:selectOneMenu>
+                        <h:outputText styleClass="ayuda"
+                                      rendered="#{pedidoBean.nuevoPedido.origen != 'PUNTO_PICKING' and empty pedidoBean.listaItems}"
+                                      value="Elegí comercio y depósito arriba para ver su stock consignado." />
+                    </h:column>
+                    <h:column styleClass="col-cantidad">
+                        <f:facet name="header">Cantidad</f:facet>
+                        <h:inputText id="cantidad" value="#{linea.cantidad}" required="true" label="Cantidad"
+                                     requiredMessage="Ingresá la cantidad" />
+                    </h:column>
+                    <h:column styleClass="acciones">
+                        <f:facet name="header"> </f:facet>
+                        <h:commandButton id="quitar" value="Quitar" styleClass="btn btn-secondary" immediate="true"
+                                         action="#{pedidoBean.quitarLinea(linea)}">
+                            <f:ajax execute="@this" render="camposOrigen" />
+                        </h:commandButton>
+                    </h:column>
+                </h:dataTable>
+                <div style="margin-bottom: 1.5rem;">
+                    <h:commandButton value="+ Agregar producto" styleClass="btn btn-secondary" immediate="true"
+                                     action="#{pedidoBean.agregarLinea}">
+                        <f:ajax execute="@this" render="camposOrigen" />
+                    </h:commandButton>
+                </div>
+            </h:panelGroup>
 
             <div class="form-acciones">
                 <h:commandButton value="Simular pedido" styleClass="btn btn-primary"

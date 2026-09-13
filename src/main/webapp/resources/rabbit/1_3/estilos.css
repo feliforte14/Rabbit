@@ -433,6 +433,49 @@ h2 {
     margin: 0 auto;
 }
 
+/* Variante para formularios con una tabla de líneas adentro (ver
+   "Simular pedido nuevo" en pedidos.xhtml): 480px las aplasta. */
+.formulario-ancho {
+    max-width: 760px;
+}
+
+/* Tabla de líneas dentro de un formulario (producto+cantidad repetibles).
+   Los inputs/selects normales solo se estilan dentro de .campo — acá no
+   hay .campo porque cada fila la genera h:dataTable, así que se estilan
+   directo dentro de .tabla para que no queden con el look nativo del navegador. */
+.formulario .tabla {
+    margin: 1rem 0;
+    box-shadow: none;
+}
+
+.formulario .tabla td input[type="text"],
+.formulario .tabla td select {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--texto);
+    background: var(--superficie);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.formulario .tabla td input[type="text"]:focus,
+.formulario .tabla td select:focus {
+    outline: none;
+    border-color: var(--naranja);
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+}
+
+.formulario .tabla .col-cantidad {
+    width: 110px;
+}
+
+.formulario .tabla .col-cantidad input {
+    text-align: right;
+}
+
 .campo {
     display: flex;
     flex-direction: column;

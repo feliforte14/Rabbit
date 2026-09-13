@@ -6,8 +6,11 @@ package com.rabbit.pedidos.dto;
  * ya se convirtió en pedido real. Nunca se persiste (ver PedidoExterno).
  */
 
+import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.stream.Collectors;
 
 public class PedidoExternoDTO {
 
@@ -15,8 +18,9 @@ public class PedidoExternoDTO {
 
     public Long id;
     public Long idComercio;
-    public Long idItem;
-    public int cantidad;
+    public OrigenPedido origen;
+    public Long idPuntoPicking;
+    public List<LineaPedidoDTO> lineas;
     public String fechaPedido;
     public boolean sincronizado;
     public String errorSincronizacion;
@@ -27,8 +31,9 @@ public class PedidoExternoDTO {
         PedidoExternoDTO dto = new PedidoExternoDTO();
         dto.id = pe.getId();
         dto.idComercio = pe.getIdComercio();
-        dto.idItem = pe.getIdItem();
-        dto.cantidad = pe.getCantidad();
+        dto.origen = pe.getOrigen();
+        dto.idPuntoPicking = pe.getIdPuntoPicking();
+        dto.lineas = pe.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
         dto.fechaPedido = pe.getFechaPedido() != null ? pe.getFechaPedido().format(FORMATO) : null;
         dto.sincronizado = pe.isSincronizado();
         dto.errorSincronizacion = pe.getErrorSincronizacion();
@@ -44,11 +49,27 @@ public class PedidoExternoDTO {
         return dto;
     }
 
+    // Cantidad total de unidades pedidas, sumando todas las líneas — para
+    // no obligar a la vista a iterar solo para mostrar un número.
+    public int getCantidadTotal() {
+        return lineas.stream().mapToInt(LineaPedidoDTO::getCantidad).sum();
+    }
+
+    // Descripción de cada línea para el listado: con STOCK_CONSIGNADO
+    // todavía no hay "producto" (recién sale al reservar el ítem al
+    // sincronizar, ver PedidoService), así que se muestra el ID del ítem.
+    public String getDescripcionLineas() {
+        return lineas.stream()
+                .map(l -> l.getProducto() != null ? l.getProducto() : "Ítem " + l.getIdItem())
+                .collect(Collectors.joining(", "));
+    }
+
     // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getId() { return id; }
     public Long getIdComercio() { return idComercio; }
-    public Long getIdItem() { return idItem; }
-    public int getCantidad() { return cantidad; }
+    public OrigenPedido getOrigen() { return origen; }
+    public Long getIdPuntoPicking() { return idPuntoPicking; }
+    public List<LineaPedidoDTO> getLineas() { return lineas; }
     public String getFechaPedido() { return fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }
