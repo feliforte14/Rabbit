@@ -430,6 +430,7 @@ h2 {
     box-shadow: var(--sombra);
     padding: 1.75rem;
     max-width: 480px;
+    margin: 0 auto;
 }
 
 .campo {
