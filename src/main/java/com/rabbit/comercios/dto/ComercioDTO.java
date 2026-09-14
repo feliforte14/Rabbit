@@ -3,7 +3,8 @@ package com.rabbit.comercios.dto;
 /**
  * DTO (Data Transfer Object)
  *
- * Los DTOs son objetos simples que viajan entre capas. Sirven para separar
+ * Los DTOs son objetos simples que viajan entre capas. 
+ * Sirven para separar
  * lo que se muestra en la vista de lo que existe en la base de datos (la entidad).
  *
  * ComercioDTO representa los datos de un comercio tal como se muestran

@@ -80,7 +80,7 @@
                                      rendered="#{not c.activo}" />
                     <h:commandButton value="Eliminar" styleClass="btn btn-danger"
                                       action="#{comercioBean.eliminar(c.id)}"
-                                      rendered="#{not c.activo and sesionBean.admin}"
+                                      rendered="#{not c.activo}"
                                       onclick="return confirm('¿Eliminar definitivamente este comercio y todos sus puntos de picking? Esta acción no se puede deshacer.');" />
                 </h:column>
             </h:dataTable>
