@@ -9,6 +9,7 @@ import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import java.util.List;
 
@@ -99,6 +100,24 @@ public class PedidoRepository {
      */
     public PedidoExterno buscarPedidoExternoPorId(Long id) {
         return em.find(PedidoExterno.class, id);
+    }
+
+    /**
+     * Igual que buscarPedidoExternoPorId, pero bloquea la fila
+     * (SELECT ... FOR UPDATE) hasta que termine la transacción actual.
+     *
+     * La usan sincronizarPedidoExterno y descartarPedidoExterno: con dos
+     * disparadores concurrentes (PedidoExternoListener por JMS y
+     * SincronizadorDePedidos por polling) sobre la misma fila, el segundo
+     * espera a que el primero confirme y recién ahí lee sincronizado=true,
+     * en vez de que los dos lean false y generen dos pedidos con doble
+     * reserva de stock.
+     *
+     * @param id identificador del pedido externo
+     * @return el pedido externo bloqueado, o null si no existe
+     */
+    public PedidoExterno buscarPedidoExternoParaActualizar(Long id) {
+        return em.find(PedidoExterno.class, id, LockModeType.PESSIMISTIC_WRITE);
     }
 
     /**

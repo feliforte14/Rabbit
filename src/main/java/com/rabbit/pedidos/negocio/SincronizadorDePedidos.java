@@ -15,6 +15,15 @@ package com.rabbit.pedidos.negocio;
  * todavía no se procesaron y le pide a PedidoService (el Facade) que las
  * convierta en pedidos reales.
  *
+ * ROL ACTUAL: RED DE CONTENCIÓN, NO CAMINO PRINCIPAL
+ * Desde que existe PublicadorPedidosExternos + PedidoExternoListener (JMS,
+ * ver esas dos clases), la sincronización real ocurre casi al instante,
+ * disparada por mensaje. Este @Schedule deja de ser el único camino y pasa
+ * a ser la garantía de que ningún PedidoExterno quede huérfano si un
+ * mensaje se pierde (broker caído un momento, etc.) — por eso sigue
+ * recorriendo TODOS los no sincronizados, no solo "los de hace más de un
+ * minuto": es intencionalmente redundante con el camino asincrónico.
+ *
  * POR QUÉ @Singleton
  * Mismo argumento que BarredorDeReservas: tiene que haber UNA sola
  * instancia sincronizando. Si hubiera varias corriendo a la vez sobre las
@@ -23,6 +32,12 @@ package com.rabbit.pedidos.negocio;
  * pedido y comprometiendo stock de más. @Singleton + la concurrencia
  * gestionada por el contenedor (LockType.WRITE por defecto) serializa las
  * invocaciones.
+ *
+ * Ojo: @Singleton solo serializa las pasadas de ESTE timer entre sí. Contra
+ * PedidoExternoListener (otro disparador sobre las mismas filas) no
+ * protege nada; eso lo resuelve el bloqueo de fila en
+ * PedidoService.sincronizarPedidoExterno. Si el listener ganó la carrera,
+ * acá llega PedidoYaSincronizadoException y la fila simplemente se saltea.
  *
  * @Startup fuerza a crearlo al desplegar, sin esperar a que alguien lo
  * invoque.
@@ -98,6 +113,10 @@ public class SincronizadorDePedidos {
             try {
                 Long idPedido = gestionPedidos.sincronizarPedidoExterno(idExterno);
                 LOG.info("[Sincronizador] Pedido externo " + idExterno + " -> pedido " + idPedido);
+            } catch (PedidoYaSincronizadoException e) {
+                // Lo sincronizó PedidoExternoListener entre el listado y
+                // esta llamada: nada que hacer.
+                LOG.fine("[Sincronizador] Pedido externo " + idExterno + " ya sincronizado por JMS");
             } catch (ValidacionException e) {
                 // Falla de negocio (comercio dado de baja, sin stock, item
                 // inexistente): no se arregla sola con el tiempo. Se marca

@@ -47,9 +47,10 @@ public interface IGestionPedidos {
      *
      * @param idPedidoExterno fila del mock a sincronizar
      * @return el ID del Pedido creado
-     * @throws ValidacionException si la fila no existe, ya fue
-     *         sincronizada, el comercio no está activo o no hay stock
-     *         suficiente
+     * @throws ValidacionException si la fila no existe, el comercio no
+     *         está activo o no hay stock suficiente
+     * @throws PedidoYaSincronizadoException si la fila ya fue procesada
+     *         (por el otro disparador o por una redelivery de JMS)
      */
     Long sincronizarPedidoExterno(Long idPedidoExterno);
 

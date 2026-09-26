@@ -113,10 +113,24 @@ Gestión de pedidos y su sincronización con el "ERP" de cada comercio
   `consultarEstadoPedido`, `listarTodos`, `listarPedidosDeComercio`.
 
 Las implementa `PedidoService` (`@Stateless`); cada operación es
-autocontenida, sin estado entre llamadas. Un `SincronizadorDePedidos`
-(`@Schedule`, cada 1 minuto) revisa los pedidos externos sin sincronizar y
-genera el pedido real correspondiente. Las usa `PedidoBean`
+autocontenida, sin estado entre llamadas. Las usa `PedidoBean`
 (`pedidos.xhtml`).
+
+La sincronización de un pedido externo tiene dos disparadores:
+
+- **JMS (camino principal):** al confirmarse el alta,
+  `PublicadorPedidosExternos` publica el ID en `cola.pedidos.externos` y
+  `PedidoExternoListener` (`@MessageDriven`) lo sincroniza al instante.
+  Requiere levantar WildFly con el perfil **`standalone-full.xml`**, que
+  trae el broker ActiveMQ Artemis embebido; con `standalone.xml` el deploy
+  falla porque no existe la connection factory.
+- **Polling (red de contención):** `SincronizadorDePedidos` (`@Schedule`,
+  cada 1 minuto) levanta cualquier pedido externo cuyo mensaje se haya
+  perdido.
+
+Si los dos llegan a la vez sobre el mismo pedido, la fila se lee con
+bloqueo (`PESSIMISTIC_WRITE`) y el segundo la encuentra ya sincronizada y
+la saltea.
 
 Un pedido es multi-línea (`LineaPedido` / `LineaPedidoExterno`, una por
 producto y cantidad), y cada línea tiene su propio `OrigenPedido`:
