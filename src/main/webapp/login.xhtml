@@ -18,7 +18,7 @@
     <div class="container">
         <h1>Iniciar sesión</h1>
 
-        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+        <h:messages globalOnly="false" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
@@ -29,12 +29,14 @@
         <h:form id="formLogin" styleClass="formulario">
             <div class="campo">
                 <h:outputLabel for="username" value="Usuario" />
-                <h:inputText id="username" value="#{loginBean.username}" required="true" label="Usuario" />
+                <h:inputText id="username" value="#{loginBean.username}" required="true" label="Usuario"
+                             requiredMessage="Ingresá tu usuario" />
             </div>
 
             <div class="campo">
                 <h:outputLabel for="password" value="Contraseña" />
-                <h:inputSecret id="password" value="#{loginBean.password}" required="true" label="Contraseña" />
+                <h:inputSecret id="password" value="#{loginBean.password}" required="true" label="Contraseña"
+                               requiredMessage="Ingresá tu contraseña" />
             </div>
 
             <div class="form-acciones">

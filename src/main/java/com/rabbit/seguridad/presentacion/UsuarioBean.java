@@ -4,12 +4,16 @@ package com.rabbit.seguridad.presentacion;
  * CAPA DE PRESENTACIÓN (Managed Bean - JSF) — ver ComercioBean para la
  * explicación completa de @Named/@ViewScoped, se aplica igual acá.
  *
- * NOTA DE ALCANCE: el alta de usuarios queda abierta (cualquiera puede
- * entrar a usuarios.xhtml y crearse una cuenta, incluso ADMINISTRADOR)
- * porque el TP necesita alguna forma de bootstrapear el primer
- * administrador sin tocar la base a mano. En un sistema real esta
- * pantalla estaría, como mínimo, detrás de @RolesAllowed("ADMINISTRADOR")
- * — igual que eliminarComercio.
+ * ALCANCE DE LA PANTALLA: usuarios.xhtml es pública (login.xhtml la
+ * enlaza con "Registrate acá"), pero lo que muestra depende de quién mira:
+ * - Sin sesión o como OPERADOR: solo el formulario de alta, y el usuario
+ *   nuevo queda como OPERADOR.
+ * - Como ADMINISTRADOR: además el padrón completo, la baja de usuarios y
+ *   la elección del rol.
+ * La excepción es el bootstrap: mientras no exista ningún administrador,
+ * el alta permite elegir ADMINISTRADOR para poder crear el primero.
+ * La restricción real la impone UsuarioService (@RolesAllowed y el
+ * chequeo de rol en registrarUsuario); esto solo adapta la vista.
  */
 
 import com.rabbit.seguridad.dto.DatosUsuarioDTO;
@@ -18,13 +22,16 @@ import com.rabbit.seguridad.negocio.IConsultaUsuarios;
 import com.rabbit.seguridad.negocio.IRegistroUsuarios;
 import com.rabbit.seguridad.negocio.ValidacionException;
 
+import com.rabbit.seguridad.datos.model.Rol;
 import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJBAccessException;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 
 @Named
@@ -44,7 +51,7 @@ public class UsuarioBean implements Serializable {
     // llega llena en el primer render de usuarios.xhtml.
     @PostConstruct
     public void cargar() {
-        usuarios = consulta.listarTodos();
+        usuarios = isAdmin() ? consulta.listarTodos() : Collections.emptyList();
     }
 
     // Alta de un usuario nuevo: UsuarioService lo persiste (con el
@@ -53,6 +60,9 @@ public class UsuarioBean implements Serializable {
     // pueda loguearse.
     public void registrar() {
         try {
+            if (!isPuedeElegirRol()) {
+                nuevoUsuario.rol = Rol.OPERADOR;
+            }
             registro.registrarUsuario(nuevoUsuario);
             mensaje(FacesMessage.SEVERITY_INFO, "Usuario registrado correctamente");
             nuevoUsuario = new DatosUsuarioDTO();
@@ -70,6 +80,10 @@ public class UsuarioBean implements Serializable {
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        } catch (EJBAccessException e) {
+            // @RolesAllowed("ADMINISTRADOR") en UsuarioService.darDeBaja.
+            mensaje(FacesMessage.SEVERITY_ERROR,
+                    "No tenés permisos para dar de baja usuarios. Iniciá sesión como administrador.");
         }
     }
 
@@ -83,6 +97,16 @@ public class UsuarioBean implements Serializable {
     public List<UsuarioDTO> getUsuarios() { return usuarios; }
     public DatosUsuarioDTO getNuevoUsuario() { return nuevoUsuario; }
     public void setNuevoUsuario(DatosUsuarioDTO nuevoUsuario) { this.nuevoUsuario = nuevoUsuario; }
+
+    // Quien mira es ADMINISTRADOR: ve el padrón y puede dar de baja.
+    public boolean isAdmin() {
+        return FacesContext.getCurrentInstance().getExternalContext().isUserInRole("ADMINISTRADOR");
+    }
+
+    // Se muestra el desplegable de rol solo si el alta puede elegirlo.
+    public boolean isPuedeElegirRol() {
+        return registro.puedeElegirRol();
+    }
 
     // Los roles posibles, para el desplegable del formulario de alta.
     public com.rabbit.seguridad.datos.model.Rol[] getRoles() { return com.rabbit.seguridad.datos.model.Rol.values(); }

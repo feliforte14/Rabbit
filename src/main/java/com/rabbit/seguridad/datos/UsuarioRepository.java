@@ -8,6 +8,7 @@ package com.rabbit.seguridad.datos;
  * componentes (ver persistence.xml): un solo datasource para toda la app.
  */
 
+import com.rabbit.seguridad.datos.model.Rol;
 import com.rabbit.seguridad.datos.model.Usuario;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
@@ -81,6 +82,15 @@ public class UsuarioRepository {
      *
      * @return todos los usuarios persistidos
      */
+    // Para el alta pública: mientras no haya ningún administrador activo,
+    // el primero se puede crear sin sesión (bootstrap del sistema).
+    public boolean existeAdministradorActivo() {
+        return em.createQuery(
+                "SELECT COUNT(u) FROM Usuario u WHERE u.rol = :rol AND u.activo = true", Long.class)
+                .setParameter("rol", Rol.ADMINISTRADOR)
+                .getSingleResult() > 0;
+    }
+
     public List<Usuario> listarTodos() {
         return em.createQuery("SELECT u FROM Usuario u ORDER BY u.id", Usuario.class).getResultList();
     }
