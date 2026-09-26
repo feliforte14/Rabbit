@@ -58,6 +58,21 @@ package com.rabbit.pedidos.negocio;
  * condenada devuelve null, y se ve como "ítem no encontrado" sobre un
  * ítem que existe). Con REQUIRES_NEW cada fila se juega su propia
  * transacción y una mala no arrastra a las demás.
+ *
+ * INTEGRACIÓN ASINCRÓNICA (JMS, mensajería punto a punto)
+ * registrarPedidoExterno() ya no depende únicamente de que
+ * SincronizadorDePedidos pase a revisarlo por polling: al guardar la fila
+ * dispara el evento CDI PedidoExternoRegistrado, PublicadorPedidosExternos
+ * lo observa y, una vez confirmada la transacción, publica un mensaje en
+ * "cola.pedidos.externos"; PedidoExternoListener (un @MessageDriven) la
+ * sincroniza en cuanto el mensaje llega, llamando al mismo
+ * sincronizarPedidoExterno() de este Facade. El polling sigue existiendo
+ * como red de contención (ver PublicadorPedidosExternos), pero el camino
+ * normal ahora es event-driven, no por sondeo cada un minuto.
+ *
+ * Como ahora hay dos disparadores que pueden llegar a la vez sobre la
+ * misma fila, sincronizarPedidoExterno y descartarPedidoExterno la leen
+ * con bloqueo (ver PedidoRepository.buscarPedidoExternoParaActualizar).
  */
 
 import com.rabbit.comercios.dto.PuntoPickingDTO;
@@ -79,6 +94,7 @@ import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import jakarta.enterprise.event.Event;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -105,6 +121,12 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     // Provider, no la interfaz directa: ver el porqué en el comentario de clase.
     @Inject
     private Instance<IReservaStock> reservaProvider;
+
+    // Aviso de "se guardó un pedido externo". Lo observa
+    // PublicadorPedidosExternos, que publica en cola.pedidos.externos
+    // recién cuando esta transacción se confirma.
+    @Inject
+    private Event<PedidoExternoRegistrado> pedidoExternoRegistrado;
 
     // ===============================================================
     // IGestionPedidos — el Facade
@@ -163,7 +185,14 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         }
         externo.setLineas(lineas);
 
-        return repository.guardarPedidoExterno(externo).getId();
+        Long idExterno = repository.guardarPedidoExterno(externo).getId();
+
+        // Acá la fila todavía NO está confirmada: el observer es
+        // AFTER_SUCCESS, así que el mensaje sale recién después del commit
+        // (y no sale si esta transacción se deshace).
+        pedidoExternoRegistrado.fire(new PedidoExternoRegistrado(idExterno, origen));
+
+        return idExterno;
     }
 
     private void validarCantidadLinea(int cantidad) {
@@ -175,9 +204,11 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     public Long sincronizarPedidoExterno(Long idPedidoExterno) {
-        PedidoExterno externo = obtenerExternoOFallar(idPedidoExterno);
+        PedidoExterno externo = obtenerExternoParaActualizarOFallar(idPedidoExterno);
         if (externo.isSincronizado()) {
-            throw new ValidacionException("El pedido externo " + idPedidoExterno + " ya fue sincronizado");
+            // Ya lo procesó el otro disparador (o es una redelivery): no es
+            // una regla de negocio violada, ver PedidoYaSincronizadoException.
+            throw new PedidoYaSincronizadoException(idPedidoExterno);
         }
         if (!comercios.validarComercioActivo(externo.getIdComercio())) {
             throw new ValidacionException(
@@ -258,7 +289,12 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     public void descartarPedidoExterno(Long idPedidoExterno, String motivo) {
-        PedidoExterno externo = obtenerExternoOFallar(idPedidoExterno);
+        PedidoExterno externo = obtenerExternoParaActualizarOFallar(idPedidoExterno);
+        if (externo.isSincronizado()) {
+            // Mientras se decidía descartarla, el otro disparador la
+            // sincronizó: no pisar ese resultado con un motivo de descarte.
+            return;
+        }
         externo.setSincronizado(true);
         externo.setErrorSincronizacion(recortar(motivo));
         repository.actualizarPedidoExterno(externo);
@@ -364,9 +400,11 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         return pedido;
     }
 
-    // Lanza excepción si el pedido externo (mock del ERP) no existe.
-    private PedidoExterno obtenerExternoOFallar(Long id) {
-        PedidoExterno externo = repository.buscarPedidoExternoPorId(id);
+    // Lanza excepción si el pedido externo (mock del ERP) no existe. Lo
+    // devuelve bloqueado hasta el fin de la transacción (ver
+    // PedidoRepository.buscarPedidoExternoParaActualizar).
+    private PedidoExterno obtenerExternoParaActualizarOFallar(Long id) {
+        PedidoExterno externo = repository.buscarPedidoExternoParaActualizar(id);
         if (externo == null) {
             throw new ValidacionException("Pedido externo no encontrado: " + id);
         }
