@@ -123,7 +123,12 @@ La sincronización de un pedido externo tiene dos disparadores:
   `PedidoExternoListener` (`@MessageDriven`) lo sincroniza al instante.
   Requiere levantar WildFly con el perfil **`standalone-full.xml`**, que
   trae el broker ActiveMQ Artemis embebido; con `standalone.xml` el deploy
-  falla porque no existe la connection factory.
+  falla porque no existe la connection factory. La connection factory y la
+  cola las declara la propia aplicación (`@JMSConnectionFactoryDefinition` /
+  `@JMSDestinationDefinition`), así que no hay que crearlas a mano; la
+  factory usa el conector **`in-vm`** (el broker corre dentro del mismo
+  WildFly). Sin ese conector WildFly usa el `http-connector`, que exige
+  credenciales, y el envío falla con `AMQ229031 Unable to validate user`.
 - **Polling (red de contención):** `SincronizadorDePedidos` (`@Schedule`,
   cada 1 minuto) levanta cualquier pedido externo cuyo mensaje se haya
   perdido.
@@ -144,7 +149,8 @@ tenían reserva (`idReservaStock`); las de `PUNTO_PICKING` se saltean.
 
 Usuarios del sistema y su sincronización de roles contra WildFly.
 
-- **`IRegistroUsuarios`** — `registrarUsuario`, `darDeBaja`.
+- **`IRegistroUsuarios`** — `registrarUsuario`, `darDeBaja`,
+  `puedeElegirRol`.
 - **`IConsultaUsuarios`** — `listarTodos`, `obtenerUsuario`.
 
 Las implementa `UsuarioService` (`@Stateless`). Las usa `UsuarioBean`
@@ -161,6 +167,21 @@ columna `passwordHash` de la tabla `usuarios`, y
 `ApplicationRealmSync.hashDigest` (MD5 de `usuario:ApplicationRealm:contraseña`,
 el formato que exige el propio `ApplicationRealm`) para escribir
 `application-users.properties` de WildFly.
+
+`usuarios.xhtml` es pública (`login.xhtml` la enlaza con "Registrate
+acá"), pero lo que permite depende de quién la usa:
+
+| Quién | Qué puede hacer |
+|---|---|
+| Sin sesión u `OPERADOR` | Solo crearse una cuenta, que queda siempre como `OPERADOR`. No ve el padrón ni da de baja. |
+| `ADMINISTRADOR` | Ver el padrón, dar de baja usuarios y crear otros administradores. |
+| Cualquiera, **mientras no exista ningún administrador activo** | Crear el primer `ADMINISTRADOR` (bootstrap del sistema, sin tocar la base a mano). |
+
+La regla la impone `UsuarioService`, no la vista: `registrarUsuario`
+rechaza un alta con rol `ADMINISTRADOR` si `puedeElegirRol()` es falso
+(el caller no es administrador y ya hay uno activo), y `listarTodos` /
+`darDeBaja` llevan `@RolesAllowed("ADMINISTRADOR")`. La vista solo oculta
+el desplegable de rol y el padrón a quien no puede usarlos.
 
 ## Patrones de diseño implementados
 
@@ -219,14 +240,97 @@ Presentación, con anotaciones Jakarta Authorization sobre los EJB:
   tiene `default-missing-method-permissions-deny-access=true`, así que en
   cuanto un bean usa cualquier anotación de seguridad, todo método sin
   permiso declarado queda denegado por default.
-- `@RolesAllowed("ADMINISTRADOR")` puntual sobre el método más sensible de
-  cada componente — hoy, `ComercioService.eliminarComercio` (borra
-  físicamente un comercio y sus puntos de picking en cascada) — es la
-  restricción real. El contenedor rechaza la llamada con
-  `EJBAccessException` si el caller no autenticó con ese rol; la vista
-  atrapa esa excepción y la traduce a un mensaje de negocio.
+- `@RolesAllowed("ADMINISTRADOR")` puntual sobre los métodos sensibles es
+  la restricción real:
+  - `ComercioService.eliminarComercio` (borra físicamente un comercio y
+    sus puntos de picking en cascada).
+  - `UsuarioService.listarTodos` y `UsuarioService.darDeBaja` (el padrón
+    de usuarios y su baja).
+
+  El contenedor rechaza la llamada con `EJBAccessException` si el caller
+  no autenticó con ese rol; la vista atrapa esa excepción y la traduce a
+  un mensaje de negocio (WildFly igual deja el rechazo en su log como
+  `ERROR ... WFLYEJB0034`: es el comportamiento esperado).
+- Cuando la regla depende de un dato y no solo del rol, el EJB consulta el
+  rol en código con `SessionContext.isCallerInRole(...)` — es el caso de
+  `UsuarioService.puedeElegirRol()` (ver la sección Seguridad arriba).
 - En la vista, `SesionBean.exigirSesion()` actúa como gatekeeper de
   página completa (vía `<f:viewAction>` en cada `.xhtml` protegido):
   redirige a `login.xhtml` antes de renderizar nada si no hay sesión
   iniciada. Es un control de UX, no de seguridad — la autorización real
   siempre la impone el `@RolesAllowed` del lado del EJB.
+
+## Cómo levantar el sistema
+
+### Requisitos
+
+- Java 17 o superior (el proyecto compila con `--release 17`; probado con
+  JDK 21).
+- Maven 3.9+.
+- WildFly 41 (probado con 41.0.1.Final), arrancado con el perfil
+  **`standalone-full.xml`** (lo necesita JMS).
+- Acceso a la base PostgreSQL del proyecto (datasource JNDI
+  `java:jboss/datasources/RabbitDS`, ver
+  [`persistence.xml`](src/main/resources/META-INF/persistence.xml)).
+
+> Las credenciales de la base y de la consola de WildFly **no van en este
+> repositorio**: pedíselas al equipo.
+
+### 1. Arrancar WildFly
+
+```bash
+$WILDFLY_HOME/bin/standalone.sh -c standalone-full.xml
+```
+
+### 2. Registrar el driver de PostgreSQL y el datasource (una sola vez)
+
+Con el `.jar` del driver JDBC de PostgreSQL descargado y WildFly corriendo:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --commands="module add --name=org.postgresql --resources=/ruta/a/postgresql.jar --dependencies=jakarta.transaction.api,/subsystem=datasources/jdbc-driver=postgresql:add(driver-name=postgresql,driver-module-name=org.postgresql,driver-class-name=org.postgresql.Driver,driver-xa-datasource-class-name=org.postgresql.xa.PGXADataSource)"
+
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --commands="data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --driver-name=postgresql --connection-url=jdbc:postgresql://HOST:5432/BASE --user-name=USUARIO --password=CONTRASEÑA --use-ccm=false,/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"
+```
+
+El último comando tiene que responder `"outcome" => "success"`. Si la base
+está en Supabase y responde `EAUTHQUERY ... connection to database not
+available`, el proyecto de Supabase está pausado: reactivarlo desde su
+dashboard.
+
+`hibernate.hbm2ddl.auto=update` crea/actualiza las tablas solo al
+desplegar: no hace falta correr ningún script de esquema.
+
+### 3. Usuario de management (una sola vez)
+
+El `wildfly-maven-plugin` despliega por la API de management (puerto
+`9990`) con el usuario configurado en [`pom.xml`](pom.xml). Ese usuario
+tiene que existir en WildFly:
+
+```bash
+$WILDFLY_HOME/bin/add-user.sh -u <usuario> -p '<contraseña>' -s
+```
+
+### 4. Desplegar
+
+```bash
+mvn package wildfly:deploy
+```
+
+y abrir http://localhost:8080/Rabbit.
+
+### 5. Primer acceso
+
+El login valida contra el `ApplicationRealm` de WildFly, así que un
+WildFly recién instalado no reconoce usuarios creados en otra instalación
+aunque estén en la base. Hay dos formas de entrar la primera vez:
+
+- **Desde la app:** si en la base no hay ningún administrador activo,
+  "Registrate acá" (`usuarios.xhtml`) permite crear el primero.
+- **Desde WildFly:** crear un usuario de aplicación con el rol
+  `ADMINISTRADOR`:
+  ```bash
+  $WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s
+  ```
+
+Los usuarios que después se registran desde la app se sincronizan solos
+contra el realm (ver `ApplicationRealmSync`).
