@@ -28,4 +28,8 @@ public interface IRegistroUsuarios {
      * @throws ValidacionException si el usuario no existe
      */
     void darDeBaja(Long id);
+
+    // true si quien llama es ADMINISTRADOR o si todavía no hay ningún
+    // administrador (bootstrap): solo entonces el alta puede elegir el rol.
+    boolean puedeElegirRol();
 }

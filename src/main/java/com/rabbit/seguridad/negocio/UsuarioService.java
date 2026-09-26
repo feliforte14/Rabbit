@@ -33,6 +33,11 @@ import com.rabbit.seguridad.dto.UsuarioDTO;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import jakarta.annotation.Resource;
+import jakarta.annotation.security.DeclareRoles;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.ejb.SessionContext;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
@@ -41,13 +46,25 @@ import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+// Seguridad declarativa, mismo esquema que ComercioService: @PermitAll a
+// nivel de clase (este WildFly deniega por default todo método sin permiso
+// declarado) y @RolesAllowed("ADMINISTRADOR") en lo sensible — listar el
+// padrón y dar de baja. El alta sigue abierta para que alguien pueda
+// crearse una cuenta desde login.xhtml, pero registrarUsuario() solo deja
+// crear un ADMINISTRADOR si el que llama ya lo es, o si todavía no existe
+// ninguno (bootstrap del primer administrador).
 @Stateless
+@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})
+@PermitAll
 public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
 
     private static final Logger LOG = Logger.getLogger(UsuarioService.class.getName());
 
     @Inject
     private UsuarioRepository repository;
+
+    @Resource
+    private SessionContext contexto;
 
     /** El contenedor tomó una instancia del pool para atender una llamada. */
     @PostConstruct
@@ -82,10 +99,15 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
             throw new ValidacionException("Ya existe un usuario con el nombre \"" + datos.username + "\"");
         }
 
+        Rol rol = datos.rol != null ? datos.rol : Rol.OPERADOR;
+        if (rol == Rol.ADMINISTRADOR && !puedeElegirRol()) {
+            throw new ValidacionException("Solo un administrador puede registrar otros administradores");
+        }
+
         Usuario usuario = new Usuario();
         usuario.setUsername(datos.username.trim());
         usuario.setPasswordHash(PasswordUtil.hash(datos.password));
-        usuario.setRol(datos.rol != null ? datos.rol : Rol.OPERADOR);
+        usuario.setRol(rol);
         usuario.setActivo(true);
         Long id = repository.guardar(usuario).getId();
 
@@ -105,7 +127,13 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
      * @throws ValidacionException si el usuario no existe
      */
     @Override
+    public boolean puedeElegirRol() {
+        return contexto.isCallerInRole("ADMINISTRADOR") || !repository.existeAdministradorActivo();
+    }
+
+    @Override
     @Transactional
+    @RolesAllowed("ADMINISTRADOR")
     public void darDeBaja(Long id) {
         Usuario usuario = obtenerOFallar(id);
         usuario.setActivo(false);
@@ -136,6 +164,7 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
 
     // Devuelve todos los usuarios como DTO — usado por la vista de listado (JSF)
     @Override
+    @RolesAllowed("ADMINISTRADOR")
     public List<UsuarioDTO> listarTodos() {
         return repository.listarTodos().stream().map(UsuarioDTO::desde).collect(Collectors.toList());
     }

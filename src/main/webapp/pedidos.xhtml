@@ -27,7 +27,7 @@
             de este flujo (por ejemplo, ante un caso descartado abajo en "Motivo del descarte").
         </p>
 
-        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+        <h:messages globalOnly="false" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
@@ -129,7 +129,8 @@
             <div class="campo">
                 <h:outputLabel for="comercio" value="Comercio" />
                 <h:selectOneMenu id="comercio" value="#{pedidoBean.nuevoPedido.idComercio}"
-                                 required="true" label="Comercio">
+                                 required="true" label="Comercio"
+                                 requiredMessage="Elegí el comercio del pedido">
                     <f:selectItem itemLabel="— Elegí un comercio —" itemValue="#{null}" />
                     <f:selectItems value="#{pedidoBean.listaComercios}" var="c"
                                    itemValue="#{c.id}"

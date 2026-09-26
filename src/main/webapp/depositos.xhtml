@@ -74,27 +74,37 @@
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
                 <h:outputLabel for="nombre" value="Nombre" />
-                <h:inputText id="nombre" value="#{depositoBean.nuevoDeposito.nombre}" required="true" label="Nombre" />
+                <h:inputText id="nombre" value="#{depositoBean.nuevoDeposito.nombre}" required="true" label="Nombre"
+                             requiredMessage="Ingresá el nombre del depósito" />
+                <h:message for="nombre" styleClass="error-campo" />
             </div>
 
             <div class="campo">
                 <h:outputLabel for="direccion" value="Dirección" />
-                <h:inputText id="direccion" value="#{depositoBean.nuevoDeposito.direccion}" required="true" label="Dirección" />
+                <h:inputText id="direccion" value="#{depositoBean.nuevoDeposito.direccion}" required="true" label="Dirección"
+                             requiredMessage="Ingresá la dirección" />
+                <h:message for="direccion" styleClass="error-campo" />
             </div>
 
             <div class="campo">
                 <h:outputLabel for="provincia" value="Provincia" />
-                <h:inputText id="provincia" value="#{depositoBean.nuevoDeposito.provincia}" required="true" label="Provincia" />
+                <h:inputText id="provincia" value="#{depositoBean.nuevoDeposito.provincia}" required="true" label="Provincia"
+                             requiredMessage="Ingresá la provincia" />
+                <h:message for="provincia" styleClass="error-campo" />
             </div>
 
             <div class="campo">
                 <h:outputLabel for="localidad" value="Localidad" />
-                <h:inputText id="localidad" value="#{depositoBean.nuevoDeposito.localidad}" required="true" label="Localidad" />
+                <h:inputText id="localidad" value="#{depositoBean.nuevoDeposito.localidad}" required="true" label="Localidad"
+                             requiredMessage="Ingresá la localidad" />
+                <h:message for="localidad" styleClass="error-campo" />
             </div>
 
             <div class="campo">
                 <h:outputLabel for="codigoPostal" value="Código Postal" />
-                <h:inputText id="codigoPostal" value="#{depositoBean.nuevoDeposito.codigoPostal}" required="true" label="Código Postal" />
+                <h:inputText id="codigoPostal" value="#{depositoBean.nuevoDeposito.codigoPostal}" required="true" label="Código Postal"
+                             requiredMessage="Ingresá el código postal" />
+                <h:message for="codigoPostal" styleClass="error-campo" />
             </div>
 
             <div class="form-acciones">
