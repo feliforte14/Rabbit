@@ -78,6 +78,51 @@ Las implementa `ComercioService` (`@Stateless`). La usan `ComercioBean` y
 otros componentes que necesitan validar un comercio o resolver su nombre
 (por ejemplo Inventario y Pedidos, vía `IConsultaComercios`).
 
+**Validación de CUIT contra el padrón fiscal (SOAP, integración
+sincrónica):** `registrarComercio` y `actualizarDatosFiscales` consultan
+`IPadronFiscalClient.consultar(cuit)` (ver el componente Integración con
+sistemas legados) después de la validación local de formato/unicidad y
+antes de persistir. Tres desenlaces:
+
+- **Habilitado** → sigue el alta, `Comercio.cuitValidado = true`.
+- **No encontrado** → falla de negocio como cualquier otra `validarXxx`:
+  `ValidacionException`, no se persiste nada.
+- **Servicio no disponible** (timeout, padrón caído) → **no bloquea el
+  alta**: es una falla de infraestructura ajena a Rabbit, no una regla de
+  negocio incumplida. Se guarda igual con `cuitValidado = false`.
+
+### Integración con sistemas legados (`com.rabbit.integracion.legado`)
+
+No es un componente de negocio de Rabbit — es la simulación de un sistema
+externo (y el cliente que lo consume), separado a propósito de los cuatro
+componentes de arriba para que quede claro qué es "de Rabbit" y qué es
+"legado". Ver clase 9 (Servicios Web) de la cursada: el caso real que usa
+de ejemplo el profesor es exactamente este (ARCA/AFIP).
+
+- **`PadronFiscalService`** — contrato SOAP (`document/literal wrapped`).
+  Una sola operación, `consultarCuit(cuit)`, que devuelve si el
+  contribuyente existe y está habilitado o lanza `CuitInexistenteException`
+  (mapeada a un `soap:Fault` — ver clase 9, slide 20).
+- **`PadronFiscalServiceImpl`** — el mock del padrón (equivalente al
+  "sistema del comercio" en producción). Vive en el mismo WAR de Rabbit
+  solo por simplicidad de despliegue: WildFly publica automáticamente
+  cualquier POJO `@WebService` empaquetado en la aplicación, en
+  `/Rabbit/PadronFiscalService` (WSDL en `?wsdl`). Rabbit lo consume igual
+  que si fuera externo, por SOAP/HTTP, nunca con una llamada Java directa.
+  Regla determinística para la demo: el CUIT `20-00000000-0` siempre
+  dispara el Fault; cualquier otro CUIT con formato válido está habilitado.
+- **`IPadronFiscalClient` / `PadronFiscalClient`** — el cliente, `@Stateless`,
+  inyectado en `ComercioService`. Arma un proxy dinámico con
+  `Service.getPort(...)` a partir de la interfaz `PadronFiscalService`
+  compartida con el proveedor, **sin generar stubs con wsimport** (no hace
+  falta: proveedor y consumidor comparten la misma clase compilada). El
+  `Service` se cachea en un campo estático — evita volver a bajar y
+  parsear el WSDL en cada consulta. Timeout de conexión y de respuesta en
+  5 s (ver clase 9, slide 42: "¿qué pasa si el legado no responde a
+  tiempo?") — al vencer, no lanza nada: devuelve
+  `ResultadoConsultaCuit.noDisponible()` y es `ComercioService` quien
+  decide qué hacer con eso.
+
 ### Inventario (`com.rabbit.inventario`)
 
 Depósitos, ítems de inventario y reservas de stock.
@@ -233,6 +278,14 @@ el desplegable de rol y el padrón a quien no puede usarlos.
   la línea de código que lo lanza — ver la sección de Pedidos para el porqué
   de `AFTER_SUCCESS` + `NOT_SUPPORTED`.
 
+- **Adapter** — `PadronFiscalClient` (ver Integración con sistemas
+  legados) traduce la interfaz JAX-WS de `PadronFiscalService` (checked
+  exceptions SOAP, `BindingProvider`, timeouts) a `IPadronFiscalClient`,
+  una interfaz simple en términos del dominio de Rabbit (`consultar(cuit)`
+  → `ResultadoConsultaCuit`). `ComercioService` nunca ve un tipo de
+  `jakarta.xml.ws`: si el padrón fiscal cambiara de protocolo (SOAP a
+  REST, por ejemplo), solo se reescribe el Adapter.
+
 ## Seguridad declarativa
 
 Los roles del sistema (`ADMINISTRADOR`, `OPERADOR`, ver
@@ -306,6 +359,17 @@ El último comando tiene que responder `"outcome" => "success"`. Si la base
 está en Supabase y responde `EAUTHQUERY ... connection to database not
 available`, el proyecto de Supabase está pausado: reactivarlo desde su
 dashboard.
+
+**Con Supabase, usar el host y puerto del Session Pooler (`:5432`), no el
+Transaction Pooler (`:6543`).** El host directo (`db.<ref>.supabase.co`)
+solo tiene registro DNS **IPv6**, así que si tu red no tiene salida IPv6
+(común en redes hogareñas/ISP) la conexión ni arranca — hay que usar el
+pooler (`aws-0-<región>.pooler.supabase.com`), que sí resuelve por IPv4.
+Pero el Transaction Pooler (`:6543`) hace fallar el deploy con
+`Unable to determine Dialect without JDBC metadata`: no soporta las
+consultas de metadata que Hibernate necesita al levantar el
+`EntityManagerFactory`. El Session Pooler, mismo host pero puerto `5432`,
+se comporta como una conexión normal y funciona sin este problema.
 
 `hibernate.hbm2ddl.auto=update` crea/actualiza las tablas solo al
 desplegar: no hace falta correr ningún script de esquema.

@@ -32,6 +32,8 @@ import com.rabbit.comercios.dto.*;
 import com.rabbit.comercios.datos.model.Comercio;
 import com.rabbit.comercios.datos.model.PuntoPicking;
 import com.rabbit.comercios.datos.ComercioRepository;
+import com.rabbit.integracion.legado.IPadronFiscalClient;
+import com.rabbit.integracion.legado.ResultadoConsultaCuit;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -67,6 +69,10 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     @Inject
     private ComercioRepository repository;
 
+    // Puerto hacia el padrón fiscal legado (SOAP, ver com.rabbit.integracion.legado).
+    @Inject
+    private IPadronFiscalClient padronFiscal;
+
     // IRegistroComercios
 
     /**
@@ -85,6 +91,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
         validarRazonSocial(datos.razonSocial);
         validarCuit(datos.cuit, null);
         validarEmail(datos.email);
+        boolean cuitValidado = consultarPadronFiscalOFallar(datos.cuit.trim());
 
         Comercio comercio = new Comercio();
         comercio.setNombre(datos.nombre.trim());
@@ -93,6 +100,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
         comercio.setEmail(datos.email);
         comercio.setTelefono(datos.telefono);
         comercio.setActivo(true);
+        comercio.setCuitValidado(cuitValidado);
         return repository.guardar(comercio).getId();
     }
 
@@ -111,12 +119,35 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
         validarRazonSocial(datos.razonSocial);
         validarCuit(datos.cuit, idComercio);
         validarEmail(datos.email);
+        boolean cuitValidado = consultarPadronFiscalOFallar(datos.cuit.trim());
 
         comercio.setRazonSocial(datos.razonSocial.trim());
         comercio.setCuit(datos.cuit.trim());
         comercio.setEmail(datos.email);
         comercio.setTelefono(datos.telefono);
+        comercio.setCuitValidado(cuitValidado);
         repository.actualizar(comercio);
+    }
+
+    /**
+     * Valida el CUIT contra el padrón fiscal legado (SOAP, ver
+     * com.rabbit.integracion.legado) DESPUÉS de la validación local de
+     * formato/unicidad. Tres desenlaces:
+     *   - HABILITADO: sigue el alta, cuitValidado=true.
+     *   - NO_ENCONTRADO: es una regla de negocio incumplida (como cualquier
+     *     otra validarXxx de esta clase), interrumpe el alta.
+     *   - SERVICIO_NO_DISPONIBLE: falla de infraestructura ajena a Rabbit
+     *     (timeout, padrón caído — ver PadronFiscalClient). NO bloquea el
+     *     alta: cuitValidado queda en false y listo, la vista lo puede
+     *     mostrar como "sin confirmar" en vez de tumbar toda la operación
+     *     por algo que Rabbit no controla.
+     */
+    private boolean consultarPadronFiscalOFallar(String cuit) {
+        ResultadoConsultaCuit resultado = padronFiscal.consultar(cuit);
+        if (resultado.getEstado() == ResultadoConsultaCuit.Estado.NO_ENCONTRADO) {
+            throw new ValidacionException("El CUIT " + cuit + " no figura habilitado en el padrón fiscal");
+        }
+        return resultado.getEstado() == ResultadoConsultaCuit.Estado.HABILITADO;
     }
 
     // --- Validaciones de negocio ---
