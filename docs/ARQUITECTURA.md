@@ -30,7 +30,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Inventario | Implementado | `IConsultaStock` (`@Stateless`), `IReservaStock` | `@Stateful` | La reserva es una conversación: `reservarStock` y `confirmarReserva` operan sobre la misma instancia |
 | Pedidos | Implementado | `IGestionPedidos`, `ISeguimientoPedido` | `@Stateless` (Facade) | El estado del pedido vive en la base; ninguna operación depende de una llamada anterior |
 | Seguridad | Implementado | `IRegistroUsuarios`, `IConsultaUsuarios` | `@Stateless` | Idem Comercios |
-| Integración banco legado | Implementado | `IBancoClient` | `@Stateless` | Cliente SOAP sin estado de conversación |
+| Integración banco legado | Implementado | `IBancoClient` | `@Stateless` + `@Singleton` (`CircuitBreakerBanco`) | Cliente SOAP sin estado de conversación; el estado del circuit breaker es uno solo, compartido por todas las llamadas |
 | Pagos y Cobranzas | Implementado | `IRegistroCobros`, `IConsultaCobros` | `@Stateless` + `@MessageDriven` (suscriptor) | El cobro queda registrado en la base; se suma a la transacción del llamador |
 | Repartidores | Implementado | `IAsignacionRepartidores`, `IGestionRepartidores` | `@Stateless` | La disponibilidad del repartidor es un dato persistido, no de sesión |
 | Notificaciones | Implementado | `INotificaciones` | `@Stateless` + `@MessageDriven` (suscriptor) | Reacciona a eventos del tópico; nadie la llama para avisar |
@@ -115,7 +115,7 @@ flowchart LR
 |---|---|---|
 | Caso en Rabbit | Sincronizar pedido externo; avisar cambios de estado | Cobrar en el banco; recibir un pedido del ERP |
 | ¿El proceso puede seguir sin la respuesta? | Sí | No |
-| Si el otro lado no contesta | El mensaje espera o se reintenta (y hay polling de respaldo) | Hay que decidirlo explícitamente (timeout + degradación) |
+| Si el otro lado no contesta | El mensaje espera o se reintenta (y hay polling de respaldo) | Hay que decidirlo explícitamente (timeout + degradación; circuit breaker con el banco) |
 | Acoplamiento | Solo al formato del mensaje | Temporal + contrato |
 
 ## Máquina de estados del pedido
