@@ -223,6 +223,16 @@ el desplegable de rol y el padrón a quien no puede usarlos.
   aislada, que se usa y se descarta (`.destroy(...)`) para ese pedido
   puntual.
 
+- **Observer (eventos CDI)** — `PedidoService.registrarPedidoExterno()`
+  dispara un evento `PedidoExternoRegistrado` (`Event<PedidoExternoRegistrado>`)
+  en vez de llamar directo a `PublicadorPedidosExternos`; este último lo
+  escucha con `@Observes(during = TransactionPhase.AFTER_SUCCESS)`. El
+  publicador (el observer) no existe para quien dispara el evento (el
+  subject): `PedidoService` no sabe ni le importa que haya un JMS de por
+  medio, y el disparo queda además atado a la fase de la transacción, no a
+  la línea de código que lo lanza — ver la sección de Pedidos para el porqué
+  de `AFTER_SUCCESS` + `NOT_SUPPORTED`.
+
 ## Seguridad declarativa
 
 Los roles del sistema (`ADMINISTRADOR`, `OPERADOR`, ver
