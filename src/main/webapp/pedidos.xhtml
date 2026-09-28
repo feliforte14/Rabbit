@@ -70,6 +70,15 @@
                     #{p.estado}
                 </h:column>
                 <h:column>
+                    <f:facet name="header">Repartidor</f:facet>
+                    #{pedidoBean.nombreRepartidor(p.idRepartidor)}
+                </h:column>
+                <h:column>
+                    <!-- Estado del cobro en ServicioDePagosYCobranzas (ver EstadoCobro). -->
+                    <f:facet name="header">Cobro</f:facet>
+                    #{pedidoBean.estadoCobro(p.id)}
+                </h:column>
+                <h:column>
                     <f:facet name="header">Creado</f:facet>
                     #{p.fechaCreacion}
                 </h:column>
@@ -90,6 +99,31 @@
                 </h:column>
             </h:dataTable>
         </h:form>
+
+        <!--
+            Avisos que genero ServicioDeNotificaciones al recibir cada cambio
+            de estado por topico.pedidos.estado (el mismo mensaje que recibe
+            Pagos: publicacion/suscripcion, 1 a N).
+        -->
+        <h2>Avisos a comercios</h2>
+        <h:dataTable value="#{pedidoBean.avisosRecientes}" var="a" id="tablaAvisos"
+                     styleClass="tabla" rowClasses="fila-impar,fila-par"
+                     rendered="#{not empty pedidoBean.avisosRecientes}">
+            <h:column>
+                <f:facet name="header">Hora</f:facet>
+                #{a.fechaAviso}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Comercio</f:facet>
+                #{a.idComercio}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Aviso</f:facet>
+                #{a.mensaje}
+            </h:column>
+        </h:dataTable>
+        <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.avisosRecientes}"
+                      value="Todavía no se enviaron avisos." />
 
         <h2>Mock del ERP del comercio</h2>
         <p>

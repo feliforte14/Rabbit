@@ -32,8 +32,15 @@ import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.ValidacionException;
+import com.rabbit.notificaciones.dto.NotificacionDTO;
+import com.rabbit.notificaciones.negocio.INotificaciones;
+import com.rabbit.pagos.dto.CobroDTO;
+import com.rabbit.pagos.negocio.IConsultaCobros;
+import com.rabbit.repartidores.dto.RepartidorDTO;
+import com.rabbit.repartidores.negocio.IGestionRepartidores;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJBAccessException;
 import jakarta.ejb.EJBException;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
@@ -42,6 +49,8 @@ import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.Serializable;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Named
 @ViewScoped
@@ -59,10 +68,24 @@ public class PedidoBean implements Serializable {
     @Inject
     private IConsultaStock stock;
 
+    @Inject
+    private IGestionRepartidores repartidores;
+
+    @Inject
+    private IConsultaCobros cobros;
+
+    @Inject
+    private INotificaciones notificaciones;
+
     private List<PedidoDTO> pedidos;
     private List<PedidoExternoDTO> pedidosExternos;
     private List<ComercioDTO> listaComercios;
     private List<DepositoDTO> listaDepositos;
+    // Datos de otros componentes para mostrar junto a cada pedido. Se cargan
+    // una vez por render en mapas, en vez de consultar fila por fila.
+    private Map<Long, String> nombresRepartidores;
+    private Map<Long, String> estadosCobro;
+    private List<NotificacionDTO> avisosRecientes;
 
     private Long idDepositoSeleccionado;
     private DatosPedidoExternoDTO nuevoPedido = nuevoPedidoVacio();
@@ -76,7 +99,22 @@ public class PedidoBean implements Serializable {
         pedidosExternos = seguimiento.listarPedidosExternos();
         listaComercios = comercios.listarTodos();
         listaDepositos = stock.listarDepositos();
+        nombresRepartidores = repartidores.listarTodos().stream()
+                .collect(Collectors.toMap(RepartidorDTO::getId, RepartidorDTO::getNombre));
+        estadosCobro = cobros.listarTodos().stream()
+                .collect(Collectors.toMap(CobroDTO::getIdPedido, CobroDTO::getEstado));
+        avisosRecientes = notificaciones.listarRecientes(10);
     }
+
+    public String nombreRepartidor(Long idRepartidor) {
+        return idRepartidor == null ? "—" : nombresRepartidores.getOrDefault(idRepartidor, "#" + idRepartidor);
+    }
+
+    public String estadoCobro(Long idPedido) {
+        return estadosCobro.getOrDefault(idPedido, "—");
+    }
+
+    public List<NotificacionDTO> getAvisosRecientes() { return avisosRecientes; }
 
     // Un pedido nuevo siempre arranca con una línea vacía, así el
     // formulario ya muestra la primera fila sin que el usuario tenga que
@@ -237,6 +275,11 @@ public class PedidoBean implements Serializable {
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        } catch (EJBAccessException e) {
+            // @RolesAllowed("ADMINISTRADOR") en PagoService.anularCobro: un
+            // pedido confirmado ya tiene un cobro, y anularlo es sensible.
+            mensaje(FacesMessage.SEVERITY_ERROR,
+                    "Solo un administrador puede cancelar un pedido confirmado: hay que anular su cobro.");
         } catch (EJBException e) {
             // Falla técnica al guardar (por ejemplo la base rechazó el cambio
             // y la transacción se deshizo): el pedido quedó como estaba.

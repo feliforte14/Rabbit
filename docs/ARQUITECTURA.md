@@ -31,9 +31,9 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Pedidos | Implementado | `IGestionPedidos`, `ISeguimientoPedido` | `@Stateless` (Facade) | El estado del pedido vive en la base; ninguna operación depende de una llamada anterior |
 | Seguridad | Implementado | `IRegistroUsuarios`, `IConsultaUsuarios` | `@Stateless` | Idem Comercios |
 | Integración legado | Implementado | `IPadronFiscalClient` | `@Stateless` | Cliente SOAP sin estado de conversación |
-| Pagos y Cobranzas | Planificado (solo interfaz) | `IRegistroCobros` | `@Stateless` | El cobro queda registrado en la base; se suma a la transacción del llamador |
-| Repartidores | Planificado (solo interfaz) | `IAsignacionRepartidores` | `@Stateless` | La disponibilidad del repartidor es un dato persistido, no de sesión |
-| Notificaciones | Planificado | suscriptor del tópico | `@MessageDriven` | Reacciona a eventos, no la llama nadie |
+| Pagos y Cobranzas | Implementado | `IRegistroCobros`, `IConsultaCobros` | `@Stateless` + `@MessageDriven` (suscriptor) | El cobro queda registrado en la base; se suma a la transacción del llamador |
+| Repartidores | Implementado | `IAsignacionRepartidores`, `IGestionRepartidores` | `@Stateless` | La disponibilidad del repartidor es un dato persistido, no de sesión |
+| Notificaciones | Implementado | `INotificaciones` | `@Stateless` + `@MessageDriven` (suscriptor) | Reacciona a eventos del tópico; nadie la llama para avisar |
 | Ruteo, Transportistas | Entrega Final | — | — | — |
 
 ### Operaciones por componente (implementado)
@@ -48,6 +48,11 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarEstadoPedido`, `listarTodos`, `listarPedidosDeComercio` | `PedidoBean` |
 | Seguridad | `IRegistroUsuarios` | `registrarUsuario`, `darDeBaja`, `puedeElegirRol` | `UsuarioBean` |
 | Seguridad | `IConsultaUsuarios` | `listarTodos`, `obtenerUsuario` | `UsuarioBean` |
+| Pagos | `IRegistroCobros` | `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`) | Pedidos, `SuscriptorPagosEstadoPedido` |
+| Pagos | `IConsultaCobros` | `obtenerCobroDePedido`, `listarTodos` | `PedidoBean` |
+| Repartidores | `IAsignacionRepartidores` | `asignarRepartidor`, `liberarRepartidor` | Pedidos |
+| Repartidores | `IGestionRepartidores` | `registrarRepartidor`, `listarTodos` | `RepartidorBean`, `PedidoBean` |
+| Notificaciones | `INotificaciones` | `avisarCambioDeEstado`, `listarRecientes` | `SuscriptorNotificacionesEstadoPedido`, `PedidoBean` |
 
 Otros detalles de cada componente:
 
@@ -61,6 +66,16 @@ Otros detalles de cada componente:
   las líneas con `idReservaStock`.
 - **Seguridad:** `LoginBean` y `SesionBean` no pasan por una interfaz de
   negocio: hablan directo con el `SecurityContext` de WildFly.
+- **Pagos:** PREPAGO se autoriza contra una pasarela simulada al confirmar
+  (rechaza por encima de $500.000, para poder mostrar el rollback);
+  CONTRA_ENTREGA queda PENDIENTE y se acredita al recibir `ENTREGADO` por
+  el tópico.
+- **Repartidores:** `asignarRepartidor` toma el primero DISPONIBLE con
+  bloqueo pesimista, para que dos confirmaciones simultáneas no se lleven
+  al mismo repartidor. Se libera al entregar o cancelar el pedido.
+- **Notificaciones:** el aviso es simulado (queda guardado y se ve en
+  `pedidos.xhtml`). Descarta eventos más viejos que el último avisado del
+  mismo pedido.
 
 ### Dependencias entre componentes (implementadas)
 
@@ -69,6 +84,10 @@ flowchart LR
     subgraph Rabbit["Rabbit (WildFly)"]
         Pedidos -->|IConsultaComercios| Comercios
         Pedidos -->|"Instance&lt;IReservaStock&gt;"| Inventario
+        Pedidos -->|IAsignacionRepartidores| Repartidores
+        Pedidos -->|IRegistroCobros| Pagos
+        Pedidos -. topico.pedidos.estado .-> Pagos
+        Pedidos -. topico.pedidos.estado .-> Notificaciones
         Inventario -->|IConsultaComercios| Comercios
         Comercios -->|IPadronFiscalClient| Legado[Integración legado]
     end
@@ -83,8 +102,8 @@ flowchart LR
 | ERP del comercio → Rabbit | REST `POST /api/pedidos-externos` | Planificado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Alta de pedido externo → sincronización | Cola JMS `cola.pedidos.externos` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
 | Comercios → Padrón Fiscal | SOAP | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
-| Cambio de estado del pedido → Notificaciones, Pagos | Tópico JMS `topico.pedidos.estado` | Planificado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
-| Pedidos → Comercios, Inventario, Pagos, Repartidores | Llamada local EJB | Parcial | No es integración entre sistemas: mismo proceso |
+| Cambio de estado del pedido → Notificaciones, Pagos | Tópico JMS `topico.pedidos.estado` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
+| Pedidos → Comercios, Inventario, Pagos, Repartidores | Llamada local EJB | Implementado | No es integración entre sistemas: mismo proceso |
 
 ### Criterio sincrónico vs. asincrónico
 

@@ -40,9 +40,10 @@ com.rabbit.<componente>/
 | Pedidos | `pedidos` | Implementado |
 | Seguridad | `seguridad` | Implementado |
 | Integración con el padrón fiscal (SOAP) | `integracion.legado` | Implementado |
-| Pagos y Cobranzas | `pagos` | En desarrollo |
-| Repartidores | `repartidores` | En desarrollo |
-| Notificaciones, Ruteo, Transportistas | — | Pendiente |
+| Pagos y Cobranzas | `pagos` | Implementado |
+| Repartidores | `repartidores` | Implementado |
+| Notificaciones | `notificaciones` | Implementado |
+| Ruteo, Transportistas | — | Pendiente |
 
 ## Integraciones
 
@@ -51,7 +52,7 @@ com.rabbit.<componente>/
 | Pedidos del ERP → sincronización | Asincrónica, cola JMS | Implementado |
 | Comercios → padrón fiscal | Sincrónica, SOAP | Implementado |
 | ERP del comercio → Rabbit | Sincrónica, REST | Planificado |
-| Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Planificado |
+| Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Implementado |
 
 ## Documentación técnica
 

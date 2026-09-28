@@ -66,7 +66,7 @@ Propuesta o Reemplazada.
 
 ## ADR-006: Tópico para los cambios de estado del pedido
 
-- **Estado:** Propuesta (Entrega 2).
+- **Estado:** Aceptada (implementada).
 - **Contexto:** Notificaciones y Pagos necesitan enterarse de los cambios
   de estado, cada uno por su motivo.
 - **Decisión:** tópico `topico.pedidos.estado` con el formato de
@@ -104,3 +104,21 @@ Propuesta o Reemplazada.
   sumarla a la lista del alineador. Es un parche del alcance del TP: lo
   correcto sería reemplazar `hbm2ddl=update` por migraciones versionadas
   (Flyway/Liquibase).
+
+## ADR-009: Suscripciones durables y selector en el tópico de estados
+
+- **Estado:** Aceptada.
+- **Contexto:** si un suscriptor no está activo cuando se publica un
+  cambio de estado (por ejemplo durante un redeploy), una suscripción
+  común pierde el mensaje. Para Pagos eso es un cobro contra entrega que
+  nunca se acredita. Además, Pagos solo necesita `ENTREGADO`.
+- **Decisión:** las dos suscripciones son durables (`clientId` +
+  `subscriptionName`, con `shareSubscriptions` para el pool del MDB).
+  Pagos usa `messageSelector = "estado = 'ENTREGADO'"` sobre una propiedad
+  JMS del mensaje, así el broker no le entrega el resto.
+- **Consecuencias:** ningún cambio de estado se pierde por un suscriptor
+  caído (probado con `stop-delivery`/`start-delivery`). A cambio, el
+  broker guarda mensajes por cada suscripción hasta que se consumen, y
+  cambiar `clientId` o `subscriptionName` crea una suscripción nueva.
+  Si falla la publicación misma, el aviso se pierde: no hay polling de
+  respaldo como en la cola (ADR-001).

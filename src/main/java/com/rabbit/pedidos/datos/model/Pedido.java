@@ -57,6 +57,10 @@ public class Pedido {
     @Enumerated(EnumType.STRING)
     private MedioPago medioPago;
 
+    // Repartidor asignado al confirmar (ver IAsignacionRepartidores). Por
+    // ID y no por relación JPA: Repartidores es otro componente.
+    private Long idRepartidor;
+
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
 
@@ -78,6 +82,8 @@ public class Pedido {
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public MedioPago getMedioPago() { return medioPago; }
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
+    public Long getIdRepartidor() { return idRepartidor; }
+    public void setIdRepartidor(Long idRepartidor) { this.idRepartidor = idRepartidor; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }

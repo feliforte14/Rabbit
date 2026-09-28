@@ -60,7 +60,7 @@ sequenceDiagram
 
 **Orden:** no importa, cada mensaje es independiente (un ID por pedido).
 
-## Tópico `topico.pedidos.estado` (planificado, Entrega 2)
+## Tópico `topico.pedidos.estado` (implementado)
 
 **Problema de negocio:** cuando un pedido cambia de estado, a más de un
 componente le interesa, por motivos distintos:
@@ -68,18 +68,63 @@ componente le interesa, por motivos distintos:
 | Suscriptor | Qué hace | Por qué |
 |---|---|---|
 | Notificaciones | Avisa al comercio del cambio | Seguimiento del pedido |
-| Pagos y Cobranzas | Con `ENTREGADO` y `CONTRA_ENTREGA`, efectiviza el cobro | El repartidor cobra al entregar |
+| Pagos y Cobranzas | Con `ENTREGADO` y `CONTRA_ENTREGA`, acredita el cobro | El repartidor cobra al entregar |
 
 **Por qué Topic y no Queue:** el mismo evento lo necesitan dos
 consumidores independientes (1 → N). Con una cola solo lo recibiría uno.
 Pedidos no conoce a los suscriptores: se puede agregar otro sin tocarlo.
 
-**Mensaje (formato ya definido):** el evento CDI `EstadoPedidoCambiado`
-(implementado, ya se dispara en cada cambio de estado) se publica como
-JSON: `{idPedido, idComercio, estado, fechaCambio}`. El publicador lo
-observará con `AFTER_SUCCESS` + `NOT_SUPPORTED`, igual que la cola.
+| Clase | Rol |
+|---|---|
+| `EstadoPedidoCambiado` | Evento CDI que dispara `PedidoService` en cada cambio de estado |
+| `PublicadorEstadosPedido` | Productor JMS + declaración del tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`, igual que la cola) |
+| `SuscriptorPagosEstadoPedido` | MDB de Pagos, filtra `estado = 'ENTREGADO'` |
+| `SuscriptorNotificacionesEstadoPedido` | MDB de Notificaciones, recibe todos los cambios |
 
-**Orden:** un MDB no garantiza orden de llegada. Cada suscriptor guarda
-la última `fechaCambio` procesada por pedido e ignora los eventos más
-viejos. Pagos además es idempotente (si el cobro ya está acreditado, no
-hace nada).
+**Mensaje:** `TextMessage` con body
+`{"idPedido", "idComercio", "estado", "fechaCambio"}` y propiedades JMS
+`estado` e `idPedido`. Las propiedades permiten filtrar con un
+`messageSelector` sin leer el body: el broker ni siquiera le entrega a
+Pagos los cambios que no son `ENTREGADO`.
+
+```mermaid
+sequenceDiagram
+    participant U as Usuario (PedidoBean)
+    participant PS as PedidoService
+    participant Pub as PublicadorEstadosPedido
+    participant T as topico.pedidos.estado
+    participant Pag as SuscriptorPagos
+    participant Not as SuscriptorNotificaciones
+    U->>PS: registrarEntrega(id)
+    PS->>PS: UPDATE estado = ENTREGADO
+    PS-)Pub: evento EstadoPedidoCambiado
+    Note over PS,Pub: commit, recién después corre el observer (AFTER_SUCCESS)
+    Pub->>T: send {idPedido, estado: ENTREGADO, ...}
+    T-)Pag: onMessage (selector estado = 'ENTREGADO')
+    Pag->>Pag: registrarCobroContraEntrega → ACREDITADO
+    T-)Not: onMessage
+    Not->>Not: aviso "Tu pedido fue entregado"
+```
+
+### Suscripciones durables
+
+Las dos suscripciones son **durables** (`clientId` +
+`subscriptionName`): si un suscriptor no está activo cuando se publica un
+cambio —por un redeploy, por ejemplo—, el broker guarda el mensaje y se
+lo entrega al volver. `shareSubscriptions=true` permite que las varias
+instancias del pool del MDB consuman de la misma suscripción.
+
+Se probó deteniendo la entrega del MDB de Pagos (`stop-delivery` en la
+consola de WildFly), entregando un pedido contra entrega (el cobro quedó
+`PENDIENTE`) y reanudándola: el cobro pasó a `ACREDITADO` al instante.
+
+### Garantías y manejo de fallas
+
+| Situación | Qué pasa |
+|---|---|
+| El broker falla al publicar | Se loguea; el cambio de estado ya está guardado. Se pierde el aviso (no hay polling de respaldo, a diferencia de la cola) |
+| Un suscriptor no está activo | La suscripción durable guarda el mensaje hasta que vuelve |
+| El mismo evento llega dos veces | Pagos es idempotente (si ya está `ACREDITADO` no hace nada, con bloqueo pesimista sobre el cobro). Notificaciones descarta el repetido por `fechaCambio` |
+| Los eventos llegan desordenados | Notificaciones guarda la `fechaCambio` por pedido e ignora los más viejos. A Pagos no le afecta: `ENTREGADO` es final |
+| Mensaje ilegible | Se loguea y se consume |
+| Error transitorio en Pagos (base caída) | Se relanza; el broker reintenta la entrega |
