@@ -33,9 +33,11 @@ package com.rabbit.infraestructura;
  */
 
 import com.rabbit.inventario.datos.model.EstadoReserva;
+import com.rabbit.pagos.datos.model.EstadoCobro;
 import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
+import com.rabbit.repartidores.datos.model.EstadoRepartidor;
 import com.rabbit.seguridad.datos.model.Rol;
 
 import jakarta.annotation.PostConstruct;
@@ -72,7 +74,10 @@ public class AlineadorDeRestriccionesEnum {
             new ColumnaEnum("pedidos_externos", "origen", OrigenPedido.class),
             new ColumnaEnum("pedidos_externos", "mediopago", MedioPago.class),
             new ColumnaEnum("reservas_stock", "estado", EstadoReserva.class),
-            new ColumnaEnum("usuarios", "rol", Rol.class));
+            new ColumnaEnum("usuarios", "rol", Rol.class),
+            new ColumnaEnum("cobros", "estado", EstadoCobro.class),
+            new ColumnaEnum("cobros", "mediopago", MedioPago.class),
+            new ColumnaEnum("repartidores", "estado", EstadoRepartidor.class));
 
     @PersistenceContext(unitName = "comerciosPU")
     private EntityManager em;

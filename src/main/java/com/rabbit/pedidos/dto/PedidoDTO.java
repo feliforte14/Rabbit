@@ -24,6 +24,7 @@ public class PedidoDTO {
     public List<LineaPedidoDTO> lineas;
     public BigDecimal importe;
     public MedioPago medioPago;
+    public Long idRepartidor;
     public String estado;
     public String fechaCreacion;
 
@@ -36,6 +37,7 @@ public class PedidoDTO {
         dto.idPuntoPicking = p.getIdPuntoPicking();
         dto.importe = p.getImporte();
         dto.medioPago = p.getMedioPago();
+        dto.idRepartidor = p.getIdRepartidor();
         dto.lineas = p.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
         dto.estado = p.getEstado() != null ? p.getEstado().name() : null;
         dto.fechaCreacion = p.getFechaCreacion() != null ? p.getFechaCreacion().format(FORMATO) : null;
@@ -61,6 +63,7 @@ public class PedidoDTO {
     public List<LineaPedidoDTO> getLineas() { return lineas; }
     public BigDecimal getImporte() { return importe; }
     public MedioPago getMedioPago() { return medioPago; }
+    public Long getIdRepartidor() { return idRepartidor; }
     public String getEstado() { return estado; }
     public String getFechaCreacion() { return fechaCreacion; }
 }

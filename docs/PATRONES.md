@@ -40,7 +40,9 @@ qué alternativa se descartó.
   reserva stock; `PUNTO_PICKING` solo valida el punto de picking).
 - **Planificado:** el cobro según `MedioPago` en ServicioDePagosYCobranzas
   (`PREPAGO` autoriza en la pasarela simulada, `CONTRA_ENTREGA` queda
-  pendiente hasta la entrega), con una estrategia por medio de pago.
+  pendiente hasta la entrega). Hoy está implementado con un `if` en
+  `PagoService.registrarCobro`; con solo dos medios alcanza, y pasaría a
+  una estrategia por medio de pago si se suman más.
 
 ## Singleton
 
@@ -65,8 +67,12 @@ qué alternativa se descartó.
 - **Dónde:**
   - `PedidoExternoRegistrado` → `PublicadorPedidosExternos`
     (`@Observes(during = AFTER_SUCCESS)`). Implementado.
-  - `EstadoPedidoCambiado`: se dispara en cada cambio de estado del
-    pedido. El observer que lo publique en el tópico está planificado.
+  - `EstadoPedidoCambiado` → `PublicadorEstadosPedido`, que lo publica
+    en `topico.pedidos.estado`. Implementado.
+- **Y entre componentes, publicación/suscripción:** del otro lado del
+  tópico, `SuscriptorPagosEstadoPedido` y
+  `SuscriptorNotificacionesEstadoPedido` reaccionan al mismo evento sin
+  que Pedidos los conozca.
 - **Descartado:** llamar al publicador directo desde el servicio (ver
   ADR-002 en [DECISIONES.md](DECISIONES.md)).
 

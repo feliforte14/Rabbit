@@ -70,13 +70,15 @@ public interface IGestionPedidos {
     void descartarPedidoExterno(Long idPedidoExterno, String motivo);
 
     /**
-     * Avanza el pedido a CONFIRMADO. El stock ya se comprometió al
-     * sincronizar (ver sincronizarPedidoExterno); esta operación refleja
-     * el avance del pedido dentro de la orquestación de Rabbit, no un
-     * nuevo compromiso de stock.
+     * Avanza el pedido a CONFIRMADO en una sola transacción: asigna un
+     * repartidor (IAsignacionRepartidores), registra el cobro
+     * (IRegistroCobros) y cambia el estado. Si cualquiera de los pasos
+     * falla, no queda nada hecho. El stock ya se comprometió al
+     * sincronizar (ver sincronizarPedidoExterno).
      *
      * @param idPedido ID del pedido a confirmar
-     * @throws ValidacionException si el pedido no existe o no está PENDIENTE
+     * @throws ValidacionException si el pedido no existe, no está
+     *         PENDIENTE, no hay repartidores disponibles o el pago se rechaza
      */
     void confirmarPedido(Long idPedido);
 
@@ -90,9 +92,9 @@ public interface IGestionPedidos {
     void despacharPedido(Long idPedido);
 
     /**
-     * El repartidor entregó el pedido: EN_CAMINO → ENTREGADO. Con pago
-     * CONTRA_ENTREGA, este cambio es el que dispara el cobro (vía el
-     * tópico de estados, suscriptor de Pagos).
+     * El repartidor entregó el pedido: EN_CAMINO → ENTREGADO, y queda libre
+     * para otro pedido. Con pago CONTRA_ENTREGA, este cambio es el que
+     * dispara el cobro (vía el tópico de estados, suscriptor de Pagos).
      *
      * @param idPedido ID del pedido entregado
      * @throws ValidacionException si el pedido no existe o no está EN_CAMINO
@@ -106,6 +108,10 @@ public interface IGestionPedidos {
      * CONFIRMADA al sincronizar, con lo que la cantidad vuelve al stock
      * disponible del ítem y la reserva pasa a DEVUELTA. Las líneas de
      * origen PUNTO_PICKING no reservaron nada y se ignoran.
+     *
+     * Si el pedido ya estaba CONFIRMADO, además anula su cobro y libera al
+     * repartidor. Anular el cobro exige rol ADMINISTRADOR: un OPERADOR
+     * recibe EJBAccessException y el pedido no se cancela.
      *
      * @param idPedido ID del pedido a cancelar
      * @throws ValidacionException si el pedido no existe, no está

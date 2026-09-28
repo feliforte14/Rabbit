@@ -43,7 +43,7 @@
 valida primero y después devuelve el stock línea por línea: si falla
 una devolución, se deshacen también las anteriores.
 
-## Flujo 3: confirmar con cobro (planificado, Entrega 2)
+## Flujo 3: confirmar con cobro (implementado)
 
 `confirmarPedido`, `REQUIRED`, en una única transacción:
 
@@ -58,3 +58,19 @@ una devolución, se deshacen también las anteriores.
 **Por qué no hace falta XA:** las tres escrituras (repartidor, cobro,
 pedido) van a la misma base; el mensaje JMS queda fuera de la
 transacción a propósito.
+
+Probado: sin repartidores, confirmar deja el pedido PENDIENTE y sin
+cobro; con un PREPAGO de más de $500.000 (límite de la pasarela
+simulada), la pasarela lo rechaza y el repartidor que se había asignado
+vuelve a DISPONIBLE solo por el rollback.
+
+Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
+= true)` propias de cada componente; `PedidoService` las traduce a la
+`ValidacionException` de Pedidos para que la vista muestre el motivo.
+
+## Flujo 4: entregar y cancelar un pedido confirmado (implementado)
+
+| Operación | Qué hace, en la misma transacción |
+|---|---|
+| `registrarEntrega` | Estado ENTREGADO + libera al repartidor. El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
+| `cancelarPedido` (desde CONFIRMADO) | Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada |

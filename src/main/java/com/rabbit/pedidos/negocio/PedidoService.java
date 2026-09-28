@@ -74,6 +74,8 @@ package com.rabbit.pedidos.negocio;
 import com.rabbit.comercios.dto.PuntoPickingDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.negocio.IReservaStock;
+import com.rabbit.pagos.negocio.IRegistroCobros;
+import com.rabbit.repartidores.negocio.IAsignacionRepartidores;
 import com.rabbit.inventario.dto.ReservaStockDTO;
 import com.rabbit.pedidos.datos.PedidoRepository;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
@@ -124,10 +126,18 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Inject
     private Event<PedidoExternoRegistrado> pedidoExternoRegistrado;
 
-    // Aviso de "un pedido cambió de estado" (ver cambiarEstado). Es el
-    // formato que va a salir por topico.pedidos.estado.
+    // Aviso de "un pedido cambió de estado" (ver cambiarEstado). Lo observa
+    // PublicadorEstadosPedido, que lo publica en topico.pedidos.estado.
     @Inject
     private Event<EstadoPedidoCambiado> estadoPedidoCambiado;
+
+    // Flujo de confirmación (asignar repartidor → cobrar → confirmar): los
+    // dos corren con REQUIRED y se suman a la transacción de confirmarPedido.
+    @Inject
+    private IAsignacionRepartidores repartidores;
+
+    @Inject
+    private IRegistroCobros cobros;
 
     // ===============================================================
     // IGestionPedidos — el Facade
@@ -325,6 +335,23 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void confirmarPedido(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
+        validarTransicion(pedido, EstadoPedido.CONFIRMADO);
+
+        // Los tres pasos son UNA transacción: si el cobro se rechaza, el
+        // rollback también devuelve el repartidor a DISPONIBLE y el pedido
+        // sigue PENDIENTE. Las excepciones de Repartidores y Pagos ya marcan
+        // la transacción para rollback (@ApplicationException(rollback =
+        // true)); acá solo se traducen a la de Pedidos para que la vista
+        // muestre el motivo.
+        Long idRepartidor;
+        try {
+            idRepartidor = repartidores.asignarRepartidor(idPedido);
+            cobros.registrarCobro(idPedido, pedido.getImporte(), pedido.getMedioPago());
+        } catch (com.rabbit.repartidores.negocio.ValidacionException
+                 | com.rabbit.pagos.negocio.ValidacionException e) {
+            throw new ValidacionException(e.getMessage());
+        }
+        pedido.setIdRepartidor(idRepartidor);
         cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
     }
 
@@ -340,6 +367,10 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     public void registrarEntrega(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
         cambiarEstado(pedido, EstadoPedido.ENTREGADO);
+        // El repartidor queda libre para otro pedido. El cobro CONTRA_ENTREGA
+        // NO se hace acá: lo efectiviza Pagos al recibir ENTREGADO por el
+        // tópico (ver SuscriptorPagosEstadoPedido).
+        repartidores.liberarRepartidor(pedido.getIdRepartidor());
     }
 
     @Override
@@ -349,6 +380,14 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         // Se valida antes de devolver el stock: si el pedido ya está
         // EN_CAMINO o ENTREGADO, la mercadería no está para devolverla.
         validarTransicion(pedido, EstadoPedido.CANCELADO);
+
+        // Un pedido CONFIRMADO ya tiene cobro y repartidor. Anular el cobro
+        // exige rol ADMINISTRADOR (@RolesAllowed en PagoService.anularCobro):
+        // un OPERADOR recibe EJBAccessException y no se cancela nada.
+        if (pedido.getEstado() == EstadoPedido.CONFIRMADO) {
+            cobros.anularCobro(idPedido);
+            repartidores.liberarRepartidor(pedido.getIdRepartidor());
+        }
 
         // El stock de cada línea con reserva se descontó al sincronizarla
         // (reservar + confirmar juntos). Cancelar sin devolverlo dejaría la

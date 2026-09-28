@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Listado y alta de repartidores. Se bindea a repartidorBean
+    (RepartidorBean.java). La asignacion a pedidos no se hace desde aca:
+    la hace PedidoService al confirmar un pedido (ver
+    IAsignacionRepartidores).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/template.xhtml">
+
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirSesion}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Repartidores</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Repartidores</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:form id="formListado">
+            <h:dataTable value="#{repartidorBean.repartidores}" var="r"
+                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{r.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Nombre</f:facet>
+                    #{r.nombre}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Teléfono</f:facet>
+                    #{r.telefono}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    #{r.estado}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Pedido a cargo</f:facet>
+                    #{empty r.idPedidoActual ? '—' : r.idPedidoActual}
+                </h:column>
+            </h:dataTable>
+        </h:form>
+
+        <h2>Registrar repartidor</h2>
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="nombre" value="Nombre" />
+                <h:inputText id="nombre" value="#{repartidorBean.nuevoRepartidor.nombre}"
+                             required="true" label="Nombre"
+                             requiredMessage="Ingresá el nombre del repartidor" />
+                <h:message for="nombre" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="telefono" value="Teléfono" />
+                <h:inputText id="telefono" value="#{repartidorBean.nuevoRepartidor.telefono}" label="Teléfono" />
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{repartidorBean.registrar}" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

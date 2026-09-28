@@ -34,6 +34,11 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | `ComercioService.eliminarComercio` | Borra físicamente el comercio y sus puntos de picking en cascada |
 | `UsuarioService.listarTodos` | Expone el padrón completo de usuarios |
 | `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |
+| `PagoService.anularCobro` | Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR` |
+
+El suscriptor de Pagos al tópico (`SuscriptorPagosEstadoPedido`) corre
+sin usuario: por eso `registrarCobroContraEntrega` no lleva restricción de
+rol (y además solo acredita un cobro que ya existe).
 
 Si el caller no tiene el rol, el contenedor lanza `EJBAccessException`;
 la vista la traduce a un mensaje (WildFly igual la loguea como
@@ -67,6 +72,5 @@ ocultar botones, pero la autorización siempre la impone el EJB.
 
 | Operación | Rol | Motivo |
 |---|---|---|
-| `IRegistroCobros.anularCobro` | `ADMINISTRADOR` | Revierte dinero ya registrado |
 | Listado de cobros | `ADMINISTRADOR` | Información financiera |
 | `POST /api/pedidos-externos` | A definir | Endpoint expuesto a sistemas externos: requiere autenticación propia del partner |
