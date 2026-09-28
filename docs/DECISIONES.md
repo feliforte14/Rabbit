@@ -79,7 +79,8 @@ Propuesta o Reemplazada.
 
 ## ADR-007: Endpoint REST de entrada reemplaza al formulario del ERP
 
-- **Estado:** Propuesta (Entrega 2).
+- **Estado:** Aceptada (implementada). El partner se autentica con HTTP
+  Basic y rol `ERP`; el formulario queda para la demo.
 - **Contexto:** el formulario JSF no marca una frontera real entre el ERP
   y Rabbit.
 - **Decisión:** `POST /api/pedidos-externos` llama al mismo

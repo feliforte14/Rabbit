@@ -19,7 +19,8 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 
 Jakarta EE 10 sobre WildFly (perfil `standalone-full`), Java 17, JSF +
 Facelets, EJB, JPA/Hibernate, PostgreSQL (Supabase), JMS (ActiveMQ
-Artemis embebido), JAX-WS (SOAP), Jakarta Security, Maven (WAR).
+Artemis embebido), JAX-WS (SOAP), JAX-RS (REST), Jakarta Security,
+Maven (WAR).
 
 ## Estructura
 
@@ -51,7 +52,7 @@ com.rabbit.<componente>/
 |---|---|---|
 | Pedidos del ERP → sincronización | Asincrónica, cola JMS | Implementado |
 | Pagos → banco legado (cobro y reversa) | Sincrónica, SOAP | Implementado |
-| ERP del comercio → Rabbit | Sincrónica, REST | Planificado |
+| ERP del comercio → Rabbit (y seguimiento público) | Sincrónica, REST | Implementado |
 | Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Implementado |
 
 ## Documentación técnica
@@ -63,7 +64,7 @@ El detalle y la justificación de cada decisión están en
 - [Patrones de diseño](docs/PATRONES.md)
 - [Seguridad](docs/SEGURIDAD.md)
 - [Transacciones](docs/TRANSACCIONES.md)
-- [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP con el banco legado y REST.
+- [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP con el banco legado y API REST.
 - [Mensajería asincrónica](docs/MENSAJERIA-ASINCRONICA.md): cola y tópico.
 - [Decisiones (ADRs)](docs/DECISIONES.md)
 
@@ -163,3 +164,15 @@ aunque estén en la base. Hay dos formas de entrar la primera vez:
 
 Los usuarios que después se registran desde la app se sincronizan solos
 contra el realm (ver `ApplicationRealmSync`).
+
+### 6. Usuario del ERP para la API REST
+
+La API `/api/pedidos-externos` exige el rol `ERP` (HTTP Basic). Ese
+usuario representa a un sistema, no a una persona, así que se crea
+directamente en WildFly:
+
+```bash
+$WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ERP -s
+```
+
+Ver ejemplos de uso en [MENSAJERIA-SINCRONICA.md](docs/MENSAJERIA-SINCRONICA.md).

@@ -301,6 +301,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         avisarCambioDeEstado(pedido);
 
         externo.setSincronizado(true);
+        externo.setIdPedido(pedido.getId());
         repository.actualizarPedidoExterno(externo);
 
         LOG.info("[Pedidos] Sincronizado pedido externo " + idPedidoExterno + " -> pedido "
@@ -443,6 +444,15 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     // Todas las filas del mock del ERP (sincronizadas y pendientes) —
     // deja ver en la vista el "antes y después" de la sincronización.
+    @Override
+    public PedidoExternoDTO consultarPedidoExterno(Long idPedidoExterno) {
+        PedidoExterno externo = repository.buscarPedidoExternoPorId(idPedidoExterno);
+        if (externo == null) {
+            throw new ValidacionException("Pedido externo no encontrado: " + idPedidoExterno);
+        }
+        return PedidoExternoDTO.desde(externo);
+    }
+
     @Override
     public List<PedidoExternoDTO> listarPedidosExternos() {
         return repository.listarTodosLosExternos().stream()

@@ -93,15 +93,66 @@ JMS pero reaccionando al fracaso:
   redesplegar.
 - La primera descarga del WSDL (`Service.create`) no tiene timeout propio.
 
-## REST: entrada de pedidos del ERP (planificado, Entrega 2)
+## REST: API para el ERP de los comercios y seguimiento público (implementado)
 
-- `POST /api/pedidos-externos` (JAX-RS), body JSON con comercio, origen,
-  líneas, importe y medio de pago.
+**En una frase:** el ERP de cada comercio le manda sus pedidos a Rabbit
+por una API REST y consulta cómo terminaron; el cliente final puede ver
+el estado de su pedido sin loguearse.
+
+| Endpoint | Quién | Qué hace | Respuestas |
+|---|---|---|---|
+| `POST /api/pedidos-externos` | ERP (rol `ERP`, HTTP Basic) | Registra un pedido externo | `201` + `Location` + `{"idPedidoExterno", "resultado": "Pendiente"}` · `400 {"error"}` · `401` · `403` |
+| `GET /api/pedidos-externos/{id}` | ERP (rol `ERP`) | Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`) o `Descartado` (con `motivo`) | `200` · `404` |
+| `GET /api/seguimiento/{idPedido}` | Público | Estado actual del pedido | `200 {"idPedido", "estado"}` · `404` |
+
+Ejemplo de alta desde el ERP:
+
+```bash
+curl -u erp-demo:ErpDemo2026! -H "Content-Type: application/json" \
+  -d '{"idComercio":1,"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":1,"cantidad":2}],"importe":1800,"medioPago":"PREPAGO"}' \
+  http://localhost:8080/Rabbit/api/pedidos-externos
+```
+
+| Clase | Rol |
+|---|---|
+| `ApiRest` | Activa JAX-RS bajo `/Rabbit/api` |
+| `PedidosExternosResource` | Endpoints del ERP; delega en `IGestionPedidos` / `ISeguimientoPedido` |
+| `SeguimientoResource` | Endpoint público de seguimiento |
+
 - **Por qué sincrónico:** el ERP necesita saber en el momento si Rabbit
   aceptó el pedido (validación de datos) y con qué ID. La **conversión**
   en pedido real sigue siendo asincrónica (cola), así que la respuesta es
-  inmediata: `201 Created` con el ID del pedido externo.
+  inmediata y el ERP consulta el resultado después.
 - **Por qué REST y no SOAP:** el ERP es un partner moderno; JSON sobre
   HTTP no le exige generar clientes a partir de un WSDL.
-- Reemplaza al formulario JSF que hoy simula el ERP, así queda una
-  frontera real entre sistemas.
+- **Es la misma puerta que la pantalla:** los recursos REST son otra capa
+  de presentación del componente Pedidos, como `PedidoBean`; no tienen
+  reglas de negocio propias. El formulario "Simular pedido" sigue
+  existiendo para la demo.
+
+```mermaid
+sequenceDiagram
+    participant ERP as ERP del comercio
+    participant API as PedidosExternosResource
+    participant PS as PedidoService
+    participant Q as cola.pedidos.externos
+    participant MDB as PedidoExternoListener
+    ERP->>API: POST /api/pedidos-externos (Basic, rol ERP)
+    API->>PS: registrarPedidoExterno(datos)
+    alt datos inválidos
+        PS-->>API: ValidacionException
+        API-->>ERP: 400 {"error": motivo}
+    else datos válidos
+        PS->>PS: INSERT pedidos_externos
+        API-->>ERP: 201 Created {idPedidoExterno}
+        PS-)Q: aviso (después del commit)
+        Q-)MDB: onMessage
+        MDB->>PS: sincronizarPedidoExterno
+    end
+    ERP->>API: GET /api/pedidos-externos/{id}
+    API-->>ERP: 200 {resultado: Sincronizado, idPedido}
+```
+
+**Limitación conocida:** cualquier usuario con rol `ERP` puede cargar
+pedidos de cualquier comercio. Lo correcto sería asociar cada usuario ERP
+a su comercio y validarlo en el recurso.
