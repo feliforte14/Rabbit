@@ -15,7 +15,15 @@
 
 ## Roles
 
-`ADMINISTRADOR` y `OPERADOR` (enum `Rol`).
+| Rol | Quién | Cómo se crea |
+|---|---|---|
+| `ADMINISTRADOR` | Personal de Rabbit con permisos totales | Desde `usuarios.xhtml` (enum `Rol`) |
+| `OPERADOR` | Personal de Rabbit | Desde `usuarios.xhtml` (enum `Rol`) |
+| `ERP` | Sistema del comercio que usa la API REST (no es una persona) | Solo en WildFly: `add-user.sh -a -u <usuario> -p '<clave>' -g ERP` |
+
+La API REST del ERP se autentica con HTTP Basic (`web.xml`:
+`security-constraint` sobre `/api/pedidos-externos` + `login-config`
+BASIC). Las pantallas JSF no cambian: siguen con `login.xhtml`.
 
 ## Autorización declarativa
 
@@ -35,6 +43,7 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | `UsuarioService.listarTodos` | Expone el padrón completo de usuarios |
 | `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |
 | `PagoService.anularCobro` | Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR` |
+| `PedidosExternosResource` (`POST` y `GET /api/pedidos-externos`) | Un sistema externo carga pedidos en Rabbit: solo el rol `ERP`. Sin credenciales responde `401`; con un usuario de otro rol, `403` |
 
 El suscriptor de Pagos al tópico (`SuscriptorPagosEstadoPedido`) corre
 sin usuario: por eso `registrarCobroContraEntrega` no lleva restricción de
@@ -68,9 +77,14 @@ corresponde.
 `login.xhtml` si no hay sesión. **No es seguridad**: la vista puede
 ocultar botones, pero la autorización siempre la impone el EJB.
 
-## Planificado (Entrega 2)
+### Operación pública
+
+`GET /api/seguimiento/{idPedido}` (`SeguimientoResource`, `@PermitAll`)
+es la única operación sin autenticación: devuelve solo el estado del
+pedido, sin importes, cobros ni datos del comercio.
+
+## Planificado
 
 | Operación | Rol | Motivo |
 |---|---|---|
 | Listado de cobros | `ADMINISTRADOR` | Información financiera |
-| `POST /api/pedidos-externos` | A definir | Endpoint expuesto a sistemas externos: requiere autenticación propia del partner |

@@ -29,6 +29,7 @@ public class PedidoExternoDTO {
     public boolean sincronizado;
     public String errorSincronizacion;
     public String resultado;
+    public Long idPedido;
 
     // Convierte una entidad PedidoExterno en un DTO listo para la vista.
     public static PedidoExternoDTO desde(PedidoExterno pe) {
@@ -52,6 +53,7 @@ public class PedidoExternoDTO {
         } else {
             dto.resultado = "Descartado";
         }
+        dto.idPedido = pe.getIdPedido();
         return dto;
     }
 
@@ -81,5 +83,6 @@ public class PedidoExternoDTO {
     public String getFechaPedido() { return fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }
+    public Long getIdPedido() { return idPedido; }
     public String getResultado() { return resultado; }
 }

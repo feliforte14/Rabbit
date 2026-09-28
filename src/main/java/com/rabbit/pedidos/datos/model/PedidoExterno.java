@@ -74,6 +74,10 @@ public class PedidoExterno {
     @Column(length = 500)
     private String errorSincronizacion;
 
+    // Pedido real que generó al sincronizarse (null mientras está pendiente o
+    // si se descartó). Permite que el ERP siga el pedido por la API REST.
+    private Long idPedido;
+
     public PedidoExterno() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -96,4 +100,6 @@ public class PedidoExterno {
     public void setSincronizado(boolean sincronizado) { this.sincronizado = sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }
     public void setErrorSincronizacion(String errorSincronizacion) { this.errorSincronizacion = errorSincronizacion; }
+    public Long getIdPedido() { return idPedido; }
+    public void setIdPedido(Long idPedido) { this.idPedido = idPedido; }
 }

@@ -24,6 +24,15 @@ public interface ISeguimientoPedido {
     List<PedidoExternoDTO> listarPedidosExternos();
 
     /**
+     * Un pedido externo puntual, con su resultado (Pendiente, Sincronizado
+     * o Descartado) y, si ya se sincronizó, el ID del pedido real. Lo usa
+     * la API REST para que el ERP siga el pedido que envió.
+     *
+     * @throws ValidacionException si no existe
+     */
+    PedidoExternoDTO consultarPedidoExterno(Long idPedidoExterno);
+
+    /**
      * @param idPedido identificador del pedido
      * @return el pedido como DTO
      * @throws ValidacionException si no existe

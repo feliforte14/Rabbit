@@ -45,7 +45,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Inventario | `IConsultaStock` | `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `listarItemsPorDeposito` / `PorComercio` / `PorComercioYDeposito`, `consultarDisponibilidad`, `listarHistorialReservas` | `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean` |
 | Inventario | `IReservaStock` | `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion` | `ReservaBean`, Pedidos |
 | Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `despacharPedido`, `registrarEntrega`, `cancelarPedido` | `PedidoBean`, MDB, timer |
-| Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarEstadoPedido`, `listarTodos`, `listarPedidosDeComercio` | `PedidoBean` |
+| Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `listarTodos`, `listarPedidosDeComercio` | `PedidoBean`, API REST |
 | Seguridad | `IRegistroUsuarios` | `registrarUsuario`, `darDeBaja`, `puedeElegirRol` | `UsuarioBean` |
 | Seguridad | `IConsultaUsuarios` | `listarTodos`, `obtenerUsuario` | `UsuarioBean` |
 | Pagos | `IRegistroCobros` | `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`) | Pedidos, `SuscriptorPagosEstadoPedido` |
@@ -93,14 +93,17 @@ flowchart LR
         Pagos -->|IBancoClient| Banco[Integración banco]
     end
     Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
+    ERP[ERP del comercio] -->|REST /api/pedidos-externos| Pedidos
+    Cliente[Cliente final] -->|REST /api/seguimiento| Pedidos
 ```
 
 ## Mapa de integración
 
 | Tramo | Mecanismo | Estado | Detalle |
 |---|---|---|---|
-| ERP del comercio → Rabbit | Formulario JSF (simulación) | Implementado | Se reemplaza por REST |
-| ERP del comercio → Rabbit | REST `POST /api/pedidos-externos` | Planificado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
+| ERP del comercio → Rabbit | Formulario JSF (simulación) | Implementado | Queda para la demo |
+| ERP del comercio → Rabbit | REST `POST /api/pedidos-externos` | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
+| Cliente final → Rabbit | REST `GET /api/seguimiento/{idPedido}` (público) | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Alta de pedido externo → sincronización | Cola JMS `cola.pedidos.externos` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
 | Pagos → Banco legado | SOAP | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Cambio de estado del pedido → Notificaciones, Pagos | Tópico JMS `topico.pedidos.estado` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
