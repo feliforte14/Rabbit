@@ -64,6 +64,15 @@
                     <f:facet name="header">Activo</f:facet>
                     #{c.activo ? 'Sí' : 'No'}
                 </h:column>
+                <!--
+                    Resultado de la consulta SOAP al padrón fiscal (ver
+                    ComercioService.consultarPadronFiscalOFallar): si el padrón
+                    no respondió, el alta se hizo igual y queda "Sin confirmar".
+                -->
+                <h:column>
+                    <f:facet name="header">CUIT en padrón</f:facet>
+                    #{c.cuitValidado ? 'Validado' : 'Sin confirmar'}
+                </h:column>
                 <h:column>
                     <f:facet name="header">Puntos de picking</f:facet>
                     <h:link outcome="puntos-picking" value="Ver puntos de picking">

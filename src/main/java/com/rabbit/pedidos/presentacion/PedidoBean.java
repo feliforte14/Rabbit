@@ -34,6 +34,7 @@ import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.ValidacionException;
 
 import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJBException;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
@@ -175,6 +176,10 @@ public class PedidoBean implements Serializable {
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        } catch (EJBException e) {
+            // Falla técnica al guardar (por ejemplo la base rechazó el cambio
+            // y la transacción se deshizo): el pedido quedó como estaba.
+            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }
 
@@ -186,6 +191,10 @@ public class PedidoBean implements Serializable {
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        } catch (EJBException e) {
+            // Falla técnica al guardar (por ejemplo la base rechazó el cambio
+            // y la transacción se deshizo): el pedido quedó como estaba.
+            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }
 
@@ -197,6 +206,10 @@ public class PedidoBean implements Serializable {
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        } catch (EJBException e) {
+            // Falla técnica al guardar (por ejemplo la base rechazó el cambio
+            // y la transacción se deshizo): el pedido quedó como estaba.
+            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }
 
@@ -208,6 +221,10 @@ public class PedidoBean implements Serializable {
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        } catch (EJBException e) {
+            // Falla técnica al guardar (por ejemplo la base rechazó el cambio
+            // y la transacción se deshizo): el pedido quedó como estaba.
+            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }
 
@@ -220,6 +237,10 @@ public class PedidoBean implements Serializable {
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        } catch (EJBException e) {
+            // Falla técnica al guardar (por ejemplo la base rechazó el cambio
+            // y la transacción se deshizo): el pedido quedó como estaba.
+            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }
 

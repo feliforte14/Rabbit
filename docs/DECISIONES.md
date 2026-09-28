@@ -84,3 +84,23 @@ Propuesta o Reemplazada.
   `registrarPedidoExterno`.
 - **Consecuencias:** cola, polling y sincronización no cambian. Hay que
   definir cómo se autentica el partner.
+
+## ADR-008: Restricciones CHECK de columnas enum alineadas al desplegar
+
+- **Estado:** Aceptada.
+- **Contexto:** Hibernate crea cada columna `@Enumerated(STRING)` con un
+  `CHECK` que lista los valores del enum al momento de crear la tabla, y
+  `hbm2ddl=update` nunca lo actualiza. Al sumar `EN_CAMINO` y `ENTREGADO`
+  a `EstadoPedido`, despachar un pedido fallaba con `violates check
+  constraint pedidos_estado_check`. Hibernate 7 no permite desactivar ese
+  `CHECK` (`columnDefinition`, `AttributeConverter` y `@JdbcTypeCode` lo
+  generan igual).
+- **Decisión:** `AlineadorDeRestriccionesEnum` (`@Singleton @Startup`)
+  reemplaza al desplegar el `CHECK` de cada columna enum por uno con los
+  valores actuales del enum. Por el mismo motivo, las columnas nuevas
+  `NOT NULL` llevan `default` (`Comercio.cuitValidado`).
+- **Consecuencias:** agregar un valor a un enum ya no rompe la base y se
+  conserva la validación en PostgreSQL. Cada columna enum nueva hay que
+  sumarla a la lista del alineador. Es un parche del alcance del TP: lo
+  correcto sería reemplazar `hbm2ddl=update` por migraciones versionadas
+  (Flyway/Liquibase).
