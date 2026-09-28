@@ -1,327 +1,70 @@
-# Rabbit — Gestión de Comercios, Inventario y Pedidos
+# Rabbit
 
-## Qué hace el sistema
+Plataforma de logística de última milla que conecta comercios con una red
+de depósitos y repartidores. Trabajo práctico integrador de Desarrollo de
+Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 
-Rabbit es una plataforma de logística para comercios: centraliza la
-consignación de mercadería en depósitos propios y coordina su reserva y
-despacho contra los pedidos que llegan del ERP de cada comercio.
+## Qué hace
 
-Hasta este momento permite:
+- **Comercios:** alta y gestión de comercios, sus productos y puntos de
+  picking. El CUIT se valida contra un padrón fiscal externo.
+- **Inventario:** depósitos propios de Rabbit con stock consignado por los
+  comercios, y reservas de stock con vencimiento.
+- **Pedidos:** recepción de pedidos desde el ERP de cada comercio, su
+  sincronización automática con stock y su seguimiento
+  (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`).
+- **Seguridad:** usuarios con rol `ADMINISTRADOR` u `OPERADOR`.
 
-- Dar de alta comercios y sus puntos de picking.
-- Registrar depósitos propios de Rabbit y cargar en ellos stock consignado
-  por un comercio puntual (el depósito es de Rabbit, la mercadería tiene
-  dueño).
-- Reservar stock con vencimiento — la reserva queda como una conversación
-  en curso mientras el usuario decide confirmarla o liberarla, y vence sola
-  si no se resuelve a tiempo.
-- Consultar el historial de todas las reservas ya cerradas, con su
-  desenlace (confirmada, liberada, vencida o devuelta).
-- Simular pedidos que "llegan" del ERP de un comercio y sincronizarlos
-  automáticamente contra pedidos reales de Rabbit.
-- Gestionar usuarios del sistema con rol `ADMINISTRADOR` u `OPERADOR`, y
-  autenticarlos contra el `ApplicationRealm` de WildFly.
+## Tecnologías
 
-## Arquitectura
+Jakarta EE 10 sobre WildFly (perfil `standalone-full`), Java 17, JSF +
+Facelets, EJB, JPA/Hibernate, PostgreSQL (Supabase), JMS (ActiveMQ
+Artemis embebido), JAX-WS (SOAP), Jakarta Security, Maven (WAR).
 
-Tres capas, con comunicación estrictamente unidireccional: **Presentación
-→ Negocio → Datos**. Ninguna capa accede directo a una capa no adyacente
-(la Presentación nunca toca la base de datos, la capa de Datos nunca
-decide reglas de negocio).
+## Estructura
 
-| Capa | Tecnología | Responsabilidad |
+Cada componente vive en `com.rabbit.<componente>` y se divide en capas:
+
+```
+com.rabbit.<componente>/
+├── presentacion/   ← Managed Beans JSF
+├── negocio/        ← EJB e interfaces @Local
+├── datos/          ← Repositorios (DAO) y entidades JPA (model/)
+└── dto/            ← Objetos que cruzan capas y componentes
+```
+
+| Componente | Paquete | Estado |
 |---|---|---|
-| **Presentación** | JSF (`@Named` + `@ViewScoped`) | Renderiza las vistas Facelets (`.xhtml`) y captura la entrada del usuario. No contiene reglas de negocio propias. |
-| **Negocio** | EJB (`@Stateless` / `@Stateful`) | Aplica las validaciones y reglas del dominio, orquesta las operaciones (`@Transactional`). No conoce detalles de la vista ni del motor de base de datos. |
-| **Datos** | JPA / Hibernate | Persiste y recupera información. Traduce entre objetos Java y filas de la tabla. |
+| Comercios | `comercios` | Implementado |
+| Inventario | `inventario` | Implementado |
+| Pedidos | `pedidos` | Implementado |
+| Seguridad | `seguridad` | Implementado |
+| Integración con el padrón fiscal (SOAP) | `integracion.legado` | Implementado |
+| Pagos y Cobranzas | `pagos` | En desarrollo |
+| Repartidores | `repartidores` | En desarrollo |
+| Notificaciones, Ruteo, Transportistas | — | Pendiente |
 
-Cada componente replica el mismo esqueleto de paquetes, por ejemplo
-`comercios`:
+## Integraciones
 
-```
-com.rabbit.comercios/
-├── presentacion/     ← Managed Beans JSF (ComercioBean, PuntoPickingBean)
-├── negocio/          ← EJB + interfaces (ComercioService, IConsultaComercios, IRegistroComercios)
-├── datos/
-│   ├── model/         ← Entidades JPA (Comercio, PuntoPicking, Producto)
-│   └── ComercioRepository.java, ProductoRepository.java
-└── dto/               ← DTOs que viajan entre capas (ComercioDTO, PuntoPickingDTO, ...)
-```
+| Integración | Tipo | Estado |
+|---|---|---|
+| Pedidos del ERP → sincronización | Asincrónica, cola JMS | Implementado |
+| Comercios → padrón fiscal | Sincrónica, SOAP | Implementado |
+| ERP del comercio → Rabbit | Sincrónica, REST | Planificado |
+| Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Planificado |
 
-Las entidades JPA (`datos/model/`) nunca se exponen directo a la vista:
-`presentacion` siempre habla con `negocio` en términos de `dto/`, así la
-capa de Datos puede cambiar (agregar una columna, una relación) sin tocar
-las vistas `.xhtml`.
+## Documentación técnica
 
-## Componentes
+El detalle y la justificación de cada decisión están en
+[`docs/`](docs/README.md):
 
-El sistema tiene cuatro componentes de negocio. Cada uno expone su
-funcionalidad a través de una o más interfaces Jakarta EE (`local`,
-implementadas por un único EJB), que es lo único que la capa de
-Presentación conoce — nunca la clase concreta.
-
-### Comercios (`com.rabbit.comercios`)
-
-Alta/baja/consulta de comercios, sus puntos de picking y productos.
-
-- **`IRegistroComercios`** — altas y cambios de estado: `registrarComercio`,
-  `actualizarDatosFiscales`, `darDeBajaComercio` / `reactivarComercio` /
-  `eliminarComercio`, y su equivalente para puntos de picking
-  (`registrarPuntoPicking`, `darDeBajaPuntoPicking`,
-  `reactivarPuntoPicking`).
-- **`IConsultaComercios`** — lectura: `obtenerComercio`, `listarTodos`,
-  `listarPuntosPicking`, `listarPuntosPickingDeComercio`,
-  `validarComercioActivo`.
-
-Las implementa `ComercioService` (`@Stateless`). La usan `ComercioBean` y
-`PuntoPickingBean` (`comercios.xhtml`, `puntos-picking.xhtml`), y también
-otros componentes que necesitan validar un comercio o resolver su nombre
-(por ejemplo Inventario y Pedidos, vía `IConsultaComercios`).
-
-**Validación de CUIT contra el padrón fiscal (SOAP, integración
-sincrónica):** `registrarComercio` y `actualizarDatosFiscales` consultan
-`IPadronFiscalClient.consultar(cuit)` (ver el componente Integración con
-sistemas legados) después de la validación local de formato/unicidad y
-antes de persistir. Tres desenlaces:
-
-- **Habilitado** → sigue el alta, `Comercio.cuitValidado = true`.
-- **No encontrado** → falla de negocio como cualquier otra `validarXxx`:
-  `ValidacionException`, no se persiste nada.
-- **Servicio no disponible** (timeout, padrón caído) → **no bloquea el
-  alta**: es una falla de infraestructura ajena a Rabbit, no una regla de
-  negocio incumplida. Se guarda igual con `cuitValidado = false`.
-
-### Integración con sistemas legados (`com.rabbit.integracion.legado`)
-
-No es un componente de negocio de Rabbit — es la simulación de un sistema
-externo (y el cliente que lo consume), separado a propósito de los cuatro
-componentes de arriba para que quede claro qué es "de Rabbit" y qué es
-"legado". Ver clase 9 (Servicios Web) de la cursada: el caso real que usa
-de ejemplo el profesor es exactamente este (ARCA/AFIP).
-
-- **`PadronFiscalService`** — contrato SOAP (`document/literal wrapped`).
-  Una sola operación, `consultarCuit(cuit)`, que devuelve si el
-  contribuyente existe y está habilitado o lanza `CuitInexistenteException`
-  (mapeada a un `soap:Fault` — ver clase 9, slide 20).
-- **`PadronFiscalServiceImpl`** — el mock del padrón (equivalente al
-  "sistema del comercio" en producción). Vive en el mismo WAR de Rabbit
-  solo por simplicidad de despliegue: WildFly publica automáticamente
-  cualquier POJO `@WebService` empaquetado en la aplicación, en
-  `/Rabbit/PadronFiscalService` (WSDL en `?wsdl`). Rabbit lo consume igual
-  que si fuera externo, por SOAP/HTTP, nunca con una llamada Java directa.
-  Regla determinística para la demo: el CUIT `20-00000000-0` siempre
-  dispara el Fault; cualquier otro CUIT con formato válido está habilitado.
-- **`IPadronFiscalClient` / `PadronFiscalClient`** — el cliente, `@Stateless`,
-  inyectado en `ComercioService`. Arma un proxy dinámico con
-  `Service.getPort(...)` a partir de la interfaz `PadronFiscalService`
-  compartida con el proveedor, **sin generar stubs con wsimport** (no hace
-  falta: proveedor y consumidor comparten la misma clase compilada). El
-  `Service` se cachea en un campo estático — evita volver a bajar y
-  parsear el WSDL en cada consulta. Timeout de conexión y de respuesta en
-  5 s (ver clase 9, slide 42: "¿qué pasa si el legado no responde a
-  tiempo?") — al vencer, no lanza nada: devuelve
-  `ResultadoConsultaCuit.noDisponible()` y es `ComercioService` quien
-  decide qué hacer con eso.
-
-### Inventario (`com.rabbit.inventario`)
-
-Depósitos, ítems de inventario y reservas de stock.
-
-- **`IConsultaStock`** — depósitos e ítems: `registrarDeposito`,
-  `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`,
-  `registrarItem`, `listarItemsPorDeposito` / `PorComercio` /
-  `PorComercioYDeposito`, `consultarDisponibilidad`,
-  `listarHistorialReservas`.
-- **`IReservaStock`** — el ciclo de vida de una reserva:
-  `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`,
-  `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion`.
-
-`IConsultaStock` la implementa un EJB `@Stateless`. `IReservaStock` la
-implementa `InventarioService`, el único componente **`@Stateful`** del
-sistema: mantiene la reserva abierta como conversación del usuario entre
-requests (con `@StatefulTimeout`), en vez de recibir todos los datos en
-una sola llamada. Un `BarredorDeReservas` (`@Schedule`) recorre
-periódicamente y libera las reservas vencidas que el usuario no resolvió.
-Las usan `DepositoBean`, `ItemInventarioBean`, `ReservaBean` y
-`HistorialReservasBean` (`depositos.xhtml`, `items.xhtml`,
-`reservas.xhtml`, `historial.xhtml`).
-
-### Pedidos (`com.rabbit.pedidos`)
-
-Gestión de pedidos y su sincronización con el "ERP" de cada comercio
-(simulado).
-
-- **`IGestionPedidos`** — `registrarPedidoExterno`,
-  `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`,
-  `cancelarPedido`.
-- **`ISeguimientoPedido`** — `listarPedidosExternos`,
-  `consultarEstadoPedido`, `listarTodos`, `listarPedidosDeComercio`.
-
-Las implementa `PedidoService` (`@Stateless`); cada operación es
-autocontenida, sin estado entre llamadas. Las usa `PedidoBean`
-(`pedidos.xhtml`).
-
-La sincronización de un pedido externo tiene dos disparadores:
-
-- **JMS (camino principal):** al confirmarse el alta,
-  `PublicadorPedidosExternos` publica el ID en `cola.pedidos.externos` y
-  `PedidoExternoListener` (`@MessageDriven`) lo sincroniza al instante.
-  Requiere levantar WildFly con el perfil **`standalone-full.xml`**, que
-  trae el broker ActiveMQ Artemis embebido; con `standalone.xml` el deploy
-  falla porque no existe la connection factory. La connection factory y la
-  cola las declara la propia aplicación (`@JMSConnectionFactoryDefinition` /
-  `@JMSDestinationDefinition`), así que no hay que crearlas a mano; la
-  factory usa el conector **`in-vm`** (el broker corre dentro del mismo
-  WildFly). Sin ese conector WildFly usa el `http-connector`, que exige
-  credenciales, y el envío falla con `AMQ229031 Unable to validate user`.
-- **Polling (red de contención):** `SincronizadorDePedidos` (`@Schedule`,
-  cada 1 minuto) levanta cualquier pedido externo cuyo mensaje se haya
-  perdido.
-
-Si los dos llegan a la vez sobre el mismo pedido, la fila se lee con
-bloqueo (`PESSIMISTIC_WRITE`) y el segundo la encuentra ya sincronizada y
-la saltea.
-
-Un pedido es multi-línea (`LineaPedido` / `LineaPedidoExterno`, una por
-producto y cantidad), y cada línea tiene su propio `OrigenPedido`:
-`STOCK_CONSIGNADO` reserva y confirma stock en Inventario para esa línea
-(vía `Instance<IReservaStock>`, una instancia stateful por línea); `PUNTO_PICKING`
-solo valida que el punto de picking del comercio exista y esté activo, sin
-tocar stock. Al cancelar un pedido solo se devuelve stock de las líneas que
-tenían reserva (`idReservaStock`); las de `PUNTO_PICKING` se saltean.
-
-### Seguridad (`com.rabbit.seguridad`)
-
-Usuarios del sistema y su sincronización de roles contra WildFly.
-
-- **`IRegistroUsuarios`** — `registrarUsuario`, `darDeBaja`,
-  `puedeElegirRol`.
-- **`IConsultaUsuarios`** — `listarTodos`, `obtenerUsuario`.
-
-Las implementa `UsuarioService` (`@Stateless`). Las usa `UsuarioBean`
-(`usuarios.xhtml`) para el alta y listado, y `LoginBean` /  `SesionBean`
-(`login.xhtml`, y el gatekeeper `exigirSesion` que protege el resto de las
-vistas) para autenticación y consulta de sesión — estos dos no pasan por
-una interfaz de negocio: hablan directo contra el `SecurityContext` /
-`ApplicationRealm` de WildFly.
-
-Al registrar un usuario, la contraseña se hashea dos veces para dos
-destinos distintos: `PasswordUtil.hash` (SHA-256, sin salt — simplificación
-a propósito para el alcance del TP, no apto para producción) para la
-columna `passwordHash` de la tabla `usuarios`, y
-`ApplicationRealmSync.hashDigest` (MD5 de `usuario:ApplicationRealm:contraseña`,
-el formato que exige el propio `ApplicationRealm`) para escribir
-`application-users.properties` de WildFly.
-
-`usuarios.xhtml` es pública (`login.xhtml` la enlaza con "Registrate
-acá"), pero lo que permite depende de quién la usa:
-
-| Quién | Qué puede hacer |
-|---|---|
-| Sin sesión u `OPERADOR` | Solo crearse una cuenta, que queda siempre como `OPERADOR`. No ve el padrón ni da de baja. |
-| `ADMINISTRADOR` | Ver el padrón, dar de baja usuarios y crear otros administradores. |
-| Cualquiera, **mientras no exista ningún administrador activo** | Crear el primer `ADMINISTRADOR` (bootstrap del sistema, sin tocar la base a mano). |
-
-La regla la impone `UsuarioService`, no la vista: `registrarUsuario`
-rechaza un alta con rol `ADMINISTRADOR` si `puedeElegirRol()` es falso
-(el caller no es administrador y ya hay uno activo), y `listarTodos` /
-`darDeBaja` llevan `@RolesAllowed("ADMINISTRADOR")`. La vista solo oculta
-el desplegable de rol y el padrón a quien no puede usarlos.
-
-## Patrones de diseño implementados
-
-- **DAO (Data Access Object)** — cada componente tiene un `*Repository`
-  (`ComercioRepository`, `InventarioRepository`, `PedidoRepository`,
-  `UsuarioRepository`) que aísla el acceso a datos: es la única clase que
-  toca el `EntityManager` y JPQL. La capa de Negocio nunca escribe una
-  consulta ni conoce el motor de persistencia — si mañana cambia de
-  Hibernate a otra cosa, solo se toca esta capa.
-
-- **DTO (Data Transfer Object)** — `ComercioDTO`, `ReservaStockDTO`,
-  `PedidoDTO`, etc. Son objetos planos, sin anotaciones JPA, que viajan
-  entre Negocio y Presentación. Evitan exponer la entidad JPA directo a la
-  vista (que rompería con `LazyInitializationException` fuera de una
-  transacción) y desacoplan la vista de cambios en el modelo de datos.
-
-- **Facade** — cada componente expone su negocio a través de una interfaz
-  reducida que esconde la coordinación interna entre repositorios y otros
-  componentes. El caso más explícito es `IGestionPedidos` /
-  `PedidoService`: quien llama a `sincronizarPedidoExterno()` no necesita
-  saber que por dentro valida el comercio contra Comercios y compromete
-  stock contra Inventario — esa orquestación es exactamente lo que el
-  Facade oculta. El mismo rol lo cumplen `IRegistroComercios`,
-  `IConsultaStock` e `IRegistroUsuarios` frente a sus repositorios.
-
-- **Singleton** — `BarredorDeReservas` y `SincronizadorDePedidos` son EJB
-  `@Singleton` con `@Startup`: tiene que existir una única instancia
-  corriendo la limpieza/sincronización periódica, porque si hubiera varias
-  compitiendo sobre las mismas filas podrían descontar stock dos veces. El
-  contenedor garantiza instancia única y serializa el acceso concurrente.
-
-- **Provider (`Instance<T>` de CDI, usado como fábrica)** —
-  `PedidoService` (`@Stateless`) necesita invocar `IReservaStock`
-  (`@Stateful`) sin compartir esa conversación entre pedidos procesados en
-  paralelo. En vez de inyectar `IReservaStock` como campo fijo — que
-  crearía una única instancia stateful compartida por todo el pool de
-  `PedidoService` — inyecta `Instance<IReservaStock>` y llama a `.get()`
-  en cada operación: cada llamada obtiene una instancia stateful nueva y
-  aislada, que se usa y se descarta (`.destroy(...)`) para ese pedido
-  puntual.
-
-- **Observer (eventos CDI)** — `PedidoService.registrarPedidoExterno()`
-  dispara un evento `PedidoExternoRegistrado` (`Event<PedidoExternoRegistrado>`)
-  en vez de llamar directo a `PublicadorPedidosExternos`; este último lo
-  escucha con `@Observes(during = TransactionPhase.AFTER_SUCCESS)`. El
-  publicador (el observer) no existe para quien dispara el evento (el
-  subject): `PedidoService` no sabe ni le importa que haya un JMS de por
-  medio, y el disparo queda además atado a la fase de la transacción, no a
-  la línea de código que lo lanza — ver la sección de Pedidos para el porqué
-  de `AFTER_SUCCESS` + `NOT_SUPPORTED`.
-
-- **Adapter** — `PadronFiscalClient` (ver Integración con sistemas
-  legados) traduce la interfaz JAX-WS de `PadronFiscalService` (checked
-  exceptions SOAP, `BindingProvider`, timeouts) a `IPadronFiscalClient`,
-  una interfaz simple en términos del dominio de Rabbit (`consultar(cuit)`
-  → `ResultadoConsultaCuit`). `ComercioService` nunca ve un tipo de
-  `jakarta.xml.ws`: si el padrón fiscal cambiara de protocolo (SOAP a
-  REST, por ejemplo), solo se reescribe el Adapter.
-
-## Seguridad declarativa
-
-Los roles del sistema (`ADMINISTRADOR`, `OPERADOR`, ver
-[`Rol`](src/main/java/com/rabbit/seguridad/datos/model/Rol.java)) viven en
-el `ApplicationRealm` nativo de WildFly — no hay un `IdentityStore` propio
-de la aplicación. Cuando se registra un usuario, `UsuarioService` lo
-sincroniza contra ese realm.
-
-La autorización se resuelve en la capa de Negocio, no en la de
-Presentación, con anotaciones Jakarta Authorization sobre los EJB:
-
-- `@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})` documenta a nivel de
-  clase qué roles existen para el componente.
-- `@PermitAll` a nivel de clase es explícito y necesario: este WildFly
-  tiene `default-missing-method-permissions-deny-access=true`, así que en
-  cuanto un bean usa cualquier anotación de seguridad, todo método sin
-  permiso declarado queda denegado por default.
-- `@RolesAllowed("ADMINISTRADOR")` puntual sobre los métodos sensibles es
-  la restricción real:
-  - `ComercioService.eliminarComercio` (borra físicamente un comercio y
-    sus puntos de picking en cascada).
-  - `UsuarioService.listarTodos` y `UsuarioService.darDeBaja` (el padrón
-    de usuarios y su baja).
-
-  El contenedor rechaza la llamada con `EJBAccessException` si el caller
-  no autenticó con ese rol; la vista atrapa esa excepción y la traduce a
-  un mensaje de negocio (WildFly igual deja el rechazo en su log como
-  `ERROR ... WFLYEJB0034`: es el comportamiento esperado).
-- Cuando la regla depende de un dato y no solo del rol, el EJB consulta el
-  rol en código con `SessionContext.isCallerInRole(...)` — es el caso de
-  `UsuarioService.puedeElegirRol()` (ver la sección Seguridad arriba).
-- En la vista, `SesionBean.exigirSesion()` actúa como gatekeeper de
-  página completa (vía `<f:viewAction>` en cada `.xhtml` protegido):
-  redirige a `login.xhtml` antes de renderizar nada si no hay sesión
-  iniciada. Es un control de UX, no de seguridad — la autorización real
-  siempre la impone el `@RolesAllowed` del lado del EJB.
+- [Arquitectura](docs/ARQUITECTURA.md): capas, componentes, interfaces y estados del pedido.
+- [Patrones de diseño](docs/PATRONES.md)
+- [Seguridad](docs/SEGURIDAD.md)
+- [Transacciones](docs/TRANSACCIONES.md)
+- [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP y REST.
+- [Mensajería asincrónica](docs/MENSAJERIA-ASINCRONICA.md): cola y tópico.
+- [Decisiones (ADRs)](docs/DECISIONES.md)
 
 ## Cómo levantar el sistema
 
@@ -373,6 +116,17 @@ se comporta como una conexión normal y funciona sin este problema.
 
 `hibernate.hbm2ddl.auto=update` crea/actualiza las tablas solo al
 desplegar: no hace falta correr ningún script de esquema.
+
+**Excepción: valores nuevos en un enum.** Hibernate crea las columnas
+`@Enumerated(EnumType.STRING)` con un `CHECK` que enumera los valores
+válidos, y `update` no lo vuelve a generar cuando el enum crece. Si la
+tabla ya existía, al usar un valor nuevo (por ejemplo `EN_CAMINO` en
+`EstadoPedido`) el `UPDATE` falla por violación del check. Se resuelve
+una vez, borrando el check viejo desde el SQL Editor de Supabase:
+
+```sql
+ALTER TABLE pedidos DROP CONSTRAINT IF EXISTS pedidos_estado_check;
+```
 
 ### 3. Usuario de management (una sola vez)
 

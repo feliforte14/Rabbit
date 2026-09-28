@@ -1,0 +1,86 @@
+# Registro de decisiones (ADRs)
+
+Formato: contexto → decisión → consecuencias. Estado: Aceptada,
+Propuesta o Reemplazada.
+
+## ADR-001: Cola JMS + polling de respaldo para sincronizar pedidos
+
+- **Estado:** Aceptada.
+- **Contexto:** los pedidos externos se sincronizaban solo por polling
+  (hasta 1 minuto de demora). Pasar a mensajes agrega el riesgo de perder
+  alguno.
+- **Decisión:** la cola es el camino principal; `SincronizadorDePedidos`
+  sigue como red de contención. La concurrencia entre los dos se resuelve
+  con `PESSIMISTIC_WRITE` y el flag `sincronizado`.
+- **Consecuencias:** latencia casi nula en el caso normal y ningún pedido
+  huérfano si falla el broker. A cambio hay dos disparadores, y por eso
+  `sincronizarPedidoExterno` tiene que ser idempotente.
+
+## ADR-002: El envío del mensaje no comparte transacción con el guardado
+
+- **Estado:** Aceptada.
+- **Contexto:** si el `send` JMS se suma a la transacción del INSERT, una
+  falla del broker deshace un pedido válido.
+- **Decisión:** evento CDI observado con `AFTER_SUCCESS` +
+  `@TransactionAttribute(NOT_SUPPORTED)` en el publicador.
+- **Consecuencias:** el mensaje sale solo si el pedido existe, y una
+  falla del broker no afecta al pedido. Existe una ventana donde el pedido
+  se guardó pero el mensaje no salió; la cubre el polling (ADR-001). Se
+  descartó XA/outbox por complejidad.
+
+## ADR-003: Timeout del padrón fiscal no bloquea el alta
+
+- **Estado:** Aceptada.
+- **Contexto:** el padrón es un sistema ajeno; puede no responder.
+- **Decisión:** timeout de 5 s; si vence, se guarda el comercio con
+  `cuitValidado = false`. Solo el Fault `CuitInexistente` bloquea el alta.
+- **Consecuencias:** disponibilidad de Rabbit independiente del legado. Quedan
+  comercios sin CUIT confirmado; una revalidación periódica queda
+  propuesta para la Entrega Final (resiliencia).
+
+## ADR-004: Importe y medio de pago vienen del ERP
+
+- **Estado:** Aceptada.
+- **Contexto:** para cobrar hace falta un importe, pero Rabbit no puede
+  calcularlo: `ItemInventario` no referencia a `Producto` (que tiene
+  precio), y lo que se retira de un punto de picking es texto libre.
+- **Decisión:** el ERP del comercio manda `importe` y `medioPago` en el
+  pedido externo; se copian al `Pedido` al sincronizar.
+- **Consecuencias:** Rabbit cobra lo que el comercio vendió, sin mantener
+  precios propios. Las columnas son nullable: los pedidos anteriores
+  quedan sin importe.
+
+## ADR-005: Máquina de estados del pedido en el enum
+
+- **Estado:** Aceptada.
+- **Contexto:** se agregan `EN_CAMINO` y `ENTREGADO`; las reglas de
+  transición estaban repartidas en cada operación.
+- **Decisión:** `EstadoPedido.puedePasarA` + un único
+  `PedidoService.cambiarEstado`. No se usa el patrón State completo.
+- **Consecuencias:** una sola regla para validar y para disparar el
+  evento de cambio de estado. `cancelarPedido` deja de aceptar pedidos
+  `EN_CAMINO` o `ENTREGADO`.
+- **Nota de despliegue:** Hibernate crea un `CHECK` con los valores del
+  enum que `hbm2ddl=update` no regenera; ver README (sección "Cómo
+  levantar el sistema").
+
+## ADR-006: Tópico para los cambios de estado del pedido
+
+- **Estado:** Propuesta (Entrega 2).
+- **Contexto:** Notificaciones y Pagos necesitan enterarse de los cambios
+  de estado, cada uno por su motivo.
+- **Decisión:** tópico `topico.pedidos.estado` con el formato de
+  `EstadoPedidoCambiado`; orden resuelto por `fechaCambio` en cada
+  suscriptor.
+- **Consecuencias:** Pedidos no conoce a sus suscriptores. Cada suscriptor
+  tiene que ser idempotente y tolerar desorden.
+
+## ADR-007: Endpoint REST de entrada reemplaza al formulario del ERP
+
+- **Estado:** Propuesta (Entrega 2).
+- **Contexto:** el formulario JSF no marca una frontera real entre el ERP
+  y Rabbit.
+- **Decisión:** `POST /api/pedidos-externos` llama al mismo
+  `registrarPedidoExterno`.
+- **Consecuencias:** cola, polling y sincronización no cambian. Hay que
+  definir cómo se autentica el partner.
