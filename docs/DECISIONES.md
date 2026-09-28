@@ -144,3 +144,23 @@ Propuesta o Reemplazada.
   del banco el pedido no se confirma. Se descartaron la clave de
   idempotencia y la consulta de estado tras un timeout, por simplicidad;
   quedan como limitación conocida.
+
+## ADR-011: Circuit breaker propio frente al banco legado
+
+- **Estado:** Aceptada.
+- **Contexto:** con el banco caído o colgado, cada confirmación PREPAGO
+  bloquea un hilo durante los 5 s del timeout para terminar sin
+  confirmar. Con carga, la caída del banco agota el pool de WildFly y
+  arrastra al resto de la plataforma.
+- **Decisión:** `BancoClient` consulta a `CircuitBreakerBanco`
+  (`@Singleton`, estado en memoria) antes de cada llamada. Tras 3 fallas
+  seguidas (sin respuesta, no rechazos) se abre y se contesta
+  `NO_DISPONIBLE` al instante; a los 30 s pasa a semiabierto y deja
+  pasar una llamada de prueba. Implementado a mano en vez de con
+  MicroProfile Fault Tolerance, que no viene en `standalone-full`.
+- **Consecuencias:** con el banco caído, los pedidos PREPAGO fallan en
+  milisegundos y el resto de Rabbit no se degrada. Durante los 30 s de
+  espera se rechazan confirmaciones aunque el banco ya haya vuelto. Las
+  reversas con el circuito abierto no se intentan y quedan para hacer a
+  mano (mismo límite que ADR-010). En un cluster cada nodo tiene su
+  propio circuito.

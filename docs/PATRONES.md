@@ -49,7 +49,8 @@ qué alternativa se descartó.
 - **Problema:** una tarea periódica corriendo en varias instancias a la
   vez procesaría las mismas filas dos veces.
 - **Dónde:** `BarredorDeReservas` y `SincronizadorDePedidos`
-  (`@Singleton @Startup` + `@Schedule`).
+  (`@Singleton @Startup` + `@Schedule`). También `CircuitBreakerBanco`,
+  cuyo estado tiene que ser uno solo para todas las llamadas al banco.
 
 ## Provider (`Instance<T>` como fábrica)
 
@@ -106,3 +107,15 @@ qué alternativa se descartó.
   `AFTER_FAILURE` y le pide al banco `reversarPago`.
 - **Descartado:** meter al banco en una transacción distribuida (XA/2PC):
   un sistema legado por SOAP no participa de la transacción de Rabbit.
+
+## Circuit Breaker
+
+- **Problema:** con el banco legado colgado, cada confirmación PREPAGO
+  espera los 5 s del timeout para fallar igual; con carga, los hilos
+  bloqueados agotan el pool y la caída del banco tira al resto de Rabbit.
+- **Dónde:** `CircuitBreakerBanco` (`@Singleton`), consultado por
+  `BancoClient` antes de cada llamada SOAP. Tras 3 fallas seguidas se
+  abre y las llamadas fallan al instante; a los 30 s deja pasar una de
+  prueba. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md).
+- **Descartado:** `@CircuitBreaker` de MicroProfile Fault Tolerance: no
+  viene en `standalone-full` de WildFly (ADR-011).
