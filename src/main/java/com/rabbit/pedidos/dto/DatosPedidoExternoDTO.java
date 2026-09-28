@@ -1,6 +1,8 @@
 package com.rabbit.pedidos.dto;
 
+import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,6 +22,9 @@ public class DatosPedidoExternoDTO {
     public OrigenPedido origen = OrigenPedido.STOCK_CONSIGNADO;
     public Long idPuntoPicking;
     public List<DatosLineaPedidoDTO> lineas = new ArrayList<>();
+    // Total de la venta que cerró el comercio y cómo la cobra (ver PedidoExterno).
+    public BigDecimal importe;
+    public MedioPago medioPago = MedioPago.CONTRA_ENTREGA;
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public Long getIdComercio() { return idComercio; }
@@ -30,4 +35,8 @@ public class DatosPedidoExternoDTO {
     public void setIdPuntoPicking(Long idPuntoPicking) { this.idPuntoPicking = idPuntoPicking; }
     public List<DatosLineaPedidoDTO> getLineas() { return lineas; }
     public void setLineas(List<DatosLineaPedidoDTO> lineas) { this.lineas = lineas; }
+    public BigDecimal getImporte() { return importe; }
+    public void setImporte(BigDecimal importe) { this.importe = importe; }
+    public MedioPago getMedioPago() { return medioPago; }
+    public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
 }

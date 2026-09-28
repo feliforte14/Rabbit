@@ -23,6 +23,7 @@ import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.dto.DepositoDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
 import com.rabbit.inventario.negocio.IConsultaStock;
+import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
@@ -156,6 +157,11 @@ public class PedidoBean implements Serializable {
         return OrigenPedido.values();
     }
 
+    // Valores del enum para el desplegable de medio de pago en pedidos.xhtml.
+    public MedioPago[] getMediosPago() {
+        return MedioPago.values();
+    }
+
     // Crea la fila mock "recién llegada del ERP" (PedidoExterno), NO un
     // pedido real: el pedido real lo genera SincronizadorDePedidos cuando
     // la levanta en su próxima pasada.
@@ -177,6 +183,28 @@ public class PedidoBean implements Serializable {
         try {
             gestion.confirmarPedido(idPedido);
             mensaje(FacesMessage.SEVERITY_INFO, "Pedido confirmado");
+            cargar();
+        } catch (ValidacionException e) {
+            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        }
+    }
+
+    // El repartidor retiró el pedido: CONFIRMADO → EN_CAMINO (ver EstadoPedido).
+    public void despachar(Long idPedido) {
+        try {
+            gestion.despacharPedido(idPedido);
+            mensaje(FacesMessage.SEVERITY_INFO, "Pedido en camino");
+            cargar();
+        } catch (ValidacionException e) {
+            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        }
+    }
+
+    // El repartidor entregó el pedido: EN_CAMINO → ENTREGADO.
+    public void entregar(Long idPedido) {
+        try {
+            gestion.registrarEntrega(idPedido);
+            mensaje(FacesMessage.SEVERITY_INFO, "Pedido entregado");
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());

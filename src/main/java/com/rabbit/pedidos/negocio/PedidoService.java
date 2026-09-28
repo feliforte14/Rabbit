@@ -34,19 +34,15 @@ package com.rabbit.pedidos.negocio;
  * existiendo, solo que ahora la abre y cierra este método en vez de una
  * sesión de usuario como hace ReservaBean.
  *
- * POR QUÉ ACÁ CONVIVEN @Transactional Y @TransactionAttribute
+ * TRANSACCIONES: @TransactionAttribute, NUNCA @Transactional
  * Esta clase es un EJB (@Stateless), y en un EJB las transacciones las
  * gobierna el contenedor vía @TransactionAttribute (jakarta.ejb), no vía
  * @Transactional (jakarta.transaction), que es la anotación de los beans
- * CDI comunes. Los métodos marcados solo con @Transactional funcionan
- * igual porque el default de todo método de negocio de un EJB ya es
- * REQUIRED — la anotación no aporta nada, es el default el que actúa.
- *
- * Eso alcanza mientras REQUIRED sea lo que se quiere. No alcanza para
- * sincronizarPedidoExterno ni descartarPedidoExterno, que necesitan
- * REQUIRES_NEW: ahí sí hay que usar @TransactionAttribute, porque
- * @Transactional(REQUIRES_NEW) sobre un EJB se ignora en silencio y el
- * método seguiría corriendo en la transacción del llamador.
+ * CDI comunes y sobre un EJB se ignora en silencio: un
+ * @Transactional(REQUIRES_NEW) seguiría corriendo en la transacción del
+ * llamador. Las operaciones comunes van con REQUIRED (el default, puesto
+ * explícito); sincronizarPedidoExterno y descartarPedidoExterno necesitan
+ * REQUIRES_NEW.
  *
  * Por qué necesitan transacción propia: SincronizadorDePedidos recorre
  * varias filas del mock en una sola pasada. Si una falla con
@@ -97,8 +93,8 @@ import jakarta.ejb.TransactionAttributeType;
 import jakarta.enterprise.event.Event;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -128,12 +124,17 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Inject
     private Event<PedidoExternoRegistrado> pedidoExternoRegistrado;
 
+    // Aviso de "un pedido cambió de estado" (ver cambiarEstado). Es el
+    // formato que va a salir por topico.pedidos.estado.
+    @Inject
+    private Event<EstadoPedidoCambiado> estadoPedidoCambiado;
+
     // ===============================================================
     // IGestionPedidos — el Facade
     // ===============================================================
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public Long registrarPedidoExterno(DatosPedidoExternoDTO datos) {
         if (datos.idComercio == null) {
             throw new ValidacionException("Debe indicar el comercio del pedido");
@@ -141,11 +142,19 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (datos.lineas == null || datos.lineas.isEmpty()) {
             throw new ValidacionException("El pedido debe tener al menos un producto");
         }
+        if (datos.importe == null || datos.importe.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new ValidacionException("El importe del pedido debe ser mayor a cero");
+        }
+        if (datos.medioPago == null) {
+            throw new ValidacionException("Debe indicar el medio de pago del pedido");
+        }
         OrigenPedido origen = datos.origen != null ? datos.origen : OrigenPedido.STOCK_CONSIGNADO;
 
         PedidoExterno externo = new PedidoExterno();
         externo.setIdComercio(datos.idComercio);
         externo.setOrigen(origen);
+        externo.setImporte(datos.importe);
+        externo.setMedioPago(datos.medioPago);
         externo.setFechaPedido(LocalDateTime.now());
         externo.setSincronizado(false);
 
@@ -219,6 +228,8 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         Pedido pedido = new Pedido();
         pedido.setIdComercio(externo.getIdComercio());
         pedido.setOrigen(externo.getOrigen());
+        pedido.setImporte(externo.getImporte());
+        pedido.setMedioPago(externo.getMedioPago());
         pedido.setEstado(EstadoPedido.PENDIENTE);
         pedido.setFechaCreacion(ahora);
         pedido.setFechaActualizacion(ahora);
@@ -277,6 +288,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setLineas(lineasPedido);
 
         repository.guardarPedido(pedido);
+        avisarCambioDeEstado(pedido);
 
         externo.setSincronizado(true);
         repository.actualizarPedidoExterno(externo);
@@ -310,24 +322,33 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     }
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void confirmarPedido(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
-        if (pedido.getEstado() != EstadoPedido.PENDIENTE) {
-            throw new ValidacionException("Solo se puede confirmar un pedido PENDIENTE");
-        }
-        pedido.setEstado(EstadoPedido.CONFIRMADO);
-        pedido.setFechaActualizacion(LocalDateTime.now());
-        repository.actualizarPedido(pedido);
+        cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
     }
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public void despacharPedido(Long idPedido) {
+        Pedido pedido = obtenerOFallar(idPedido);
+        cambiarEstado(pedido, EstadoPedido.EN_CAMINO);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public void registrarEntrega(Long idPedido) {
+        Pedido pedido = obtenerOFallar(idPedido);
+        cambiarEstado(pedido, EstadoPedido.ENTREGADO);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void cancelarPedido(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
-        if (pedido.getEstado() == EstadoPedido.CANCELADO) {
-            throw new ValidacionException("El pedido ya está cancelado");
-        }
+        // Se valida antes de devolver el stock: si el pedido ya está
+        // EN_CAMINO o ENTREGADO, la mercadería no está para devolverla.
+        validarTransicion(pedido, EstadoPedido.CANCELADO);
 
         // El stock de cada línea con reserva se descontó al sincronizarla
         // (reservar + confirmar juntos). Cancelar sin devolverlo dejaría la
@@ -350,9 +371,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             }
         }
 
-        pedido.setEstado(EstadoPedido.CANCELADO);
-        pedido.setFechaActualizacion(LocalDateTime.now());
-        repository.actualizarPedido(pedido);
+        cambiarEstado(pedido, EstadoPedido.CANCELADO);
     }
 
     // ===============================================================
@@ -409,6 +428,31 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             throw new ValidacionException("Pedido externo no encontrado: " + id);
         }
         return externo;
+    }
+
+    // Único lugar donde cambia el estado de un pedido ya existente: valida
+    // la transición contra la máquina de estados (EstadoPedido.puedePasarA)
+    // y avisa el cambio.
+    private void cambiarEstado(Pedido pedido, EstadoPedido destino) {
+        validarTransicion(pedido, destino);
+        pedido.setEstado(destino);
+        pedido.setFechaActualizacion(LocalDateTime.now());
+        repository.actualizarPedido(pedido);
+        avisarCambioDeEstado(pedido);
+    }
+
+    private void validarTransicion(Pedido pedido, EstadoPedido destino) {
+        if (!pedido.getEstado().puedePasarA(destino)) {
+            throw new ValidacionException("El pedido " + pedido.getId() + " está " + pedido.getEstado()
+                    + " y no puede pasar a " + destino);
+        }
+    }
+
+    // Todavía no hay observer: lo va a escuchar el publicador del tópico
+    // (AFTER_SUCCESS), así que si la transacción se deshace el aviso no sale.
+    private void avisarCambioDeEstado(Pedido pedido) {
+        estadoPedidoCambiado.fire(new EstadoPedidoCambiado(
+                pedido.getId(), pedido.getIdComercio(), pedido.getEstado(), pedido.getFechaActualizacion()));
     }
 
     // Confirma que el punto de picking exista, pertenezca a ESE comercio y

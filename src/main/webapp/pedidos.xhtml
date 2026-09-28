@@ -55,6 +55,17 @@
                     #{p.cantidadTotal}
                 </h:column>
                 <h:column>
+                    <f:facet name="header">Importe</f:facet>
+                    <h:outputText value="#{p.importe}" rendered="#{not empty p.importe}">
+                        <f:convertNumber type="currency" currencySymbol="$" />
+                    </h:outputText>
+                    <h:outputText value="—" rendered="#{empty p.importe}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Pago</f:facet>
+                    #{p.medioPago == 'PREPAGO' ? 'Prepago' : (p.medioPago == 'CONTRA_ENTREGA' ? 'Contra entrega' : '—')}
+                </h:column>
+                <h:column>
                     <f:facet name="header">Estado</f:facet>
                     #{p.estado}
                 </h:column>
@@ -67,9 +78,15 @@
                     <h:commandButton value="Confirmar" styleClass="btn btn-secondary"
                                      action="#{pedidoBean.confirmar(p.id)}"
                                      rendered="#{p.estado == 'PENDIENTE'}" />
+                    <h:commandButton value="Despachar" styleClass="btn btn-secondary"
+                                     action="#{pedidoBean.despachar(p.id)}"
+                                     rendered="#{p.estado == 'CONFIRMADO'}" />
+                    <h:commandButton value="Entregar" styleClass="btn btn-secondary"
+                                     action="#{pedidoBean.entregar(p.id)}"
+                                     rendered="#{p.estado == 'EN_CAMINO'}" />
                     <h:commandButton value="Cancelar" styleClass="btn btn-danger"
                                      action="#{pedidoBean.cancelar(p.id)}"
-                                     rendered="#{p.estado != 'CANCELADO'}" />
+                                     rendered="#{p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO'}" />
                 </h:column>
             </h:dataTable>
         </h:form>
@@ -157,6 +174,25 @@
                     "Punto de picking" asume que el comercio ya validó el pedido en su propia
                     sucursal: Rabbit no reserva stock, solo coordina el retiro para transportarlo.
                 </p>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="importe" value="Importe" />
+                <h:inputText id="importe" value="#{pedidoBean.nuevoPedido.importe}"
+                             required="true" label="Importe"
+                             requiredMessage="Ingresá el importe del pedido"
+                             converterMessage="El importe tiene que ser un número">
+                    <f:convertNumber pattern="#0.##" parseBigDecimal="true" />
+                </h:inputText>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="medioPago" value="Medio de pago" />
+                <h:selectOneMenu id="medioPago" value="#{pedidoBean.nuevoPedido.medioPago}">
+                    <f:selectItems value="#{pedidoBean.mediosPago}" var="m"
+                                   itemValue="#{m}"
+                                   itemLabel="#{m == 'PREPAGO' ? 'Prepago (ya pagó)' : 'Contra entrega (cobra el repartidor)'}" />
+                </h:selectOneMenu>
             </div>
 
             <h:panelGroup id="camposOrigen" layout="block">

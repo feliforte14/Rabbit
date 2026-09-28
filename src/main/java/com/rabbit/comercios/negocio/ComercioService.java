@@ -11,8 +11,10 @@ package com.rabbit.comercios.negocio;
  * un pool de instancias de esta clase. Cada request toma una instancia libre,
  * la usa y la devuelve — sin estado entre llamadas. Esto escala bien.
  *
- * @Transactional garantiza que cada operación de escritura sea atómica:
- * si algo falla a mitad, la BD vuelve al estado anterior (rollback automático).
+ * @TransactionAttribute(REQUIRED) garantiza que cada operación de escritura
+ * sea atómica: si algo falla a mitad, la BD vuelve al estado anterior
+ * (rollback automático). Es el default de un EJB; se deja explícito para
+ * que se lea en el código (ver docs/TRANSACCIONES.md).
  *
  * ComercioService implementa las dos interfaces de negocio del componente
  * ServicioDeComercios:
@@ -39,7 +41,8 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -85,7 +88,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
      * @throws ValidacionException si algún dato es inválido o el CUIT ya existe
      */
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public Long registrarComercio(DatosComercioDTO datos) {
         validarNombre(datos.nombre);
         validarRazonSocial(datos.razonSocial);
@@ -113,7 +116,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
      * @throws ValidacionException si el comercio no existe o los datos son inválidos
      */
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void actualizarDatosFiscales(Long idComercio, DatosFiscalesDTO datos) {
         Comercio comercio = obtenerOFallar(idComercio);
         validarRazonSocial(datos.razonSocial);
@@ -200,7 +203,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // Arrastra la baja a sus puntos de picking — uno no puede quedar
     // activo si el comercio dueño no lo está.
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void darDeBajaComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
         comercio.setActivo(false);
@@ -214,7 +217,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
 
     // Reactiva un comercio dado de baja previamente — vuelve a activo=true
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void reactivarComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
         comercio.setActivo(true);
@@ -225,7 +228,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
 
     // Da de alta un punto de picking nuevo sobre un comercio existente
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public Long registrarPuntoPicking(Long idComercio, DatosPuntoPickingDTO datos) {
         Comercio comercio = obtenerOFallar(idComercio);
         if (!comercio.isActivo()) {
@@ -244,7 +247,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
 
     // Baja lógica de un punto de picking — sigue en la BD pero activa=false
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void darDeBajaPuntoPicking(Long idPuntoPicking) {
         PuntoPicking puntoPicking = obtenerPuntoPickingOFallar(idPuntoPicking);
         puntoPicking.setActiva(false);
@@ -255,7 +258,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // sentido si el comercio dueño sigue de baja — primero hay que
     // reactivar el comercio.
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void reactivarPuntoPicking(Long idPuntoPicking) {
         PuntoPicking puntoPicking = obtenerPuntoPickingOFallar(idPuntoPicking);
         if (!puntoPicking.getComercio().isActivo()) {
@@ -338,7 +341,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // pérdidas de datos accidentales, solo se permite si el comercio ya
     // fue dado de baja (activo=false) previamente.
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed("ADMINISTRADOR")
     public void eliminarComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);

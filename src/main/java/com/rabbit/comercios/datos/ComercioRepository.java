@@ -18,7 +18,7 @@ package com.rabbit.comercios.datos;
  * apunta al datasource JNDI configurado en WildFly). Al ser @ApplicationScoped
  * y usar transacciones JTA administradas por el contenedor, el repository no
  * necesita abrir ni cerrar transacciones ni conexiones manualmente — eso lo
- * resuelve el @Transactional de ComercioService.
+ * resuelve el @TransactionAttribute de ComercioService.
  *
  * Al aislar el acceso a datos acá, si mañana cambiamos de motor de BD
  * o de JPA a otra tecnología, solo se toca esta capa.

@@ -48,7 +48,8 @@ import jakarta.ejb.Schedule;
 import jakarta.ejb.Singleton;
 import jakarta.ejb.Startup;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -77,7 +78,7 @@ public class BarredorDeReservas {
      * pasada.
      */
     @Schedule(hour = "*", minute = "*", second = "0", persistent = false)
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void liberarReservasVencidas() {
         List<ReservaStock> vencidas = repository.listarReservasVencidas(LocalDateTime.now());
         if (vencidas.isEmpty()) {

@@ -7,6 +7,8 @@ package com.rabbit.pedidos.dto;
 
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
+import com.rabbit.pagos.dto.MedioPago;
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -20,6 +22,8 @@ public class PedidoDTO {
     public OrigenPedido origen;
     public Long idPuntoPicking;
     public List<LineaPedidoDTO> lineas;
+    public BigDecimal importe;
+    public MedioPago medioPago;
     public String estado;
     public String fechaCreacion;
 
@@ -30,6 +34,8 @@ public class PedidoDTO {
         dto.idComercio = p.getIdComercio();
         dto.origen = p.getOrigen();
         dto.idPuntoPicking = p.getIdPuntoPicking();
+        dto.importe = p.getImporte();
+        dto.medioPago = p.getMedioPago();
         dto.lineas = p.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
         dto.estado = p.getEstado() != null ? p.getEstado().name() : null;
         dto.fechaCreacion = p.getFechaCreacion() != null ? p.getFechaCreacion().format(FORMATO) : null;
@@ -53,6 +59,8 @@ public class PedidoDTO {
     public OrigenPedido getOrigen() { return origen; }
     public Long getIdPuntoPicking() { return idPuntoPicking; }
     public List<LineaPedidoDTO> getLineas() { return lineas; }
+    public BigDecimal getImporte() { return importe; }
+    public MedioPago getMedioPago() { return medioPago; }
     public String getEstado() { return estado; }
     public String getFechaCreacion() { return fechaCreacion; }
 }
