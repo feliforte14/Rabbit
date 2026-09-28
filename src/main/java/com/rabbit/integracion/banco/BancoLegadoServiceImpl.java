@@ -14,6 +14,11 @@ package com.rabbit.integracion.banco;
  *
  * Regla determinística para la demo: un pago de más de $500.000 se
  * rechaza (supera el límite); cualquier otro se autoriza.
+ *
+ * Para demostrar el circuit breaker (ver CircuitBreakerBanco), con la
+ * system property rabbit.banco.simular.caida=true el banco se "cuelga":
+ * tarda 10 s, más que el timeout de 5 s del cliente, y no procesa el
+ * pedido. Se prende y apaga en caliente desde jboss-cli, sin redesplegar.
  */
 
 import jakarta.jws.WebService;
@@ -39,8 +44,11 @@ public class BancoLegadoServiceImpl implements BancoLegadoService {
     // código de autorización -> "referencia importe AUTORIZADO|REVERSADO"
     private static final Map<String, String> MOVIMIENTOS = new ConcurrentHashMap<>();
 
+    private static final long DEMORA_SIMULADA_MS = 10_000L;
+
     @Override
     public String autorizarPago(String referencia, BigDecimal importe) throws PagoRechazadoException {
+        simularCaidaSiCorresponde();
         if (importe == null || importe.compareTo(LIMITE) > 0) {
             String motivo = "El importe supera el límite de $" + LIMITE.toPlainString();
             LOG.info("[Banco legado] Rechazado el pago de " + referencia + ": " + motivo);
@@ -54,11 +62,27 @@ public class BancoLegadoServiceImpl implements BancoLegadoService {
 
     @Override
     public void reversarPago(String codigoAutorizacion) {
+        simularCaidaSiCorresponde();
         String movimiento = MOVIMIENTOS.get(codigoAutorizacion);
         if (movimiento == null || movimiento.endsWith("REVERSADO")) {
             return;
         }
         MOVIMIENTOS.put(codigoAutorizacion, movimiento.replace("AUTORIZADO", "REVERSADO"));
         LOG.info("[Banco legado] Reversado " + codigoAutorizacion + " (" + movimiento.replace(" AUTORIZADO", "") + ")");
+    }
+
+    private static void simularCaidaSiCorresponde() {
+        if (!Boolean.getBoolean("rabbit.banco.simular.caida")) {
+            return;
+        }
+        LOG.info("[Banco legado] Caída simulada: se demora " + DEMORA_SIMULADA_MS + " ms y no procesa nada");
+        try {
+            Thread.sleep(DEMORA_SIMULADA_MS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        // Falla en vez de seguir: si autorizara después de la demora, cada
+        // intento dejaría un cobro huérfano (el cliente ya cortó por timeout).
+        throw new IllegalStateException("Banco fuera de servicio (caída simulada)");
     }
 }

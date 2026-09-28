@@ -24,6 +24,7 @@ errores de negocio tipados (`soap:Fault`).
 | `PagoRechazadoException` + `PagoRechazadoFaultInfo` | Fault de negocio con el motivo del rechazo |
 | `IBancoClient` | Lo único que conoce `PagoService` |
 | `BancoClient` | Adapter: cliente JAX-WS (proxy dinámico con `Service.getPort`, sin wsimport), timeout de 5 s |
+| `CircuitBreakerBanco` | Circuit breaker (`@Singleton`): con el banco caído, corta las llamadas sin esperar el timeout |
 | `ReversasBancarias` | Pide las reversas (compensación y devoluciones) |
 
 Endpoint: `http://localhost:8080/Rabbit/BancoLegadoService` (WSDL en
@@ -58,6 +59,9 @@ sequenceDiagram
         Pag->>PS: ValidacionException → rollback, nada que reversar
     else sin respuesta (timeout)
         Pag->>PS: ValidacionException → el pedido sigue PENDIENTE
+    else circuito abierto (el banco viene fallando)
+        Note over Pag,B: no se llama al banco
+        Pag->>PS: ValidacionException al instante → el pedido sigue PENDIENTE
     end
 ```
 
@@ -68,6 +72,7 @@ sequenceDiagram
 | El banco aprueba y todo sale bien | Pedido CONFIRMADO, cobro ACREDITADO con el código del banco |
 | El banco rechaza (`soap:Fault`) | El pedido sigue PENDIENTE; el usuario ve el motivo del banco |
 | El banco no responde (5 s) | El pedido sigue PENDIENTE: sin respuesta no se sabe si cobró |
+| El banco falló 3 veces seguidas (circuito abierto) | El pedido sigue PENDIENTE **al instante**, sin llamar al banco ni esperar el timeout |
 | El banco aprueba pero después falla Rabbit (no hay repartidor) | Rollback en Rabbit **y reversa en el banco** (transacción compensatoria) |
 | Un administrador cancela un pedido PREPAGO confirmado | Cobro ANULADO y, cuando la cancelación queda confirmada, reversa en el banco |
 
@@ -82,6 +87,51 @@ JMS pero reaccionando al fracaso:
 - `PagoAutorizado` + `AFTER_FAILURE`: la transacción que cobró se deshizo.
 - `CobroAnulado` + `AFTER_SUCCESS`: la cancelación ya quedó confirmada.
 
+### Circuit breaker
+
+Si el banco está colgado, cada confirmación de un pedido PREPAGO espera
+los 5 s del timeout para terminar igual: sin confirmar. Con muchos
+usuarios a la vez, esos hilos bloqueados agotan el pool de WildFly y la
+caída del banco se contagia al resto de Rabbit. `CircuitBreakerBanco`
+lo evita:
+
+```mermaid
+stateDiagram-v2
+    [*] --> CERRADO
+    CERRADO --> ABIERTO: 3 fallas seguidas
+    ABIERTO --> SEMIABIERTO: pasaron 30 s
+    SEMIABIERTO --> CERRADO: la llamada de prueba responde
+    SEMIABIERTO --> ABIERTO: la llamada de prueba falla
+```
+
+- **CERRADO:** las llamadas pasan; se cuentan las fallas seguidas.
+- **ABIERTO:** `BancoClient` contesta `NO_DISPONIBLE` sin llamar al banco.
+- **SEMIABIERTO:** pasa **una** llamada de prueba; las demás se siguen
+  cortando hasta saber si el banco volvió.
+
+Cuenta como falla que el banco **no conteste** (timeout, conexión
+rechazada, error del servidor). Un rechazo de negocio (`soap:Fault
+PagoRechazado`) es una respuesta, así que cuenta como éxito. Las
+reversas pasan por el mismo circuito: con el circuito abierto no se
+intentan y quedan logueadas para devolverlas a mano, igual que si el
+banco no respondiera.
+
+Umbral y espera se configuran con las system properties
+`rabbit.banco.cb.umbral` (3) y `rabbit.banco.cb.espera.ms` (30000).
+
+**Cómo mostrarlo:** el banco simulado se "cuelga" (tarda 10 s, más que
+el timeout, y no procesa nada) con la system property `rabbit.banco.simular.caida`, que se
+prende y apaga en caliente:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.banco.simular.caida:add(value=true)"
+# confirmar 4 pedidos PREPAGO: los 3 primeros tardan 5 s, el 4.º falla al instante
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.banco.simular.caida:remove"
+# a los 30 s, el próximo pedido prueba al banco y el circuito se cierra
+```
+
+En el log se ven las transiciones con el prefijo `[Pagos][Circuito]`.
+
 ### Limitaciones conocidas
 
 - Si el banco cobró pero la respuesta se perdió por timeout, ese cobro
@@ -92,6 +142,8 @@ JMS pero reaccionando al fracaso:
 - El banco simulado guarda sus movimientos en memoria: se pierden al
   redesplegar.
 - La primera descarga del WSDL (`Service.create`) no tiene timeout propio.
+- El estado del circuito vive en memoria de cada servidor: en un cluster
+  cada nodo descubre la caída por su cuenta.
 
 ## REST: API para el ERP de los comercios y seguimiento público (implementado)
 
