@@ -8,6 +8,8 @@ package com.rabbit.pedidos.dto;
 
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
+import com.rabbit.pagos.dto.MedioPago;
+import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,6 +23,8 @@ public class PedidoExternoDTO {
     public OrigenPedido origen;
     public Long idPuntoPicking;
     public List<LineaPedidoDTO> lineas;
+    public BigDecimal importe;
+    public MedioPago medioPago;
     public String fechaPedido;
     public boolean sincronizado;
     public String errorSincronizacion;
@@ -33,6 +37,8 @@ public class PedidoExternoDTO {
         dto.idComercio = pe.getIdComercio();
         dto.origen = pe.getOrigen();
         dto.idPuntoPicking = pe.getIdPuntoPicking();
+        dto.importe = pe.getImporte();
+        dto.medioPago = pe.getMedioPago();
         dto.lineas = pe.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
         dto.fechaPedido = pe.getFechaPedido() != null ? pe.getFechaPedido().format(FORMATO) : null;
         dto.sincronizado = pe.isSincronizado();
@@ -70,6 +76,8 @@ public class PedidoExternoDTO {
     public OrigenPedido getOrigen() { return origen; }
     public Long getIdPuntoPicking() { return idPuntoPicking; }
     public List<LineaPedidoDTO> getLineas() { return lineas; }
+    public BigDecimal getImporte() { return importe; }
+    public MedioPago getMedioPago() { return medioPago; }
     public String getFechaPedido() { return fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }

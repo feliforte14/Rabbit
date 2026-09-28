@@ -16,7 +16,9 @@ package com.rabbit.pedidos.datos.model;
  * del pedido completo: todas sus líneas salen del mismo lugar.
  */
 
+import com.rabbit.pagos.dto.MedioPago;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -45,6 +47,16 @@ public class Pedido {
     @Enumerated(EnumType.STRING)
     private EstadoPedido estado;
 
+    // Lo que hay que cobrar y cómo, tal como lo mandó el ERP del comercio
+    // (ver PedidoExterno). Lo usa confirmarPedido para registrar el cobro
+    // en ServicioDePagosYCobranzas. Nullable: los pedidos anteriores a
+    // este cambio no lo tienen.
+    @Column(precision = 12, scale = 2)
+    private BigDecimal importe;
+
+    @Enumerated(EnumType.STRING)
+    private MedioPago medioPago;
+
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
 
@@ -62,6 +74,10 @@ public class Pedido {
     public void setLineas(List<LineaPedido> lineas) { this.lineas = lineas; }
     public EstadoPedido getEstado() { return estado; }
     public void setEstado(EstadoPedido estado) { this.estado = estado; }
+    public BigDecimal getImporte() { return importe; }
+    public void setImporte(BigDecimal importe) { this.importe = importe; }
+    public MedioPago getMedioPago() { return medioPago; }
+    public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }

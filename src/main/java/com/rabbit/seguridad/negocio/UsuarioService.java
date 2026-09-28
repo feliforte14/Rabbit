@@ -40,7 +40,8 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.SessionContext;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
-import jakarta.transaction.Transactional;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 
 import java.util.List;
 import java.util.logging.Logger;
@@ -91,7 +92,7 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
      * @throws ValidacionException si el username/password son inválidos o el username ya existe
      */
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public Long registrarUsuario(DatosUsuarioDTO datos) {
         validarUsername(datos.username);
         validarPassword(datos.password);
@@ -132,7 +133,7 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
     }
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed("ADMINISTRADOR")
     public void darDeBaja(Long id) {
         Usuario usuario = obtenerOFallar(id);

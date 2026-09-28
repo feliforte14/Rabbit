@@ -81,6 +81,25 @@ public interface IGestionPedidos {
     void confirmarPedido(Long idPedido);
 
     /**
+     * El repartidor retiró el pedido: CONFIRMADO → EN_CAMINO. Desde acá ya
+     * no se puede cancelar (ver EstadoPedido).
+     *
+     * @param idPedido ID del pedido a despachar
+     * @throws ValidacionException si el pedido no existe o no está CONFIRMADO
+     */
+    void despacharPedido(Long idPedido);
+
+    /**
+     * El repartidor entregó el pedido: EN_CAMINO → ENTREGADO. Con pago
+     * CONTRA_ENTREGA, este cambio es el que dispara el cobro (vía el
+     * tópico de estados, suscriptor de Pagos).
+     *
+     * @param idPedido ID del pedido entregado
+     * @throws ValidacionException si el pedido no existe o no está EN_CAMINO
+     */
+    void registrarEntrega(Long idPedido);
+
+    /**
      * Cancela el pedido y DEVUELVE el stock que había comprometido: por
      * cada línea con origen STOCK_CONSIGNADO llama a
      * IReservaStock.registrarDevolucion() sobre la reserva que quedó
@@ -89,8 +108,8 @@ public interface IGestionPedidos {
      * origen PUNTO_PICKING no reservaron nada y se ignoran.
      *
      * @param idPedido ID del pedido a cancelar
-     * @throws ValidacionException si el pedido no existe, ya está
-     *         CANCELADO, o no se pudo devolver el stock
+     * @throws ValidacionException si el pedido no existe, no está
+     *         PENDIENTE ni CONFIRMADO, o no se pudo devolver el stock
      */
     void cancelarPedido(Long idPedido);
 }

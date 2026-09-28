@@ -55,7 +55,8 @@ import jakarta.ejb.Stateful;
 import jakarta.ejb.StatefulTimeout;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
-import jakarta.transaction.Transactional;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -150,7 +151,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     // ===============================================================
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public ReservaStockDTO reservarStock(Long idComercio, Long idItem, int cantidad) {
         if (hayReservaVigente()) {
             throw new ValidacionException(
@@ -222,7 +223,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     }
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void confirmarReserva() {
         ReservaStock reserva = reservaEnCursoOFallar();
         if (!reserva.estaVigente()) {
@@ -248,7 +249,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     }
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void liberarReserva() {
         ReservaStock reserva = reservaEnCursoOFallar();
 
@@ -270,7 +271,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     }
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void extenderReserva() {
         ReservaStock reserva = reservaEnCursoOFallar();
         if (!reserva.estaVigente()) {
@@ -301,7 +302,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     }
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public void registrarDevolucion(Long idReserva) {
         if (idReserva == null) {
             throw new ValidacionException("Falta el identificador de la reserva a devolver");
@@ -357,7 +358,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     // ===============================================================
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public Long registrarDeposito(DatosDepositoDTO datos) {
         validarNombreDeposito(datos.nombre);
         validarDireccionDeposito(datos.direccion);
@@ -390,7 +391,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
     }
 
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public Long registrarItem(Long idDeposito, DatosItemInventarioDTO datos) {
         Deposito deposito = obtenerDepositoOFallar(idDeposito);
         validarProducto(datos.producto);
@@ -480,14 +481,12 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
      * ReservaStock.item (LAZY) para sacar el deposito, y sin transaccion
      * abierta eso tira LazyInitializationException.
      *
-     * La transaccion la da el contenedor, no la anotacion: este es un EJB
-     * (@Stateful) y todos sus metodos de negocio corren con REQUIRED por
-     * defecto. Se deja @Transactional por consistencia con el resto de la
-     * clase, pero conviene tener presente que en un EJB es decorativa —
-     * ver el comentario de PedidoService, donde esa diferencia si importo.
+     * Este es un EJB (@Stateful): todos sus metodos de negocio ya corren
+     * con REQUIRED por defecto. Se deja @TransactionAttribute(REQUIRED)
+     * explicito por consistencia con el resto de la clase.
      */
     @Override
-    @Transactional
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public List<ReservaStockDTO> listarHistorialReservas(FiltroHistorialDTO filtro) {
         FiltroHistorialDTO criterios = (filtro != null) ? filtro : new FiltroHistorialDTO();
         return repository.listarHistorial(criterios)

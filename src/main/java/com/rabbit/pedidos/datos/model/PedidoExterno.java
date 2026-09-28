@@ -18,7 +18,9 @@ package com.rabbit.pedidos.datos.model;
  * del pedido completo: todas sus líneas salen del mismo lugar.
  */
 
+import com.rabbit.pagos.dto.MedioPago;
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -46,6 +48,16 @@ public class PedidoExterno {
     private List<LineaPedidoExterno> lineas;
 
     private LocalDateTime fechaPedido;
+
+    // El importe y el medio de pago los define el comercio al vender, no
+    // Rabbit: Rabbit no tiene precios de los ítems consignados (ItemInventario
+    // no referencia a Producto) ni de lo que se retira de un punto de
+    // picking. Viajan tal cual al Pedido real al sincronizar.
+    @Column(precision = 12, scale = 2)
+    private BigDecimal importe;
+
+    @Enumerated(EnumType.STRING)
+    private MedioPago medioPago;
 
     // false = todavía no lo tomó el sincronizador. true = ya se procesó y
     // no se vuelve a mirar, sea porque generó su Pedido (errorSincronizacion
@@ -76,6 +88,10 @@ public class PedidoExterno {
     public void setLineas(List<LineaPedidoExterno> lineas) { this.lineas = lineas; }
     public LocalDateTime getFechaPedido() { return fechaPedido; }
     public void setFechaPedido(LocalDateTime fechaPedido) { this.fechaPedido = fechaPedido; }
+    public BigDecimal getImporte() { return importe; }
+    public void setImporte(BigDecimal importe) { this.importe = importe; }
+    public MedioPago getMedioPago() { return medioPago; }
+    public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
     public boolean isSincronizado() { return sincronizado; }
     public void setSincronizado(boolean sincronizado) { this.sincronizado = sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }
