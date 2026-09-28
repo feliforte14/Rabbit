@@ -32,6 +32,10 @@ public class Comercio {
     // confirmó el CUIT como habilitado en el último alta/actualización.
     // false también cuando el padrón no estaba disponible en ese momento
     // (no bloquea el alta, pero queda asentado que no se pudo confirmar).
+    // "default false": hbm2ddl=update agrega esta columna NOT NULL a una
+    // tabla que puede ya tener comercios; sin default, PostgreSQL rechaza
+    // el ALTER TABLE y la aplicación no despliega.
+    @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean cuitValidado;
 
     // La FK vive del lado de PuntoPicking (mappedBy = "comercio"), acá solo
