@@ -27,7 +27,6 @@ public class ComercioDTO {
     public String email;
     public String telefono;
     public boolean activo;
-    public boolean cuitValidado;
     public List<PuntoPickingDTO> puntosPicking;
 
     // Convierte una entidad Comercio en un DTO listo para mostrar en la vista
@@ -40,7 +39,6 @@ public class ComercioDTO {
         dto.email = c.getEmail();
         dto.telefono = c.getTelefono();
         dto.activo = c.isActivo();
-        dto.cuitValidado = c.isCuitValidado();
         if (c.getPuntosPicking() != null) {
             dto.puntosPicking = c.getPuntosPicking().stream()
                     .map(PuntoPickingDTO::desde)
@@ -58,6 +56,5 @@ public class ComercioDTO {
     public String getEmail() { return email; }
     public String getTelefono() { return telefono; }
     public boolean isActivo() { return activo; }
-    public boolean isCuitValidado() { return cuitValidado; }
     public List<PuntoPickingDTO> getPuntosPicking() { return puntosPicking; }
 }

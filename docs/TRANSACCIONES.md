@@ -50,19 +50,21 @@ una devolución, se deshacen también las anteriores.
 | Paso | Si falla… |
 |---|---|
 | 1. Validar que el pedido esté PENDIENTE | No cambia nada |
-| 2. `IAsignacionRepartidores.asignarRepartidor` | Sin repartidor disponible: rollback, el pedido sigue PENDIENTE |
-| 3. `IRegistroCobros.registrarCobro` | Pago rechazado: rollback **también de la asignación del paso 2**; el repartidor vuelve a quedar libre sin código de compensación |
+| 2. `IRegistroCobros.registrarCobro` (PREPAGO: `autorizarPago` en el banco por SOAP) | Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE |
+| 3. `IAsignacionRepartidores.asignarRepartidor` | Sin repartidor disponible: rollback en Rabbit **y reversa en el banco** (el rollback no alcanza al sistema externo) |
 | 4. Estado CONFIRMADO + `EstadoPedidoCambiado` | Rollback de todo |
 | 5. Publicación en el tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`) | Se loguea; no deshace la confirmación (misma decisión que ADR-002) |
 
 **Por qué no hace falta XA:** las tres escrituras (repartidor, cobro,
 pedido) van a la misma base; el mensaje JMS queda fuera de la
-transacción a propósito.
+transacción a propósito. El banco tampoco participa de la transacción
+(un sistema legado por SOAP no puede): lo que hace se compensa con una
+reversa.
 
-Probado: sin repartidores, confirmar deja el pedido PENDIENTE y sin
-cobro; con un PREPAGO de más de $500.000 (límite de la pasarela
-simulada), la pasarela lo rechaza y el repartidor que se había asignado
-vuelve a DISPONIBLE solo por el rollback.
+Probado: sin repartidores, el banco llega a cobrar, Rabbit hace rollback
+y se le pide la reversa al banco; con un PREPAGO de más de $500.000 el
+banco lo rechaza y no hay nada que reversar; con el banco caído el pedido
+sigue PENDIENTE. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md).
 
 Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
 = true)` propias de cada componente; `PedidoService` las traduce a la
@@ -73,4 +75,4 @@ Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
 | Operación | Qué hace, en la misma transacción |
 |---|---|
 | `registrarEntrega` | Estado ENTREGADO + libera al repartidor. El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
-| `cancelarPedido` (desde CONFIRMADO) | Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada |
+| `cancelarPedido` (desde CONFIRMADO) | Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si era PREPAGO, después del commit se pide la reversa al banco. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada |

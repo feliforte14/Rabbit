@@ -70,15 +70,17 @@ public interface IGestionPedidos {
     void descartarPedidoExterno(Long idPedidoExterno, String motivo);
 
     /**
-     * Avanza el pedido a CONFIRMADO en una sola transacción: asigna un
-     * repartidor (IAsignacionRepartidores), registra el cobro
-     * (IRegistroCobros) y cambia el estado. Si cualquiera de los pasos
-     * falla, no queda nada hecho. El stock ya se comprometió al
+     * Avanza el pedido a CONFIRMADO en una sola transacción: registra el
+     * cobro (IRegistroCobros; un PREPAGO se autoriza en el banco), asigna un
+     * repartidor (IAsignacionRepartidores) y cambia el estado. Si cualquiera
+     * de los pasos falla, no queda nada hecho en Rabbit, y si el banco ya
+     * había cobrado, Pagos le pide la reversa. El stock ya se comprometió al
      * sincronizar (ver sincronizarPedidoExterno).
      *
      * @param idPedido ID del pedido a confirmar
      * @throws ValidacionException si el pedido no existe, no está
-     *         PENDIENTE, no hay repartidores disponibles o el pago se rechaza
+     *         PENDIENTE, no hay repartidores disponibles, el banco rechaza
+     *         el pago o no responde
      */
     void confirmarPedido(Long idPedido);
 

@@ -30,7 +30,9 @@ Propuesta o Reemplazada.
 
 ## ADR-003: Timeout del padrón fiscal no bloquea el alta
 
-- **Estado:** Aceptada.
+- **Estado:** Reemplazada: se quitó la integración SOAP con el padrón
+  fiscal (validar un CUIT era demasiado simple para justificarla). La
+  reemplaza la integración con el banco legado (ADR-010).
 - **Contexto:** el padrón es un sistema ajeno; puede no responder.
 - **Decisión:** timeout de 5 s; si vence, se guarda el comercio con
   `cuitValidado = false`. Solo el Fault `CuitInexistente` bloquea el alta.
@@ -98,7 +100,7 @@ Propuesta o Reemplazada.
 - **Decisión:** `AlineadorDeRestriccionesEnum` (`@Singleton @Startup`)
   reemplaza al desplegar el `CHECK` de cada columna enum por uno con los
   valores actuales del enum. Por el mismo motivo, las columnas nuevas
-  `NOT NULL` llevan `default` (`Comercio.cuitValidado`).
+  `NOT NULL` llevan `default`.
 - **Consecuencias:** agregar un valor a un enum ya no rompe la base y se
   conserva la validación en PostgreSQL. Cada columna enum nueva hay que
   sumarla a la lista del alineador. Es un parche del alcance del TP: lo
@@ -122,3 +124,22 @@ Propuesta o Reemplazada.
   cambiar `clientId` o `subscriptionName` crea una suscripción nueva.
   Si falla la publicación misma, el aviso se pierde: no hay polling de
   respaldo como en la cola (ADR-001).
+
+## ADR-010: Cobro por SOAP en un banco legado, con reversa compensatoria
+
+- **Estado:** Aceptada.
+- **Contexto:** la integración sincrónica con un sistema legado era una
+  validación de CUIT de sí/no, que no modificaba nada en el otro sistema.
+  Cobrar sí lo modifica: una vez que el banco cobró, un rollback de
+  Rabbit no lo deshace.
+- **Decisión:** `PagoService` cobra los PREPAGO llamando por SOAP a un
+  banco legado (`autorizarPago`). Cada autorización dispara
+  `PagoAutorizado`; si la transacción de confirmación se deshace,
+  `ReversasBancarias` (`AFTER_FAILURE`) pide `reversarPago`. Al anular un
+  cobro, la reversa se pide recién después del commit (`AFTER_SUCCESS`).
+  En `confirmarPedido` se cobra antes de asignar el repartidor.
+- **Consecuencias:** el cliente nunca queda cobrado por un pedido que no
+  se confirmó (salvo que falle la reversa, que se loguea). Sin respuesta
+  del banco el pedido no se confirma. Se descartaron la clave de
+  idempotencia y la consulta de estado tras un timeout, por simplicidad;
+  quedan como limitación conocida.

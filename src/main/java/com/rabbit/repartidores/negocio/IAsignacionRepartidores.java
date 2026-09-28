@@ -2,15 +2,13 @@ package com.rabbit.repartidores.negocio;
 
 /**
  * CONTRATO que ServicioDeRepartidores le ofrece a Pedidos para el flujo
- * de confirmación (asignar repartidor → cobrar → confirmar).
- *
- * Por ahora solo la interfaz: fija las firmas para que Pedidos y
- * Repartidores puedan avanzar en paralelo.
+ * de confirmación (cobrar → asignar repartidor → confirmar). La
+ * implementa RepartidorService.
  *
  * Corre con el default de un EJB (REQUIRED): la asignación se suma a la
- * transacción de PedidoService.confirmarPedido, así que si después el
- * cobro se rechaza, el repartidor vuelve a quedar libre por rollback, sin
- * que nadie tenga que "desasignarlo" a mano.
+ * transacción de PedidoService.confirmarPedido, así que si algo falla, el
+ * repartidor vuelve a quedar libre por rollback, sin que nadie tenga que
+ * "desasignarlo" a mano.
  */
 
 import jakarta.ejb.Local;

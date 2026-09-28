@@ -6,7 +6,7 @@ package com.rabbit.pagos.dto;
  * ERP del comercio y se lo pasa a IRegistroCobros al confirmar.
  *
  *   PREPAGO:        el cliente ya pagó al comprar; al confirmar el pedido
- *                   se registra el cobro contra la pasarela (simulada).
+ *                   se cobra en el banco legado (SOAP).
  *   CONTRA_ENTREGA: el repartidor cobra al entregar; al confirmar el
  *                   pedido el cobro queda PENDIENTE y se efectiviza cuando
  *                   el pedido pasa a ENTREGADO (ver EstadoPedido).

@@ -3,9 +3,8 @@ package com.rabbit.pagos.negocio;
 /**
  * CONTRATO DE ESCRITURA del componente ServicioDePagosYCobranzas.
  *
- * Por ahora solo la interfaz: fija las firmas que va a usar
- * PedidoService.confirmarPedido (flujo transaccional asignar repartidor →
- * cobrar → confirmar) para que Pedidos y Pagos puedan avanzar en paralelo.
+ * La implementa PagoService. PedidoService.confirmarPedido la usa en el
+ * flujo transaccional cobrar → asignar repartidor → confirmar.
  *
  * Todas las operaciones de escritura corren con el default de un EJB
  * (REQUIRED): se suman a la transacción del llamador. Así, si falla un
@@ -24,7 +23,7 @@ public interface IRegistroCobros {
 
     /**
      * Registra el cobro de un pedido al confirmarlo. Con PREPAGO lo
-     * autoriza contra la pasarela (simulada) y queda ACREDITADO; con
+     * autoriza en el banco legado (SOAP) y queda ACREDITADO; con
      * CONTRA_ENTREGA queda PENDIENTE hasta la entrega.
      *
      * @param idPedido pedido al que corresponde el cobro

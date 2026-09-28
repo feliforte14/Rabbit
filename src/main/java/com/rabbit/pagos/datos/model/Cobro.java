@@ -37,6 +37,10 @@ public class Cobro {
     // es CONTRA_ENTREGA). null mientras está PENDIENTE.
     private LocalDateTime fechaAcreditacion;
 
+    // Código que devolvió el banco al autorizar un PREPAGO (ver
+    // BancoLegadoService). Hace falta para pedirle la reversa si se anula.
+    private String codigoAutorizacion;
+
     public Cobro() {}
 
     public Long getId() { return id; }
@@ -52,4 +56,6 @@ public class Cobro {
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public LocalDateTime getFechaAcreditacion() { return fechaAcreditacion; }
     public void setFechaAcreditacion(LocalDateTime fechaAcreditacion) { this.fechaAcreditacion = fechaAcreditacion; }
+    public String getCodigoAutorizacion() { return codigoAutorizacion; }
+    public void setCodigoAutorizacion(String codigoAutorizacion) { this.codigoAutorizacion = codigoAutorizacion; }
 }

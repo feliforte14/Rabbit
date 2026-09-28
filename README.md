@@ -7,7 +7,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 ## Qué hace
 
 - **Comercios:** alta y gestión de comercios, sus productos y puntos de
-  picking. El CUIT se valida contra un padrón fiscal externo.
+  picking.
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
   comercios, y reservas de stock con vencimiento.
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio, su
@@ -39,9 +39,9 @@ com.rabbit.<componente>/
 | Inventario | `inventario` | Implementado |
 | Pedidos | `pedidos` | Implementado |
 | Seguridad | `seguridad` | Implementado |
-| Integración con el padrón fiscal (SOAP) | `integracion.legado` | Implementado |
 | Pagos y Cobranzas | `pagos` | Implementado |
 | Repartidores | `repartidores` | Implementado |
+| Integración con el banco legado (SOAP) | `integracion.banco` | Implementado |
 | Notificaciones | `notificaciones` | Implementado |
 | Ruteo, Transportistas | — | Pendiente |
 
@@ -50,7 +50,7 @@ com.rabbit.<componente>/
 | Integración | Tipo | Estado |
 |---|---|---|
 | Pedidos del ERP → sincronización | Asincrónica, cola JMS | Implementado |
-| Comercios → padrón fiscal | Sincrónica, SOAP | Implementado |
+| Pagos → banco legado (cobro y reversa) | Sincrónica, SOAP | Implementado |
 | ERP del comercio → Rabbit | Sincrónica, REST | Planificado |
 | Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Implementado |
 
@@ -63,7 +63,7 @@ El detalle y la justificación de cada decisión están en
 - [Patrones de diseño](docs/PATRONES.md)
 - [Seguridad](docs/SEGURIDAD.md)
 - [Transacciones](docs/TRANSACCIONES.md)
-- [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP y REST.
+- [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP con el banco legado y REST.
 - [Mensajería asincrónica](docs/MENSAJERIA-ASINCRONICA.md): cola y tópico.
 - [Decisiones (ADRs)](docs/DECISIONES.md)
 

@@ -30,7 +30,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Inventario | Implementado | `IConsultaStock` (`@Stateless`), `IReservaStock` | `@Stateful` | La reserva es una conversación: `reservarStock` y `confirmarReserva` operan sobre la misma instancia |
 | Pedidos | Implementado | `IGestionPedidos`, `ISeguimientoPedido` | `@Stateless` (Facade) | El estado del pedido vive en la base; ninguna operación depende de una llamada anterior |
 | Seguridad | Implementado | `IRegistroUsuarios`, `IConsultaUsuarios` | `@Stateless` | Idem Comercios |
-| Integración legado | Implementado | `IPadronFiscalClient` | `@Stateless` | Cliente SOAP sin estado de conversación |
+| Integración banco legado | Implementado | `IBancoClient` | `@Stateless` | Cliente SOAP sin estado de conversación |
 | Pagos y Cobranzas | Implementado | `IRegistroCobros`, `IConsultaCobros` | `@Stateless` + `@MessageDriven` (suscriptor) | El cobro queda registrado en la base; se suma a la transacción del llamador |
 | Repartidores | Implementado | `IAsignacionRepartidores`, `IGestionRepartidores` | `@Stateless` | La disponibilidad del repartidor es un dato persistido, no de sesión |
 | Notificaciones | Implementado | `INotificaciones` | `@Stateless` + `@MessageDriven` (suscriptor) | Reacciona a eventos del tópico; nadie la llama para avisar |
@@ -66,8 +66,9 @@ Otros detalles de cada componente:
   las líneas con `idReservaStock`.
 - **Seguridad:** `LoginBean` y `SesionBean` no pasan por una interfaz de
   negocio: hablan directo con el `SecurityContext` de WildFly.
-- **Pagos:** PREPAGO se autoriza contra una pasarela simulada al confirmar
-  (rechaza por encima de $500.000, para poder mostrar el rollback);
+- **Pagos:** PREPAGO se cobra por SOAP en el banco legado al confirmar
+  (rechaza por encima de $500.000); si la confirmación falla después, se
+  pide la reversa al banco;
   CONTRA_ENTREGA queda PENDIENTE y se acredita al recibir `ENTREGADO` por
   el tópico.
 - **Repartidores:** `asignarRepartidor` toma el primero DISPONIBLE con
@@ -89,9 +90,9 @@ flowchart LR
         Pedidos -. topico.pedidos.estado .-> Pagos
         Pedidos -. topico.pedidos.estado .-> Notificaciones
         Inventario -->|IConsultaComercios| Comercios
-        Comercios -->|IPadronFiscalClient| Legado[Integración legado]
+        Pagos -->|IBancoClient| Banco[Integración banco]
     end
-    Legado -->|SOAP/HTTP| Padron[(Padrón Fiscal<br/>simulado)]
+    Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
 ```
 
 ## Mapa de integración
@@ -101,7 +102,7 @@ flowchart LR
 | ERP del comercio → Rabbit | Formulario JSF (simulación) | Implementado | Se reemplaza por REST |
 | ERP del comercio → Rabbit | REST `POST /api/pedidos-externos` | Planificado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Alta de pedido externo → sincronización | Cola JMS `cola.pedidos.externos` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
-| Comercios → Padrón Fiscal | SOAP | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
+| Pagos → Banco legado | SOAP | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Cambio de estado del pedido → Notificaciones, Pagos | Tópico JMS `topico.pedidos.estado` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
 | Pedidos → Comercios, Inventario, Pagos, Repartidores | Llamada local EJB | Implementado | No es integración entre sistemas: mismo proceso |
 
@@ -109,7 +110,7 @@ flowchart LR
 
 | | Asincrónico (JMS) | Sincrónico (SOAP / REST) |
 |---|---|---|
-| Caso en Rabbit | Sincronizar pedido externo; avisar cambios de estado | Validar CUIT; recibir un pedido del ERP |
+| Caso en Rabbit | Sincronizar pedido externo; avisar cambios de estado | Cobrar en el banco; recibir un pedido del ERP |
 | ¿El proceso puede seguir sin la respuesta? | Sí | No |
 | Si el otro lado no contesta | El mensaje espera o se reintenta (y hay polling de respaldo) | Hay que decidirlo explícitamente (timeout + degradación) |
 | Acoplamiento | Solo al formato del mensaje | Temporal + contrato |
