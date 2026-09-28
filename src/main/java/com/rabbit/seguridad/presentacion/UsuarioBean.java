@@ -4,16 +4,11 @@ package com.rabbit.seguridad.presentacion;
  * CAPA DE PRESENTACIÓN (Managed Bean - JSF) — ver ComercioBean para la
  * explicación completa de @Named/@ViewScoped, se aplica igual acá.
  *
- * ALCANCE DE LA PANTALLA: usuarios.xhtml es pública (login.xhtml la
- * enlaza con "Registrate acá"), pero lo que muestra depende de quién mira:
- * - Sin sesión o como OPERADOR: solo el formulario de alta, y el usuario
- *   nuevo queda como OPERADOR.
- * - Como ADMINISTRADOR: además el padrón completo, la baja de usuarios y
- *   la elección del rol.
- * La excepción es el bootstrap: mientras no exista ningún administrador,
- * el alta permite elegir ADMINISTRADOR para poder crear el primero.
- * La restricción real la impone UsuarioService (@RolesAllowed y el
- * chequeo de rol en registrarUsuario); esto solo adapta la vista.
+ * ALCANCE DE LA PANTALLA: usuarios.xhtml es solo para ADMINISTRADOR
+ * (SesionBean.exigirAdministrador): padrón, alta con elección de rol y
+ * baja. No hay alta pública; el primer administrador se crea con
+ * add-user.sh. La restricción real la impone UsuarioService con
+ * @RolesAllowed; el guardián de la página solo evita mostrarla.
  */
 
 import com.rabbit.seguridad.dto.DatosUsuarioDTO;
@@ -22,7 +17,6 @@ import com.rabbit.seguridad.negocio.IConsultaUsuarios;
 import com.rabbit.seguridad.negocio.IRegistroUsuarios;
 import com.rabbit.seguridad.negocio.ValidacionException;
 
-import com.rabbit.seguridad.datos.model.Rol;
 import jakarta.annotation.PostConstruct;
 import jakarta.ejb.EJBAccessException;
 import jakarta.faces.application.FacesMessage;
@@ -60,15 +54,15 @@ public class UsuarioBean implements Serializable {
     // pueda loguearse.
     public void registrar() {
         try {
-            if (!isPuedeElegirRol()) {
-                nuevoUsuario.rol = Rol.OPERADOR;
-            }
             registro.registrarUsuario(nuevoUsuario);
             mensaje(FacesMessage.SEVERITY_INFO, "Usuario registrado correctamente");
             nuevoUsuario = new DatosUsuarioDTO();
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        } catch (EJBAccessException e) {
+            // @RolesAllowed("ADMINISTRADOR") en UsuarioService.registrarUsuario.
+            mensaje(FacesMessage.SEVERITY_ERROR, "Solo un administrador puede registrar usuarios.");
         }
     }
 
@@ -101,11 +95,6 @@ public class UsuarioBean implements Serializable {
     // Quien mira es ADMINISTRADOR: ve el padrón y puede dar de baja.
     public boolean isAdmin() {
         return FacesContext.getCurrentInstance().getExternalContext().isUserInRole("ADMINISTRADOR");
-    }
-
-    // Se muestra el desplegable de rol solo si el alta puede elegirlo.
-    public boolean isPuedeElegirRol() {
-        return registro.puedeElegirRol();
     }
 
     // Los roles posibles, para el desplegable del formulario de alta.

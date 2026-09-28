@@ -12,7 +12,7 @@ rápido en la defensa.
 | Integración síncrona SOAP con WSDL, con un sistema legado | Cumple | Banco legado: `BancoLegadoService` (`/Rabbit/BancoLegadoService?wsdl`). Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Integración síncrona REST, partner moderno o API de consumo externo | Cumple | `POST /api/pedidos-externos` (ERP) y `GET /api/seguimiento/{id}` (público). Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | 2 procesos asíncronos: cola punto a punto y tópico pub/sub | Cumple | `cola.pedidos.externos` y `topico.pedidos.estado` sobre ActiveMQ Artemis. Ver [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
-| Seguridad declarativa en al menos 2 operaciones sensibles | Cumple | `@RolesAllowed` en `eliminarComercio`, `listarTodos` / `darDeBaja` usuarios, `anularCobro` y la API del ERP. Ver [SEGURIDAD.md](SEGURIDAD.md) |
+| Seguridad declarativa en al menos 2 operaciones sensibles | Cumple | `@RolesAllowed` en `eliminarComercio`, alta de usuarios (`registrarUsuario`), `listarTodos` / `darDeBaja` usuarios, `anularCobro` y la API del ERP. Ver [SEGURIDAD.md](SEGURIDAD.md) |
 | Transacciones declarativas en 1 flujo crítico de varios pasos | Cumple | `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla. Ver [TRANSACCIONES.md](TRANSACCIONES.md) |
 | Stack consistente y justificado | Cumple | Jakarta EE 10 sobre WildFly 41 |
 | Repositorio Git con historial incremental | Cumple | Commits desde agosto, de varios integrantes |
@@ -21,7 +21,7 @@ rápido en la defensa.
 
 | Desafío | Estado |
 |---|---|
-| Al menos 2 ADR | Cumple: 11 ADR en [DECISIONES.md](DECISIONES.md) |
+| Al menos 2 ADR | Cumple: 12 ADR en [DECISIONES.md](DECISIONES.md) |
 | Resiliencia ante fallas | Cumple: Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Heterogeneidad tecnológica | No |
 | Prueba de escalabilidad | No |

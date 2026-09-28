@@ -45,7 +45,7 @@
                         styleClass="#{view.viewId == '/repartidores.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="historial" value="Historial de reservas"
                         styleClass="#{view.viewId == '/historial.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="usuarios" value="Usuarios"
+                <h:link outcome="usuarios" value="Usuarios" rendered="#{sesionBean.admin}"
                         styleClass="#{view.viewId == '/usuarios.xhtml' ? 'activo' : ''}" />
             </nav>
 

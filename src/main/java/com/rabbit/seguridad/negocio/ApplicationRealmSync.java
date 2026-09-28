@@ -17,6 +17,14 @@ package com.rabbit.seguridad.negocio;
  * esos archivos por timestamp en cada intento de login — el mismo
  * mecanismo que permite que add-user.sh no necesite reiniciar nada.
  *
+ * SEGURIDAD: los archivos son texto "usuario=valor" por línea, así que un
+ * username con salto de línea, "=" o ":" podría alterar las entradas de
+ * otros usuarios. Por eso solo se acepta un username que pase
+ * {@link #usernameValido} (se revisa acá además de en UsuarioService), no
+ * se pisa un usuario que ya exista en el realm (por ejemplo el del ERP,
+ * creado con add-user.sh), y las escrituras se serializan para que dos
+ * altas simultáneas no se pisen entre sí.
+ *
  * No es el camino para producción real — ahí correspondería un Elytron
  * custom realm respaldado por la tabla "usuarios", o delegar en un
  * Identity Provider externo.
@@ -30,11 +38,18 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public final class ApplicationRealmSync {
 
     private static final String REALM = "ApplicationRealm";
+
+    private static final Pattern PATRON_USERNAME = Pattern.compile("^[A-Za-z0-9._-]{3,30}$");
+
+    // Serializa las escrituras de los dos archivos (leer, filtrar y
+    // reescribir no es atómico).
+    private static final Object LOCK = new Object();
 
     private ApplicationRealmSync() {}
 
@@ -48,10 +63,17 @@ public final class ApplicationRealmSync {
      * @param rol nombre del rol (ver Rol) que WildFly va a exponer como "group" al autenticar
      */
     public static void altaUsuario(String username, String passwordEnClaro, String rol) {
+        exigirUsernameValido(username);
         try {
             Path configDir = configDir();
-            escribir(configDir.resolve("application-users.properties"), username, hashDigest(username, passwordEnClaro));
-            escribir(configDir.resolve("application-roles.properties"), username, rol);
+            Path usuarios = configDir.resolve("application-users.properties");
+            synchronized (LOCK) {
+                if (tieneLinea(usuarios, username)) {
+                    throw new IllegalStateException("El usuario " + username + " ya existe en el servidor");
+                }
+                escribir(usuarios, username, hashDigest(username, passwordEnClaro));
+                escribir(configDir.resolve("application-roles.properties"), username, rol);
+            }
         } catch (IOException e) {
             throw new IllegalStateException(
                     "No se pudo sincronizar el usuario con el ApplicationRealm del servidor", e);
@@ -67,13 +89,39 @@ public final class ApplicationRealmSync {
      * @param username usuario a remover del realm
      */
     public static void bajaUsuario(String username) {
+        exigirUsernameValido(username);
         try {
             Path configDir = configDir();
-            quitar(configDir.resolve("application-users.properties"), username);
-            quitar(configDir.resolve("application-roles.properties"), username);
+            synchronized (LOCK) {
+                quitar(configDir.resolve("application-users.properties"), username);
+                quitar(configDir.resolve("application-roles.properties"), username);
+            }
         } catch (IOException e) {
             throw new IllegalStateException(
                     "No se pudo dar de baja el usuario en el ApplicationRealm del servidor", e);
+        }
+    }
+
+    /**
+     * true si el usuario ya existe en el realm del servidor, aunque no esté
+     * en la tabla "usuarios" (por ejemplo, creado con add-user.sh).
+     */
+    public static boolean existeEnRealm(String username) {
+        try {
+            return tieneLinea(configDir().resolve("application-users.properties"), username);
+        } catch (IOException e) {
+            throw new IllegalStateException("No se pudo leer el ApplicationRealm del servidor", e);
+        }
+    }
+
+    /** Letras, números, punto, guion y guion bajo; entre 3 y 30 caracteres. */
+    public static boolean usernameValido(String username) {
+        return username != null && PATRON_USERNAME.matcher(username).matches();
+    }
+
+    private static void exigirUsernameValido(String username) {
+        if (!usernameValido(username)) {
+            throw new IllegalArgumentException("Username inválido para el realm");
         }
     }
 
@@ -103,6 +151,10 @@ public final class ApplicationRealmSync {
     // Elimina la línea "username=..." de un archivo de properties del realm.
     private static void quitar(Path archivo, String username) throws IOException {
         Files.write(archivo, sinLineaDe(archivo, username), StandardCharsets.UTF_8);
+    }
+
+    private static boolean tieneLinea(Path archivo, String username) throws IOException {
+        return Files.readAllLines(archivo).stream().anyMatch(linea -> linea.startsWith(username + "="));
     }
 
     // Lee un archivo de properties del realm y devuelve sus líneas sin la

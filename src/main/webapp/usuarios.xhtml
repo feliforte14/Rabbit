@@ -3,18 +3,22 @@
     VISTA (Facelet) - Capa de Presentacion.
     Alta y listado de usuarios del sistema. Se bindea a usuarioBean
     (UsuarioBean.java). Es la pantalla de administracion del tercer
-    componente (ServicioDeUsuariosYSeguridad).
+    componente (ServicioDeUsuariosYSeguridad). Solo ADMINISTRADOR: no hay
+    alta publica de cuentas.
 -->
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core">
+<f:metadata>
+    <f:viewAction action="#{sesionBean.exigirAdministrador}" />
+</f:metadata>
 <h:head>
     <title>Rabbit · Usuarios</title>
     <h:outputStylesheet library="rabbit" name="estilos.css" />
 </h:head>
 <h:body styleClass="pagina-sola">
     <div class="container">
-        <p><h:link outcome="login" value="&#8592; Volver" styleClass="enlace-volver" /></p>
+        <p><h:link outcome="comercios" value="&#8592; Volver" styleClass="enlace-volver" /></p>
 
         <h1>Usuarios del sistema</h1>
 
@@ -22,12 +26,7 @@
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
-        <!--
-            El padrón y la baja son solo para ADMINISTRADOR (UsuarioService
-            los protege con @RolesAllowed). Sin sesión o como OPERADOR, esta
-            pantalla es solo el alta pública de cuentas.
-        -->
-        <h:form id="formListado" rendered="#{usuarioBean.admin}">
+        <h:form id="formListado">
             <h:dataTable value="#{usuarioBean.usuarios}" var="u"
                          styleClass="tabla" rowClasses="fila-impar,fila-par">
                 <h:column>
@@ -71,16 +70,13 @@
                 <h:message for="password" styleClass="error-campo" />
             </div>
 
-            <h:panelGroup layout="block" styleClass="campo" rendered="#{usuarioBean.puedeElegirRol}">
+            <div class="campo">
                 <h:outputLabel for="rol" value="Rol" />
                 <h:selectOneMenu id="rol" value="#{usuarioBean.nuevoUsuario.rol}" required="true" label="Rol">
                     <f:selectItems value="#{usuarioBean.roles}" var="r" itemValue="#{r}" itemLabel="#{r}" />
                 </h:selectOneMenu>
                 <h:message for="rol" styleClass="error-campo" />
-            </h:panelGroup>
-            <h:panelGroup layout="block" styleClass="campo" rendered="#{not usuarioBean.puedeElegirRol}">
-                <p class="ayuda">La cuenta se crea con rol OPERADOR. Un administrador puede crear otros administradores.</p>
-            </h:panelGroup>
+            </div>
 
             <div class="form-acciones">
                 <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{usuarioBean.registrar}" />

@@ -42,6 +42,23 @@ public class SesionBean {
         }
     }
 
+    /**
+     * Gatekeeper de páginas solo para ADMINISTRADOR (usuarios.xhtml): sin
+     * sesión manda al login; con sesión pero sin el rol, a comercios.
+     */
+    public void exigirAdministrador() throws IOException {
+        if (!isAutenticado()) {
+            exigirSesion();
+            return;
+        }
+        if (!isAdmin()) {
+            FacesContext facesContext = FacesContext.getCurrentInstance();
+            HttpServletRequest request = (HttpServletRequest) facesContext.getExternalContext().getRequest();
+            facesContext.getExternalContext().redirect(request.getContextPath() + "/comercios.xhtml");
+            facesContext.responseComplete();
+        }
+    }
+
     // Nombre del usuario logueado, para mostrarlo en el sidebar
     // (template.xhtml); null si no hay sesión iniciada.
     public String getUsuarioActual() {

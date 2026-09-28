@@ -52,6 +52,9 @@ public class LoginBean implements Serializable {
 
         try {
             request.login(username, password);
+            // Session fixation: la sesión autenticada no conserva el ID
+            // que tenía antes del login (que un tercero pudo haber fijado).
+            request.changeSessionId();
             // El sidebar (ver template.xhtml) reemplaza a lo que antes era
             // panel.xhtml como menú — ya no hace falta una pantalla
             // intermedia post-login, se entra directo al listado de comercios.

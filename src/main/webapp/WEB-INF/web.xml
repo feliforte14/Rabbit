@@ -12,21 +12,15 @@
          version="6.0">
 
     <!--
-        PROJECT_STAGE=Development le dice a JSF que estamos desarrollando.
-        Efecto principal para nosotros: los recursos de /resources (el CSS)
-        se sirven con Cache-Control: no-cache, asi que el navegador los
-        vuelve a pedir en cada carga. Sin esto, al cambiar estilos.css hay
-        que hacer hard reload a mano en cada maquina — el WAR trae el CSS
-        nuevo pero el navegador sigue mostrando el viejo.
-
-        Ademas muestra errores de JSF con mas detalle y avisa si quedan
-        FacesMessages sin renderizar.
-
-        Para la entrega/demo final conviene cambiarlo a Production.
+        PROJECT_STAGE=Production: en Development JSF muestra stack traces y
+        detalles internos cuando algo falla, informacion util para un
+        atacante. El CSS no queda cacheado viejo porque se sirve desde una
+        carpeta versionada (resources/rabbit/1_3/): al cambiarlo se sube la
+        version. Para depurar en local se puede volver a Development.
     -->
     <context-param>
         <param-name>jakarta.faces.PROJECT_STAGE</param-name>
-        <param-value>Development</param-value>
+        <param-value>Production</param-value>
     </context-param>
 
     <servlet>
@@ -38,6 +32,28 @@
         <servlet-name>Faces Servlet</servlet-name>
         <url-pattern>*.xhtml</url-pattern>
     </servlet-mapping>
+
+    <!--
+        Errores sin detalles internos: el usuario ve una pagina generica y
+        el detalle queda solo en el log del servidor. Una vista vencida
+        (sesion expirada) vuelve al login.
+    -->
+    <error-page>
+        <exception-type>jakarta.faces.application.ViewExpiredException</exception-type>
+        <location>/login.xhtml</location>
+    </error-page>
+    <error-page>
+        <exception-type>java.lang.Throwable</exception-type>
+        <location>/error.html</location>
+    </error-page>
+    <error-page>
+        <error-code>404</error-code>
+        <location>/error.html</location>
+    </error-page>
+    <error-page>
+        <error-code>500</error-code>
+        <location>/error.html</location>
+    </error-page>
 
     <welcome-file-list>
         <welcome-file>login.xhtml</welcome-file>

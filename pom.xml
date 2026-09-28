@@ -43,11 +43,15 @@
                 <groupId>org.wildfly.plugins</groupId>
                 <artifactId>wildfly-maven-plugin</artifactId>
                 <version>5.0.1.Final</version>
+                <!--
+                    Las credenciales de management NO van acá (el repo es
+                    público): se toman del <server> "rabbit-wildfly" de
+                    ~/.m2/settings.xml. Ver README, paso 3.
+                -->
                 <configuration>
                     <hostname>127.0.0.1</hostname>
                     <port>9990</port>
-                    <username>admin</username>
-                    <password>Ricardo1.</password>
+                    <id>rabbit-wildfly</id>
                 </configuration>
             </plugin>
         </plugins>

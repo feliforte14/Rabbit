@@ -82,13 +82,12 @@ public class UsuarioRepository {
      *
      * @return todos los usuarios persistidos
      */
-    // Para el alta pública: mientras no haya ningún administrador activo,
-    // el primero se puede crear sin sesión (bootstrap del sistema).
-    public boolean existeAdministradorActivo() {
+    // Para no dejar el sistema sin administradores al dar de baja uno.
+    public long contarAdministradoresActivos() {
         return em.createQuery(
                 "SELECT COUNT(u) FROM Usuario u WHERE u.rol = :rol AND u.activo = true", Long.class)
                 .setParameter("rol", Rol.ADMINISTRADOR)
-                .getSingleResult() > 0;
+                .getSingleResult();
     }
 
     public List<Usuario> listarTodos() {
