@@ -28,16 +28,6 @@ public class Comercio {
     // Ver ComercioService.darDeBajaComercio / reactivarComercio.
     private boolean activo;
 
-    // true = el padrón fiscal (SOAP, ver com.rabbit.integracion.legado)
-    // confirmó el CUIT como habilitado en el último alta/actualización.
-    // false también cuando el padrón no estaba disponible en ese momento
-    // (no bloquea el alta, pero queda asentado que no se pudo confirmar).
-    // "default false": hbm2ddl=update agrega esta columna NOT NULL a una
-    // tabla que puede ya tener comercios; sin default, PostgreSQL rechaza
-    // el ALTER TABLE y la aplicación no despliega.
-    @Column(nullable = false, columnDefinition = "boolean default false")
-    private boolean cuitValidado;
-
     // La FK vive del lado de PuntoPicking (mappedBy = "comercio"), acá solo
     // se refleja. cascade ALL: borrar un comercio borra sus puntos de
     // picking (por eso eliminarComercio exige que ya esté dado de baja).
@@ -60,8 +50,6 @@ public class Comercio {
     public void setTelefono(String telefono) { this.telefono = telefono; }
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
-    public boolean isCuitValidado() { return cuitValidado; }
-    public void setCuitValidado(boolean cuitValidado) { this.cuitValidado = cuitValidado; }
     public List<PuntoPicking> getPuntosPicking() { return puntosPicking; }
     public void setPuntosPicking(List<PuntoPicking> puntosPicking) { this.puntosPicking = puntosPicking; }
 }

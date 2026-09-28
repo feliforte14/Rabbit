@@ -39,7 +39,7 @@ qué alternativa se descartó.
 - **Hoy:** el comportamiento según `OrigenPedido` (`STOCK_CONSIGNADO`
   reserva stock; `PUNTO_PICKING` solo valida el punto de picking).
 - **Planificado:** el cobro según `MedioPago` en ServicioDePagosYCobranzas
-  (`PREPAGO` autoriza en la pasarela simulada, `CONTRA_ENTREGA` queda
+  (`PREPAGO` se cobra en el banco legado, `CONTRA_ENTREGA` queda
   pendiente hasta la entrega). Hoy está implementado con un `if` en
   `PagoService.registrarCobro`; con solo dos medios alcanza, y pasaría a
   una estrategia por medio de pago si se suman más.
@@ -78,11 +78,12 @@ qué alternativa se descartó.
 
 ## Adapter
 
-- **Problema:** que `ComercioService` no dependa de JAX-WS (checked
-  exceptions SOAP, `BindingProvider`, timeouts).
-- **Dónde:** `PadronFiscalClient` implementa `IPadronFiscalClient`
-  (`consultar(cuit) → ResultadoConsultaCuit`). Si el padrón pasara a
-  REST, solo cambia el Adapter.
+- **Problema:** que la lógica de negocio no dependa de la tecnología con
+  la que habla un sistema externo (SOAP, EDI, REST).
+- **Dónde:** `BancoClient` implementa `IBancoClient`
+  (`autorizar → ResultadoAutorizacion`, `reversar`). `PagoService` no ve
+  JAX-WS, `BindingProvider` ni los Faults; si el banco pasara a REST, solo
+  cambia el Adapter.
 - **Planificado:** ServicioDeIntegracionTransportistas (Entrega Final),
   un Adapter por tipo de transportista (SOAP/EDI legado, REST moderno).
 
@@ -95,3 +96,13 @@ qué alternativa se descartó.
 - **Por qué no el patrón State completo** (una clase por estado): con
   cinco estados sin comportamiento propio, un `switch` en el enum es más
   simple de explicar y de mantener.
+
+## Transacción compensatoria
+
+- **Problema:** un rollback deshace lo que Rabbit escribió en su base,
+  pero no lo que ya hizo un sistema externo: si el banco cobró y después
+  la confirmación falla, el cliente quedaría cobrado.
+- **Dónde:** `ReversasBancarias` observa `PagoAutorizado` con
+  `AFTER_FAILURE` y le pide al banco `reversarPago`.
+- **Descartado:** meter al banco en una transacción distribuida (XA/2PC):
+  un sistema legado por SOAP no participa de la transacción de Rabbit.

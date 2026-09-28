@@ -4,84 +4,94 @@ Se usa cuando **el proceso no puede seguir sin la respuesta**. El costo
 es el acoplamiento temporal: si el otro lado no contesta, hay que decidir
 explícitamente qué hacer.
 
-## SOAP: validación de CUIT contra el Padrón Fiscal (implementado)
+## SOAP: cobro de pedidos PREPAGO en el banco legado (implementado)
 
-**Problema de negocio:** antes de dar de alta un comercio o cambiar sus
-datos fiscales, Rabbit necesita saber si el CUIT existe y está habilitado
-(caso de referencia: ARCA/AFIP).
+**En una frase:** para confirmar un pedido prepago, Rabbit le pide al
+banco que autorice el pago; si después algo falla en Rabbit, el rollback
+deshace lo nuestro pero no lo del banco, así que le pedimos al banco que
+devuelva la plata.
 
-**Por qué sincrónico:** el alta depende de esa respuesta; no tiene
-sentido guardar el comercio y enterarse después de que el CUIT no existe.
+**Por qué sincrónico:** sin la respuesta del banco no se puede confirmar
+el pedido: hay que saber en el momento si se cobró o no.
 
-**Por qué SOAP:** el padrón es un sistema legado con contrato WSDL
-formal.
-
-### Piezas
+**Por qué SOAP:** el banco es un sistema legado con contrato WSDL y
+errores de negocio tipados (`soap:Fault`).
 
 | Clase | Rol |
 |---|---|
-| `PadronFiscalService` | Contrato (SEI) |
-| `PadronFiscalServiceImpl` | Proveedor simulado, publicado en el mismo WAR |
-| `CuitInexistenteException` + `CuitInexistenteFaultInfo` | El Fault de negocio |
-| `IPadronFiscalClient` | Lo único que conoce `ComercioService` |
-| `PadronFiscalClient` | Adapter: cliente JAX-WS (proxy dinámico con `Service.getPort`, sin wsimport; WSDL leído una vez y cacheado) |
+| `BancoLegadoService` | Contrato (SEI): `autorizarPago`, `reversarPago` |
+| `BancoLegadoServiceImpl` | Banco simulado, publicado en el mismo WAR |
+| `PagoRechazadoException` + `PagoRechazadoFaultInfo` | Fault de negocio con el motivo del rechazo |
+| `IBancoClient` | Lo único que conoce `PagoService` |
+| `BancoClient` | Adapter: cliente JAX-WS (proxy dinámico con `Service.getPort`, sin wsimport), timeout de 5 s |
+| `ReversasBancarias` | Pide las reversas (compensación y devoluciones) |
 
-Endpoint: `http://localhost:8080/Rabbit/PadronFiscalService` (WSDL en `?wsdl`).
-Aunque está en el mismo servidor, se consume siempre por SOAP/HTTP.
+Endpoint: `http://localhost:8080/Rabbit/BancoLegadoService` (WSDL en
+`?wsdl`). Aunque está en el mismo servidor, se consume siempre por
+SOAP/HTTP. Se puede apuntar a otro banco con la system property
+`rabbit.banco.wsdl`.
 
-### Contrato
-
-- Estilo: `document/literal wrapped` (WS-I Basic Profile).
-- `targetNamespace`: `http://rabbit.example/legado/padronfiscal`
-- Service `PadronFiscalService`, port `PadronFiscalPort`, portType `PadronFiscalPortType`.
-
-| Operación | Entrada | Salida | Fault |
-|---|---|---|---|
-| `consultarCuit` | `cuit` (`xs:string`, `XX-XXXXXXXX-X`) | `estado`: `cuit`, `razonSocial` (`xs:string`), `habilitado` (`xs:boolean`) | `CuitInexistente` (detail: `cuit`) |
-
-Regla del mock: `20-00000000-0` siempre dispara el Fault; cualquier otro
-CUIT con formato válido responde habilitado.
-
-### Secuencia
+Regla del banco simulado: un pago de más de **$500.000** se rechaza
+(supera el límite); cualquier otro se autoriza con un código `AUT-n`.
 
 ```mermaid
 sequenceDiagram
-    participant UI as ComercioBean
-    participant CS as ComercioService
-    participant PC as PadronFiscalClient
-    participant PF as Padrón Fiscal (SOAP)
-    UI->>CS: registrarComercio(datos)
-    CS->>CS: validar formato y unicidad del CUIT
-    CS->>PC: consultar(cuit)
-    PC->>PF: consultarCuit(cuit) [timeout 5 s]
-    alt CUIT habilitado
-        PF-->>PC: estado
-        PC-->>CS: HABILITADO
-        CS->>CS: guardar con cuitValidado = true
-    else Fault CuitInexistente
-        PF-->>PC: soap:Fault
-        PC-->>CS: NO_ENCONTRADO
-        CS-->>UI: ValidacionException (no se guarda)
-    else timeout / caído
-        PC-->>CS: SERVICIO_NO_DISPONIBLE
-        CS->>CS: guardar con cuitValidado = false
+    participant PS as PedidoService
+    participant Pag as PagoService
+    participant B as Banco legado (SOAP)
+    participant Rep as RepartidorService
+    participant Rev as ReversasBancarias
+    PS->>Pag: registrarCobro (PREPAGO)
+    Pag->>B: autorizarPago
+    alt aprobado
+        B-->>Pag: codigoAutorizacion
+        Pag-)Rev: evento PagoAutorizado
+        PS->>Rep: asignarRepartidor
+        alt hay repartidor
+            PS->>PS: CONFIRMADO + commit
+        else no hay repartidor
+            PS->>PS: rollback
+            Rev->>B: reversarPago (AFTER_FAILURE)
+        end
+    else rechazado
+        B-->>Pag: soap:Fault PagoRechazado
+        Pag->>PS: ValidacionException → rollback, nada que reversar
+    else sin respuesta (timeout)
+        Pag->>PS: ValidacionException → el pedido sigue PENDIENTE
     end
 ```
 
-### Desafío del timeout
+### Qué pasa en cada caso
 
-- `connectionTimeout` y `receiveTimeout` en 5 s.
-- Se separan dos tipos de falla:
-  - **De negocio** (el CUIT no existe) → bloquea el alta.
-  - **De infraestructura** (el padrón no responde) → no bloquea: se
-    guarda con `cuitValidado = false`. Un sistema ajeno caído no debería
-    tumbar una operación válida.
-- `SERVICIO_NO_DISPONIBLE` no es un Fault del contrato: el timeout lo
-  detecta el cliente, no lo responde el servicio.
-- **Limitación conocida:** la primera descarga del WSDL (`Service.create`)
-  no tiene timeout propio.
-- **Limitación conocida:** el cliente no revisa el campo `habilitado` de
-  la respuesta; con el mock siempre es `true`.
+| Caso | Resultado |
+|---|---|
+| El banco aprueba y todo sale bien | Pedido CONFIRMADO, cobro ACREDITADO con el código del banco |
+| El banco rechaza (`soap:Fault`) | El pedido sigue PENDIENTE; el usuario ve el motivo del banco |
+| El banco no responde (5 s) | El pedido sigue PENDIENTE: sin respuesta no se sabe si cobró |
+| El banco aprueba pero después falla Rabbit (no hay repartidor) | Rollback en Rabbit **y reversa en el banco** (transacción compensatoria) |
+| Un administrador cancela un pedido PREPAGO confirmado | Cobro ANULADO y, cuando la cancelación queda confirmada, reversa en el banco |
+
+### Por qué hace falta la reversa
+
+Un rollback de JTA solo deshace lo que Rabbit escribió en su base. El
+banco es otro sistema: lo que cobró sigue cobrado. La única forma de
+deshacerlo es pedirle la operación inversa. `ReversasBancarias` lo hace
+con observers transaccionales, el mismo mecanismo que los publicadores
+JMS pero reaccionando al fracaso:
+
+- `PagoAutorizado` + `AFTER_FAILURE`: la transacción que cobró se deshizo.
+- `CobroAnulado` + `AFTER_SUCCESS`: la cancelación ya quedó confirmada.
+
+### Limitaciones conocidas
+
+- Si el banco cobró pero la respuesta se perdió por timeout, ese cobro
+  queda huérfano en el banco. Lo resolvería una clave de idempotencia y
+  una consulta de estado antes de reintentar.
+- Si el banco no responde a una reversa, se loguea para devolverla a mano
+  (lo resolvería un reintento programado).
+- El banco simulado guarda sus movimientos en memoria: se pierden al
+  redesplegar.
+- La primera descarga del WSDL (`Service.create`) no tiene timeout propio.
 
 ## REST: entrada de pedidos del ERP (planificado, Entrega 2)
 

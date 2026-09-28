@@ -10,7 +10,7 @@ clases donde vive) de lo **planificado** para la Entrega Obligatoria N.º 2
 | [PATRONES.md](PATRONES.md) | Cada patrón de diseño: qué problema resuelve, dónde está, qué alternativa se descartó |
 | [SEGURIDAD.md](SEGURIDAD.md) | Autenticación, roles, `@RolesAllowed`, operaciones sensibles |
 | [TRANSACCIONES.md](TRANSACCIONES.md) | Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo |
-| [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) | SOAP al padrón fiscal (contrato, timeout) y REST |
+| [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) | SOAP con el banco legado (cobro, reversa, timeout) y REST |
 | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) | Cola JMS de pedidos externos y tópico de estados del pedido |
 | [DECISIONES.md](DECISIONES.md) | Registro de decisiones de arquitectura (ADRs) |
 

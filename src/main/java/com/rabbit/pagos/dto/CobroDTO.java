@@ -11,6 +11,7 @@ public class CobroDTO {
     public BigDecimal importe;
     public MedioPago medioPago;
     public String estado;
+    public String codigoAutorizacion;
 
     public static CobroDTO desde(Cobro c) {
         CobroDTO dto = new CobroDTO();
@@ -19,6 +20,7 @@ public class CobroDTO {
         dto.importe = c.getImporte();
         dto.medioPago = c.getMedioPago();
         dto.estado = c.getEstado() != null ? c.getEstado().name() : null;
+        dto.codigoAutorizacion = c.getCodigoAutorizacion();
         return dto;
     }
 
@@ -27,4 +29,5 @@ public class CobroDTO {
     public BigDecimal getImporte() { return importe; }
     public MedioPago getMedioPago() { return medioPago; }
     public String getEstado() { return estado; }
+    public String getCodigoAutorizacion() { return codigoAutorizacion; }
 }

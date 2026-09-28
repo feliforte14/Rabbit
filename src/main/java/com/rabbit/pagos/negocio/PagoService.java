@@ -5,15 +5,21 @@ package com.rabbit.pagos.negocio;
  *
  * Cuándo se cobra, según el medio de pago del pedido:
  *   - PREPAGO: al confirmar el pedido (PedidoService.confirmarPedido llama
- *     a registrarCobro). Se autoriza contra la pasarela y queda ACREDITADO.
+ *     a registrarCobro). Se autoriza por SOAP contra el banco legado
+ *     (IBancoClient) y queda ACREDITADO con el código del banco.
  *   - CONTRA_ENTREGA: al confirmar queda PENDIENTE; lo efectiviza el
  *     suscriptor de Pagos al tópico de estados cuando el pedido pasa a
  *     ENTREGADO (ver SuscriptorPagosEstadoPedido).
  *
  * TRANSACCIONES: todo con REQUIRED, así registrarCobro se suma a la
- * transacción de confirmarPedido. Un pago rechazado lanza
- * ValidacionException (@ApplicationException(rollback = true)) y deshace
- * la confirmación entera, incluida la asignación del repartidor.
+ * transacción de confirmarPedido. Un pago rechazado (o un banco que no
+ * responde) lanza ValidacionException (@ApplicationException(rollback =
+ * true)) y deshace la confirmación entera.
+ *
+ * EL BANCO NO SE DESHACE CON UN ROLLBACK: si el banco autorizó y después la
+ * confirmación falla, el rollback no le devuelve la plata al cliente. Por
+ * eso cada autorización dispara PagoAutorizado, y ReversasBancarias le pide
+ * al banco la reversa si la transacción termina deshaciéndose.
  *
  * SEGURIDAD: mismo esquema que ComercioService — @PermitAll de clase y
  * @RolesAllowed("ADMINISTRADOR") en anularCobro, lo más sensible del
@@ -21,6 +27,8 @@ package com.rabbit.pagos.negocio;
  * por eso registrarCobroContraEntrega no puede llevar restricción de rol.
  */
 
+import com.rabbit.integracion.banco.IBancoClient;
+import com.rabbit.integracion.banco.ResultadoAutorizacion;
 import com.rabbit.pagos.datos.CobroRepository;
 import com.rabbit.pagos.datos.model.Cobro;
 import com.rabbit.pagos.datos.model.EstadoCobro;
@@ -32,6 +40,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -46,16 +55,17 @@ public class PagoService implements IRegistroCobros, IConsultaCobros {
 
     private static final Logger LOG = Logger.getLogger(PagoService.class.getName());
 
-    /**
-     * Pasarela simulada, con una regla determinística para la demo (mismo
-     * criterio que el CUIT 20-00000000-0 del padrón fiscal): un PREPAGO por
-     * encima de este importe se rechaza, así el camino de rechazo y su
-     * rollback se pueden mostrar a pedido.
-     */
-    public static final BigDecimal LIMITE_PASARELA = new BigDecimal("500000");
-
     @Inject
     private CobroRepository repository;
+
+    @Inject
+    private IBancoClient banco;
+
+    @Inject
+    private Event<PagoAutorizado> pagoAutorizado;
+
+    @Inject
+    private Event<CobroAnulado> cobroAnulado;
 
     // ===============================================================
     // IRegistroCobros
@@ -80,9 +90,13 @@ public class PagoService implements IRegistroCobros, IConsultaCobros {
         cobro.setMedioPago(medio);
         cobro.setFechaCreacion(LocalDateTime.now());
         if (medio == MedioPago.PREPAGO) {
-            autorizarEnPasarela(idPedido, importe);
+            String codigo = autorizarEnBanco(idPedido, importe);
+            cobro.setCodigoAutorizacion(codigo);
             cobro.setEstado(EstadoCobro.ACREDITADO);
             cobro.setFechaAcreditacion(LocalDateTime.now());
+            // Desde acá el banco ya cobró: si esta transacción se deshace,
+            // ReversasBancarias le pide la reversa (AFTER_FAILURE).
+            pagoAutorizado.fire(new PagoAutorizado(idPedido, codigo));
         } else {
             cobro.setEstado(EstadoCobro.PENDIENTE);
         }
@@ -119,12 +133,24 @@ public class PagoService implements IRegistroCobros, IConsultaCobros {
         cobro.setEstado(EstadoCobro.ANULADO);
         repository.actualizar(cobro);
         LOG.info("[Pagos] Cobro del pedido " + idPedido + " anulado");
+        // Un PREPAGO ya se cobró en el banco: la devolución se pide recién
+        // cuando la cancelación quede confirmada (AFTER_SUCCESS).
+        if (cobro.getCodigoAutorizacion() != null) {
+            cobroAnulado.fire(new CobroAnulado(idPedido, cobro.getCodigoAutorizacion()));
+        }
     }
 
-    private void autorizarEnPasarela(Long idPedido, BigDecimal importe) {
-        if (importe.compareTo(LIMITE_PASARELA) > 0) {
-            throw new ValidacionException("Pago rechazado por la pasarela: el pedido " + idPedido
-                    + " supera el límite de $" + LIMITE_PASARELA.toPlainString());
+    // Llamada sincrónica: sin la respuesta del banco no se puede confirmar.
+    private String autorizarEnBanco(Long idPedido, BigDecimal importe) {
+        ResultadoAutorizacion resultado = banco.autorizar(idPedido, importe);
+        switch (resultado.getEstado()) {
+            case APROBADO:
+                return resultado.getCodigoAutorizacion();
+            case RECHAZADO:
+                throw new ValidacionException("Pago rechazado por el banco: " + resultado.getMotivo());
+            default:
+                throw new ValidacionException("El banco no respondió: el pedido " + idPedido
+                        + " no se confirmó. Intentá de nuevo en unos minutos.");
         }
     }
 

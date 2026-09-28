@@ -131,7 +131,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Inject
     private Event<EstadoPedidoCambiado> estadoPedidoCambiado;
 
-    // Flujo de confirmación (asignar repartidor → cobrar → confirmar): los
+    // Flujo de confirmación (cobrar → asignar repartidor → confirmar): los
     // dos corren con REQUIRED y se suman a la transacción de confirmarPedido.
     @Inject
     private IAsignacionRepartidores repartidores;
@@ -337,16 +337,20 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         Pedido pedido = obtenerOFallar(idPedido);
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
 
-        // Los tres pasos son UNA transacción: si el cobro se rechaza, el
-        // rollback también devuelve el repartidor a DISPONIBLE y el pedido
-        // sigue PENDIENTE. Las excepciones de Repartidores y Pagos ya marcan
-        // la transacción para rollback (@ApplicationException(rollback =
-        // true)); acá solo se traducen a la de Pedidos para que la vista
-        // muestre el motivo.
+        // Los tres pasos son UNA transacción: si algo falla, el pedido sigue
+        // PENDIENTE y no queda cobro ni repartidor asignado en Rabbit. Lo que
+        // el rollback NO deshace es el cobro en el banco (sistema externo):
+        // si el banco ya autorizó y después no hay repartidor, Pagos pide la
+        // reversa al banco (ver ReversasBancarias). Se cobra primero a
+        // propósito: así ese caso se puede mostrar en la demo.
+        //
+        // Las excepciones de Repartidores y Pagos ya marcan la transacción
+        // para rollback (@ApplicationException(rollback = true)); acá solo
+        // se traducen a la de Pedidos para que la vista muestre el motivo.
         Long idRepartidor;
         try {
-            idRepartidor = repartidores.asignarRepartidor(idPedido);
             cobros.registrarCobro(idPedido, pedido.getImporte(), pedido.getMedioPago());
+            idRepartidor = repartidores.asignarRepartidor(idPedido);
         } catch (com.rabbit.repartidores.negocio.ValidacionException
                  | com.rabbit.pagos.negocio.ValidacionException e) {
             throw new ValidacionException(e.getMessage());
