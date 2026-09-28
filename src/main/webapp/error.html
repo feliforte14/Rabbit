@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!--
+    Pagina de error generica (ver <error-page> en web.xml). Estatica a
+    proposito: no depende de JSF, asi que se muestra aunque el error venga
+    del propio FacesServlet, y no expone ningun detalle interno.
+-->
+<html lang="es">
+<head>
+    <meta charset="UTF-8" />
+    <title>Rabbit · Error</title>
+    <link rel="stylesheet" href="/Rabbit/jakarta.faces.resource/estilos.css.xhtml?ln=rabbit" />
+</head>
+<body class="pagina-sola">
+    <div class="container">
+        <h1>Algo salió mal</h1>
+        <p>No se pudo completar la operación. Intentá de nuevo en unos minutos.</p>
+        <p><a href="/Rabbit/login.xhtml">Volver al inicio</a></p>
+    </div>
+</body>
+</html>

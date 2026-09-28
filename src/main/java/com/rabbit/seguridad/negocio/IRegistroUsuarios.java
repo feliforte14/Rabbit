@@ -12,7 +12,7 @@ import jakarta.ejb.Local;
 public interface IRegistroUsuarios {
 
     /**
-     * Da de alta un usuario nuevo, activo.
+     * Da de alta un usuario nuevo, activo. Solo ADMINISTRADOR.
      *
      * @param datos username, password en claro y rol
      * @return el ID asignado por la base
@@ -28,8 +28,4 @@ public interface IRegistroUsuarios {
      * @throws ValidacionException si el usuario no existe
      */
     void darDeBaja(Long id);
-
-    // true si quien llama es ADMINISTRADOR o si todavía no hay ningún
-    // administrador (bootstrap): solo entonces el alta puede elegir el rol.
-    boolean puedeElegirRol();
 }

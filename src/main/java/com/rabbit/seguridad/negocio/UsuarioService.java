@@ -49,11 +49,11 @@ import java.util.stream.Collectors;
 
 // Seguridad declarativa, mismo esquema que ComercioService: @PermitAll a
 // nivel de clase (este WildFly deniega por default todo método sin permiso
-// declarado) y @RolesAllowed("ADMINISTRADOR") en lo sensible — listar el
-// padrón y dar de baja. El alta sigue abierta para que alguien pueda
-// crearse una cuenta desde login.xhtml, pero registrarUsuario() solo deja
-// crear un ADMINISTRADOR si el que llama ya lo es, o si todavía no existe
-// ninguno (bootstrap del primer administrador).
+// declarado) y @RolesAllowed("ADMINISTRADOR") en lo sensible: dar de alta,
+// listar el padrón y dar de baja. No hay alta pública: una cuenta nueva
+// la crea un administrador, y el primer administrador se crea en el
+// servidor con add-user.sh (ver README). Un alta abierta le daba a
+// cualquiera un OPERADOR, que puede operar casi todo el sistema.
 @Stateless
 @DeclareRoles({"ADMINISTRADOR", "OPERADOR"})
 @PermitAll
@@ -93,17 +93,15 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
      */
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
     public Long registrarUsuario(DatosUsuarioDTO datos) {
         validarUsername(datos.username);
         validarPassword(datos.password);
-        if (repository.existeUsername(datos.username.trim())) {
-            throw new ValidacionException("Ya existe un usuario con el nombre \"" + datos.username + "\"");
+        if (repository.existeUsername(datos.username.trim()) || ApplicationRealmSync.existeEnRealm(datos.username.trim())) {
+            throw new ValidacionException("Ya existe un usuario con el nombre \"" + datos.username.trim() + "\"");
         }
 
         Rol rol = datos.rol != null ? datos.rol : Rol.OPERADOR;
-        if (rol == Rol.ADMINISTRADOR && !puedeElegirRol()) {
-            throw new ValidacionException("Solo un administrador puede registrar otros administradores");
-        }
 
         Usuario usuario = new Usuario();
         usuario.setUsername(datos.username.trim());
@@ -128,25 +126,34 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
      * @throws ValidacionException si el usuario no existe
      */
     @Override
-    public boolean puedeElegirRol() {
-        return contexto.isCallerInRole("ADMINISTRADOR") || !repository.existeAdministradorActivo();
-    }
-
-    @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed("ADMINISTRADOR")
     public void darDeBaja(Long id) {
         Usuario usuario = obtenerOFallar(id);
+        if (usuario.getUsername().equals(contexto.getCallerPrincipal().getName())) {
+            throw new ValidacionException("No podés darte de baja a vos mismo");
+        }
+        // Sin administradores activos nadie podría volver a dar de alta
+        // usuarios desde la aplicación.
+        if (usuario.getRol() == Rol.ADMINISTRADOR && usuario.isActivo()
+                && repository.contarAdministradoresActivos() <= 1) {
+            throw new ValidacionException("No se puede dar de baja al último administrador activo");
+        }
         usuario.setActivo(false);
         repository.actualizar(usuario);
         ApplicationRealmSync.bajaUsuario(usuario.getUsername());
     }
 
-    // Username obligatorio, sin más restricción de formato: el TP no exige
-    // reglas de complejidad de usuario, solo que no venga vacío.
+    // El username termina escrito en los archivos de properties del realm
+    // (ver ApplicationRealmSync): una lista blanca estricta evita que un
+    // salto de línea, "=" o ":" altere las entradas de otros usuarios.
     private void validarUsername(String username) {
         if (username == null || username.isBlank()) {
             throw new ValidacionException("El nombre de usuario es obligatorio");
+        }
+        if (!ApplicationRealmSync.usernameValido(username.trim())) {
+            throw new ValidacionException("El nombre de usuario debe tener entre 3 y 30 caracteres: "
+                    + "letras, números, punto, guion o guion bajo");
         }
     }
 

@@ -164,3 +164,22 @@ Propuesta o Reemplazada.
   reversas con el circuito abierto no se intentan y quedan para hacer a
   mano (mismo límite que ADR-010). En un cluster cada nodo tiene su
   propio circuito.
+
+## ADR-012: Sin alta pública de usuarios
+
+- **Estado:** Aceptada.
+- **Contexto:** `usuarios.xhtml` era pública: cualquiera podía crearse un
+  `OPERADOR`, y como casi todas las operaciones de negocio son
+  `@PermitAll`, eso equivalía a operar el sistema sin autorización.
+  Además, mientras no hubiera un administrador activo, el alta pública
+  permitía crear uno, y esa situación podía repetirse si el último
+  administrador se daba de baja.
+- **Decisión:** `registrarUsuario` exige `ADMINISTRADOR` y la pantalla de
+  usuarios es solo para ese rol. El primer administrador se crea en el
+  servidor con `add-user.sh`. Un administrador no puede darse de baja a sí
+  mismo ni dar de baja al último administrador activo. El username se
+  valida con una lista blanca, porque termina escrito en los archivos del
+  realm.
+- **Consecuencias:** nadie obtiene acceso sin que un administrador lo
+  habilite. El arranque de una instalación nueva requiere acceso al
+  servidor (ya era así para el usuario del ERP).

@@ -7,6 +7,11 @@
 - Al registrar un usuario, `UsuarioService` lo guarda en la tabla
   `usuarios` y lo sincroniza al realm (`ApplicationRealmSync`, que
   escribe `application-users.properties`).
+- **No hay alta pública de cuentas:** los usuarios los crea un
+  `ADMINISTRADOR`. El primer administrador se crea en el servidor con
+  `add-user.sh` (README, paso 5).
+- Al iniciar sesión se renueva el ID de sesión (`changeSessionId`),
+  contra *session fixation*.
 - Contraseñas:
   - Columna `passwordHash`: SHA-256 sin salt (`PasswordUtil`).
     Simplificación consciente para el TP, **no apta para producción**.
@@ -17,8 +22,8 @@
 
 | Rol | Quién | Cómo se crea |
 |---|---|---|
-| `ADMINISTRADOR` | Personal de Rabbit con permisos totales | Desde `usuarios.xhtml` (enum `Rol`) |
-| `OPERADOR` | Personal de Rabbit | Desde `usuarios.xhtml` (enum `Rol`) |
+| `ADMINISTRADOR` | Personal de Rabbit con permisos totales | El primero con `add-user.sh -a -u <usuario> -p '<clave>' -g ADMINISTRADOR`; los demás, un administrador desde `usuarios.xhtml` |
+| `OPERADOR` | Personal de Rabbit | Un administrador, desde `usuarios.xhtml` |
 | `ERP` | Sistema del comercio que usa la API REST (no es una persona) | Solo en WildFly: `add-user.sh -a -u <usuario> -p '<clave>' -g ERP` |
 
 La API REST del ERP se autentica con HTTP Basic (`web.xml`:
@@ -40,6 +45,7 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | Operación | Por qué es sensible |
 |---|---|
 | `ComercioService.eliminarComercio` | Borra físicamente el comercio y sus puntos de picking en cascada |
+| `UsuarioService.registrarUsuario` | Crea cuentas con acceso al sistema. Si fuera público, cualquiera se daría un `OPERADOR` |
 | `UsuarioService.listarTodos` | Expone el padrón completo de usuarios |
 | `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |
 | `PagoService.anularCobro` | Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR` |
@@ -55,27 +61,47 @@ la vista la traduce a un mensaje (WildFly igual la loguea como
 
 ### Reglas que dependen de datos
 
-Cuando no alcanza con el rol, el EJB consulta
-`SessionContext.isCallerInRole(...)`: `UsuarioService.puedeElegirRol()`
-permite crear un `ADMINISTRADOR` solo a otro administrador, o a
-cualquiera mientras no exista ninguno activo (arranque del sistema).
+Cuando no alcanza con el rol, `UsuarioService.darDeBaja` controla además:
 
-Qué permite `usuarios.xhtml` (pública, enlazada desde el login):
+- que un administrador no se dé de baja a sí mismo;
+- que no se dé de baja al último administrador activo (sin ninguno,
+  nadie podría volver a crear usuarios desde la aplicación).
 
-| Quién | Qué puede hacer |
-|---|---|
-| Sin sesión u `OPERADOR` | Solo crearse una cuenta, siempre como `OPERADOR` |
-| `ADMINISTRADOR` | Ver el padrón, dar de baja usuarios y crear otros administradores |
-| Cualquiera, mientras no exista ningún administrador activo | Crear el primer `ADMINISTRADOR` |
+### Usuarios y archivos del realm
 
-La regla la impone `UsuarioService`; la vista solo oculta lo que no
-corresponde.
+`ApplicationRealmSync` escribe el username en los archivos de properties
+del realm, que son texto `usuario=valor` por línea. Un username con salto
+de línea, `=` o `:` podría alterar las entradas de otros usuarios. Por
+eso:
+
+- solo se aceptan letras, números, punto, guion y guion bajo, entre 3 y
+  30 caracteres (se valida en `UsuarioService` y otra vez en
+  `ApplicationRealmSync`);
+- no se puede crear un usuario que ya exista en el realm (por ejemplo, el
+  del ERP creado con `add-user.sh`): lo pisaría;
+- las escrituras se serializan para que dos altas simultáneas no se
+  pisen.
 
 ### Control de UX en la vista
 
 `SesionBean.exigirSesion()` (vía `<f:viewAction>`) redirige a
-`login.xhtml` si no hay sesión. **No es seguridad**: la vista puede
+`login.xhtml` si no hay sesión, y `exigirAdministrador()` saca de
+`usuarios.xhtml` a quien no es `ADMINISTRADOR`. El enlace "Usuarios" del
+menú solo lo ve un administrador. **No es seguridad**: la vista puede
 ocultar botones, pero la autorización siempre la impone el EJB.
+
+### Errores
+
+JSF corre en modo `Production` y `web.xml` define páginas de error: ante
+un error el usuario ve `error.html`, una página genérica sin stack trace
+ni detalles internos; el detalle queda solo en el log del servidor. Una
+vista vencida (sesión expirada) vuelve al login.
+
+### Credenciales fuera del repositorio
+
+El repositorio es público: ninguna credencial va en el código. Las de la
+base viven en el datasource de WildFly y las de management (para
+`mvn wildfly:deploy`) en `~/.m2/settings.xml` (README, paso 3).
 
 ### Operación pública
 
@@ -88,3 +114,16 @@ pedido, sin importes, cobros ni datos del comercio.
 | Operación | Rol | Motivo |
 |---|---|---|
 | Listado de cobros | `ADMINISTRADOR` | Información financiera |
+
+## Limitaciones conocidas
+
+- Sin HTTPS: el login y el HTTP Basic del ERP viajan en claro. En
+  producción iría `transport-guarantee CONFIDENTIAL` y TLS en WildFly.
+- Contraseñas con SHA-256 sin salt, mínimo de 6 caracteres y sin límite
+  de intentos de login.
+- Un usuario `ERP` puede cargar pedidos de cualquier comercio: no está
+  atado al suyo.
+- El banco simulado (`BancoLegadoService`) se publica sin autenticación.
+  En producción no viviría dentro de Rabbit.
+- `/api/seguimiento/{id}` usa IDs secuenciales: se puede recorrer el
+  estado de todos los pedidos (solo el estado).

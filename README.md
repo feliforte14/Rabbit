@@ -133,11 +133,26 @@ ALTER TABLE pedidos DROP CONSTRAINT IF EXISTS pedidos_estado_check;
 ### 3. Usuario de management (una sola vez)
 
 El `wildfly-maven-plugin` despliega por la API de management (puerto
-`9990`) con el usuario configurado en [`pom.xml`](pom.xml). Ese usuario
-tiene que existir en WildFly:
+`9990`). Ese usuario tiene que existir en WildFly:
 
 ```bash
 $WILDFLY_HOME/bin/add-user.sh -u <usuario> -p '<contraseña>' -s
+```
+
+Sus credenciales **no van en el `pom.xml`** (el repositorio es público):
+el plugin las toma del `<server>` con id `rabbit-wildfly` de
+`~/.m2/settings.xml`:
+
+```xml
+<settings>
+  <servers>
+    <server>
+      <id>rabbit-wildfly</id>
+      <username>USUARIO</username>
+      <password>CONTRASEÑA</password>
+    </server>
+  </servers>
+</settings>
 ```
 
 ### 4. Desplegar
@@ -152,17 +167,17 @@ y abrir http://localhost:8080/Rabbit.
 
 El login valida contra el `ApplicationRealm` de WildFly, así que un
 WildFly recién instalado no reconoce usuarios creados en otra instalación
-aunque estén en la base. Hay dos formas de entrar la primera vez:
+aunque estén en la base. No hay alta pública de cuentas: el primer
+administrador se crea en WildFly:
 
-- **Desde la app:** si en la base no hay ningún administrador activo,
-  "Registrate acá" (`usuarios.xhtml`) permite crear el primero.
-- **Desde WildFly:** crear un usuario de aplicación con el rol
-  `ADMINISTRADOR`:
-  ```bash
-  $WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s
-  ```
+```bash
+$WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s
+```
 
-Los usuarios que después se registran desde la app se sincronizan solos
+Desde ahí, ese administrador crea los demás usuarios en "Usuarios"
+(`usuarios.xhtml`).
+
+Los usuarios que crea un administrador desde la app se sincronizan solos
 contra el realm (ver `ApplicationRealmSync`).
 
 ### 6. Usuario del ERP para la API REST
