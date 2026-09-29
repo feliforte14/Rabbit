@@ -7,6 +7,7 @@ package com.rabbit.seguridad.presentacion;
  */
 
 import com.rabbit.comercios.negocio.IConsultaComercios;
+import com.rabbit.repartidores.dto.RepartidorDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.seguridad.negocio.IContextoUsuario;
 import com.rabbit.seguridad.negocio.ValidacionException;
@@ -18,13 +19,22 @@ import jakarta.security.enterprise.SecurityContext;
 import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.security.Principal;
+import java.util.logging.Logger;
 
 @Named
 @RequestScoped
 public class SesionBean {
 
+    private static final Logger LOG = Logger.getLogger(SesionBean.class.getName());
+
+    private static final String PAGINA_LOGIN = "/login.xhtml";
+    private static final String SIN_ASOCIAR = "Cuenta sin asociar";
+
     @Inject
     private SecurityContext securityContext;
+
+    // Cache del render en curso (el bean es @RequestScoped).
+    private String representado;
 
     @Inject
     private IContextoUsuario contextoUsuario;
@@ -46,7 +56,7 @@ public class SesionBean {
         if (!isAutenticado()) {
             FacesContext facesContext = FacesContext.getCurrentInstance();
             HttpServletRequest request = (HttpServletRequest) facesContext.getExternalContext().getRequest();
-            facesContext.getExternalContext().redirect(request.getContextPath() + "/login.xhtml");
+            facesContext.getExternalContext().redirect(request.getContextPath() + PAGINA_LOGIN);
             // Sin esto, JSF sigue el ciclo de vida normal y renderiza la
             // vista igual después del redirect() — el response ya tiene un
             // Location header pero el body real termina siendo el de la
@@ -88,7 +98,30 @@ public class SesionBean {
             return;
         }
         if (!permitido) {
-            redirigir(getPaginaInicio());
+            String inicio = getPaginaInicio();
+            if (inicio == null) {
+                // Autenticado pero sin ningún rol con acceso web (por
+                // ejemplo, el usuario del ERP). No hay página a la cual
+                // mandarlo: se cierra la sesión y vuelve al login.
+                LOG.warning("[Seguridad] " + getUsuarioActual()
+                        + " no tiene un rol con acceso a la aplicación web: se cierra la sesión");
+                cerrarSesion();
+                inicio = PAGINA_LOGIN;
+            }
+            redirigir(inicio);
+        }
+    }
+
+    private void cerrarSesion() {
+        HttpServletRequest request = (HttpServletRequest) FacesContext.getCurrentInstance()
+                .getExternalContext().getRequest();
+        try {
+            request.logout();
+        } catch (jakarta.servlet.ServletException e) {
+            // No había sesión autenticada que cerrar del lado del contenedor.
+        }
+        if (request.getSession(false) != null) {
+            request.getSession(false).invalidate();
         }
     }
 
@@ -148,17 +181,29 @@ public class SesionBean {
 
     /** A quién representa la cuenta (comercio o repartidor), para el menú. */
     public String getRepresentado() {
+        // El menú lo pide más de una vez por render: se resuelve una sola.
+        if (representado == null) {
+            representado = resolverRepresentado();
+        }
+        return representado.isEmpty() ? null : representado;
+    }
+
+    // Nunca propaga una excepción: el menú se muestra en todas las páginas,
+    // y una cuenta mal asociada (el comercio o el repartidor ya no existe)
+    // no puede romper el render de cada una.
+    private String resolverRepresentado() {
         try {
             if (isComercio()) {
                 return comercios.obtenerComercio(contextoUsuario.idComercioActual()).nombre;
             }
             if (isRepartidor()) {
-                return repartidores.obtenerRepartidor(contextoUsuario.idRepartidorActual()).getNombre();
+                RepartidorDTO repartidor = repartidores.obtenerRepartidor(contextoUsuario.idRepartidorActual());
+                return repartidor != null ? repartidor.getNombre() : SIN_ASOCIAR;
             }
         } catch (ValidacionException | com.rabbit.comercios.negocio.ValidacionException e) {
-            return "Cuenta sin asociar";
+            return SIN_ASOCIAR;
         }
-        return null;
+        return "";
     }
 
     // Nombre del usuario logueado, para mostrarlo en el sidebar
