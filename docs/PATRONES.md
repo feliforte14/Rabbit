@@ -9,7 +9,8 @@ qué alternativa se descartó.
   `EntityManager`.
 - **Dónde:** un repositorio por componente: `ComercioRepository`,
   `InventarioRepository`, `PedidoRepository`, `CobroRepository`,
-  `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`.
+  `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`,
+  `TransportistaRepository` y `ZonaRepository` (Ruteo).
   `ProductoRepository` también existe, pero el catálogo de productos
   todavía no tiene servicio que lo use.
 - **Cómo:** el repositorio es la única clase que toca el `EntityManager`.
