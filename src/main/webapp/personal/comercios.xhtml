@@ -14,7 +14,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
-                 template="/template.xhtml">
+                 template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
@@ -62,7 +62,7 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Puntos de picking</f:facet>
-                    <h:link outcome="puntos-picking" value="Ver">
+                    <h:link outcome="/comercio/puntos-picking" value="Ver">
                         <f:param name="idComercio" value="#{c.id}" />
                     </h:link>
                 </h:column>

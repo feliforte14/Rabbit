@@ -11,7 +11,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
-                 template="/template.xhtml">
+                 template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonalOComercio}" />
         <f:viewParam name="idComercio" value="#{puntoPickingBean.idComercio}" />
@@ -22,7 +22,7 @@
 
     <ui:define name="contenido">
         <h:panelGroup rendered="#{sesionBean.personal}">
-            <p><h:link outcome="comercios" value="&#8592; Volver a comercios" styleClass="enlace-volver" /></p>
+            <p><h:link outcome="/personal/comercios" value="&#8592; Volver a comercios" styleClass="enlace-volver" /></p>
         </h:panelGroup>
 
         <h1>#{sesionBean.comercio ? 'Mis puntos de picking' : 'Puntos de picking de '.concat(puntoPickingBean.comercio.nombre)}</h1>

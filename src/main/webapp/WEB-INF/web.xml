@@ -3,8 +3,12 @@
     Le dice al servidor que todo lo que termine en .xhtml debe pasar por
     el FacesServlet (el motor de JSF), y que la pagina de inicio de la
     app es login.xhtml — la primera pantalla que ve cualquiera al entrar,
-    sin importar el rol. Tras autenticarse, LoginBean.login() manda a
-    comercios.xhtml, que sí requiere sesión iniciada (ver SesionBean.exigirSesion).
+    sin importar el rol. Tras autenticarse, LoginBean.login() manda a la
+    pantalla de inicio de cada tipo de usuario (SesionBean.getPaginaInicio).
+    Las paginas estan ordenadas por tipo de usuario: personal/, comercio/ y
+    repartidor/; la plantilla comun vive en WEB-INF/plantillas/, donde el
+    navegador no la puede pedir directo. Cada pagina controla el acceso con
+    su f:viewAction (SesionBean.exigirPersonal, exigirComercio, ...).
 -->
 <web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"

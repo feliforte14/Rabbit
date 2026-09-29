@@ -11,7 +11,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
-                 template="/template.xhtml">
+                 template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
@@ -24,7 +24,7 @@
         <p class="ayuda">
             Cada pedido es una venta que el comercio ya cerró y que llega desde su ERP. Al
             confirmarlo se cobra (si es prepago) y se le asigna un repartidor; el recorrido se
-            sigue en&#160;<h:link outcome="entregas" value="Entregas en curso" />.
+            sigue en&#160;<h:link outcome="/personal/entregas" value="Entregas en curso" />.
         </p>
 
         <h:messages globalOnly="false" showDetail="false" showSummary="true"
@@ -115,7 +115,7 @@
         </p>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.listaTransportistas}">
             No hay transportistas activos. Se dan de alta en
-            <h:link outcome="transportistas" value="Transportistas" />.
+            <h:link outcome="/personal/transportistas" value="Transportistas" />.
         </h:panelGroup>
         <h:form id="formDerivar" styleClass="formulario" rendered="#{not empty pedidoBean.listaTransportistas}">
             <div class="campo">

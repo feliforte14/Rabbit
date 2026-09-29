@@ -14,7 +14,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
-                 template="/template.xhtml">
+                 template="/WEB-INF/plantillas/template.xhtml">
     <!--
         El Bean es @SessionScoped para que la conversacion sobreviva a las
         recargas, pero eso hace que las listas cargadas en @PostConstruct
@@ -34,9 +34,9 @@
 
     <ui:define name="contenido">
         <p>
-            <h:link outcome="depositos" value="&#8592; Volver a depósitos" styleClass="enlace-volver" />
+            <h:link outcome="/personal/depositos" value="&#8592; Volver a depósitos" styleClass="enlace-volver" />
             &#160;&#183;&#160;
-            <h:link outcome="historial" value="Ver historial de reservas" styleClass="enlace-volver" />
+            <h:link outcome="/personal/historial" value="Ver historial de reservas" styleClass="enlace-volver" />
         </p>
 
         <h1>Reserva de stock</h1>

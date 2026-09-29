@@ -22,10 +22,10 @@
 
 | Rol | Quién | Cómo se crea |
 |---|---|---|
-| `ADMINISTRADOR` | Personal de Rabbit con permisos totales | El primero con `add-user.sh -a -u <usuario> -p '<clave>' -g ADMINISTRADOR`; los demás, un administrador desde `usuarios.xhtml` |
-| `OPERADOR` | Personal de Rabbit | Un administrador, desde `usuarios.xhtml` |
-| `COMERCIO` | Un comercio: ve solo sus pedidos, su stock y sus puntos de picking | Un administrador, desde `usuarios.xhtml`, asociándolo a un comercio activo |
-| `REPARTIDOR` | Un repartidor: ve y mueve solo sus entregas | Un administrador, desde `usuarios.xhtml`, asociándolo a un repartidor (una cuenta por repartidor) |
+| `ADMINISTRADOR` | Personal de Rabbit con permisos totales | El primero con `add-user.sh -a -u <usuario> -p '<clave>' -g ADMINISTRADOR`; los demás, un administrador desde `personal/usuarios.xhtml` |
+| `OPERADOR` | Personal de Rabbit | Un administrador, desde `personal/usuarios.xhtml` |
+| `COMERCIO` | Un comercio: ve solo sus pedidos, su stock y sus puntos de picking | Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un comercio activo |
+| `REPARTIDOR` | Un repartidor: ve y mueve solo sus entregas | Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un repartidor (una cuenta por repartidor) |
 | `ERP` | Sistema del comercio que usa la API REST (no es una persona) | Solo en WildFly: `add-user.sh -a -u <usuario> -p '<clave>' -g ERP` |
 
 La API REST del ERP se autentica con HTTP Basic (`web.xml`:
@@ -82,7 +82,7 @@ repartidor del cliente:
 - `despacharPedido` y `registrarEntrega` rechazan a un `REPARTIDOR` que no
   tiene asignado ese pedido;
 - `ComercioService` rechaza que un `COMERCIO` toque puntos de picking de
-  otro comercio (y `puntos-picking.xhtml` ignora el `idComercio` de la URL
+  otro comercio (y `comercio/puntos-picking.xhtml` ignora el `idComercio` de la URL
   para un comercio).
 
 El seguimiento de envíos (`SeguimientoDeEnvios`, un timer sin usuario)
@@ -132,7 +132,10 @@ Cada página tiene su guardián (`<f:viewAction>`): `exigirPersonal`,
 `exigirPersonalOComercio`. Sin sesión mandan al login; con sesión pero
 sin el tipo de usuario correcto, a la página de inicio de ese usuario.
 Cada tipo de usuario ve su propio menú, y un usuario `ERP` no puede
-entrar a la web (el login lo rechaza). **No es seguridad**: la vista puede
+entrar a la web (el login lo rechaza). Las páginas están en una carpeta
+por tipo de usuario (`personal/`, `comercio/`, `repartidor/`), y la
+plantilla con el menú vive en `WEB-INF/plantillas/`, que el contenedor
+nunca sirve por URL. **No es seguridad**: la vista puede
 ocultar botones, pero la autorización siempre la impone el EJB.
 
 ### Errores

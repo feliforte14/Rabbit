@@ -202,7 +202,7 @@ Propuesta o Reemplazada.
   EJB y no solo en la vista. El ERP tiene que mandar la dirección de
   entrega (la API responde `400` sin ella). Los pedidos anteriores quedan
   sin dirección. El ruteo no optimiza recorridos ni agrupa pedidos: queda
-  para la Entrega Final.
+  para la Entrega Final. *(El agrupamiento por zona se hizo en ADR-017.)*
 
 ## ADR-014: Escalar el consumidor de la cola con consumidores competidores
 
@@ -272,7 +272,8 @@ Propuesta o Reemplazada.
     inmediato, pero un transportista legado no avisa; habría que mantener
     polling igual para esos. Queda como mejora para los que lo soporten.
   - *Derivación automática (por zona o falta de repartidores):* necesita
-    zonas, que llegan con el Ruteo completo.
+    zonas, que llegan con el Ruteo completo. *(Hecho en ADR-017: el Ruteo
+    deriva solo según la zona.)*
   - *Un servicio por transportista sin interfaz común:* cada uno metería su
     tecnología en la lógica de negocio.
   - *Que el seguimiento llame directo a Pedidos:* Transportistas y Pedidos

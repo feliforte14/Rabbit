@@ -13,7 +13,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
-                 template="/template.xhtml">
+                 template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
@@ -62,9 +62,9 @@
                         a la pantalla destino ya viene preseleccionado, en vez
                         de pedirle al usuario que lo vuelva a elegir.
                     -->
-                    <h:link outcome="reservas" value="Reservar stock">
+                    <h:link outcome="/personal/reservas" value="Reservar stock">
                         <f:param name="idDeposito" value="#{d.id}" />
-                    </h:link> &#183; <h:link outcome="items" value="Ver stock">
+                    </h:link> &#183; <h:link outcome="/personal/items" value="Ver stock">
                         <f:param name="idDeposito" value="#{d.id}" />
                     </h:link>
                 </h:column>
