@@ -21,7 +21,10 @@
 |---|---|---|
 | `REQUIRED` (default) | Casi todas las operaciones | Se suman a la transacción del llamador, o abren una |
 | `REQUIRES_NEW` | `sincronizarPedidoExterno`, `descartarPedidoExterno` | El sincronizador procesa varias filas por pasada: si comparten transacción, una fila fallida la deja condenada y arrastra a las siguientes |
-| `NOT_SUPPORTED` | `PublicadorPedidosExternos.publicarPedidoExternoRegistrado` | El envío JMS corre fuera de la transacción: si el broker falla, no deshace el pedido ya guardado |
+| `NOT_SUPPORTED` | `PublicadorPedidosExternos` y `PublicadorEstadosPedido` | El envío JMS corre fuera de la transacción: si el broker falla, no deshace lo ya guardado |
+| `NOT_SUPPORTED` | `ReversasBancarias` | La reversa en el banco corre después de que la transacción de Rabbit terminó (se deshizo o se confirmó) |
+| `NOT_SUPPORTED` | `SincronizadorDePedidos.sincronizarPendientes` | La pasada del timer no abre transacción: cada fila se sincroniza en la suya (`REQUIRES_NEW`), así una fila fallida no arrastra a las demás |
+| `NOT_SUPPORTED` | `CircuitBreakerBanco` | Solo cambia estado en memoria: no tiene nada que hacer en la transacción del llamador |
 
 ## Flujo 1: sincronizar un pedido externo (implementado)
 
@@ -32,7 +35,7 @@
 | 1. Leer la fila externa con `PESSIMISTIC_WRITE` | Si ya está sincronizada: `PedidoYaSincronizadoException`, no cambia nada |
 | 2. Validar comercio activo | Rollback; el MDB o el timer la descartan con motivo (`descartarPedidoExterno`, en su propia transacción) |
 | 3. Por cada línea: reservar y confirmar stock (`IReservaStock`, se suma a la transacción) | Rollback de **todas** las reservas de las líneas anteriores: el pedido es todo o nada |
-| 4. Guardar el `Pedido` (PENDIENTE, con importe y medio de pago) y disparar `EstadoPedidoCambiado` | Rollback de todo; el evento no se publica (observers `AFTER_SUCCESS`) |
+| 4. Guardar el `Pedido` (PENDIENTE, con importe, medio de pago y dirección de entrega) y disparar `EstadoPedidoCambiado` | Rollback de todo; el evento no se publica (observers `AFTER_SUCCESS`) |
 | 5. Marcar la fila externa como sincronizada | Rollback de todo |
 
 ## Flujo 2: cambios de estado (implementado)
@@ -77,3 +80,24 @@ Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
 |---|---|
 | `registrarEntrega` | Estado ENTREGADO + libera al repartidor. El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
 | `cancelarPedido` (desde CONFIRMADO) | Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si era PREPAGO, después del commit se pide la reversa al banco. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada |
+
+## Flujo 5: alta de usuario, en la base y en el realm (implementado)
+
+`UsuarioService.registrarUsuario`, `REQUIRED`. El usuario vive en dos
+lugares: la tabla `usuarios` (dentro de la transacción) y los archivos del
+realm de WildFly (fuera de ella: un archivo no participa de JTA).
+
+| Paso | Si falla… |
+|---|---|
+| 1. Validar username, contraseña y a quién representa la cuenta | No cambia nada |
+| 2. Guardar la fila en `usuarios` | Rollback |
+| 3. Escribir los dos archivos del realm (`ApplicationRealmSync`) | Si falla la escritura, la excepción deshace también el paso 2. Los dos archivos se reemplazan como una unidad: si falla el segundo, el primero vuelve a su contenido original |
+| 4. Commit | Si la transacción se deshace después de escribir el realm, una `Synchronization` (`afterCompletion`) quita al usuario del realm: compensación, igual que la reversa del banco |
+
+`darDeBaja` hace el camino inverso sin compensación: si se deshace después
+de quitar al usuario del realm, la cuenta queda sin poder entrar aunque
+siga activa en la tabla. Es el lado seguro (menos acceso, no más).
+
+`eliminarComercio` también es una sola transacción: el evento
+`EliminacionDeComercio` corre adentro (observers sincrónicos) y, si algún
+componente anota un impedimento, no se borra nada.

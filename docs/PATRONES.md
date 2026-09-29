@@ -7,8 +7,11 @@ qué alternativa se descartó.
 
 - **Problema:** que las reglas de negocio no dependan de JPQL ni del
   `EntityManager`.
-- **Dónde:** `ComercioRepository`, `ProductoRepository`,
-  `InventarioRepository`, `PedidoRepository`, `UsuarioRepository`.
+- **Dónde:** un repositorio por componente: `ComercioRepository`,
+  `InventarioRepository`, `PedidoRepository`, `CobroRepository`,
+  `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`.
+  `ProductoRepository` también existe, pero el catálogo de productos
+  todavía no tiene servicio que lo use.
 - **Cómo:** el repositorio es la única clase que toca el `EntityManager`.
   También encapsula decisiones de acceso, como el bloqueo
   `PESSIMISTIC_WRITE` de `buscarPedidoExternoParaActualizar`.
@@ -31,8 +34,9 @@ qué alternativa se descartó.
   conocer esa coordinación.
 - **Dónde:** `IGestionPedidos` / `PedidoService`. Con la misma idea,
   `IRegistroComercios`, `IConsultaStock`, `IRegistroUsuarios`.
-- **Beneficio visible:** la cola (MDB), el polling (timer) y la pantalla
-  llaman al mismo `sincronizarPedidoExterno`; la regla no se duplica.
+- **Beneficio visible:** la cola (MDB) y el polling (timer) llaman al
+  mismo `sincronizarPedidoExterno`, y la pantalla y la API REST al mismo
+  `registrarPedidoExterno`; la regla no se duplica.
 
 ## Strategy
 
@@ -50,7 +54,9 @@ qué alternativa se descartó.
   vez procesaría las mismas filas dos veces.
 - **Dónde:** `BarredorDeReservas` y `SincronizadorDePedidos`
   (`@Singleton @Startup` + `@Schedule`). También `CircuitBreakerBanco`,
-  cuyo estado tiene que ser uno solo para todas las llamadas al banco.
+  cuyo estado tiene que ser uno solo para todas las llamadas al banco, y
+  `AlineadorDeRestriccionesEnum` (`@Singleton @Startup`), que corre una
+  sola vez al desplegar.
 
 ## Provider (`Instance<T>` como fábrica)
 
