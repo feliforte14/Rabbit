@@ -70,6 +70,12 @@ qué alternativa se descartó.
     (`@Observes(during = AFTER_SUCCESS)`). Implementado.
   - `EstadoPedidoCambiado` → `PublicadorEstadosPedido`, que lo publica
     en `topico.pedidos.estado`. Implementado.
+  - `EliminacionDeComercio` (sincrónico): antes de eliminar un comercio,
+    `ComercioService` pregunta si algo todavía lo referencia. Pedidos,
+    Inventario y Seguridad lo observan y anotan un impedimento si tienen
+    pedidos, stock consignado o cuentas de ese comercio. Comercios no
+    depende de ellos (ya dependen de él), y nada queda apuntando a un
+    comercio inexistente. Implementado.
 - **Y entre componentes, publicación/suscripción:** del otro lado del
   tópico, `SuscriptorPagosEstadoPedido` y
   `SuscriptorNotificacionesEstadoPedido` reaccionan al mismo evento sin
