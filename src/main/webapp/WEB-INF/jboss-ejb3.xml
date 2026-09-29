@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Cuántas instancias consumen cola.pedidos.externos en paralelo
+    (maxSession de PedidoExternoListener). Es el componente que se escala
+    horizontalmente en la prueba de escalabilidad
+    (docs/DESAFIOS-OPCIONALES.md): más consumidores compitiendo por la
+    misma cola, cada pedido lo procesa uno solo.
+
+    Se fija con la system property rabbit.cola.consumidores (15 por
+    defecto, el mismo valor que usa WildFly si no se configura). Se lee al
+    desplegar: para cambiarla hay que redesplegar.
+      jboss-cli: /system-property=rabbit.cola.consumidores:add(value=4)
+-->
+<jboss:ejb-jar xmlns:jboss="urn:jboss:jakartaee:1.0"
+               xmlns="https://jakarta.ee/xml/ns/jakartaee"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:schemaLocation="urn:jboss:jakartaee:1.0 https://www.jboss.org/schema/jbossas/jboss-ejb3-4_0.xsd"
+               version="4.0" impl-version="2.0">
+    <enterprise-beans>
+        <message-driven>
+            <ejb-name>PedidoExternoListener</ejb-name>
+            <activation-config>
+                <activation-config-property>
+                    <activation-config-property-name>maxSession</activation-config-property-name>
+                    <activation-config-property-value>${rabbit.cola.consumidores:15}</activation-config-property-value>
+                </activation-config-property>
+            </activation-config>
+        </message-driven>
+    </enterprise-beans>
+</jboss:ejb-jar>

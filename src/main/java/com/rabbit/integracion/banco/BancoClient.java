@@ -43,9 +43,11 @@ public class BancoClient implements IBancoClient {
     private static final QName SERVICE_QNAME = new QName(NAMESPACE, "BancoLegadoService");
     private static final QName PORT_QNAME = new QName(NAMESPACE, "BancoLegadoPort");
 
-    // Mismo WildFly que Rabbit en este alcance; se llama igual por SOAP/HTTP
-    // que si fuera externo. Se puede apuntar a otro banco con la system
-    // property rabbit.banco.wsdl.
+    // Por defecto, el banco simulado en Java del mismo WildFly; se llama
+    // igual por SOAP/HTTP que si fuera externo. Con la system property
+    // rabbit.banco.wsdl se apunta a otro banco con el mismo contrato, por
+    // ejemplo el banco en Node.js de banco-legado/ (heterogeneidad
+    // tecnológica, ver docs/DESAFIOS-OPCIONALES.md). Se lee al desplegar.
     private static final String WSDL_LOCATION = System.getProperty(
             "rabbit.banco.wsdl",
             "http://localhost:8080/Rabbit/BancoLegadoService?wsdl");
