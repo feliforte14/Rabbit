@@ -222,7 +222,8 @@ Propuesta o Reemplazada.
   comercio (agrega colas y configuración sin ganar nada con un solo
   consumidor lógico); procesar en lotes dentro de un consumidor (una falla
   de un pedido afectaría al lote).
-- **Consecuencias:** escalar es cambiar una propiedad y redesplegar. El
-  techo lo pone la base: el pooler de Supabase admite 15 conexiones por
+- **Consecuencias:** escalar es cambiar una propiedad y redesplegar.
+  Medido: 100 pedidos pasan de 43,2 s con un consumidor a 11,3 s con 4
+  (x3,8) y 6,8 s con 8 (x6,3). El techo lo pone la base: el pooler de Supabase admite 15 conexiones por
   proyecto, así que el pool de WildFly se limita a 10 y más consumidores
   que conexiones no mejoran nada.

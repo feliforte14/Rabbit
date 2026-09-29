@@ -6,7 +6,7 @@ cómo se muestran en la defensa.
 | Desafío | Estado |
 |---|---|
 | [Resiliencia ante fallas](#1-resiliencia-ante-fallas) | Cumple |
-| [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada) | En curso: el componente ya escala y la prueba está armada; falta correr la medición |
+| [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada) | Cumple: con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido) |
 | [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 14 ADR en [DECISIONES.md](DECISIONES.md); acá se desarrollan 3 con sus alternativas |
 | Heterogeneidad tecnológica | No encarado |
 
@@ -136,21 +136,39 @@ hilos que efectivamente procesaron (para confirmar el paralelismo).
 
 ### Resultados
 
-> **Pendiente de medición.** La prueba está armada pero todavía no se
-> corrió completa: hace falta el comercio `[PRUEBA]` activo y un usuario
-> administrador para reactivarlo. Los valores se completan con la salida
-> del script.
+Medido el 29/09/2026: 100 pedidos por corrida, más 10 de calentamiento que
+no se cuentan. Rabbit corría en WildFly 41 local (10 núcleos) contra la base
+de Supabase (región sa-east-1, Session Pooler), con el pool de conexiones
+en 10. Ninguna corrida tuvo errores ni pedidos descartados.
 
 | Consumidores | Tiempo total | Pedidos/s | Espera media | Espera p95 | Hilos que procesaron | Mejora |
 |---|---|---|---|---|---|---|
-| 1 | — | — | — | — | — | base |
-| 4 | — | — | — | — | — | — |
-| 8 | — | — | — | — | — | — |
+| 1 | 43,2 s | 2,3 | 22,2 s | 41,1 s | 1 | base |
+| 4 | 11,3 s | 8,9 | 6,1 s | 10,8 s | 4 | **x3,8** |
+| 8 | 6,8 s | 14,6 | 3,8 s | 6,4 s | 8 | **x6,3** |
 
-Para correrla (el script imprime esta misma tabla al terminar):
+- **Tiempo total:** desde que se reanuda la cola hasta que se sincroniza
+  el último pedido.
+- **Espera:** cuánto tarda cada pedido en quedar sincronizado desde que se
+  reanuda la cola; p95 es la espera del 95 % más rápido.
+- **Hilos que procesaron:** confirma que el paralelismo fue real (tantos
+  hilos como consumidores).
+
+**Lectura.** Con un consumidor, cada pedido tarda unos 0,43 s, casi todo
+en viajes de ida y vuelta a la base (validar comercio y punto de picking,
+guardar el pedido, marcar la fila). Ese tiempo es espera de red, no uso de
+CPU, así que varios consumidores en paralelo lo aprovechan casi por
+completo: con 4 la mejora es casi lineal (x3,8 de x4 posible, 95 %). Con 8
+la mejora sigue (x6,3, 79 %) pero rinde menos por consumidor, porque 8 de
+las 10 conexiones del pool están ocupadas y los consumidores empiezan a
+competir por la base. Para el comercio que manda 100 pedidos juntos, el
+último pasa de esperar 43 s a esperar menos de 7 s.
+
+Para correrla de nuevo (el script imprime esta misma tabla al terminar):
 
 ```bash
 export WILDFLY_HOME=... RABBIT_ERP_USUARIO=... RABBIT_ERP_CLAVE=...
+export RABBIT_ID_COMERCIO=... RABBIT_ID_PUNTO=...   # un comercio y un punto de picking activos
 python3 scripts/prueba_escalabilidad.py 1 4 8 --pedidos 100
 ```
 
@@ -166,7 +184,8 @@ Consecuencias:
 
 - **Sumar consumidores no escala sin límite:** cada consumidor usa una
   conexión mientras procesa. Con el pool en 10 (valor usado para la
-  prueba), más de 10 consumidores solo esperan conexión.
+  prueba), más de 10 consumidores solo esperan conexión; ya con 8 se nota
+  en la eficiencia (79 %, ver Resultados).
 - **El cupo se comparte:** varios integrantes con la app levantada contra
   la misma base compiten por esas 15 conexiones.
 - **Configuración recomendada:** `max-pool-size` del datasource `RabbitDS`
