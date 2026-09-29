@@ -122,12 +122,16 @@ public class PedidoBean implements Serializable {
                 .orElse("Comercio " + idComercio);
     }
 
-    // Nombre del punto de picking de un pedido del ERP.
+    // Nombre del punto de picking de un pedido del ERP. Sale de la lista de
+    // comercios ya cargada (trae sus puntos de picking): no consulta la base
+    // por cada fila, y un comercio eliminado no rompe la pantalla.
     public String nombrePuntoPicking(Long idComercio, Long idPuntoPicking) {
         if (idPuntoPicking == null) {
             return "—";
         }
-        return comercios.listarPuntosPickingDeComercio(idComercio).stream()
+        return listaComercios.stream()
+                .filter(c -> c.getId().equals(idComercio) && c.getPuntosPicking() != null)
+                .flatMap(c -> c.getPuntosPicking().stream())
                 .filter(pp -> pp.id.equals(idPuntoPicking))
                 .map(pp -> pp.nombre)
                 .findFirst()
