@@ -41,6 +41,9 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.SessionContext;
 import jakarta.ejb.Stateless;
+import jakarta.transaction.Status;
+import jakarta.transaction.Synchronization;
+import jakarta.transaction.TransactionSynchronizationRegistry;
 import jakarta.inject.Inject;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
@@ -68,6 +71,9 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
 
     @Resource
     private SessionContext contexto;
+
+    @Resource
+    private TransactionSynchronizationRegistry transacciones;
 
     // Para validar a quién representa una cuenta COMERCIO o REPARTIDOR.
     @Inject
@@ -125,7 +131,24 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         // Sin esto, el usuario queda en esta tabla pero no puede loguearse
         // — ver ApplicationRealmSync. Si esto falla, el throw revierte
         // también el alta en la tabla "usuarios" (unchecked -> rollback).
-        ApplicationRealmSync.altaUsuario(usuario.getUsername(), datos.password, usuario.getRol().name());
+        String username = usuario.getUsername();
+        ApplicationRealmSync.altaUsuario(username, datos.password, usuario.getRol().name());
+        // El caso inverso: el realm ya se escribió pero la transacción se
+        // deshace después (por ejemplo, falla el commit). Sin compensar, la
+        // cuenta podría entrar sin existir en la tabla.
+        transacciones.registerInterposedSynchronization(new Synchronization() {
+            @Override
+            public void beforeCompletion() {
+            }
+
+            @Override
+            public void afterCompletion(int estado) {
+                if (estado != Status.STATUS_COMMITTED) {
+                    LOG.warning("[Usuarios] El alta de " + username + " se deshizo: se quita del realm");
+                    ApplicationRealmSync.bajaUsuario(username);
+                }
+            }
+        });
         return id;
     }
 
@@ -137,6 +160,9 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
      * @param id ID del usuario a dar de baja
      * @throws ValidacionException si el usuario no existe
      */
+    // Si la transacción se deshace después de quitarlo del realm, la cuenta
+    // queda sin poder entrar aunque siga activa en la tabla: es el lado
+    // seguro (menos acceso, no más), y se corrige volviendo a darla de alta.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed("ADMINISTRADOR")

@@ -109,7 +109,13 @@ eso:
 - no se puede crear un usuario que ya exista en el realm (por ejemplo, el
   del ERP creado con `add-user.sh`): lo pisaría;
 - las escrituras se serializan para que dos altas simultáneas no se
-  pisen.
+  pisen;
+- cada archivo se reemplaza de forma atómica (temporal + move), y los dos
+  van juntos: si falla el segundo, el primero vuelve a su contenido
+  original;
+- si el alta se deshace después de escribir el realm (por ejemplo, falla
+  el commit), se quita al usuario del realm. En la baja, el caso inverso
+  deja la cuenta sin acceso, que es el lado seguro.
 
 ### Control de UX en la vista
 

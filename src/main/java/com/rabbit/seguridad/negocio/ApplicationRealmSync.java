@@ -25,6 +25,11 @@ package com.rabbit.seguridad.negocio;
  * creado con add-user.sh), y las escrituras se serializan para que dos
  * altas simultáneas no se pisen entre sí.
  *
+ * ATOMICIDAD: cada archivo se escribe entero en un temporal y se reemplaza
+ * con un move atómico, así nunca queda a medio escribir. Los dos archivos
+ * van juntos: si falla el segundo, el primero vuelve a su contenido
+ * original, así un usuario nunca queda en uno solo de los dos.
+ *
  * No es el camino para producción real — ahí correspondería un Elytron
  * custom realm respaldado por la tabla "usuarios", o delegar en un
  * Identity Provider externo.
@@ -36,8 +41,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -71,8 +80,11 @@ public final class ApplicationRealmSync {
                 if (tieneLinea(usuarios, username)) {
                     throw new IllegalStateException("El usuario " + username + " ya existe en el servidor");
                 }
-                escribir(usuarios, username, hashDigest(username, passwordEnClaro));
-                escribir(configDir.resolve("application-roles.properties"), username, rol);
+                Path roles = configDir.resolve("application-roles.properties");
+                Map<Path, List<String>> nuevos = new LinkedHashMap<>();
+                nuevos.put(usuarios, conLinea(usuarios, username, hashDigest(username, passwordEnClaro)));
+                nuevos.put(roles, conLinea(roles, username, rol));
+                reemplazar(nuevos);
             }
         } catch (IOException e) {
             throw new IllegalStateException(
@@ -92,9 +104,13 @@ public final class ApplicationRealmSync {
         exigirUsernameValido(username);
         try {
             Path configDir = configDir();
+            Path usuarios = configDir.resolve("application-users.properties");
+            Path roles = configDir.resolve("application-roles.properties");
             synchronized (LOCK) {
-                quitar(configDir.resolve("application-users.properties"), username);
-                quitar(configDir.resolve("application-roles.properties"), username);
+                Map<Path, List<String>> nuevos = new LinkedHashMap<>();
+                nuevos.put(usuarios, sinLineaDe(usuarios, username));
+                nuevos.put(roles, sinLineaDe(roles, username));
+                reemplazar(nuevos);
             }
         } catch (IOException e) {
             throw new IllegalStateException(
@@ -142,15 +158,48 @@ public final class ApplicationRealmSync {
     // properties del realm — primero saca la línea vieja si existía, para
     // no dejar duplicados que el properties-realm de WildFly no sabría
     // resolver.
-    private static void escribir(Path archivo, String username, String valor) throws IOException {
+    private static List<String> conLinea(Path archivo, String username, String valor) throws IOException {
         List<String> lineas = sinLineaDe(archivo, username);
         lineas.add(username + "=" + valor);
-        Files.write(archivo, lineas, StandardCharsets.UTF_8);
+        return lineas;
     }
 
-    // Elimina la línea "username=..." de un archivo de properties del realm.
-    private static void quitar(Path archivo, String username) throws IOException {
-        Files.write(archivo, sinLineaDe(archivo, username), StandardCharsets.UTF_8);
+    // Reemplaza varios archivos como una unidad: si falla uno, los que ya
+    // se reemplazaron vuelven a su contenido original.
+    private static void reemplazar(Map<Path, List<String>> nuevos) throws IOException {
+        Map<Path, List<String>> originales = new LinkedHashMap<>();
+        for (Path archivo : nuevos.keySet()) {
+            originales.put(archivo, Files.readAllLines(archivo, StandardCharsets.UTF_8));
+        }
+        List<Path> reemplazados = new ArrayList<>();
+        try {
+            for (Map.Entry<Path, List<String>> e : nuevos.entrySet()) {
+                escribirAtomico(e.getKey(), e.getValue());
+                reemplazados.add(e.getKey());
+            }
+        } catch (IOException | RuntimeException e) {
+            for (Path archivo : reemplazados) {
+                try {
+                    escribirAtomico(archivo, originales.get(archivo));
+                } catch (IOException restaurar) {
+                    e.addSuppressed(restaurar);
+                }
+            }
+            throw e;
+        }
+    }
+
+    // Escribe el archivo completo en un temporal de la misma carpeta y lo
+    // mueve encima del original: el que lee (WildFly) ve el archivo viejo
+    // o el nuevo, nunca uno truncado.
+    private static void escribirAtomico(Path archivo, List<String> lineas) throws IOException {
+        Path temporal = Files.createTempFile(archivo.getParent(), archivo.getFileName().toString(), ".tmp");
+        try {
+            Files.write(temporal, lineas, StandardCharsets.UTF_8);
+            Files.move(temporal, archivo, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+        } finally {
+            Files.deleteIfExists(temporal);
+        }
     }
 
     private static boolean tieneLinea(Path archivo, String username) throws IOException {
