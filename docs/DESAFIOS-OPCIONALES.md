@@ -7,7 +7,7 @@ cómo se muestran en la defensa.
 |---|---|
 | [Resiliencia ante fallas](#1-resiliencia-ante-fallas) | Cumple |
 | [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada) | Cumple: con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido) |
-| [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 15 ADR en [DECISIONES.md](DECISIONES.md); acá se desarrollan 3 con sus alternativas |
+| [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 17 ADR en [DECISIONES.md](DECISIONES.md); acá se desarrollan 3 con sus alternativas |
 | [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple: el banco legado también está implementado en Node.js y Rabbit (Java) lo consume por SOAP sin cambiar código |
 
 ## 1. Resiliencia ante fallas
@@ -24,6 +24,9 @@ resto, y que el sistema se recupere solo cuando la falla termina.
 | El banco cobró pero Rabbit falla después (por ejemplo, no hay repartidor) | Rabbit deshace su parte y le pide al banco que devuelva la plata | Transacción compensatoria (ADR-010) |
 | Se pierde el mensaje de un pedido del ERP (broker caído, mensaje sin enviar) | El pedido se sincroniza igual en menos de un minuto | Polling de respaldo sobre la cola (ADR-001) |
 | Un suscriptor del tópico está caído (por ejemplo, en un redeploy) | Recibe los cambios de estado cuando vuelve; no se pierde ningún cobro contra entrega | Suscripciones durables (ADR-009) |
+| Un transportista no responde al derivarle un pedido | El pedido no se deriva y sigue PENDIENTE (si ya se había cobrado, se revierte); el personal puede probar con otro | Timeout de 5 s en el adaptador REST y rollback de la derivación (ADR-016) |
+| El transportista aceptó el envío pero Rabbit falla después | Rabbit deshace su parte y le pide al transportista que cancele el envío | Transacción compensatoria (`CancelacionesDeEnvios`, ADR-016) |
+| El seguimiento de un envío falla (transportista caído o novedad que no se puede aplicar) | Ese envío se reintenta en la próxima pasada, 15 s después; los demás siguen | Una transacción por novedad (`REQUIRES_NEW`) |
 | Un mensaje llega dos veces | Se procesa una sola vez | Sincronización y cobro contra entrega idempotentes |
 
 ### El circuit breaker, en detalle
@@ -212,7 +215,7 @@ más conexiones.
 
 ## 3. Architecture Decision Records
 
-Los 15 ADR del proyecto están en [DECISIONES.md](DECISIONES.md). Estos
+Los 17 ADR del proyecto están en [DECISIONES.md](DECISIONES.md). Estos
 tres son los de más peso en la arquitectura; acá se desarrollan con las
 alternativas consideradas y por qué se descartaron.
 
