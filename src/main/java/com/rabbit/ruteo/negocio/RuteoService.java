@@ -15,6 +15,9 @@ package com.rabbit.ruteo.negocio;
  * sus entregas (el repartidor sale de la identidad autenticada, ver
  * IContextoUsuario, a través de ISeguimientoPedido).
  *
+ * Un pedido derivado a un transportista externo no tiene repartidor: la
+ * hoja de ruta muestra el transportista y su código de seguimiento.
+ *
  * Fuera de alcance (Entrega Final): optimizar recorridos, agrupar por zona
  * y asignar varios pedidos a un mismo viaje.
  */
@@ -32,6 +35,8 @@ import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.repartidores.dto.RepartidorDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.ruteo.dto.HojaDeRutaDTO;
+import com.rabbit.transportistas.dto.EnvioDTO;
+import com.rabbit.transportistas.negocio.IEnvios;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -63,10 +68,24 @@ public class RuteoService implements IRuteo {
     @Inject
     private IGestionRepartidores repartidores;
 
+    // Pedidos derivados a un transportista externo (no tienen repartidor).
+    @Inject
+    private IEnvios envios;
+
     @Override
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<HojaDeRutaDTO> listarEntregasEnCurso() {
-        return armar(pedidos.listarEntregasEnCurso());
+        Map<Long, EnvioDTO> enviosPorPedido = envios.listarEnvios().stream()
+                .collect(Collectors.toMap(EnvioDTO::getIdPedido, Function.identity(), (a, b) -> a));
+        List<HojaDeRutaDTO> hojas = armar(pedidos.listarEntregasEnCurso());
+        for (HojaDeRutaDTO hoja : hojas) {
+            EnvioDTO envio = enviosPorPedido.get(hoja.idPedido);
+            if (envio != null) {
+                hoja.transportista = envio.getTransportista();
+                hoja.codigoSeguimiento = envio.getCodigoSeguimiento();
+            }
+        }
+        return hojas;
     }
 
     @Override

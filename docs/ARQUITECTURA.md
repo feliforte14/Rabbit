@@ -35,7 +35,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Repartidores | Implementado | `IAsignacionRepartidores`, `IGestionRepartidores` | `@Stateless` | La disponibilidad del repartidor es un dato persistido, no de sesión |
 | Notificaciones | Implementado | `INotificaciones` | `@Stateless` + `@MessageDriven` (suscriptor) | Reacciona a eventos del tópico; nadie la llama para avisar |
 | Ruteo | Implementado (mínimo) | `IRuteo` | `@Stateless` | Arma cada hoja de ruta de cero con lo que está en la base; no guarda nada propio |
-| Transportistas | Entrega Final | — | — | — |
+| Transportistas | Implementado | `IGestionTransportistas`, `IEnvios`, `ISeguimientoEnvios` | `@Stateless` + `@Singleton` (`SeguimientoDeEnvios`, timer) | El estado de cada envío vive en la base; el seguimiento es una sola tarea periódica |
 
 ### Operaciones por componente (implementado)
 
@@ -45,11 +45,14 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Comercios | `IConsultaComercios` | `obtenerComercio`, `listarTodos`, `listarPuntosPicking`, `listarPuntosPickingDeComercio`, `validarComercioActivo` | Vistas, Inventario, Pedidos, Ruteo, Seguridad (`UsuarioService`, `SesionBean`) |
 | Inventario | `IConsultaStock` | `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `listarItemsPorDeposito` / `PorComercio` / `PorComercioYDeposito`, `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas` | `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Ruteo |
 | Inventario | `IReservaStock` | `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion` | `ReservaBean`, Pedidos |
-| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `despacharPedido`, `registrarEntrega`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, MDB, timer |
+| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `derivarATransportista`, `despacharPedido`, `registrarEntrega`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, MDB, timer |
 | Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual` | `PedidoBean`, `PortalComercioBean`, Ruteo, API REST |
 | Seguridad | `IRegistroUsuarios` | `registrarUsuario`, `darDeBaja` | `UsuarioBean` |
 | Seguridad | `IConsultaUsuarios` | `listarTodos`, `obtenerUsuario` | `UsuarioBean` |
 | Seguridad | `IContextoUsuario` | `idComercioActual`, `idRepartidorActual` | Pedidos, Inventario, Comercios, Notificaciones, `SesionBean` |
+| Transportistas | `IGestionTransportistas` | `registrarTransportista`, `darDeBajaTransportista`, `reactivarTransportista`, `listarTodos`, `listarActivos` | `TransportistaBean`, `PedidoBean`, `SeguimientoDeEnvios` |
+| Transportistas | `IEnvios` | `solicitarEnvio`, `cancelarEnvioDePedido`, `listarEnvios`, `listarEnviosDelComercioActual` | Pedidos, Ruteo, `PedidoBean`, `TransportistaBean`, `PortalComercioBean` |
+| Transportistas | `ISeguimientoEnvios` | `listarEnviosActivos`, `registrarNovedad` | `SeguimientoDeEnvios` (interna del componente) |
 | Ruteo | `IRuteo` | `listarEntregasEnCurso`, `entregaActualDelRepartidor`, `historialDelRepartidor` | `EntregasBean`, `MisEntregasBean` |
 | Pagos | `IRegistroCobros` | `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`) | Pedidos, `SuscriptorPagosEstadoPedido` |
 | Pagos | `IConsultaCobros` | `obtenerCobroDePedido`, `listarTodos`, `listarCobrosDelComercioActual` | `PedidoBean`, `PortalComercioBean` |
@@ -88,6 +91,14 @@ Otros detalles de cada componente:
 - **Notificaciones:** el aviso es simulado (queda guardado y se ve en
   `pedidos.xhtml` y en el portal del comercio). Descarta eventos más
   viejos que el último avisado del mismo pedido.
+- **Transportistas:** un pedido pendiente se puede **derivar** a una
+  empresa de envíos externa en lugar de confirmarlo con un repartidor
+  propio (`derivarATransportista`). Cada transportista se integra con su
+  propia tecnología a través de un Adapter (`IAdaptadorTransportista`:
+  REST o SOAP legado) y `SeguimientoDeEnvios` consulta cada 15 s el estado
+  de los envíos activos; Pedidos mueve el pedido al recibir el evento
+  `EstadoEnvioCambiado`. Detalle en
+  [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) y ADR-016.
 - **Ruteo (mínimo):** arma la hoja de ruta de cada pedido: de dónde se
   retira (el punto de picking, o cada depósito del que sale stock
   consignado), adónde se entrega (`direccionEntrega`, que manda el ERP) y
@@ -123,14 +134,21 @@ flowchart LR
         Comercios -. EliminacionDeComercio .-> Pedidos
         Comercios -. EliminacionDeComercio .-> Inventario
         Comercios -. EliminacionDeComercio .-> Seguridad
+        Pedidos -->|IEnvios| Transportistas
+        Ruteo -->|IEnvios| Transportistas
+        Transportistas -. EstadoEnvioCambiado .-> Pedidos
+        Transportistas -->|IContextoUsuario| Seguridad
     end
     Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
+    Transportistas -->|REST/JSON| TransREST[(Transportista REST<br/>simulado)]
+    Transportistas -->|SOAP/HTTP| TransSOAP[(Transportista legado<br/>simulado)]
     ERP[ERP del comercio] -->|REST /api/pedidos-externos| Pedidos
     Cliente[Cliente final] -->|REST /api/seguimiento| Pedidos
 ```
 
 Las flechas punteadas son eventos, no llamadas: el tópico JMS entre
-Pedidos y sus suscriptores, y el evento CDI `EliminacionDeComercio`, con el
+Pedidos y sus suscriptores, el evento CDI `EstadoEnvioCambiado` (Transportistas avisa
+sin depender de Pedidos) y el evento CDI `EliminacionDeComercio`, con el
 que Comercios pregunta si algo todavía referencia al comercio sin depender
 de los componentes que ya dependen de él.
 
@@ -145,7 +163,7 @@ el repartidor sale siempre de la identidad autenticada
 
 | Tipo | Pantallas |
 |---|---|
-| Personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) | Pedidos, Entregas en curso (tablero del Ruteo), Repartidores, Comercios y sus puntos de picking, Depósitos y stock, Reserva de stock, Historial de reservas. Usuarios, solo `ADMINISTRADOR` |
+| Personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) | Pedidos (incluye derivar a un transportista), Entregas en curso (tablero del Ruteo), Repartidores, Transportistas, Comercios y sus puntos de picking, Depósitos y stock, Reserva de stock, Historial de reservas. Usuarios, solo `ADMINISTRADOR` |
 | `COMERCIO` | Mis pedidos (estado, cobro, repartidor y avisos de Rabbit), Mi stock (consignado en los depósitos), Mis puntos de picking |
 | `REPARTIDOR` | Mis entregas: la hoja de ruta de su entrega actual, los botones "Ya retiré el pedido" y "Entregué el pedido", y su historial. Pensada para el celular |
 | `ERP` | Ninguna: solo usa la API REST. Si intenta entrar a la web, el login lo rechaza |
@@ -160,7 +178,9 @@ el repartidor sale siempre de la identidad autenticada
 | Alta de pedido externo → sincronización | Cola JMS `cola.pedidos.externos` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
 | Pagos → Banco legado | SOAP | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Cambio de estado del pedido → Notificaciones, Pagos | Tópico JMS `topico.pedidos.estado` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
-| Pedidos → Comercios, Inventario, Pagos, Repartidores | Llamada local EJB | Implementado | No es integración entre sistemas: mismo proceso |
+| Transportistas → transportista moderno | REST/JSON saliente (cliente JAX-RS) | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
+| Transportistas → transportista legado | SOAP saliente | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
+| Pedidos → Comercios, Inventario, Pagos, Repartidores, Transportistas | Llamada local EJB | Implementado | No es integración entre sistemas: mismo proceso |
 
 ### Criterio sincrónico vs. asincrónico
 

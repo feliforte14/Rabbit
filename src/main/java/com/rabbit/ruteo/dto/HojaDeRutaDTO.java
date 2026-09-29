@@ -15,6 +15,9 @@ public class HojaDeRutaDTO {
     public String estado;
     public String repartidor;
     public String telefonoRepartidor;
+    // Si el pedido se derivó a un transportista externo, en lugar de repartidor.
+    public String transportista;
+    public String codigoSeguimiento;
     public String productos;
     public int cantidadTotal;
     // Una parada por lugar de retiro: el punto de picking, o cada depósito
@@ -31,6 +34,8 @@ public class HojaDeRutaDTO {
     public String getEstado() { return estado; }
     public String getRepartidor() { return repartidor; }
     public String getTelefonoRepartidor() { return telefonoRepartidor; }
+    public String getTransportista() { return transportista; }
+    public String getCodigoSeguimiento() { return codigoSeguimiento; }
     public String getProductos() { return productos; }
     public int getCantidadTotal() { return cantidadTotal; }
     public List<String> getRetiros() { return retiros; }

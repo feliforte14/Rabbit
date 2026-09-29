@@ -249,3 +249,36 @@ Propuesta o Reemplazada.
   tecnología: Rabbit usa el banco en Node sin cambiar código, incluido el
   circuit breaker (probado). Hay dos implementaciones del banco que
   mantener con las mismas reglas.
+
+## ADR-016: Transportistas externos con un Adapter por tecnología y seguimiento por polling
+
+- **Estado:** Aceptada.
+- **Contexto:** Rabbit reparte con repartidores propios, pero hay pedidos
+  que conviene derivar a una empresa de envíos externa (fuera de zona, sin
+  repartidores libres). Cada transportista tiene su propio sistema: unos
+  exponen una API REST moderna y otros, sistemas legados por SOAP. Una vez
+  derivado, Rabbit tiene que seguir el estado del envío para mover el
+  pedido.
+- **Decisión:** componente Transportistas con un **Adapter** por
+  tecnología (`IAdaptadorTransportista`: REST y SOAP legado), elegido por
+  el `TipoIntegracion` del transportista. La derivación la decide el
+  personal (`derivarATransportista`) y va en una transacción con el cobro,
+  con compensación si se deshace. El seguimiento es por **polling**
+  (`SeguimientoDeEnvios`, cada 15 s), y los cambios llegan a Pedidos por un
+  evento CDI (`EstadoEnvioCambiado`), así Transportistas no depende de
+  Pedidos.
+- **Alternativas descartadas:**
+  - *Webhook del transportista hacia Rabbit:* menos consultas y más
+    inmediato, pero un transportista legado no avisa; habría que mantener
+    polling igual para esos. Queda como mejora para los que lo soporten.
+  - *Derivación automática (por zona o falta de repartidores):* necesita
+    zonas, que llegan con el Ruteo completo.
+  - *Un servicio por transportista sin interfaz común:* cada uno metería su
+    tecnología en la lógica de negocio.
+  - *Que el seguimiento llame directo a Pedidos:* Transportistas y Pedidos
+    dependerían uno del otro.
+- **Consecuencias:** sumar un transportista es darlo de alta con su
+  endpoint; sumar una tecnología (por ejemplo EDI) es escribir un
+  adaptador. El estado llega con hasta 15 s de demora, y si un
+  transportista salta un estado entre consultas, el pedido pasa por los
+  dos juntos. El timer mueve pedidos con `@RunAs("OPERADOR")`.

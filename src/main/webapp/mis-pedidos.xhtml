@@ -85,8 +85,14 @@
                               styleClass="#{etiquetas.claseEstadoCobro(cobro)}" />
             </h:column>
             <h:column>
-                <f:facet name="header">Repartidor</f:facet>
-                #{empty p.idRepartidor ? '—' : portalComercioBean.nombreRepartidor(p.idRepartidor)}
+                <f:facet name="header">Quién lo lleva</f:facet>
+                <h:panelGroup rendered="#{empty portalComercioBean.envio(p.id)}">
+                    #{empty p.idRepartidor ? '—' : portalComercioBean.nombreRepartidor(p.idRepartidor)}
+                </h:panelGroup>
+                <h:panelGroup rendered="#{not empty portalComercioBean.envio(p.id)}">
+                    #{portalComercioBean.envio(p.id).transportista}
+                    <span class="dato-secundario">Seguimiento #{portalComercioBean.envio(p.id).codigoSeguimiento}</span>
+                </h:panelGroup>
             </h:column>
             <h:column>
                 <f:facet name="header">Recibido</f:facet>

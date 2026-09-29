@@ -54,6 +54,7 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | Puntos de picking (alta, baja, reactivación) | Personal de Rabbit o el `COMERCIO` dueño |
 | Consultas del portal (`listarPedidosDelComercioActual`, `listarStockDelComercioActual`, `listarDelComercioActual`, `listarCobrosDelComercioActual`) | Solo `COMERCIO`, y solo lo suyo. El cobro guarda el comercio dueño, así que Pagos valida la pertenencia sin consultar a Pedidos |
 | Listados de pedidos, pedidos del ERP y cobros (`listarTodos`, `listarPedidosExternos`, `listarEntregasEnCurso`, `obtenerCobroDePedido`) | Solo el personal de Rabbit. `consultarPedidoExterno`, también el `ERP`. `consultarEstadoPedido` es pública a propósito (seguimiento sin login, solo el estado) |
+| Transportistas: alta, baja, derivar un pedido (`derivarATransportista`), envíos | Solo el personal de Rabbit. Un `COMERCIO` ve solo los envíos de sus pedidos (`listarEnviosDelComercioActual`) |
 | Ruteo: tablero de entregas / entregas del repartidor | Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas |
 | `UsuarioService.listarTodos` | Expone el padrón completo de usuarios |
 | `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |
@@ -82,6 +83,12 @@ repartidor del cliente:
 - `ComercioService` rechaza que un `COMERCIO` toque puntos de picking de
   otro comercio (y `puntos-picking.xhtml` ignora el `idComercio` de la URL
   para un comercio).
+
+El seguimiento de envíos (`SeguimientoDeEnvios`, un timer sin usuario)
+mueve pedidos con las mismas operaciones que el personal, así que corre
+con `@RunAs("OPERADOR")`: una identidad de sistema con ese rol. WildFly
+avisa una vez (`ELYEE01007`) que no existe un usuario llamado así y crea
+la identidad; es lo esperado.
 
 Las operaciones que disparan el listener JMS y los timers (sin usuario)
 siguen con `@PermitAll` de clase; por eso cada EJB que tiene alguna
@@ -147,7 +154,10 @@ base viven en el datasource de WildFly y las de management (para
   datos del comercio.
 - El banco simulado (`BancoLegadoService`, SOAP): no es parte de Rabbit
   sino el sistema externo simulado, pero se publica en el mismo WAR y sin
-  autenticación (ver Limitaciones conocidas). El banco en Node.js
+  autenticación (ver Limitaciones conocidas).
+- Los transportistas simulados (`/api/simulador/transportista-rest` y
+  `TransportistaLegadoService`): como el banco, son sistemas de otras
+  empresas simulados en el mismo WAR, sin autenticación. El banco en Node.js
   (`banco-legado/`) tampoco tiene autenticación.
 
 Además, el login y la página de error, que tienen que verse sin sesión.

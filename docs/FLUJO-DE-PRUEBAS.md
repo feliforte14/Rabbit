@@ -196,6 +196,30 @@ Con WildFly corriendo:
 
 ---
 
+## 6b. Derivar un pedido a un transportista
+
+1. Como administrador, **Transportistas** → "Registrar transportista":
+   - uno REST: endpoint
+     `http://localhost:8080/Rabbit/api/simulador/transportista-rest`;
+   - uno SOAP legado: endpoint
+     `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl`.
+2. En **Pedidos** → "Derivar a un transportista": elegí un pedido pendiente
+   y un transportista. El mensaje muestra el código de seguimiento, y en la
+   tabla el pedido figura Confirmado con el transportista en lugar del
+   repartidor.
+3. Esperá: cada 15 s Rabbit consulta al transportista. A los ~20 s el
+   pedido pasa a **En camino** y a los ~40 s a **Entregado** (en
+   Transportistas, el envío pasa por En tránsito y Entregado). Si era
+   contra entrega, el cobro pasa a Cobrado.
+4. Derivá otro y cancelalo enseguida desde Pedidos: en el log aparece
+   `[Transportista ...] Envío ... cancelado`.
+
+**Qué mirar:** en el log, `[Transportistas]` con cada novedad; el
+transportista legado responde `EN_VIAJE` y Rabbit lo muestra como
+"En tránsito" (lo traduce su adaptador).
+
+---
+
 ## 7. Seguridad: accesos restringidos
 
 Con `demo.comercio` logueado:
@@ -256,6 +280,7 @@ Los pasos de estas demos están en
 | POST /api/pedidos-externos (ERP) | 201 + Location, luego Sincronizado |
 | Ciclo pedido completo | Pasa por todos los estados hasta ENTREGADO |
 | Circuit breaker | 3 fallas → ABIERTO → corta instantáneo → SEMIABIERTO a los 30s |
+| Derivar a un transportista | Confirmado con código de seguimiento; pasa solo a En camino y Entregado |
 | Acceso restringido a usuarios.xhtml | Comercio/repartidor no puede entrar |
 | REST sin credenciales | 401 |
 | REST con rol incorrecto | 403 |

@@ -14,6 +14,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio, su
   sincronización automática con stock y su seguimiento
   (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`).
+- **Transportistas:** un pedido se puede derivar a una empresa de envíos
+  externa (integrada por API REST o por SOAP legado), que lo lleva; Rabbit
+  sigue el estado del envío y mueve el pedido solo.
 - **Ruteo y entregas:** hoja de ruta de cada pedido (de dónde se retira y
   adónde se entrega) y tablero de entregas en curso.
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
@@ -53,7 +56,7 @@ com.rabbit.<componente>/
 | Integración con el banco legado (SOAP) | `integracion.banco` | Implementado |
 | Notificaciones | `notificaciones` | Implementado |
 | Ruteo (mínimo: hoja de ruta y tablero de entregas) | `ruteo` | Implementado |
-| Transportistas | — | Pendiente |
+| Transportistas (REST y SOAP legado) | `transportistas` | Implementado |
 
 ## Integraciones
 
@@ -63,6 +66,7 @@ com.rabbit.<componente>/
 | Pagos → banco legado (cobro y reversa) | Sincrónica, SOAP | Implementado |
 | ERP del comercio → Rabbit (y seguimiento público) | Sincrónica, REST | Implementado |
 | Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Implementado |
+| Transportistas → transportista moderno / legado | Sincrónica, REST saliente / SOAP | Implementado |
 
 ## Documentación técnica
 
@@ -134,8 +138,16 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=exc
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=background-validation,value=true)"
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=background-validation-millis,value=30000)"
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=idle-timeout-minutes,value=5)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS/connection-properties=socketTimeout:add(value=30)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS/connection-properties=connectTimeout:add(value=10)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS/connection-properties=tcpKeepAlive:add(value=true)"
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command=":reload"
 ```
+
+Las tres últimas son del driver de PostgreSQL. `socketTimeout` corta una
+consulta que no responde a los 30 s: sin él, una conexión que Supabase
+dejó colgada (sin cerrarla) bloqueó un hilo 16 minutos, hasta que el
+sistema operativo la cortó; en ese lapso los timers no avanzaron.
 
 Si igual aparece `This connection has been closed` o
 `Unable to determine Dialect without JDBC metadata` al desplegar, vaciar

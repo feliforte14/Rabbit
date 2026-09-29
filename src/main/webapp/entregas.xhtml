@@ -65,8 +65,13 @@
                 </ol>
 
                 <p class="hoja-ruta-datos">
-                    <span>Repartidor: <b>#{e.repartidor}</b>
-                        <h:outputText value=" · #{e.telefonoRepartidor}" rendered="#{not empty e.telefonoRepartidor}" /></span>
+                    <h:panelGroup rendered="#{empty e.transportista}">
+                        <span>Repartidor: <b>#{e.repartidor}</b>
+                            <h:outputText value=" · #{e.telefonoRepartidor}" rendered="#{not empty e.telefonoRepartidor}" /></span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty e.transportista}">
+                        <span>Transportista: <b>#{e.transportista}</b> · seguimiento #{e.codigoSeguimiento}</span>
+                    </h:panelGroup>
                     <span>Lleva: <b>#{e.productos}</b> (#{e.cantidadTotal} u.)</span>
                     <span>Actualizado: <b>#{e.actualizado}</b></span>
                     <h:panelGroup rendered="#{not empty e.cobrarAlEntregar}">
