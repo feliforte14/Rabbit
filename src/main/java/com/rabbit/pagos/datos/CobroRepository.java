@@ -47,6 +47,13 @@ public class CobroRepository {
         return em.createQuery("SELECT c FROM Cobro c ORDER BY c.id", Cobro.class).getResultList();
     }
 
+    // Cobros de un comercio (portal del comercio).
+    public List<Cobro> listarDeComercio(Long idComercio) {
+        return em.createQuery("SELECT c FROM Cobro c WHERE c.idComercio = :idComercio", Cobro.class)
+                .setParameter("idComercio", idComercio)
+                .getResultList();
+    }
+
     public Cobro actualizar(Cobro cobro) {
         return em.merge(cobro);
     }

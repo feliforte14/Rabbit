@@ -25,6 +25,9 @@ package com.rabbit.pagos.negocio;
  * @RolesAllowed("ADMINISTRADOR") en anularCobro, lo más sensible del
  * componente (devolver plata). El suscriptor del tópico no tiene usuario,
  * por eso registrarCobroContraEntrega no puede llevar restricción de rol.
+ * Las lecturas son del personal de Rabbit; un COMERCIO lee solo sus cobros
+ * (el cobro guarda el comercio dueño y el comercio sale de la identidad
+ * autenticada, ver IContextoUsuario).
  */
 
 import com.rabbit.integracion.banco.IBancoClient;
@@ -34,6 +37,7 @@ import com.rabbit.pagos.datos.model.Cobro;
 import com.rabbit.pagos.datos.model.EstadoCobro;
 import com.rabbit.pagos.dto.CobroDTO;
 import com.rabbit.pagos.dto.MedioPago;
+import com.rabbit.seguridad.negocio.IContextoUsuario;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -49,7 +53,7 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 @Stateless
-@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})
+@DeclareRoles({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
 @PermitAll
 public class PagoService implements IRegistroCobros, IConsultaCobros {
 
@@ -67,13 +71,16 @@ public class PagoService implements IRegistroCobros, IConsultaCobros {
     @Inject
     private Event<CobroAnulado> cobroAnulado;
 
+    @Inject
+    private IContextoUsuario contextoUsuario;
+
     // ===============================================================
     // IRegistroCobros
     // ===============================================================
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
-    public Long registrarCobro(Long idPedido, BigDecimal importe, MedioPago medio) {
+    public Long registrarCobro(Long idPedido, Long idComercio, BigDecimal importe, MedioPago medio) {
         if (importe == null || importe.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ValidacionException("El pedido " + idPedido + " no tiene un importe válido para cobrar");
         }
@@ -86,6 +93,7 @@ public class PagoService implements IRegistroCobros, IConsultaCobros {
 
         Cobro cobro = new Cobro();
         cobro.setIdPedido(idPedido);
+        cobro.setIdComercio(idComercio);
         cobro.setImporte(importe);
         cobro.setMedioPago(medio);
         cobro.setFechaCreacion(LocalDateTime.now());
@@ -159,13 +167,23 @@ public class PagoService implements IRegistroCobros, IConsultaCobros {
     // ===============================================================
 
     @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public CobroDTO obtenerCobroDePedido(Long idPedido) {
         Cobro cobro = repository.buscarPorPedido(idPedido);
         return cobro != null ? CobroDTO.desde(cobro) : null;
     }
 
     @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<CobroDTO> listarTodos() {
         return repository.listarTodos().stream().map(CobroDTO::desde).collect(Collectors.toList());
+    }
+
+    @Override
+    @RolesAllowed("COMERCIO")
+    public List<CobroDTO> listarCobrosDelComercioActual() {
+        return repository.listarDeComercio(contextoUsuario.idComercioActual()).stream()
+                .map(CobroDTO::desde)
+                .collect(Collectors.toList());
     }
 }

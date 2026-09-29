@@ -22,6 +22,11 @@ public class Cobro {
     @Column(unique = true, nullable = false)
     private Long idPedido;
 
+    // Dueño del pedido cobrado: permite que un COMERCIO lea solo sus cobros
+    // sin que Pagos tenga que consultar a Pedidos. Nullable: los cobros
+    // anteriores a este cambio no lo tienen.
+    private Long idComercio;
+
     @Column(precision = 12, scale = 2)
     private BigDecimal importe;
 
@@ -46,6 +51,8 @@ public class Cobro {
     public Long getId() { return id; }
     public Long getIdPedido() { return idPedido; }
     public void setIdPedido(Long idPedido) { this.idPedido = idPedido; }
+    public Long getIdComercio() { return idComercio; }
+    public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
     public BigDecimal getImporte() { return importe; }
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public MedioPago getMedioPago() { return medioPago; }

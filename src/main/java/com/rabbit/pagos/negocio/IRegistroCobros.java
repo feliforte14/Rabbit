@@ -27,13 +27,14 @@ public interface IRegistroCobros {
      * CONTRA_ENTREGA queda PENDIENTE hasta la entrega.
      *
      * @param idPedido pedido al que corresponde el cobro
+     * @param idComercio dueño del pedido (para que el comercio vea solo sus cobros)
      * @param importe  importe a cobrar, mayor a cero
      * @param medio    medio de pago elegido en el ERP del comercio
      * @return el ID del cobro registrado
      * @throws RuntimeException de aplicación (rollback) si el pago se
      *         rechaza o los datos son inválidos
      */
-    Long registrarCobro(Long idPedido, BigDecimal importe, MedioPago medio);
+    Long registrarCobro(Long idPedido, Long idComercio, BigDecimal importe, MedioPago medio);
 
     /**
      * Efectiviza el cobro CONTRA_ENTREGA de un pedido que ya se entregó.
