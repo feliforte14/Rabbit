@@ -73,7 +73,16 @@ public class PuntoPickingBean implements Serializable {
             comercio = consulta.obtenerComercio(idComercio);
             puntosPicking = consulta.listarPuntosPickingDeComercio(idComercio);
         } catch (ValidacionException | com.rabbit.seguridad.negocio.ValidacionException e) {
-            Mensajes.error(e.getMessage());
+            // Si es la propia cuenta del comercio la que no se pudo resolver,
+            // el mensaje interno del servicio ("Comercio no encontrado: 1")
+            // confunde: para el usuario no hay ningún comercio en pantalla,
+            // solo una cuenta mal asociada. Al personal, que sí eligió el
+            // comercio de un listado real, se le muestra el mensaje tal cual.
+            if (sesion.isComercio()) {
+                Mensajes.error("Tu cuenta no está asociada a un comercio activo. Contactá a un administrador.");
+            } else {
+                Mensajes.error(e.getMessage());
+            }
         }
     }
 
