@@ -50,7 +50,15 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public Long asignarRepartidor(Long idPedido) {
-        Repartidor repartidor = repository.tomarPrimeroDisponible();
+        return asignarRepartidor(idPedido, null);
+    }
+
+    // Prefiere un repartidor de la zona del pedido (ver RuteoService); si no
+    // hay ninguno libre ahí, toma cualquiera.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public Long asignarRepartidor(Long idPedido, Long idZonaPreferida) {
+        Repartidor repartidor = repository.tomarPrimeroDisponible(idZonaPreferida);
         if (repartidor == null) {
             throw new ValidacionException("No hay repartidores disponibles para el pedido " + idPedido);
         }
@@ -94,6 +102,7 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
         Repartidor repartidor = new Repartidor();
         repartidor.setNombre(datos.nombre.trim());
         repartidor.setTelefono(datos.telefono);
+        repartidor.setIdZona(datos.idZona);
         repartidor.setEstado(EstadoRepartidor.DISPONIBLE);
         return repository.guardar(repartidor).getId();
     }
@@ -101,6 +110,18 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
     @Override
     public List<RepartidorDTO> listarTodos() {
         return repository.listarTodos().stream().map(RepartidorDTO::desde).collect(Collectors.toList());
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void asignarZona(Long idRepartidor, Long idZona) {
+        Repartidor repartidor = idRepartidor != null ? repository.buscarPorId(idRepartidor) : null;
+        if (repartidor == null) {
+            throw new ValidacionException("Repartidor no encontrado: " + idRepartidor);
+        }
+        repartidor.setIdZona(idZona);
+        repository.actualizar(repartidor);
     }
 
     @Override

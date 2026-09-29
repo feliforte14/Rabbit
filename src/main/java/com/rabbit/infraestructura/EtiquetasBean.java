@@ -121,6 +121,34 @@ public class EtiquetasBean {
         }
     }
 
+    public String cobertura(Object cobertura) {
+        switch (texto(cobertura)) {
+            case "PROPIA": return "Repartidores propios";
+            case "TRANSPORTISTA": return "Transportista";
+            default: return "—";
+        }
+    }
+
+    public String resultadoDespacho(Object resultado) {
+        switch (texto(resultado)) {
+            case "REPARTIDOR": return "Con repartidor";
+            case "DERIVADO": return "Derivado";
+            case "SIN_ZONA": return "Sin zona";
+            case "ERROR": return "No se despachó";
+            default: return "—";
+        }
+    }
+
+    public String claseResultadoDespacho(Object resultado) {
+        switch (texto(resultado)) {
+            case "REPARTIDOR": return "badge badge-verde";
+            case "DERIVADO": return "badge badge-azul";
+            case "SIN_ZONA": return "badge badge-naranja";
+            case "ERROR": return "badge badge-rojo";
+            default: return "";
+        }
+    }
+
     public String estadoRepartidor(Object estado) {
         switch (texto(estado)) {
             case "DISPONIBLE": return "Disponible";

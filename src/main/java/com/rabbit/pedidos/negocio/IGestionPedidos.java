@@ -85,6 +85,13 @@ public interface IGestionPedidos {
     void confirmarPedido(Long idPedido);
 
     /**
+     * Como confirmarPedido, pero prefiere un repartidor de la zona indicada
+     * (si no hay ninguno libre ahí, toma cualquiera). Lo usa el despacho por
+     * zona del componente Ruteo.
+     */
+    void confirmarPedidoEnZona(Long idPedido, Long idZona);
+
+    /**
      * Alternativa a confirmarPedido cuando el pedido no lo lleva un
      * repartidor propio: cobra (si es PREPAGO), le pide el envío al
      * transportista elegido y pasa a CONFIRMADO, todo en una transacción.

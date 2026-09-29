@@ -27,6 +27,9 @@ public class Repartidor {
     // null mientras está DISPONIBLE.
     private Long idPedidoActual;
 
+    // Zona de reparto (del componente Ruteo, por ID). Null: sin zona fija.
+    private Long idZona;
+
     public Repartidor() {}
 
     public Long getId() { return id; }
@@ -38,4 +41,6 @@ public class Repartidor {
     public void setEstado(EstadoRepartidor estado) { this.estado = estado; }
     public Long getIdPedidoActual() { return idPedidoActual; }
     public void setIdPedidoActual(Long idPedidoActual) { this.idPedidoActual = idPedidoActual; }
+    public Long getIdZona() { return idZona; }
+    public void setIdZona(Long idZona) { this.idZona = idZona; }
 }

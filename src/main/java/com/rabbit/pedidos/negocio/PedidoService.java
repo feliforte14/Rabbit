@@ -198,6 +198,9 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (datos.direccionEntrega.trim().length() > 200) {
             throw new ValidacionException("La dirección de entrega no puede superar los 200 caracteres");
         }
+        if (CodigosPostales.esInvalido(datos.codigoPostalEntrega)) {
+            throw new ValidacionException("El código postal de entrega tiene que tener 4 dígitos (o ser un CPA como C1414ABC)");
+        }
         OrigenPedido origen = datos.origen != null ? datos.origen : OrigenPedido.STOCK_CONSIGNADO;
 
         PedidoExterno externo = new PedidoExterno();
@@ -206,6 +209,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         externo.setImporte(datos.importe);
         externo.setMedioPago(datos.medioPago);
         externo.setDireccionEntrega(datos.direccionEntrega.trim());
+        externo.setCodigoPostalEntrega(CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega));
         externo.setFechaPedido(LocalDateTime.now());
         externo.setSincronizado(false);
 
@@ -282,6 +286,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setImporte(externo.getImporte());
         pedido.setMedioPago(externo.getMedioPago());
         pedido.setDireccionEntrega(externo.getDireccionEntrega());
+        pedido.setCodigoPostalEntrega(externo.getCodigoPostalEntrega());
         pedido.setEstado(EstadoPedido.PENDIENTE);
         pedido.setFechaCreacion(ahora);
         pedido.setFechaActualizacion(ahora);
@@ -378,6 +383,19 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void confirmarPedido(Long idPedido) {
+        confirmar(idPedido, null);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void confirmarPedidoEnZona(Long idPedido, Long idZona) {
+        confirmar(idPedido, idZona);
+    }
+
+    // idZona: la zona del pedido (la decide Ruteo); el repartidor se busca
+    // primero ahí. Null: cualquier repartidor libre.
+    private void confirmar(Long idPedido, Long idZona) {
         Pedido pedido = obtenerOFallar(idPedido);
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
 
@@ -394,7 +412,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         Long idRepartidor;
         try {
             cobros.registrarCobro(idPedido, pedido.getIdComercio(), pedido.getImporte(), pedido.getMedioPago());
-            idRepartidor = repartidores.asignarRepartidor(idPedido);
+            idRepartidor = repartidores.asignarRepartidor(idPedido, idZona);
         } catch (com.rabbit.repartidores.negocio.ValidacionException
                  | com.rabbit.pagos.negocio.ValidacionException e) {
             throw new ValidacionException(e.getMessage());

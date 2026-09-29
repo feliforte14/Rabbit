@@ -34,7 +34,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Pagos y Cobranzas | Implementado | `IRegistroCobros`, `IConsultaCobros` | `@Stateless` + `@MessageDriven` (suscriptor) | El cobro queda registrado en la base; se suma a la transacción del llamador |
 | Repartidores | Implementado | `IAsignacionRepartidores`, `IGestionRepartidores` | `@Stateless` | La disponibilidad del repartidor es un dato persistido, no de sesión |
 | Notificaciones | Implementado | `INotificaciones` | `@Stateless` + `@MessageDriven` (suscriptor) | Reacciona a eventos del tópico; nadie la llama para avisar |
-| Ruteo | Implementado (mínimo) | `IRuteo` | `@Stateless` | Arma cada hoja de ruta de cero con lo que está en la base; no guarda nada propio |
+| Ruteo | Implementado | `IRuteo`, `IZonas` | `@Stateless` | Arma cada hoja de ruta de cero con lo que está en la base; las zonas son datos persistidos y el despacho no depende de una llamada anterior |
 | Transportistas | Implementado | `IGestionTransportistas`, `IEnvios`, `ISeguimientoEnvios` | `@Stateless` + `@Singleton` (`SeguimientoDeEnvios`, timer) | El estado de cada envío vive en la base; el seguimiento es una sola tarea periódica |
 
 ### Operaciones por componente (implementado)
@@ -45,7 +45,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Comercios | `IConsultaComercios` | `obtenerComercio`, `listarTodos`, `listarPuntosPicking`, `listarPuntosPickingDeComercio`, `validarComercioActivo` | Vistas, Inventario, Pedidos, Ruteo, Seguridad (`UsuarioService`, `SesionBean`) |
 | Inventario | `IConsultaStock` | `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `listarItemsPorDeposito` / `PorComercio` / `PorComercioYDeposito`, `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas` | `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Ruteo |
 | Inventario | `IReservaStock` | `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion` | `ReservaBean`, Pedidos |
-| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `derivarATransportista`, `despacharPedido`, `registrarEntrega`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, MDB, timer |
+| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona`, `derivarATransportista`, `despacharPedido`, `registrarEntrega`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, Ruteo, MDB, timer |
 | Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual` | `PedidoBean`, `PortalComercioBean`, Ruteo, API REST |
 | Seguridad | `IRegistroUsuarios` | `registrarUsuario`, `darDeBaja` | `UsuarioBean` |
 | Seguridad | `IConsultaUsuarios` | `listarTodos`, `obtenerUsuario` | `UsuarioBean` |
@@ -53,11 +53,12 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Transportistas | `IGestionTransportistas` | `registrarTransportista`, `darDeBajaTransportista`, `reactivarTransportista`, `listarTodos`, `listarActivos` | `TransportistaBean`, `PedidoBean`, `SeguimientoDeEnvios` |
 | Transportistas | `IEnvios` | `solicitarEnvio`, `cancelarEnvioDePedido`, `listarEnvios`, `listarEnviosDelComercioActual` | Pedidos, Ruteo, `PedidoBean`, `TransportistaBean`, `PortalComercioBean` |
 | Transportistas | `ISeguimientoEnvios` | `listarEnviosActivos`, `registrarNovedad` | `SeguimientoDeEnvios` (interna del componente) |
-| Ruteo | `IRuteo` | `listarEntregasEnCurso`, `entregaActualDelRepartidor`, `historialDelRepartidor` | `EntregasBean`, `MisEntregasBean` |
+| Ruteo | `IRuteo` | `listarEntregasEnCurso`, `entregaActualDelRepartidor`, `historialDelRepartidor`, `listarPendientesPorZona`, `despacharPedido`, `despacharZona` | `EntregasBean`, `MisEntregasBean`, `RuteoBean` |
+| Ruteo | `IZonas` | `registrarZona`, `darDeBajaZona`, `reactivarZona`, `listarTodas`, `zonaDeCodigoPostal` | `RuteoBean`, `RepartidorBean`, `RuteoService` |
 | Pagos | `IRegistroCobros` | `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`) | Pedidos, `SuscriptorPagosEstadoPedido` |
 | Pagos | `IConsultaCobros` | `obtenerCobroDePedido`, `listarTodos`, `listarCobrosDelComercioActual` | `PedidoBean`, `PortalComercioBean` |
-| Repartidores | `IAsignacionRepartidores` | `asignarRepartidor`, `liberarRepartidor` | Pedidos |
-| Repartidores | `IGestionRepartidores` | `registrarRepartidor`, `listarTodos`, `obtenerRepartidor` | `RepartidorBean`, `PedidoBean`, Ruteo, Seguridad |
+| Repartidores | `IAsignacionRepartidores` | `asignarRepartidor` (con zona preferida), `liberarRepartidor` | Pedidos |
+| Repartidores | `IGestionRepartidores` | `registrarRepartidor`, `asignarZona`, `listarTodos`, `obtenerRepartidor` | `RepartidorBean`, `PedidoBean`, Ruteo, Seguridad |
 | Notificaciones | `INotificaciones` | `avisarCambioDeEstado`, `listarRecientes`, `listarDelComercioActual` | `SuscriptorNotificacionesEstadoPedido`, `PedidoBean`, `PortalComercioBean` |
 
 Otros detalles de cada componente:
@@ -99,13 +100,17 @@ Otros detalles de cada componente:
   de los envíos activos; Pedidos mueve el pedido al recibir el evento
   `EstadoEnvioCambiado`. Detalle en
   [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) y ADR-016.
-- **Ruteo (mínimo):** arma la hoja de ruta de cada pedido: de dónde se
-  retira (el punto de picking, o cada depósito del que sale stock
-  consignado), adónde se entrega (`direccionEntrega`, que manda el ERP) y
-  cuánto cobrar si es contra entrega. No tiene capa de datos: cruza
-  Pedidos, Comercios, Inventario y Repartidores por sus interfaces.
-  Optimizar recorridos y agrupar pedidos por zona queda para la Entrega
-  Final.
+- **Ruteo:** arma la hoja de ruta de cada pedido: de dónde se retira (el
+  punto de picking, o cada depósito del que sale stock consignado), adónde
+  se entrega (`direccionEntrega`, que manda el ERP) y cuánto cobrar si es
+  contra entrega. Además agrupa los pedidos pendientes por **zona**
+  (rangos de código postal, tabla `zonas`) y los despacha según la
+  cobertura de la zona: con un repartidor propio de la zona, derivados a
+  su transportista, o al transportista de respaldo si no hay repartidores
+  libres. Cada pedido se despacha en su propia transacción. Los pedidos
+  sin código postal quedan "sin zona" para el despacho manual. Fuera de
+  alcance: viajes con varias paradas y ordenar el recorrido por distancia.
+  Ver ADR-017.
 
 ### Dependencias entre componentes (implementadas)
 
@@ -124,6 +129,8 @@ flowchart LR
         Ruteo -->|IConsultaComercios| Comercios
         Ruteo -->|IConsultaStock| Inventario
         Ruteo -->|IGestionRepartidores| Repartidores
+        Ruteo -->|IGestionPedidos| Pedidos
+        Ruteo -->|IGestionTransportistas| Transportistas
         Pedidos -->|IContextoUsuario| Seguridad
         Inventario -->|IContextoUsuario| Seguridad
         Pagos -->|IContextoUsuario| Seguridad
@@ -163,7 +170,7 @@ el repartidor sale siempre de la identidad autenticada
 
 | Tipo | Pantallas |
 |---|---|
-| Personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) | Pedidos (incluye derivar a un transportista), Entregas en curso (tablero del Ruteo), Repartidores, Transportistas, Comercios y sus puntos de picking, Depósitos y stock, Reserva de stock, Historial de reservas. Usuarios, solo `ADMINISTRADOR` |
+| Personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) | Pedidos (incluye derivar a un transportista), Ruteo por zona (despacho y zonas), Entregas en curso (tablero del Ruteo), Repartidores, Transportistas, Comercios y sus puntos de picking, Depósitos y stock, Reserva de stock, Historial de reservas. Usuarios, solo `ADMINISTRADOR` |
 | `COMERCIO` | Mis pedidos (estado, cobro, repartidor y avisos de Rabbit), Mi stock (consignado en los depósitos), Mis puntos de picking |
 | `REPARTIDOR` | Mis entregas: la hoja de ruta de su entrega actual, los botones "Ya retiré el pedido" y "Entregué el pedido", y su historial. Pensada para el celular |
 | `ERP` | Ninguna: solo usa la API REST. Si intenta entrar a la web, el login lo rechaza |

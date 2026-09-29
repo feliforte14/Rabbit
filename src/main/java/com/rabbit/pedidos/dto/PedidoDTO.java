@@ -29,6 +29,7 @@ public class PedidoDTO {
     public String fechaCreacion;
     public String fechaActualizacion;
     public String direccionEntrega;
+    public String codigoPostalEntrega;
 
     // Convierte una entidad Pedido en un DTO listo para mostrar en la vista.
     public static PedidoDTO desde(Pedido p) {
@@ -45,6 +46,7 @@ public class PedidoDTO {
         dto.fechaCreacion = p.getFechaCreacion() != null ? p.getFechaCreacion().format(FORMATO) : null;
         dto.fechaActualizacion = p.getFechaActualizacion() != null ? p.getFechaActualizacion().format(FORMATO) : null;
         dto.direccionEntrega = p.getDireccionEntrega();
+        dto.codigoPostalEntrega = p.getCodigoPostalEntrega();
         return dto;
     }
 
@@ -72,4 +74,5 @@ public class PedidoDTO {
     public String getFechaCreacion() { return fechaCreacion; }
     public String getFechaActualizacion() { return fechaActualizacion; }
     public String getDireccionEntrega() { return direccionEntrega; }
+    public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
 }

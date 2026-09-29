@@ -27,6 +27,12 @@ public interface IAsignacionRepartidores {
     Long asignarRepartidor(Long idPedido);
 
     /**
+     * Como asignarRepartidor, pero prefiere un repartidor de la zona
+     * indicada; si no hay ninguno libre ahí, toma cualquiera.
+     */
+    Long asignarRepartidor(Long idPedido, Long idZonaPreferida);
+
+    /**
      * Devuelve el repartidor a DISPONIBLE: cuando el pedido se entrega o
      * se cancela después de confirmado.
      *

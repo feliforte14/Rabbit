@@ -17,8 +17,11 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 - **Transportistas:** un pedido se puede derivar a una empresa de envíos
   externa (integrada por API REST o por SOAP legado), que lo lleva; Rabbit
   sigue el estado del envío y mueve el pedido solo.
-- **Ruteo y entregas:** hoja de ruta de cada pedido (de dónde se retira y
-  adónde se entrega) y tablero de entregas en curso.
+- **Ruteo y entregas:** zonas de reparto por código postal; los pedidos
+  pendientes se agrupan por zona y se despachan solos según quién cubre la
+  zona (repartidores propios o un transportista). Hoja de ruta de cada
+  pedido (de dónde se retira y adónde se entrega) y tablero de entregas en
+  curso.
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
   (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
   pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
@@ -55,7 +58,7 @@ com.rabbit.<componente>/
 | Repartidores | `repartidores` | Implementado |
 | Integración con el banco legado (SOAP) | `integracion.banco` | Implementado |
 | Notificaciones | `notificaciones` | Implementado |
-| Ruteo (mínimo: hoja de ruta y tablero de entregas) | `ruteo` | Implementado |
+| Ruteo (zonas, despacho por zona, hoja de ruta y tablero de entregas) | `ruteo` | Implementado |
 | Transportistas (REST y SOAP legado) | `transportistas` | Implementado |
 
 ## Integraciones

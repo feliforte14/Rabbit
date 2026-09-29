@@ -26,6 +26,7 @@ public class PedidoExternoDTO {
     public BigDecimal importe;
     public MedioPago medioPago;
     public String direccionEntrega;
+    public String codigoPostalEntrega;
     public String fechaPedido;
     public boolean sincronizado;
     public String errorSincronizacion;
@@ -42,6 +43,7 @@ public class PedidoExternoDTO {
         dto.importe = pe.getImporte();
         dto.medioPago = pe.getMedioPago();
         dto.direccionEntrega = pe.getDireccionEntrega();
+        dto.codigoPostalEntrega = pe.getCodigoPostalEntrega();
         dto.lineas = pe.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
         dto.fechaPedido = pe.getFechaPedido() != null ? pe.getFechaPedido().format(FORMATO) : null;
         dto.sincronizado = pe.isSincronizado();
@@ -83,6 +85,7 @@ public class PedidoExternoDTO {
     public BigDecimal getImporte() { return importe; }
     public MedioPago getMedioPago() { return medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
+    public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
     public String getFechaPedido() { return fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }

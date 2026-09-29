@@ -246,6 +246,12 @@ curl -u '<usuario-erp>:<contraseña>' -H "Content-Type: application/json" \
 `direccionEntrega` es obligatoria (hasta 200 caracteres): es el destino
 de la hoja de ruta del repartidor. Sin ella la API responde `400`.
 
+`codigoPostalEntrega` es opcional: 4 dígitos (`"1414"`) o un CPA
+(`"C1414ABC"`). Si no viene, Rabbit lo busca en la dirección (CPA,
+"CP 1414" o "(1414)"; un número de calle suelto no cuenta). Con él, el
+Ruteo ubica el pedido en su zona (ADR-017). Si viene con otro formato,
+la API responde `400`.
+
 | Clase | Rol |
 |---|---|
 | `ApiRest` | Activa JAX-RS bajo `/Rabbit/api` |

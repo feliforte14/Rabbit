@@ -38,6 +38,7 @@ import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.repartidores.datos.model.EstadoRepartidor;
+import com.rabbit.ruteo.datos.model.CoberturaZona;
 import com.rabbit.seguridad.datos.model.Rol;
 import com.rabbit.transportistas.datos.model.EstadoEnvio;
 import com.rabbit.transportistas.datos.model.TipoIntegracion;
@@ -81,7 +82,8 @@ public class AlineadorDeRestriccionesEnum {
             new ColumnaEnum("cobros", "mediopago", MedioPago.class),
             new ColumnaEnum("repartidores", "estado", EstadoRepartidor.class),
             new ColumnaEnum("transportistas", "tipointegracion", TipoIntegracion.class),
-            new ColumnaEnum("envios", "estado", EstadoEnvio.class));
+            new ColumnaEnum("envios", "estado", EstadoEnvio.class),
+            new ColumnaEnum("zonas", "cobertura", CoberturaZona.class));
 
     @PersistenceContext(unitName = "comerciosPU")
     private EntityManager em;

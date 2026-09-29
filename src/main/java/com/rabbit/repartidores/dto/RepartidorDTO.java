@@ -10,6 +10,7 @@ public class RepartidorDTO {
     public String telefono;
     public String estado;
     public Long idPedidoActual;
+    public Long idZona;
 
     public static RepartidorDTO desde(Repartidor r) {
         RepartidorDTO dto = new RepartidorDTO();
@@ -18,6 +19,7 @@ public class RepartidorDTO {
         dto.telefono = r.getTelefono();
         dto.estado = r.getEstado() != null ? r.getEstado().name() : null;
         dto.idPedidoActual = r.getIdPedidoActual();
+        dto.idZona = r.getIdZona();
         return dto;
     }
 
@@ -26,4 +28,5 @@ public class RepartidorDTO {
     public String getTelefono() { return telefono; }
     public String getEstado() { return estado; }
     public Long getIdPedidoActual() { return idPedidoActual; }
+    public Long getIdZona() { return idZona; }
 }
