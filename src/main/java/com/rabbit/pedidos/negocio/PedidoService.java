@@ -73,7 +73,12 @@ package com.rabbit.pedidos.negocio;
 
 import com.rabbit.comercios.dto.PuntoPickingDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
+import com.rabbit.inventario.dto.ItemInventarioDTO;
+import com.rabbit.inventario.negocio.IConsultaStock;
 import com.rabbit.inventario.negocio.IReservaStock;
+import com.rabbit.transportistas.dto.DatosEnvioDTO;
+import com.rabbit.transportistas.negocio.IEnvios;
+import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pagos.negocio.IRegistroCobros;
 import com.rabbit.repartidores.negocio.IAsignacionRepartidores;
 import com.rabbit.inventario.dto.ReservaStockDTO;
@@ -151,6 +156,14 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     @Inject
     private IRegistroCobros cobros;
+
+    // Derivación a transportistas externos (ver derivarATransportista).
+    @Inject
+    private IEnvios envios;
+
+    // Para armar la dirección de retiro de un pedido de stock consignado.
+    @Inject
+    private IConsultaStock stock;
 
     // A quién representa el usuario que llama (comercio o repartidor).
     @Inject
@@ -392,6 +405,58 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public String derivarATransportista(Long idPedido, Long idTransportista) {
+        Pedido pedido = obtenerOFallar(idPedido);
+        validarTransicion(pedido, EstadoPedido.CONFIRMADO);
+        if (idTransportista == null) {
+            throw new ValidacionException("Elegí a qué transportista derivar el pedido");
+        }
+
+        // Mismo esquema que confirmarPedido, con el transportista en lugar
+        // del repartidor: todo en una transacción. Si el transportista ya
+        // tomó el envío y después algo falla, se lo cancela (compensación,
+        // ver CancelacionesDeEnvios); si el banco ya cobró, se reversa.
+        DatosEnvioDTO datos = new DatosEnvioDTO();
+        datos.direccionRetiro = direccionDeRetiro(pedido);
+        datos.direccionEntrega = pedido.getDireccionEntrega();
+        datos.bultos = pedido.getLineas().stream().mapToInt(LineaPedido::getCantidad).sum();
+        datos.cobrarAlEntregar = pedido.getMedioPago() == MedioPago.CONTRA_ENTREGA ? pedido.getImporte() : null;
+        String codigoSeguimiento;
+        try {
+            cobros.registrarCobro(idPedido, pedido.getIdComercio(), pedido.getImporte(), pedido.getMedioPago());
+            codigoSeguimiento = envios.solicitarEnvio(idPedido, pedido.getIdComercio(), idTransportista, datos)
+                    .getCodigoSeguimiento();
+        } catch (com.rabbit.pagos.negocio.ValidacionException
+                 | com.rabbit.transportistas.negocio.ValidacionException e) {
+            throw new ValidacionException(e.getMessage());
+        }
+        pedido.setIdRepartidor(null);
+        cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
+        return codigoSeguimiento;
+    }
+
+    // De dónde retira el transportista: el punto de picking del comercio, o
+    // los depósitos de Rabbit de los que sale el stock consignado.
+    private String direccionDeRetiro(Pedido pedido) {
+        if (pedido.getOrigen() == OrigenPedido.PUNTO_PICKING) {
+            return comercios.listarPuntosPickingDeComercio(pedido.getIdComercio()).stream()
+                    .filter(pp -> pp.id.equals(pedido.getIdPuntoPicking()))
+                    .map(pp -> pp.nombre + " — " + pp.direccion)
+                    .findFirst().orElse("Punto de picking " + pedido.getIdPuntoPicking());
+        }
+        List<Long> idsItems = pedido.getLineas().stream()
+                .map(LineaPedido::getIdItem).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+        return stock.listarItemsPorIds(idsItems).stream()
+                .map(ItemInventarioDTO::getIdDeposito)
+                .distinct()
+                .map(stock::obtenerDeposito)
+                .map(d -> "Depósito " + d.getNombre() + " — " + d.getDireccion() + ", " + d.getLocalidad())
+                .collect(Collectors.joining("; "));
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
     public void despacharPedido(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
@@ -427,6 +492,9 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (pedido.getEstado() == EstadoPedido.CONFIRMADO) {
             cobros.anularCobro(idPedido);
             repartidores.liberarRepartidor(pedido.getIdRepartidor());
+            // Si lo llevaba un transportista, se le cancela el envío (se le
+            // avisa recién cuando esta cancelación queda confirmada).
+            envios.cancelarEnvioDePedido(idPedido);
         }
 
         // El stock de cada línea con reserva se descontó al sincronizarla

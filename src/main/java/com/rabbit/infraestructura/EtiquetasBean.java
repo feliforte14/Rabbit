@@ -93,6 +93,34 @@ public class EtiquetasBean {
         }
     }
 
+    public String estadoEnvio(Object estado) {
+        switch (texto(estado)) {
+            case "SOLICITADO": return "Solicitado";
+            case "EN_TRANSITO": return "En tránsito";
+            case "ENTREGADO": return "Entregado";
+            case "CANCELADO": return "Cancelado";
+            default: return "—";
+        }
+    }
+
+    public String claseEstadoEnvio(Object estado) {
+        switch (texto(estado)) {
+            case "SOLICITADO": return "badge badge-naranja";
+            case "EN_TRANSITO": return "badge badge-azul";
+            case "ENTREGADO": return "badge badge-verde";
+            case "CANCELADO": return "badge badge-gris";
+            default: return "";
+        }
+    }
+
+    public String tipoIntegracion(Object tipo) {
+        switch (texto(tipo)) {
+            case "REST": return "API REST";
+            case "SOAP_LEGADO": return "SOAP (legado)";
+            default: return "—";
+        }
+    }
+
     public String estadoRepartidor(Object estado) {
         switch (texto(estado)) {
             case "DISPONIBLE": return "Disponible";

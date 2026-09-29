@@ -23,6 +23,8 @@ import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.repartidores.dto.RepartidorDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.seguridad.negocio.ValidacionException;
+import com.rabbit.transportistas.dto.EnvioDTO;
+import com.rabbit.transportistas.negocio.IEnvios;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -53,8 +55,13 @@ public class PortalComercioBean implements Serializable {
     @Inject
     private IGestionRepartidores repartidores;
 
+    // Pedidos derivados a un transportista externo.
+    @Inject
+    private IEnvios envios;
+
     private List<PedidoDTO> pedidos;
     private Map<Long, String> estadosCobro;
+    private Map<Long, EnvioDTO> enviosPorPedido;
     private List<NotificacionDTO> avisos;
     private List<ItemInventarioDTO> items;
     private Map<Long, String> nombresDepositos;
@@ -67,10 +74,13 @@ public class PortalComercioBean implements Serializable {
             avisos = notificaciones.listarDelComercioActual(AVISOS);
             estadosCobro = cobros.listarCobrosDelComercioActual().stream()
                     .collect(Collectors.toMap(CobroDTO::getIdPedido, CobroDTO::getEstado));
+            enviosPorPedido = envios.listarEnviosDelComercioActual().stream()
+                    .collect(Collectors.toMap(EnvioDTO::getIdPedido, Function.identity(), (a, b) -> a));
         } catch (ValidacionException e) {
             pedidos = List.of();
             avisos = List.of();
             estadosCobro = Map.of();
+            enviosPorPedido = Map.of();
             Mensajes.error(e.getMessage());
         }
     }
@@ -96,6 +106,11 @@ public class PortalComercioBean implements Serializable {
 
     public int getUnidadesReservadas() {
         return items.stream().mapToInt(i -> i.cantidadReservada).sum();
+    }
+
+    // El envío de un pedido derivado a un transportista, o null.
+    public EnvioDTO envio(Long idPedido) {
+        return enviosPorPedido.get(idPedido);
     }
 
     public String estadoCobro(Long idPedido) {

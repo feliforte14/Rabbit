@@ -85,6 +85,21 @@ public interface IGestionPedidos {
     void confirmarPedido(Long idPedido);
 
     /**
+     * Alternativa a confirmarPedido cuando el pedido no lo lleva un
+     * repartidor propio: cobra (si es PREPAGO), le pide el envío al
+     * transportista elegido y pasa a CONFIRMADO, todo en una transacción.
+     * Después el transportista lo lleva: el seguimiento lo pasa a EN_CAMINO
+     * y ENTREGADO según lo que informe.
+     *
+     * @return el código de seguimiento que dio el transportista
+     *
+     * @throws ValidacionException si el pedido no está PENDIENTE, el banco
+     *         rechaza el pago o no responde, o el transportista rechaza el
+     *         envío, no responde o está dado de baja
+     */
+    String derivarATransportista(Long idPedido, Long idTransportista);
+
+    /**
      * El repartidor retiró el pedido: CONFIRMADO → EN_CAMINO. Desde acá ya
      * no se puede cancelar (ver EstadoPedido).
      *

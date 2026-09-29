@@ -56,7 +56,8 @@ qué alternativa se descartó.
   (`@Singleton @Startup` + `@Schedule`). También `CircuitBreakerBanco`,
   cuyo estado tiene que ser uno solo para todas las llamadas al banco, y
   `AlineadorDeRestriccionesEnum` (`@Singleton @Startup`), que corre una
-  sola vez al desplegar.
+  sola vez al desplegar. `SeguimientoDeEnvios` (`@Singleton @Startup` +
+  `@Schedule`) consulta a los transportistas en una sola pasada a la vez.
 
 ## Provider (`Instance<T>` como fábrica)
 
@@ -82,6 +83,10 @@ qué alternativa se descartó.
     pedidos, stock consignado o cuentas de ese comercio. Comercios no
     depende de ellos (ya dependen de él), y nada queda apuntando a un
     comercio inexistente. Implementado.
+  - `EstadoEnvioCambiado` (sincrónico): Transportistas avisa que un
+    transportista informó un estado nuevo; Pedidos
+    (`ActualizacionDePedidosPorEnvio`) mueve el pedido en la misma
+    transacción. Transportistas no depende de Pedidos. Implementado.
 - **Y entre componentes, publicación/suscripción:** del otro lado del
   tópico, `SuscriptorPagosEstadoPedido` y
   `SuscriptorNotificacionesEstadoPedido` reaccionan al mismo evento sin
@@ -97,8 +102,14 @@ qué alternativa se descartó.
   (`autorizar → ResultadoAutorizacion`, `reversar`). `PagoService` no ve
   JAX-WS, `BindingProvider` ni los Faults; si el banco pasara a REST, solo
   cambia el Adapter.
-- **Planificado:** ServicioDeIntegracionTransportistas (Entrega Final),
-  un Adapter por tipo de transportista (SOAP/EDI legado, REST moderno).
+- **Y con varias tecnologías a la vez:** `IAdaptadorTransportista` tiene
+  dos implementaciones, `AdaptadorRestTransportista` (API REST con JSON) y
+  `AdaptadorSoapTransportista` (SOAP legado). Cada una traduce protocolo,
+  formato y hasta el vocabulario de estados de su transportista (el legado
+  dice `EN_VIAJE`, Rabbit `EN_TRANSITO`). `AdaptadoresTransportista` elige
+  según el `TipoIntegracion` del transportista; `TransportistaService` no
+  sabe con cuál habla. Sumar un transportista EDI sería una implementación
+  más.
 
 ## Máquina de estados (State simplificado)
 
@@ -116,7 +127,11 @@ qué alternativa se descartó.
   pero no lo que ya hizo un sistema externo: si el banco cobró y después
   la confirmación falla, el cliente quedaría cobrado.
 - **Dónde:** `ReversasBancarias` observa `PagoAutorizado` con
-  `AFTER_FAILURE` y le pide al banco `reversarPago`.
+  `AFTER_FAILURE` y le pide al banco `reversarPago`. Con el mismo
+  mecanismo, `CancelacionesDeEnvios` cancela en el transportista un envío
+  que ya había tomado si la derivación se deshace (`EnvioSolicitado` +
+  `AFTER_FAILURE`), y avisa las cancelaciones confirmadas (`EnvioCancelado`
+  + `AFTER_SUCCESS`).
 - **Descartado:** meter al banco en una transacción distribuida (XA/2PC):
   un sistema legado por SOAP no participa de la transacción de Rabbit.
 

@@ -158,6 +158,71 @@ Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológic
 - El estado del circuito vive en memoria de cada servidor: en un cluster
   cada nodo descubre la caída por su cuenta.
 
+## Transportistas: REST y SOAP salientes (implementado)
+
+**En una frase:** un pedido que no lleva un repartidor propio se deriva a
+una empresa de envíos externa; Rabbit le pide el envío y después le
+pregunta cómo va, a cada una en su propia tecnología.
+
+**Por qué sincrónico:** al derivar, Rabbit necesita saber en el momento si
+el transportista tomó el envío (y su código de seguimiento) para confirmar
+el pedido. El seguimiento posterior es por consulta periódica (polling),
+no por aviso: un transportista legado no avisa (ver ADR-016).
+
+| Transportista | Tecnología | Endpoint del simulado | Estados que usa |
+|---|---|---|---|
+| Moderno | REST con JSON: `POST /envios`, `GET /envios/{codigo}`, `DELETE /envios/{codigo}` | `http://localhost:8080/Rabbit/api/simulador/transportista-rest` | `SOLICITADO`, `EN_TRANSITO`, `ENTREGADO`, `CANCELADO` |
+| Legado | SOAP con WSDL: `registrarEnvio`, `consultarEnvio`, `anularEnvio`, fault `EnvioRechazado` | `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl` | `RECIBIDO`, `EN_VIAJE`, `ENTREGADO`, `ANULADO` |
+
+| Clase | Rol |
+|---|---|
+| `IAdaptadorTransportista` | Contrato común: `solicitarEnvio`, `consultarEstado`, `cancelarEnvio` |
+| `AdaptadorRestTransportista` | Cliente JAX-RS, timeout de 5 s; 201 → tomado, 422 → rechazado |
+| `AdaptadorSoapTransportista` | Proxy JAX-WS desde el WSDL, timeout de 5 s; el fault `EnvioRechazado` → rechazado |
+| `TransportistaService` | Deriva, cancela y registra las novedades |
+| `SeguimientoDeEnvios` | Timer (cada 15 s): consulta los envíos activos |
+| `CancelacionesDeEnvios` | Cancela en el transportista (compensación y cancelaciones) |
+| `simulador.*` | Los dos transportistas simulados, en el mismo WAR (como el banco) |
+
+Reglas de los simulados: rechazan envíos de más de 50 bultos; un envío
+tomado avanza solo con el tiempo (20 s por paso, system property
+`rabbit.transportista.simulador.segundos`) y se puede cancelar mientras no
+se entregó. Viven en memoria.
+
+```mermaid
+sequenceDiagram
+    participant Op as Operador (PedidoBean)
+    participant PS as PedidoService
+    participant TS as TransportistaService
+    participant T as Transportista (REST o SOAP)
+    participant Seg as SeguimientoDeEnvios
+    Op->>PS: derivarATransportista(pedido, transportista)
+    PS->>PS: cobrar (si es PREPAGO)
+    PS->>TS: solicitarEnvio
+    TS->>T: solicitar (vía su adaptador)
+    T-->>TS: código de seguimiento
+    PS->>PS: CONFIRMADO + commit
+    loop cada 15 s
+        Seg->>T: consultar estado
+        Seg->>TS: registrarNovedad (si cambió)
+        TS-)PS: EstadoEnvioCambiado → EN_CAMINO / ENTREGADO
+    end
+```
+
+| Caso | Resultado |
+|---|---|
+| El transportista toma el envío | Pedido CONFIRMADO, con transportista y código de seguimiento en lugar de repartidor |
+| Lo rechaza (más de 50 bultos) | El pedido sigue PENDIENTE con el motivo; si se había cobrado, se reversa en el banco |
+| No responde (5 s) | El pedido sigue PENDIENTE: "probá de nuevo o con otro transportista" |
+| Informa EN_TRANSITO / ENTREGADO | El pedido pasa a EN_CAMINO / ENTREGADO; el tópico avisa al comercio y acredita el contra entrega |
+| Se cancela el pedido | El envío se cancela en el transportista después del commit |
+
+**Limitaciones:** si el transportista salta un estado entre dos consultas
+(por ejemplo, de SOLICITADO a ENTREGADO), el pedido pasa por los dos en la
+misma transacción y el comercio recibe solo el aviso de entrega. Los
+transportistas no tienen circuit breaker (el seguimiento no bloquea a
+nadie: corre en segundo plano). Los simulados guardan todo en memoria.
+
 ## REST: API para el ERP de los comercios y seguimiento público (implementado)
 
 **En una frase:** el ERP de cada comercio le manda sus pedidos a Rabbit

@@ -74,19 +74,25 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Repartidor</f:facet>
-                    #{pedidoBean.nombreRepartidor(p.idRepartidor)}
+                    <h:outputText value="#{pedidoBean.nombreRepartidor(p.idRepartidor)}"
+                                  rendered="#{empty pedidoBean.envio(p.id)}" />
+                    <h:panelGroup rendered="#{not empty pedidoBean.envio(p.id)}">
+                        #{pedidoBean.envio(p.id).transportista}
+                        <span class="dato-secundario">Transportista · #{pedidoBean.envio(p.id).codigoSeguimiento}</span>
+                    </h:panelGroup>
                 </h:column>
                 <h:column styleClass="acciones">
                     <f:facet name="header">Acciones</f:facet>
                     <h:commandButton value="Confirmar" styleClass="btn btn-secondary"
                                      action="#{pedidoBean.confirmar(p.id)}"
                                      rendered="#{p.estado == 'PENDIENTE'}" />
+                    <!-- Un pedido derivado lo mueve su transportista (ver SeguimientoDeEnvios). -->
                     <h:commandButton value="Despachar" styleClass="btn btn-secondary"
                                      action="#{pedidoBean.despachar(p.id)}"
-                                     rendered="#{p.estado == 'CONFIRMADO'}" />
+                                     rendered="#{p.estado == 'CONFIRMADO' and empty pedidoBean.envio(p.id)}" />
                     <h:commandButton value="Entregar" styleClass="btn btn-secondary"
                                      action="#{pedidoBean.entregar(p.id)}"
-                                     rendered="#{p.estado == 'EN_CAMINO'}" />
+                                     rendered="#{p.estado == 'EN_CAMINO' and empty pedidoBean.envio(p.id)}" />
                     <h:commandButton value="Cancelar" styleClass="btn btn-danger"
                                      action="#{pedidoBean.cancelar(p.id)}"
                                      rendered="#{p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO'}"
@@ -97,6 +103,40 @@
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.pedidos}">
             Todavía no hay pedidos. Llegan desde el ERP de cada comercio (o simulalos abajo).
         </h:panelGroup>
+
+        <h2>Derivar a un transportista</h2>
+        <p class="ayuda">
+            En lugar de confirmarlo con un repartidor propio, un pedido pendiente se puede derivar
+            a una empresa de envíos externa: se cobra (si es prepago), se le pide el envío y el
+            transportista lo lleva. Su estado se actualiza solo con lo que informe.
+        </p>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.listaTransportistas}">
+            No hay transportistas activos. Se dan de alta en
+            <h:link outcome="transportistas" value="Transportistas" />.
+        </h:panelGroup>
+        <h:form id="formDerivar" styleClass="formulario" rendered="#{not empty pedidoBean.listaTransportistas}">
+            <div class="campo">
+                <h:outputLabel for="pedidoDerivar" value="Pedido" />
+                <h:selectOneMenu id="pedidoDerivar" value="#{pedidoBean.idPedidoADerivar}"
+                                 required="true" label="Pedido" requiredMessage="Elegí el pedido a derivar">
+                    <f:selectItem itemLabel="— Elegí un pedido pendiente —" itemValue="#{null}" />
+                    <f:selectItems value="#{pedidoBean.pedidosPendientes}" var="pp" itemValue="#{pp.id}"
+                                   itemLabel="#{pp.id} · #{pedidoBean.nombreComercio(pp.idComercio)} · #{empty pp.direccionEntrega ? 'sin dirección' : pp.direccionEntrega}" />
+                </h:selectOneMenu>
+            </div>
+            <div class="campo">
+                <h:outputLabel for="transportista" value="Transportista" />
+                <h:selectOneMenu id="transportista" value="#{pedidoBean.idTransportistaElegido}"
+                                 required="true" label="Transportista" requiredMessage="Elegí el transportista">
+                    <f:selectItem itemLabel="— Elegí un transportista —" itemValue="#{null}" />
+                    <f:selectItems value="#{pedidoBean.listaTransportistas}" var="t" itemValue="#{t.id}"
+                                   itemLabel="#{t.nombre} (#{etiquetas.tipoIntegracion(t.tipoIntegracion)})" />
+                </h:selectOneMenu>
+            </div>
+            <div class="form-acciones">
+                <h:commandButton value="Derivar" styleClass="btn btn-primary" action="#{pedidoBean.derivar}" />
+            </div>
+        </h:form>
 
         <!--
             Avisos que genero ServicioDeNotificaciones al recibir cada cambio
