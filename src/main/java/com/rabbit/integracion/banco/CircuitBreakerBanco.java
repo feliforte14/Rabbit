@@ -30,6 +30,11 @@ package com.rabbit.integracion.banco;
  * transiciones; los métodos solo tocan memoria, así que el lock dura
  * microsegundos y nunca se retiene durante la llamada al banco.
  *
+ * El lock evita que dos hilos modifiquen el estado a la vez, pero no que
+ * el resultado de una llamada vieja se aplique sobre un estado nuevo: para
+ * eso cada llamada lleva un ticket con la generación en la que empezó
+ * (ver intentarLlamada).
+ *
  * Alcance: el estado vive en memoria de ESTE servidor. En un cluster cada
  * nodo tendría su propio circuito, lo cual es aceptable (cada nodo
  * descubre la caída por su cuenta tras UMBRAL_FALLAS intentos).
@@ -59,57 +64,80 @@ public class CircuitBreakerBanco {
     private static final int UMBRAL_FALLAS = Integer.getInteger("rabbit.banco.cb.umbral", 3);
     private static final long ESPERA_MS = Long.getLong("rabbit.banco.cb.espera.ms", 30_000L);
 
+    /** Lo que devuelve {@link #intentarLlamada()} cuando no se puede llamar al banco. */
+    public static final long SIN_PERMISO = -1;
+
     private Estado estado = Estado.CERRADO;
     private int fallasSeguidas;
     // Cuándo se abrió el circuito o cuándo salió la llamada de prueba.
     private long desde;
+    // Sube con cada cambio de estado. Cada llamada lleva la generación en
+    // la que empezó (su "ticket"); el resultado de una llamada que empezó
+    // en una generación anterior se ignora. Sin esto, una llamada lenta
+    // lanzada con el circuito CERRADO que termina con éxito mientras está
+    // SEMIABIERTO lo cerraría antes de que responda la llamada de prueba,
+    // y una falla vieja podría volver a abrirlo.
+    private long generacion;
 
     /**
-     * @return true si se puede llamar al banco; false si el circuito está
-     *         abierto y hay que contestar NO_DISPONIBLE sin llamarlo
+     * @return el ticket de la llamada (a pasar a registrarExito o
+     *         registrarFalla), o {@link #SIN_PERMISO} si el circuito está
+     *         abierto y hay que contestar NO_DISPONIBLE sin llamar al banco
      */
-    public boolean permitirLlamada() {
+    public long intentarLlamada() {
         switch (estado) {
             case CERRADO:
-                return true;
+                return generacion;
             case ABIERTO:
                 if (System.currentTimeMillis() - desde < ESPERA_MS) {
-                    return false;
+                    return SIN_PERMISO;
                 }
                 LOG.info("[Pagos][Circuito] Pasaron " + ESPERA_MS + " ms: SEMIABIERTO, se prueba una llamada al banco");
-                estado = Estado.SEMIABIERTO;
-                desde = System.currentTimeMillis();
-                return true;
+                cambiarA(Estado.SEMIABIERTO);
+                return generacion;
             default:
                 // SEMIABIERTO: ya hay una prueba en curso. Si su resultado
-                // nunca se registró (el hilo murió), se permite otra.
+                // nunca se registró (el hilo murió), se permite otra y la
+                // anterior queda invalidada.
                 if (System.currentTimeMillis() - desde < ESPERA_MS) {
-                    return false;
+                    return SIN_PERMISO;
                 }
-                desde = System.currentTimeMillis();
-                return true;
+                cambiarA(Estado.SEMIABIERTO);
+                return generacion;
         }
     }
 
     /** El banco respondió (aprobó, rechazó o confirmó una reversa). */
-    public void registrarExito() {
+    public void registrarExito(long ticket) {
+        if (ticket != generacion) {
+            return;
+        }
         if (estado != Estado.CERRADO) {
             LOG.info("[Pagos][Circuito] El banco volvió a responder: CERRADO");
+            cambiarA(Estado.CERRADO);
         }
-        estado = Estado.CERRADO;
         fallasSeguidas = 0;
     }
 
     /** El banco no respondió (timeout, conexión rechazada, error del servidor). */
-    public void registrarFalla() {
+    public void registrarFalla(long ticket) {
+        if (ticket != generacion) {
+            return;
+        }
         fallasSeguidas++;
         if (estado == Estado.SEMIABIERTO || fallasSeguidas >= UMBRAL_FALLAS) {
-            if (estado != Estado.ABIERTO) {
-                LOG.warning("[Pagos][Circuito] " + fallasSeguidas + " fallas seguidas del banco: ABIERTO por "
-                        + ESPERA_MS + " ms, las llamadas se cortan sin esperar el timeout");
-            }
-            estado = Estado.ABIERTO;
-            desde = System.currentTimeMillis();
+            LOG.warning("[Pagos][Circuito] " + fallasSeguidas + " fallas seguidas del banco: ABIERTO por "
+                    + ESPERA_MS + " ms, las llamadas se cortan sin esperar el timeout");
+            cambiarA(Estado.ABIERTO);
+        }
+    }
+
+    private void cambiarA(Estado nuevo) {
+        estado = nuevo;
+        generacion++;
+        desde = System.currentTimeMillis();
+        if (nuevo == Estado.CERRADO) {
+            fallasSeguidas = 0;
         }
     }
 
