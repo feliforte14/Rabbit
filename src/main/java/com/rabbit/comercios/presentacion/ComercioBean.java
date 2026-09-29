@@ -23,6 +23,7 @@ package com.rabbit.comercios.presentacion;
  * del otro lado hay un EJB llamado ComercioService.
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.dto.DatosComercioDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
@@ -31,8 +32,6 @@ import com.rabbit.comercios.negocio.ValidacionException;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.ejb.EJBAccessException;
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -71,11 +70,11 @@ public class ComercioBean implements Serializable {
     public void registrar() {
         try {
             registro.registrarComercio(nuevoComercio);
-            mensaje(FacesMessage.SEVERITY_INFO, "Comercio registrado correctamente");
+            Mensajes.info("Comercio registrado correctamente");
             nuevoComercio = new DatosComercioDTO();
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -84,10 +83,10 @@ public class ComercioBean implements Serializable {
     public void darDeBaja(Long id) {
         try {
             registro.darDeBajaComercio(id);
-            mensaje(FacesMessage.SEVERITY_INFO, "Comercio dado de baja");
+            Mensajes.info("Comercio dado de baja");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -95,10 +94,10 @@ public class ComercioBean implements Serializable {
     public void reactivar(Long id) {
         try {
             registro.reactivarComercio(id);
-            mensaje(FacesMessage.SEVERITY_INFO, "Comercio reactivado");
+            Mensajes.info("Comercio reactivado");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -109,23 +108,15 @@ public class ComercioBean implements Serializable {
     public void eliminar(Long id) {
         try {
             registro.eliminarComercio(id);
-            mensaje(FacesMessage.SEVERITY_INFO, "Comercio eliminado");
+            Mensajes.info("Comercio eliminado");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         } catch (EJBAccessException e) {
             // Lanzada por el contenedor cuando @RolesAllowed("ADMINISTRADOR") rechaza
             // al caller — ni siquiera llegó a ejecutarse el método.
-            mensaje(FacesMessage.SEVERITY_ERROR,
-                    "No tenés permisos para eliminar comercios. Iniciá sesión como administrador.");
+            Mensajes.error("No tenés permisos para eliminar comercios. Iniciá sesión como administrador.");
         }
-    }
-
-    // Helper para publicar un FacesMessage global (sin componente asociado,
-    // por eso el primer argumento a addMessage es null) — lo consume
-    // <h:messages globalOnly="true"> en comercios.xhtml.
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF) para

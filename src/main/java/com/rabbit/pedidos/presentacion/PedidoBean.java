@@ -17,6 +17,7 @@ package com.rabbit.pedidos.presentacion;
  * rechaza al sincronizar.
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.dto.PuntoPickingDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
@@ -42,8 +43,6 @@ import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import jakarta.annotation.PostConstruct;
 import jakarta.ejb.EJBAccessException;
 import jakarta.ejb.EJBException;
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -228,17 +227,16 @@ public class PedidoBean implements Serializable {
     public void registrarPedidoExterno() {
         try {
             gestion.registrarPedidoExterno(nuevoPedido);
-            mensaje(FacesMessage.SEVERITY_INFO,
-                    "Pedido recibido: entra por la cola y en unos segundos aparece en la tabla de pedidos (recargá la página).");
+            Mensajes.info("Pedido recibido: entra por la cola y en unos segundos aparece en la tabla de pedidos (recargá la página).");
             nuevoPedido = nuevoPedidoVacio();
             idDepositoSeleccionado = null;
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         } catch (EJBException e) {
             // Falla técnica al guardar (por ejemplo la base rechazó el cambio
             // y la transacción se deshizo): el pedido quedó como estaba.
-            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
+            Mensajes.error("No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }
 
@@ -246,14 +244,14 @@ public class PedidoBean implements Serializable {
     public void confirmar(Long idPedido) {
         try {
             gestion.confirmarPedido(idPedido);
-            mensaje(FacesMessage.SEVERITY_INFO, "Pedido confirmado");
+            Mensajes.info("Pedido confirmado");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         } catch (EJBException e) {
             // Falla técnica al guardar (por ejemplo la base rechazó el cambio
             // y la transacción se deshizo): el pedido quedó como estaba.
-            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
+            Mensajes.error("No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }
 
@@ -261,14 +259,14 @@ public class PedidoBean implements Serializable {
     public void despachar(Long idPedido) {
         try {
             gestion.despacharPedido(idPedido);
-            mensaje(FacesMessage.SEVERITY_INFO, "Pedido en camino");
+            Mensajes.info("Pedido en camino");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         } catch (EJBException e) {
             // Falla técnica al guardar (por ejemplo la base rechazó el cambio
             // y la transacción se deshizo): el pedido quedó como estaba.
-            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
+            Mensajes.error("No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }
 
@@ -276,14 +274,14 @@ public class PedidoBean implements Serializable {
     public void entregar(Long idPedido) {
         try {
             gestion.registrarEntrega(idPedido);
-            mensaje(FacesMessage.SEVERITY_INFO, "Pedido entregado");
+            Mensajes.info("Pedido entregado");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         } catch (EJBException e) {
             // Falla técnica al guardar (por ejemplo la base rechazó el cambio
             // y la transacción se deshizo): el pedido quedó como estaba.
-            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
+            Mensajes.error("No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }
 
@@ -294,28 +292,21 @@ public class PedidoBean implements Serializable {
             boolean conStock = pedidos.stream()
                     .anyMatch(p -> p.getId().equals(idPedido) && p.getOrigen() == OrigenPedido.STOCK_CONSIGNADO);
             gestion.cancelarPedido(idPedido);
-            mensaje(FacesMessage.SEVERITY_INFO, conStock
+            Mensajes.info(conStock
                     ? "Pedido cancelado: el stock volvió al disponible"
                     : "Pedido cancelado");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         } catch (EJBAccessException e) {
             // @RolesAllowed("ADMINISTRADOR") en PagoService.anularCobro: un
             // pedido confirmado ya tiene un cobro, y anularlo es sensible.
-            mensaje(FacesMessage.SEVERITY_ERROR,
-                    "Solo un administrador puede cancelar un pedido confirmado: hay que anular su cobro.");
+            Mensajes.error("Solo un administrador puede cancelar un pedido confirmado: hay que anular su cobro.");
         } catch (EJBException e) {
             // Falla técnica al guardar (por ejemplo la base rechazó el cambio
             // y la transacción se deshizo): el pedido quedó como estaba.
-            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo guardar el cambio del pedido. Intentá de nuevo.");
+            Mensajes.error("No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
-    }
-
-    // Helper para publicar un FacesMessage global (sin componente asociado)
-    // — lo consume <h:messages> en pedidos.xhtml.
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).

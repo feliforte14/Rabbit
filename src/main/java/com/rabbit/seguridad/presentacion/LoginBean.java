@@ -26,7 +26,7 @@ package com.rabbit.seguridad.presentacion;
  * entre un Identity Provider y el perfil de usuario de la aplicación.
  */
 
-import jakarta.faces.application.FacesMessage;
+import com.rabbit.infraestructura.Mensajes;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
@@ -66,12 +66,12 @@ public class LoginBean implements Serializable {
             if (inicio == null) {
                 request.logout();
                 request.getSession().invalidate();
-                mensaje(FacesMessage.SEVERITY_ERROR, "Este usuario no tiene acceso a la aplicación web");
+                Mensajes.error("Este usuario no tiene acceso a la aplicación web");
                 return;
             }
             facesContext.getExternalContext().redirect(request.getContextPath() + inicio);
         } catch (ServletException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, "Usuario o contraseña incorrectos");
+            Mensajes.error("Usuario o contraseña incorrectos");
         }
     }
 
@@ -89,12 +89,6 @@ public class LoginBean implements Serializable {
         }
         request.getSession().invalidate();
         facesContext.getExternalContext().redirect(request.getContextPath() + "/login.xhtml");
-    }
-
-    // Helper para publicar un FacesMessage global (sin componente asociado)
-    // — lo consume <h:messages> en login.xhtml.
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).

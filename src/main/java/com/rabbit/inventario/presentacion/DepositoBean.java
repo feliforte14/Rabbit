@@ -5,14 +5,13 @@ package com.rabbit.inventario.presentacion;
  * explicación completa de @Named/@ViewScoped, se aplica igual acá.
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.inventario.dto.DatosDepositoDTO;
 import com.rabbit.inventario.dto.DepositoDTO;
 import com.rabbit.inventario.negocio.IConsultaStock;
 import com.rabbit.inventario.negocio.ValidacionException;
 
 import jakarta.annotation.PostConstruct;
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -45,18 +44,12 @@ public class DepositoBean implements Serializable {
     public void registrar() {
         try {
             service.registrarDeposito(nuevoDeposito);
-            mensaje(FacesMessage.SEVERITY_INFO, "Depósito registrado correctamente");
+            Mensajes.info("Depósito registrado correctamente");
             nuevoDeposito = new DatosDepositoDTO();
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
-    }
-
-    // Helper para publicar un FacesMessage global (sin componente asociado)
-    // — lo consume <h:messages globalOnly="true"> en depositos.xhtml.
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).

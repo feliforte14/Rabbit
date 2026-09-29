@@ -5,13 +5,12 @@ package com.rabbit.repartidores.presentacion;
  * explicación completa de @Named/@ViewScoped, se aplica igual acá.
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.repartidores.dto.DatosRepartidorDTO;
 import com.rabbit.repartidores.dto.RepartidorDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.repartidores.negocio.ValidacionException;
 import jakarta.annotation.PostConstruct;
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -36,16 +35,12 @@ public class RepartidorBean implements Serializable {
     public void registrar() {
         try {
             service.registrarRepartidor(nuevoRepartidor);
-            mensaje(FacesMessage.SEVERITY_INFO, "Repartidor registrado correctamente");
+            Mensajes.info("Repartidor registrado correctamente");
             nuevoRepartidor = new DatosRepartidorDTO();
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
-    }
-
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     public List<RepartidorDTO> getRepartidores() { return repartidores; }

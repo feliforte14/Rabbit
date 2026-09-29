@@ -60,7 +60,7 @@
                 <h:selectOneMenu id="estado" value="#{historialReservasBean.filtro.estado}">
                     <f:selectItem itemLabel="Todos" itemValue="#{null}" />
                     <f:selectItems value="#{historialReservasBean.estados}" var="e"
-                                   itemValue="#{e}" itemLabel="#{e}" />
+                                   itemValue="#{e}" itemLabel="#{etiquetas.estadoReserva(e)}" />
                 </h:selectOneMenu>
             </div>
 
@@ -135,8 +135,8 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Estado</f:facet>
-                    <h:outputText value="#{r.estado}"
-                                  styleClass="#{historialReservasBean.claseEstado(r.estado)}" />
+                    <h:outputText value="#{etiquetas.estadoReserva(r.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoReserva(r.estado)}" />
                 </h:column>
                 <h:column>
                     <f:facet name="header">Abierta</f:facet>
