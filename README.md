@@ -106,7 +106,17 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --commands="module add --name=org.postg
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --commands="data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --driver-name=postgresql --connection-url=jdbc:postgresql://HOST:5432/BASE --user-name=USUARIO --password=CONTRASEÑA --use-ccm=false,/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"
 ```
 
-El último comando tiene que responder `"outcome" => "success"`. Si la base
+El último comando tiene que responder `"outcome" => "success"`.
+
+**Limitar el pool a 10 conexiones.** El pooler de Supabase admite como
+máximo 15 conexiones para todo el proyecto (compartidas por todo el
+equipo) y el pool de WildFly permite 20 por defecto: al pasarse, la base
+rechaza conexiones (`EMAXCONNSESSION`).
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/subsystem=datasources/data-source=RabbitDS:write-attribute(name=max-pool-size,value=10)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command=":reload"
+``` Si la base
 está en Supabase y responde `EAUTHQUERY ... connection to database not
 available`, el proyecto de Supabase está pausado: reactivarlo desde su
 dashboard.
