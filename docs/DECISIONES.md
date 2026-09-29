@@ -203,3 +203,49 @@ Propuesta o Reemplazada.
   entrega (la API responde `400` sin ella). Los pedidos anteriores quedan
   sin dirección. El ruteo no optimiza recorridos ni agrupa pedidos: queda
   para la Entrega Final.
+
+## ADR-014: Escalar el consumidor de la cola con consumidores competidores
+
+- **Estado:** Aceptada.
+- **Contexto:** un comercio que manda muchos pedidos juntos llena
+  `cola.pedidos.externos` y los pedidos tardan en aparecer. Hacía falta
+  poder escalar ese consumidor sin tocar código (desafío de
+  escalabilidad, ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)).
+- **Decisión:** la cantidad de instancias del consumidor (`maxSession` de
+  `PedidoExternoListener`) se fija con la system property
+  `rabbit.cola.consumidores`, aplicada en `WEB-INF/jboss-ejb3.xml` (15 por
+  defecto). Varias instancias compiten por la misma cola y el broker le da
+  cada mensaje a una sola. Se sumó `rabbit.sincronizador.pausado` para
+  poder medir sin que el timer de respaldo procese la carga.
+- **Alternativas descartadas:** escalar con varios servidores (requiere un
+  broker compartido en lugar del embebido); particionar la cola por
+  comercio (agrega colas y configuración sin ganar nada con un solo
+  consumidor lógico); procesar en lotes dentro de un consumidor (una falla
+  de un pedido afectaría al lote).
+- **Consecuencias:** escalar es cambiar una propiedad y redesplegar.
+  Medido: 100 pedidos pasan de 43,2 s con un consumidor a 11,3 s con 4
+  (x3,8) y 6,8 s con 8 (x6,3). El techo lo pone la base: el pooler de Supabase admite 15 conexiones por
+  proyecto, así que el pool de WildFly se limita a 10 y más consumidores
+  que conexiones no mejoran nada.
+
+## ADR-015: Banco legado en Node.js, detrás del mismo WSDL
+
+- **Estado:** Aceptada.
+- **Contexto:** el banco legado es un sistema externo, pero estaba
+  implementado en Java dentro del mismo WAR que Rabbit. El desafío de
+  heterogeneidad pide integrar componentes de tecnologías distintas.
+- **Decisión:** el banco se implementa también como un servicio aparte en
+  Node.js (`banco-legado/`, librería `soap`), construido a partir del mismo
+  WSDL. Rabbit elige a cuál llamar con `rabbit.banco.wsdl`; el banco en
+  Java sigue siendo el de por defecto, para que levantar Rabbit no exija
+  Node.
+- **Alternativas descartadas:** reemplazar el banco en Java (obligaría a
+  todo el equipo a tener Node para cualquier prueba); un componente nuevo
+  en otra tecnología conectado al broker (el broker embebido no expone
+  STOMP ni AMQP, habría que abrir protocolos solo para esto); un cliente
+  del ERP en otro lenguaje (sería un consumidor externo de la API, no un
+  componente del sistema).
+- **Consecuencias:** se prueba que el acoplamiento es el contrato y no la
+  tecnología: Rabbit usa el banco en Node sin cambiar código, incluido el
+  circuit breaker (probado). Hay dos implementaciones del banco que
+  mantener con las mismas reglas.

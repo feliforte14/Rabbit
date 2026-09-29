@@ -25,7 +25,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 Jakarta EE 10 sobre WildFly (perfil `standalone-full`), Java 17, JSF +
 Facelets, EJB, JPA/Hibernate, PostgreSQL (Supabase), JMS (ActiveMQ
 Artemis embebido), JAX-WS (SOAP), JAX-RS (REST), Jakarta Security,
-Maven (WAR).
+Maven (WAR). El banco legado también está implementado en Node.js
+([`banco-legado/`](banco-legado/README.md)), como servicio aparte con el
+mismo contrato SOAP.
 
 ## Estructura
 
@@ -135,7 +137,9 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command=":reload"
 Si igual aparece `This connection has been closed` o
 `Unable to determine Dialect without JDBC metadata` al desplegar, vaciar
 el pool:
-`$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:flush-all-connection-in-pool"`. Si la base
+`$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:flush-all-connection-in-pool"`.
+
+Si la base
 está en Supabase y responde `EAUTHQUERY ... connection to database not
 available`, el proyecto de Supabase está pausado: reactivarlo desde su
 dashboard.

@@ -1,0 +1,17 @@
+{
+  "name": "rabbit-banco-legado",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Banco legado simulado de Rabbit en Node.js: servicio SOAP con el mismo contrato (WSDL) que el banco en Java",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "soap": "^1.13.1"
+  }
+}

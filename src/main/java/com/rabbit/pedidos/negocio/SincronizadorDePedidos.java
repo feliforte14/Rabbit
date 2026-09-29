@@ -99,6 +99,15 @@ public class SincronizadorDePedidos {
     @Schedule(hour = "*", minute = "*", second = "30", persistent = false)
     @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void sincronizarPendientes() {
+        // Interruptor operativo: con rabbit.sincronizador.pausado=true la
+        // red de contención no corre y solo sincroniza la cola. Lo usa la
+        // prueba de escalabilidad (docs/DESAFIOS-OPCIONALES.md), para que el
+        // timer no procese pedidos de la carga y falsee la medición. Se lee
+        // en cada pasada: se prende y apaga en caliente desde jboss-cli.
+        if (Boolean.getBoolean("rabbit.sincronizador.pausado")) {
+            LOG.fine("[Sincronizador] Pausado por rabbit.sincronizador.pausado");
+            return;
+        }
         // Solo los IDs: sin transaccion las entidades vienen detached, y
         // cada llamada de abajo recarga la suya en su propio contexto.
         List<Long> pendientes = repository.listarNoSincronizados()
