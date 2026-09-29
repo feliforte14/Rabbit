@@ -166,6 +166,10 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // unicidad. idComercioActual se excluye de la unicidad para poder
     // reusar este mismo método al actualizar un comercio existente (si no
     // se excluyera, el propio comercio siempre "chocaría" con su CUIT).
+    //
+    // No se consulta el padrón fiscal a propósito: esa integración SOAP se
+    // quitó y la reemplazó el cobro en el banco legado (ADR-003, reemplazada
+    // por ADR-010). Acá solo se controlan formato y unicidad.
     private void validarCuit(String cuit, Long idComercioActual) {
         if (cuit == null || cuit.isBlank()) {
             throw new ValidacionException("El CUIT es obligatorio");
