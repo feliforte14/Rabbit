@@ -10,7 +10,8 @@
 
     La sesión NO se exige acá: cada página conserva su propio
     <f:metadata> (algunas ya lo necesitan para <f:viewParam>), y ahí
-    agrega \#{sesionBean.exigirSesion} — mantiene el patrón explícito que
+    agrega su guardián (\#{sesionBean.exigirPersonal},
+    \#{sesionBean.exigirComercio}, ...) — mantiene el patrón explícito que
     ya usa el resto del proyecto en vez de esconder la regla en el
     template.
 -->
@@ -20,6 +21,7 @@
       xmlns:ui="jakarta.faces.facelets">
 <h:head>
     <title><ui:insert name="titulo">Rabbit</ui:insert></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
@@ -34,25 +36,53 @@
                 <p class="slogan">Plataforma de entregas urbanas</p>
             </div>
 
-            <nav class="sidebar-nav">
-                <h:link outcome="comercios" value="Comercios"
-                        styleClass="#{view.viewId == '/comercios.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="depositos" value="Depósitos"
-                        styleClass="#{view.viewId == '/depositos.xhtml' or view.viewId == '/items.xhtml' or view.viewId == '/reservas.xhtml' ? 'activo' : ''}" />
+            <!--
+                Un menú por tipo de usuario (ver SesionBean): el personal de
+                Rabbit opera toda la red; un comercio ve solo lo suyo; un
+                repartidor, sus entregas. Ocultar un enlace no es seguridad:
+                cada página tiene su guardián y cada EJB su @RolesAllowed.
+            -->
+            <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.personal}">
+                <p class="sidebar-seccion">Operación</p>
                 <h:link outcome="pedidos" value="Pedidos"
                         styleClass="#{view.viewId == '/pedidos.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="entregas" value="Entregas en curso"
+                        styleClass="#{view.viewId == '/entregas.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="repartidores" value="Repartidores"
                         styleClass="#{view.viewId == '/repartidores.xhtml' ? 'activo' : ''}" />
+                <p class="sidebar-seccion">Red</p>
+                <h:link outcome="comercios" value="Comercios"
+                        styleClass="#{view.viewId == '/comercios.xhtml' or view.viewId == '/puntos-picking.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="depositos" value="Depósitos y stock"
+                        styleClass="#{view.viewId == '/depositos.xhtml' or view.viewId == '/items.xhtml' or view.viewId == '/reservas.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="historial" value="Historial de reservas"
                         styleClass="#{view.viewId == '/historial.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="usuarios" value="Usuarios" rendered="#{sesionBean.admin}"
-                        styleClass="#{view.viewId == '/usuarios.xhtml' ? 'activo' : ''}" />
-            </nav>
+                <h:panelGroup rendered="#{sesionBean.admin}">
+                    <p class="sidebar-seccion">Administración</p>
+                    <h:link outcome="usuarios" value="Usuarios"
+                            styleClass="#{view.viewId == '/usuarios.xhtml' ? 'activo' : ''}" />
+                </h:panelGroup>
+            </h:panelGroup>
+
+            <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.comercio}">
+                <h:link outcome="mis-pedidos" value="Mis pedidos"
+                        styleClass="#{view.viewId == '/mis-pedidos.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="mi-stock" value="Mi stock"
+                        styleClass="#{view.viewId == '/mi-stock.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="puntos-picking" value="Mis puntos de picking"
+                        styleClass="#{view.viewId == '/puntos-picking.xhtml' ? 'activo' : ''}" />
+            </h:panelGroup>
+
+            <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.repartidor}">
+                <h:link outcome="mis-entregas" value="Mis entregas"
+                        styleClass="#{view.viewId == '/mis-entregas.xhtml' ? 'activo' : ''}" />
+            </h:panelGroup>
 
             <div class="sidebar-foot">
                 <p class="sidebar-usuario">
                     Conectado como<br />
-                    <b>#{sesionBean.usuarioActual}</b> · #{sesionBean.admin ? 'ADMINISTRADOR' : 'OPERADOR'}
+                    <b>#{sesionBean.usuarioActual}</b>
+                    #{sesionBean.rolActual}#{empty sesionBean.representado ? '' : ' · '.concat(sesionBean.representado)}
                 </p>
                 <h:form>
                     <h:commandButton value="Cerrar sesión" styleClass="btn btn-secondary"

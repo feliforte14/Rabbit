@@ -160,10 +160,13 @@ el estado de su pedido sin loguearse.
 Ejemplo de alta desde el ERP:
 
 ```bash
-curl -u erp-demo:ErpDemo2026! -H "Content-Type: application/json" \
-  -d '{"idComercio":1,"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":1,"cantidad":2}],"importe":1800,"medioPago":"PREPAGO"}' \
+curl -u '<usuario-erp>:<contraseña>' -H "Content-Type: application/json" \
+  -d '{"idComercio":1,"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":1,"cantidad":2}],"importe":1800,"medioPago":"PREPAGO","direccionEntrega":"Av. Corrientes 1234, CABA"}' \
   http://localhost:8080/Rabbit/api/pedidos-externos
 ```
+
+`direccionEntrega` es obligatoria (hasta 200 caracteres): es el destino
+de la hoja de ruta del repartidor. Sin ella la API responde `400`.
 
 | Clase | Rol |
 |---|---|

@@ -10,8 +10,8 @@
                  xmlns:ui="jakarta.faces.facelets"
                  template="/template.xhtml">
     <f:metadata>
-        <f:viewAction action="#{sesionBean.exigirSesion}" />
-        <f:viewParam name="idDeposito" value="#{itemInventarioBean.idDeposito}" required="true" />
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+        <f:viewParam name="idDeposito" value="#{itemInventarioBean.idDeposito}" />
         <f:viewAction action="#{itemInventarioBean.cargar}" />
     </f:metadata>
 
@@ -22,7 +22,7 @@
 
         <h1>Stock de #{itemInventarioBean.deposito.nombre}</h1>
 
-        <h:messages globalOnly="false" showDetail="false" showSummary="true"
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
@@ -30,9 +30,10 @@
             Vista de operador: por defecto muestra TODO el stock del deposito.
             El filtro permite aislar la consignacion de un comercio puntual.
         -->
+        <h:panelGroup rendered="#{not empty itemInventarioBean.deposito}">
         <h:form id="formFiltro" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel value="Ver stock de:" for="filtro" />
+                <h:outputLabel value="Ver stock de" for="filtro" />
                 <h:selectOneMenu id="filtro" value="#{itemInventarioBean.idComercioFiltro}">
                     <f:selectItem itemLabel="Todos los comercios" itemValue="#{null}" />
                     <f:selectItems value="#{itemInventarioBean.listaComercios}" var="c"
@@ -44,7 +45,8 @@
 
         <h:form id="formTabla">
             <h:dataTable value="#{itemInventarioBean.items}" var="i"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty itemInventarioBean.items}">
                 <h:column>
                     <f:facet name="header">ID</f:facet>
                     #{i.id}
@@ -70,6 +72,9 @@
                     #{i.cantidadLibre}
                 </h:column>
             </h:dataTable>
+            <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty itemInventarioBean.items}">
+                No hay stock cargado en este depósito.
+            </h:panelGroup>
         </h:form>
 
         <h2>Cargar stock</h2>
@@ -79,7 +84,7 @@
         </p>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel value="Comercio:" for="comercio" />
+                <h:outputLabel value="Comercio" for="comercio" />
                 <h:selectOneMenu id="comercio" value="#{itemInventarioBean.nuevoItem.idComercio}"
                                  required="true" label="Comercio"
                                  requiredMessage="Elegí de qué comercio es el stock">
@@ -88,21 +93,28 @@
                                    itemValue="#{c.id}"
                                    itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
                 </h:selectOneMenu>
+                <h:message for="comercio" styleClass="error-campo" />
             </div>
 
             <div class="campo">
-                <h:outputLabel value="Producto:" for="producto" />
-                <h:inputText id="producto" value="#{itemInventarioBean.nuevoItem.producto}" required="true" />
+                <h:outputLabel value="Producto" for="producto" />
+                <h:inputText id="producto" value="#{itemInventarioBean.nuevoItem.producto}" required="true"
+                             label="Producto" requiredMessage="Ingresá el producto" />
+                <h:message for="producto" styleClass="error-campo" />
             </div>
 
             <div class="campo">
-                <h:outputLabel value="Cantidad:" for="cantidad" />
-                <h:inputText id="cantidad" value="#{itemInventarioBean.nuevoItem.cantidadDisponible}" required="true" />
+                <h:outputLabel value="Cantidad" for="cantidad" />
+                <h:inputText id="cantidad" value="#{itemInventarioBean.nuevoItem.cantidadDisponible}" required="true"
+                             label="Cantidad" requiredMessage="Ingresá la cantidad"
+                             converterMessage="La cantidad tiene que ser un número entero" />
+                <h:message for="cantidad" styleClass="error-campo" />
             </div>
 
             <div class="form-acciones">
                 <h:commandButton value="Cargar stock" styleClass="btn btn-primary" action="#{itemInventarioBean.registrar}" />
             </div>
         </h:form>
+        </h:panelGroup>
     </ui:define>
 </ui:composition>

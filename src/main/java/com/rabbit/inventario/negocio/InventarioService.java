@@ -46,6 +46,10 @@ import com.rabbit.inventario.datos.model.ItemInventario;
 import com.rabbit.inventario.datos.model.ReservaStock;
 import com.rabbit.inventario.dto.*;
 
+import com.rabbit.seguridad.negocio.IContextoUsuario;
+import jakarta.annotation.security.DeclareRoles;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import jakarta.ejb.PostActivate;
@@ -65,9 +69,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+// SEGURIDAD: @PermitAll de clase porque la reserva de stock la dispara
+// también la sincronización de pedidos (listener JMS y timer, sin usuario).
+// Solo el personal de Rabbit da de alta depósitos y carga stock; un
+// COMERCIO consulta únicamente su propio stock consignado.
 @Stateful
 @StatefulTimeout(value = 30, unit = TimeUnit.MINUTES)
+@DeclareRoles({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
+@PermitAll
 public class InventarioService implements IConsultaStock, IReservaStock, Serializable {
+
+    @Inject
+    private IContextoUsuario contextoUsuario;
 
     private static final Logger LOG = Logger.getLogger(InventarioService.class.getName());
 
@@ -359,6 +372,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public Long registrarDeposito(DatosDepositoDTO datos) {
         validarNombreDeposito(datos.nombre);
         validarDireccionDeposito(datos.direccion);
@@ -392,6 +406,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public Long registrarItem(Long idDeposito, DatosItemInventarioDTO datos) {
         Deposito deposito = obtenerDepositoOFallar(idDeposito);
         validarProducto(datos.producto);
@@ -428,6 +443,13 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
                 .stream()
                 .map(ItemInventarioDTO::desde)
                 .collect(Collectors.toList());
+    }
+
+    // Stock consignado del comercio que representa el usuario que llama.
+    @Override
+    @RolesAllowed("COMERCIO")
+    public List<ItemInventarioDTO> listarStockDelComercioActual() {
+        return listarItemsPorComercio(contextoUsuario.idComercioActual());
     }
 
     // TODO el stock consignado por un comercio, en todos los depósitos.

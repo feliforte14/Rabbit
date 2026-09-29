@@ -111,7 +111,28 @@ public class PedidoBean implements Serializable {
     }
 
     public String estadoCobro(Long idPedido) {
-        return estadosCobro.getOrDefault(idPedido, "—");
+        return estadosCobro.get(idPedido);
+    }
+
+    // Nombre del comercio para las tablas: antes se mostraba el ID.
+    public String nombreComercio(Long idComercio) {
+        return listaComercios.stream()
+                .filter(c -> c.getId().equals(idComercio))
+                .map(ComercioDTO::getNombre)
+                .findFirst()
+                .orElse("Comercio " + idComercio);
+    }
+
+    // Nombre del punto de picking de un pedido del ERP.
+    public String nombrePuntoPicking(Long idComercio, Long idPuntoPicking) {
+        if (idPuntoPicking == null) {
+            return "—";
+        }
+        return comercios.listarPuntosPickingDeComercio(idComercio).stream()
+                .filter(pp -> pp.id.equals(idPuntoPicking))
+                .map(pp -> pp.nombre)
+                .findFirst()
+                .orElse("Punto " + idPuntoPicking);
     }
 
     public List<NotificacionDTO> getAvisosRecientes() { return avisosRecientes; }
@@ -208,7 +229,7 @@ public class PedidoBean implements Serializable {
         try {
             gestion.registrarPedidoExterno(nuevoPedido);
             mensaje(FacesMessage.SEVERITY_INFO,
-                    "Pedido simulado como recién llegado del ERP — el sincronizador lo va a tomar en su próxima pasada (máx. 1 min).");
+                    "Pedido recibido: entra por la cola y en unos segundos aparece en la tabla de pedidos (recargá la página).");
             nuevoPedido = nuevoPedidoVacio();
             idDepositoSeleccionado = null;
             cargar();
@@ -270,8 +291,12 @@ public class PedidoBean implements Serializable {
     // línea (ver LineaPedido.idReservaStock e IReservaStock.registrarDevolucion).
     public void cancelar(Long idPedido) {
         try {
+            boolean conStock = pedidos.stream()
+                    .anyMatch(p -> p.getId().equals(idPedido) && p.getOrigen() == OrigenPedido.STOCK_CONSIGNADO);
             gestion.cancelarPedido(idPedido);
-            mensaje(FacesMessage.SEVERITY_INFO, "Pedido cancelado — el stock volvió al disponible");
+            mensaje(FacesMessage.SEVERITY_INFO, conStock
+                    ? "Pedido cancelado: el stock volvió al disponible"
+                    : "Pedido cancelado");
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());

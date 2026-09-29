@@ -25,6 +25,7 @@ public class PedidoExternoDTO {
     public List<LineaPedidoDTO> lineas;
     public BigDecimal importe;
     public MedioPago medioPago;
+    public String direccionEntrega;
     public String fechaPedido;
     public boolean sincronizado;
     public String errorSincronizacion;
@@ -40,6 +41,7 @@ public class PedidoExternoDTO {
         dto.idPuntoPicking = pe.getIdPuntoPicking();
         dto.importe = pe.getImporte();
         dto.medioPago = pe.getMedioPago();
+        dto.direccionEntrega = pe.getDireccionEntrega();
         dto.lineas = pe.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
         dto.fechaPedido = pe.getFechaPedido() != null ? pe.getFechaPedido().format(FORMATO) : null;
         dto.sincronizado = pe.isSincronizado();
@@ -80,6 +82,7 @@ public class PedidoExternoDTO {
     public List<LineaPedidoDTO> getLineas() { return lineas; }
     public BigDecimal getImporte() { return importe; }
     public MedioPago getMedioPago() { return medioPago; }
+    public String getDireccionEntrega() { return direccionEntrega; }
     public String getFechaPedido() { return fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }

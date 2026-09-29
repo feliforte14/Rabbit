@@ -7,11 +7,11 @@
  * No toca Managed Beans, Services ni Repositories: es 100% presentacion.
  *
  * VERSIONADO DE RECURSOS
- * Vive en resources/rabbit/1_0/ y se linkea con:
+ * Vive en resources/rabbit/1_4/ y se linkea con:
  *     <h:outputStylesheet library="rabbit" name="estilos.css" />
- * "rabbit" es la libreria y "1_0" su version. JSF genera una URL que
- * incluye la version (?ln=rabbit&v=1_0), asi que al renombrar la carpeta
- * a 1_1 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
+ * "rabbit" es la libreria y "1_4" su version. JSF genera una URL que
+ * incluye la version (?ln=rabbit&v=1_4), asi que al renombrar la carpeta
+ * a 1_5 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
  * Sin esto, el navegador se queda con el CSS viejo cacheado aunque el
  * WAR ya tenga el nuevo.
  */
@@ -245,6 +245,7 @@ h2 {
     }
 
     .app-contenido {
+        width: 100%;
         padding: 1.5rem 1.25rem 3rem;
     }
 }
@@ -696,6 +697,7 @@ h2 {
     font-weight: 700;
     letter-spacing: 0.03em;
     text-transform: uppercase;
+    white-space: nowrap;
 }
 
 .badge-naranja  { background: #fef3c7; color: #92400e; }
@@ -795,3 +797,256 @@ h2 {
 .estado-liberada   { background: #eeeeee; color: #555555; }
 .estado-expirada   { background: #fdeaea; color: #97302c; }
 .estado-devuelta   { background: #fdf0dc; color: #8a5a12; }
+
+/* ==================================================================
+   Menú por tipo de usuario: títulos de sección
+   ================================================================== */
+.sidebar-seccion {
+    margin: 0.9rem 0.85rem 0.3rem;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.35);
+}
+
+.sidebar-seccion:first-child {
+    margin-top: 0;
+}
+
+/* ==================================================================
+   Hoja de ruta (entregas.xhtml y mis-entregas.xhtml)
+   De dónde se retira, adónde se entrega y qué cobrar: lo que el
+   repartidor mira en la calle, con letra grande y botones anchos.
+   ================================================================== */
+.hoja-ruta {
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-left: 4px solid var(--naranja);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+    padding: 1.25rem 1.4rem;
+    margin-bottom: 1rem;
+}
+
+.hoja-ruta-encabezado {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.9rem;
+}
+
+.hoja-ruta-titulo {
+    margin: 0;
+    font-family: var(--fuente-titulo);
+    font-style: italic;
+    font-weight: 700;
+    font-size: 1.35rem;
+    color: var(--navy);
+}
+
+.paradas {
+    list-style: none;
+    margin: 0 0 1rem;
+    padding: 0;
+}
+
+.parada {
+    position: relative;
+    padding: 0 0 0.9rem 1.6rem;
+}
+
+/* Línea que une las paradas y un punto por parada. */
+.parada::before {
+    content: "";
+    position: absolute;
+    left: 0.3rem;
+    top: 0.35rem;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--navy);
+}
+
+.parada:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    left: 0.55rem;
+    top: 1.05rem;
+    bottom: 0.1rem;
+    width: 2px;
+    background: var(--borde);
+}
+
+.parada-entrega::before {
+    background: var(--naranja);
+}
+
+.parada-tipo {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--texto-suave);
+}
+
+.parada-lugar {
+    display: block;
+    font-weight: 600;
+    color: var(--texto);
+}
+
+.hoja-ruta-datos {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.5rem;
+    margin: 0 0 1rem;
+    font-size: 0.88rem;
+    color: var(--texto-suave);
+}
+
+.hoja-ruta-datos b {
+    color: var(--texto);
+}
+
+.cobrar {
+    display: inline-block;
+    padding: 0.35rem 0.8rem;
+    border-radius: var(--radio-chico);
+    background: var(--naranja-suave);
+    color: var(--naranja-oscuro);
+    font-weight: 700;
+}
+
+.hoja-ruta .form-acciones {
+    margin-top: 0;
+}
+
+.vacio {
+    background: var(--superficie);
+    border: 1px dashed var(--borde);
+    border-radius: var(--radio);
+    padding: 2rem 1.5rem;
+    text-align: center;
+    color: var(--texto-suave);
+    margin-bottom: 2rem;
+}
+
+/* ==================================================================
+   Celular: el menú pasa a una fila que se desplaza de costado, en vez
+   de ocupar media pantalla arriba del contenido.
+   ================================================================== */
+@media (max-width: 860px) {
+    .sidebar-logo {
+        padding: 0.9rem 1.25rem;
+        text-align: left;
+    }
+
+    .sidebar-logo .slogan,
+    .sidebar-seccion {
+        display: none;
+    }
+
+    .sidebar-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 0.5rem 0.75rem;
+        gap: 0.35rem;
+    }
+
+    .sidebar-nav a {
+        white-space: nowrap;
+        flex: none;
+    }
+
+    .sidebar-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.6rem 0.75rem;
+    }
+
+    .sidebar-usuario {
+        padding: 0;
+    }
+
+    .hoja-ruta .form-acciones .btn {
+        width: 100%;
+    }
+}
+
+/* ==================================================================
+   Marca en el login (misma tipografía que el menú)
+   ================================================================== */
+.login-marca {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.login-marca .marca {
+    font-family: var(--fuente-titulo);
+    font-style: italic;
+    font-weight: 700;
+    font-size: 2.4rem;
+    color: var(--naranja);
+    margin: 0;
+    line-height: 1;
+}
+
+.login-marca .slogan {
+    margin: 0.35rem 0 0;
+    font-size: 0.85rem;
+    color: var(--texto-suave);
+}
+
+/* ==================================================================
+   Tablas anchas: se desplazan de costado dentro del contenido en vez
+   de salirse de la página. Y un dato secundario debajo del principal,
+   para no sumar columnas (por ejemplo, el medio de pago bajo el importe).
+   ================================================================== */
+.tabla-scroll {
+    overflow-x: auto;
+    margin-bottom: 2rem;
+}
+
+.tabla-scroll .tabla {
+    margin-bottom: 0;
+}
+
+.dato-secundario {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.78rem;
+    color: var(--texto-suave);
+}
+
+/* En las tablas anchas, los botones de una fila se apilan en vez de
+   ocupar una columna del ancho de todos juntos. */
+.tabla-scroll .acciones .btn {
+    display: block;
+    width: 100%;
+}
+
+.tabla-scroll .acciones .btn + .btn {
+    margin: 0.35rem 0 0;
+}
+
+/* Tablas con muchas columnas: celdas un poco más angostas. */
+.tabla-scroll .tabla th,
+.tabla-scroll .tabla td {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+}
+
+.tabla-scroll .tabla td {
+    font-size: 0.88rem;
+}
+
+.ayuda a {
+    color: var(--naranja-oscuro);
+    font-weight: 600;
+}

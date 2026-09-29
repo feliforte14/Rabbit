@@ -82,6 +82,14 @@ public class UsuarioRepository {
      *
      * @return todos los usuarios persistidos
      */
+    // Un repartidor tiene una sola cuenta.
+    public boolean existeUsuarioDeRepartidor(Long idRepartidor) {
+        return em.createQuery(
+                "SELECT COUNT(u) FROM Usuario u WHERE u.idRepartidor = :id AND u.activo = true", Long.class)
+                .setParameter("id", idRepartidor)
+                .getSingleResult() > 0;
+    }
+
     // Para no dejar el sistema sin administradores al dar de baja uno.
     public long contarAdministradoresActivos() {
         return em.createQuery(

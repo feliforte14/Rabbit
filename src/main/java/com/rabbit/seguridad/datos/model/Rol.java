@@ -8,6 +8,12 @@ package com.rabbit.seguridad.datos.model;
  * ComercioService.eliminarComercio).
  */
 public enum Rol {
+    /** Personal de Rabbit con permisos totales. */
     ADMINISTRADOR,
-    OPERADOR
+    /** Personal de Rabbit que opera comercios, depósitos, pedidos y repartidores. */
+    OPERADOR,
+    /** Un comercio: ve solo sus pedidos, su stock y sus puntos de picking. */
+    COMERCIO,
+    /** Un repartidor: ve sus entregas y marca retiro y entrega. */
+    REPARTIDOR
 }

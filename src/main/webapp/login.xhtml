@@ -3,19 +3,29 @@
     VISTA (Facelet) - Capa de Presentacion.
     Formulario de login — primera pantalla de la app (ver welcome-file en
     web.xml). Se bindea a loginBean (LoginBean.java), que dispara
-    HttpServletRequest.login() contra el ApplicationRealm de WildFly. Sirve
-    tanto para un usuario con rol ADMIN como uno con rol OPERADOR — el
-    rol no se elige acá, lo trae la cuenta.
+    HttpServletRequest.login() contra el ApplicationRealm de WildFly. Es la
+    misma para todos los tipos de usuario (personal de Rabbit, comercio,
+    repartidor): el tipo no se elige aca, lo trae la cuenta, y LoginBean
+    manda a cada uno a su pantalla.
 -->
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core">
 <h:head>
     <title>Rabbit · Iniciar sesión</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <h:outputStylesheet library="rabbit" name="estilos.css" />
 </h:head>
 <h:body styleClass="pagina-sola">
     <div class="container">
+        <div class="login-marca">
+            <p class="marca">rabbit</p>
+            <p class="slogan">Entregas urbanas para comercios</p>
+        </div>
+
         <h1>Iniciar sesión</h1>
 
         <h:messages globalOnly="false" showDetail="false" showSummary="true"
@@ -44,7 +54,7 @@
             </div>
         </h:form>
 
-        <p>¿No tenés cuenta? Pedísela a un administrador.</p>
+        <p class="ayuda">¿No tenés cuenta? Pedísela a un administrador de Rabbit.</p>
     </div>
 </h:body>
 </html>

@@ -15,7 +15,7 @@
                  xmlns:ui="jakarta.faces.facelets"
                  template="/template.xhtml">
     <f:metadata>
-        <f:viewAction action="#{sesionBean.exigirSesion}" />
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
 
     <ui:define name="titulo">Rabbit · Depósitos</ui:define>
@@ -29,7 +29,8 @@
 
         <h:form id="formListado">
             <h:dataTable value="#{depositoBean.depositos}" var="d"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty depositoBean.depositos}">
                 <h:column>
                     <f:facet name="header">ID</f:facet>
                     #{d.id}
@@ -69,6 +70,9 @@
                 </h:column>
             </h:dataTable>
         </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty depositoBean.depositos}">
+            Todavía no hay depósitos registrados.
+        </h:panelGroup>
 
         <h2>Registrar nuevo depósito</h2>
         <h:form id="formAlta" styleClass="formulario">

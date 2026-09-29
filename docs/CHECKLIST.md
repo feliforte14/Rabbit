@@ -5,7 +5,7 @@ rápido en la defensa.
 
 | Requisito | Estado | Dónde |
 |---|---|---|
-| Mínimo 6 componentes de negocio con interfaz explícita y documentada | Cumple (7 implementados) | Comercios, Inventario, Pedidos, Pagos y Cobranzas, Repartidores, Notificaciones, Seguridad. Interfaces en [ARQUITECTURA.md](ARQUITECTURA.md). Ruteo e Integración de Transportistas quedan identificados en el diseño, sin implementar |
+| Mínimo 6 componentes de negocio con interfaz explícita y documentada | Cumple (9 implementados) | Comercios, Inventario, Pedidos, Pagos y Cobranzas, Repartidores, Notificaciones, Seguridad, Ruteo (mínimo) e Integración con el banco legado. Interfaces en [ARQUITECTURA.md](ARQUITECTURA.md). Transportistas queda identificado en el diseño, sin implementar |
 | Al menos 1 componente stateful y 1 stateless, justificados | Cumple | `InventarioService` (`@Stateful`, la reserva es una conversación) y el resto `@Stateless`; `@PostConstruct` / `@PreDestroy` como evidencia del ciclo de vida. Ver [ARQUITECTURA.md](ARQUITECTURA.md) |
 | Arquitectura en capas en cada componente | Cumple | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada paquete |
 | Al menos 3 patrones de diseño, aplicados y justificados | Cumple | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, máquina de estados, transacción compensatoria, Circuit Breaker. Ver [PATRONES.md](PATRONES.md) |
@@ -21,7 +21,7 @@ rápido en la defensa.
 
 | Desafío | Estado |
 |---|---|
-| Al menos 2 ADR | Cumple: 12 ADR en [DECISIONES.md](DECISIONES.md) |
+| Al menos 2 ADR | Cumple: 13 ADR en [DECISIONES.md](DECISIONES.md) |
 | Resiliencia ante fallas | Cumple: Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Heterogeneidad tecnológica | No |
 | Prueba de escalabilidad | No |

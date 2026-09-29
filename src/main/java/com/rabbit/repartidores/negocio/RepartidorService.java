@@ -19,6 +19,9 @@ import com.rabbit.repartidores.datos.model.EstadoRepartidor;
 import com.rabbit.repartidores.datos.model.Repartidor;
 import com.rabbit.repartidores.dto.DatosRepartidorDTO;
 import com.rabbit.repartidores.dto.RepartidorDTO;
+import jakarta.annotation.security.DeclareRoles;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
@@ -27,7 +30,12 @@ import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+// SEGURIDAD: @PermitAll de clase porque asignar y liberar corren dentro de
+// transacciones de Pedidos que también dispara un REPARTIDOR; dar de alta
+// repartidores es solo del personal de Rabbit.
 @Stateless
+@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})
+@PermitAll
 public class RepartidorService implements IAsignacionRepartidores, IGestionRepartidores {
 
     private static final Logger LOG = Logger.getLogger(RepartidorService.class.getName());
@@ -78,6 +86,7 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public Long registrarRepartidor(DatosRepartidorDTO datos) {
         if (datos.nombre == null || datos.nombre.isBlank()) {
             throw new ValidacionException("El nombre del repartidor es obligatorio");
@@ -92,5 +101,11 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
     @Override
     public List<RepartidorDTO> listarTodos() {
         return repository.listarTodos().stream().map(RepartidorDTO::desde).collect(Collectors.toList());
+    }
+
+    @Override
+    public RepartidorDTO obtenerRepartidor(Long idRepartidor) {
+        Repartidor repartidor = idRepartidor != null ? repository.buscarPorId(idRepartidor) : null;
+        return repartidor != null ? RepartidorDTO.desde(repartidor) : null;
     }
 }

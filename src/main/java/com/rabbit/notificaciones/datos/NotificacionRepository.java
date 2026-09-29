@@ -36,4 +36,12 @@ public class NotificacionRepository {
                 .setMaxResults(cantidad)
                 .getResultList();
     }
+
+    public List<Notificacion> listarDeComercio(Long idComercio, int cantidad) {
+        return em.createQuery("SELECT n FROM Notificacion n WHERE n.idComercio = :idComercio ORDER BY n.id DESC",
+                        Notificacion.class)
+                .setParameter("idComercio", idComercio)
+                .setMaxResults(cantidad)
+                .getResultList();
+    }
 }

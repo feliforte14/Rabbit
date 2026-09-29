@@ -59,6 +59,12 @@ public class PedidoExterno {
     @Enumerated(EnumType.STRING)
     private MedioPago medioPago;
 
+    // Adónde se entrega (la manda el ERP con el pedido). Es el destino de
+    // la hoja de ruta del repartidor (ver RuteoService). Nullable: los
+    // pedidos anteriores a este cambio no la tienen.
+    @Column(length = 200)
+    private String direccionEntrega;
+
     // false = todavía no lo tomó el sincronizador. true = ya se procesó y
     // no se vuelve a mirar, sea porque generó su Pedido (errorSincronizacion
     // null) o porque se descartó por una regla de negocio
@@ -96,6 +102,8 @@ public class PedidoExterno {
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public MedioPago getMedioPago() { return medioPago; }
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
+    public String getDireccionEntrega() { return direccionEntrega; }
+    public void setDireccionEntrega(String direccionEntrega) { this.direccionEntrega = direccionEntrega; }
     public boolean isSincronizado() { return sincronizado; }
     public void setSincronizado(boolean sincronizado) { this.sincronizado = sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }

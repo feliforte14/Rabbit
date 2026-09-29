@@ -49,4 +49,13 @@ public interface ISeguimientoPedido {
      * @return los pedidos de ese comercio
      */
     List<PedidoDTO> listarPedidosDeComercio(Long idComercio);
+
+    /** Pedidos CONFIRMADO o EN_CAMINO: los que tienen que salir o están en viaje. */
+    List<PedidoDTO> listarEntregasEnCurso();
+
+    /** Pedidos del comercio que representa el usuario que llama (rol COMERCIO). */
+    List<PedidoDTO> listarPedidosDelComercioActual();
+
+    /** Pedidos que tuvo o tiene asignados el repartidor que llama (rol REPARTIDOR). */
+    List<PedidoDTO> listarPedidosDelRepartidorActual();
 }

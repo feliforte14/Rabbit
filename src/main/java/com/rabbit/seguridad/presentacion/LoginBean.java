@@ -29,6 +29,7 @@ package com.rabbit.seguridad.presentacion;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
+import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,6 +44,9 @@ public class LoginBean implements Serializable {
     private String username;
     private String password;
 
+    @Inject
+    private SesionBean sesion;
+
     // Autentica contra el ApplicationRealm vía la API estándar de Servlet
     // (ver el porqué en el comentario de clase) y, si funciona, redirige
     // al primer listado protegido de la app.
@@ -55,10 +59,17 @@ public class LoginBean implements Serializable {
             // Session fixation: la sesión autenticada no conserva el ID
             // que tenía antes del login (que un tercero pudo haber fijado).
             request.changeSessionId();
-            // El sidebar (ver template.xhtml) reemplaza a lo que antes era
-            // panel.xhtml como menú — ya no hace falta una pantalla
-            // intermedia post-login, se entra directo al listado de comercios.
-            facesContext.getExternalContext().redirect(request.getContextPath() + "/comercios.xhtml");
+            // Cada tipo de usuario entra a su propia pantalla (ver
+            // SesionBean.getPaginaInicio). Un usuario sin acceso web (el
+            // del ERP, que solo usa la API) no queda logueado.
+            String inicio = sesion.getPaginaInicio();
+            if (inicio == null) {
+                request.logout();
+                request.getSession().invalidate();
+                mensaje(FacesMessage.SEVERITY_ERROR, "Este usuario no tiene acceso a la aplicación web");
+                return;
+            }
+            facesContext.getExternalContext().redirect(request.getContextPath() + inicio);
         } catch (ServletException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, "Usuario o contraseña incorrectos");
         }

@@ -1,9 +1,10 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    Muestra el estado del componente ServicioDePedidos: los pedidos reales
-    de Rabbit, y debajo, el mock de lo que "llegaría del ERP" del comercio
-    junto con el botón para simular uno nuevo. Se bindea a pedidoBean
+    Pantalla de operacion del personal de Rabbit: los pedidos reales con
+    sus acciones (confirmar, despachar, entregar, cancelar), los avisos a
+    comercios, lo que llego del ERP de cada comercio y un formulario para
+    simular un pedido del ERP en la demo. Se bindea a pedidoBean
     (PedidoBean.java).
 -->
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
@@ -12,7 +13,7 @@
                  xmlns:ui="jakarta.faces.facelets"
                  template="/template.xhtml">
     <f:metadata>
-        <f:viewAction action="#{sesionBean.exigirSesion}" />
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
 
     <ui:define name="titulo">Rabbit · Pedidos</ui:define>
@@ -21,38 +22,36 @@
         <h1>Pedidos</h1>
 
         <p class="ayuda">
-            Este es el canal normal: una venta que ya se cerró del lado del comercio y llega
-            automáticamente via su ERP. Es distinto de la reserva manual de la pantalla de
-            Depósitos, pensada para que un operador de Rabbit comprometa stock propio por fuera
-            de este flujo (por ejemplo, ante un caso descartado abajo en "Motivo del descarte").
+            Cada pedido es una venta que el comercio ya cerró y que llega desde su ERP. Al
+            confirmarlo se cobra (si es prepago) y se le asigna un repartidor; el recorrido se
+            sigue en&#160;<h:link outcome="entregas" value="Entregas en curso" />.
         </p>
 
         <h:messages globalOnly="false" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
-        <h:form id="formPedidos">
+        <h:form id="formPedidos" styleClass="tabla-scroll">
             <h:dataTable value="#{pedidoBean.pedidos}" var="p"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty pedidoBean.pedidos}">
                 <h:column>
-                    <f:facet name="header">ID</f:facet>
+                    <f:facet name="header">Pedido</f:facet>
                     #{p.id}
+                    <span class="dato-secundario">#{p.fechaCreacion}</span>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Comercio</f:facet>
-                    #{p.idComercio}
-                </h:column>
-                <h:column>
-                    <f:facet name="header">Origen</f:facet>
-                    #{p.origen == 'PUNTO_PICKING' ? 'Punto de picking' : 'Stock consignado'}
+                    #{pedidoBean.nombreComercio(p.idComercio)}
                 </h:column>
                 <h:column>
                     <f:facet name="header">Productos</f:facet>
-                    #{p.productos}
+                    #{p.productos} (#{p.cantidadTotal} u.)
+                    <span class="dato-secundario">#{etiquetas.origen(p.origen)}</span>
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Cantidad total</f:facet>
-                    #{p.cantidadTotal}
+                    <f:facet name="header">Entrega en</f:facet>
+                    #{empty p.direccionEntrega ? '—' : p.direccionEntrega}
                 </h:column>
                 <h:column>
                     <f:facet name="header">Importe</f:facet>
@@ -60,27 +59,22 @@
                         <f:convertNumber type="currency" currencySymbol="$" />
                     </h:outputText>
                     <h:outputText value="—" rendered="#{empty p.importe}" />
-                </h:column>
-                <h:column>
-                    <f:facet name="header">Pago</f:facet>
-                    #{p.medioPago == 'PREPAGO' ? 'Prepago' : (p.medioPago == 'CONTRA_ENTREGA' ? 'Contra entrega' : '—')}
+                    <span class="dato-secundario">#{etiquetas.medioPago(p.medioPago)}</span>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Estado</f:facet>
-                    #{p.estado}
-                </h:column>
-                <h:column>
-                    <f:facet name="header">Repartidor</f:facet>
-                    #{pedidoBean.nombreRepartidor(p.idRepartidor)}
+                    <h:outputText value="#{etiquetas.estadoPedido(p.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoPedido(p.estado)}" />
                 </h:column>
                 <h:column>
                     <!-- Estado del cobro en ServicioDePagosYCobranzas (ver EstadoCobro). -->
                     <f:facet name="header">Cobro</f:facet>
-                    #{pedidoBean.estadoCobro(p.id)}
+                    <h:outputText value="#{etiquetas.estadoCobro(pedidoBean.estadoCobro(p.id))}"
+                                  styleClass="#{etiquetas.claseEstadoCobro(pedidoBean.estadoCobro(p.id))}" />
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Creado</f:facet>
-                    #{p.fechaCreacion}
+                    <f:facet name="header">Repartidor</f:facet>
+                    #{pedidoBean.nombreRepartidor(p.idRepartidor)}
                 </h:column>
                 <h:column styleClass="acciones">
                     <f:facet name="header">Acciones</f:facet>
@@ -95,10 +89,14 @@
                                      rendered="#{p.estado == 'EN_CAMINO'}" />
                     <h:commandButton value="Cancelar" styleClass="btn btn-danger"
                                      action="#{pedidoBean.cancelar(p.id)}"
-                                     rendered="#{p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO'}" />
+                                     rendered="#{p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO'}"
+                                     onclick="return confirm('¿Cancelar el pedido? Si ya estaba cobrado, se le devuelve el pago al cliente.');" />
                 </h:column>
             </h:dataTable>
         </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.pedidos}">
+            Todavía no hay pedidos. Llegan desde el ERP de cada comercio (o simulalos abajo).
+        </h:panelGroup>
 
         <!--
             Avisos que genero ServicioDeNotificaciones al recibir cada cambio
@@ -115,7 +113,7 @@
             </h:column>
             <h:column>
                 <f:facet name="header">Comercio</f:facet>
-                #{a.idComercio}
+                #{pedidoBean.nombreComercio(a.idComercio)}
             </h:column>
             <h:column>
                 <f:facet name="header">Aviso</f:facet>
@@ -125,13 +123,13 @@
         <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.avisosRecientes}"
                       value="Todavía no se enviaron avisos." />
 
-        <h2>Mock del ERP del comercio</h2>
-        <p>
-            Rabbit no origina pedidos: los consume desde el sistema del comercio. Esta tabla simula, desde
-            el punto de vista de negocio de Rabbit, esas filas — el sincronizador las toma y genera el
-            pedido real de arriba.
+        <h2>Recibidos del ERP</h2>
+        <p class="ayuda">
+            Rabbit no origina pedidos: los recibe del sistema de cada comercio por la API REST
+            (<code>POST /api/pedidos-externos</code>) y los convierte en pedidos reales por la cola
+            JMS. Acá se ve qué llegó y cómo terminó cada uno.
         </p>
-        <h:form id="formExternos">
+        <h:form id="formExternos" styleClass="tabla-scroll">
             <h:dataTable value="#{pedidoBean.pedidosExternos}" var="pe"
                          styleClass="tabla" rowClasses="fila-impar,fila-par">
                 <h:column>
@@ -140,23 +138,12 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Comercio</f:facet>
-                    #{pe.idComercio}
-                </h:column>
-                <h:column>
-                    <f:facet name="header">Origen</f:facet>
-                    #{pe.origen == 'PUNTO_PICKING' ? 'Punto de picking' : 'Stock consignado'}
-                </h:column>
-                <h:column>
-                    <f:facet name="header">Punto de picking</f:facet>
-                    #{pe.origen == 'PUNTO_PICKING' ? pe.idPuntoPicking : '—'}
+                    #{pedidoBean.nombreComercio(pe.idComercio)}
                 </h:column>
                 <h:column>
                     <f:facet name="header">Productos</f:facet>
-                    #{pe.descripcionLineas}
-                </h:column>
-                <h:column>
-                    <f:facet name="header">Cantidad total</f:facet>
-                    #{pe.cantidadTotal}
+                    #{pe.descripcionLineas} (#{pe.cantidadTotal} u.)
+                    <span class="dato-secundario">#{etiquetas.origen(pe.origen)}#{pe.origen == 'PUNTO_PICKING' ? ': '.concat(pedidoBean.nombrePuntoPicking(pe.idComercio, pe.idPuntoPicking)) : ''}</span>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Llegó</f:facet>
@@ -164,7 +151,12 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Resultado</f:facet>
-                    #{pe.resultado}
+                    <h:outputText value="#{pe.resultado}"
+                                  styleClass="badge #{pe.resultado == 'Sincronizado' ? 'badge-verde' : (pe.resultado == 'Descartado' ? 'badge-rojo' : 'badge-naranja')}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Pedido</f:facet>
+                    #{empty pe.idPedido ? '—' : pe.idPedido}
                 </h:column>
                 <h:column>
                     <f:facet name="header">Motivo del descarte</f:facet>
@@ -175,7 +167,10 @@
             </h:dataTable>
         </h:form>
 
-        <h2>Simular pedido nuevo desde el ERP</h2>
+        <h2>Simular un pedido del ERP</h2>
+        <p class="ayuda">
+            Para la demo: hace lo mismo que el ERP de un comercio cuando llama a la API.
+        </p>
         <h:form id="formAlta" styleClass="formulario formulario-ancho">
             <div class="campo">
                 <h:outputLabel for="comercio" value="Comercio" />
@@ -218,6 +213,13 @@
                              converterMessage="El importe tiene que ser un número">
                     <f:convertNumber pattern="#0.##" parseBigDecimal="true" />
                 </h:inputText>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="direccionEntrega" value="Dirección de entrega" />
+                <h:inputText id="direccionEntrega" value="#{pedidoBean.nuevoPedido.direccionEntrega}"
+                             required="true" label="Dirección de entrega" maxlength="200"
+                             requiredMessage="Ingresá adónde se entrega el pedido" />
             </div>
 
             <div class="campo">

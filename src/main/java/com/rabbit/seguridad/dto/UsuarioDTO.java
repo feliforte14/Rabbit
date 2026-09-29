@@ -13,6 +13,8 @@ public class UsuarioDTO {
     public String username;
     public String rol;
     public boolean activo;
+    public Long idComercio;
+    public Long idRepartidor;
 
     // Convierte una entidad Usuario en un DTO listo para mostrar en la
     // vista — a propósito nunca copia passwordHash.
@@ -22,6 +24,8 @@ public class UsuarioDTO {
         dto.username = u.getUsername();
         dto.rol = u.getRol() != null ? u.getRol().name() : null;
         dto.activo = u.isActivo();
+        dto.idComercio = u.getIdComercio();
+        dto.idRepartidor = u.getIdRepartidor();
         return dto;
     }
 
@@ -30,4 +34,6 @@ public class UsuarioDTO {
     public String getUsername() { return username; }
     public String getRol() { return rol; }
     public boolean isActivo() { return activo; }
+    public Long getIdComercio() { return idComercio; }
+    public Long getIdRepartidor() { return idRepartidor; }
 }

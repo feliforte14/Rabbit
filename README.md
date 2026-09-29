@@ -13,7 +13,12 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio, su
   sincronización automática con stock y su seguimiento
   (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`).
-- **Seguridad:** usuarios con rol `ADMINISTRADOR` u `OPERADOR`.
+- **Ruteo y entregas:** hoja de ruta de cada pedido (de dónde se retira y
+  adónde se entrega) y tablero de entregas en curso.
+- **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
+  (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
+  pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
+  ruta y marca retiro y entrega desde el celular.
 
 ## Tecnologías
 
@@ -44,7 +49,8 @@ com.rabbit.<componente>/
 | Repartidores | `repartidores` | Implementado |
 | Integración con el banco legado (SOAP) | `integracion.banco` | Implementado |
 | Notificaciones | `notificaciones` | Implementado |
-| Ruteo, Transportistas | — | Pendiente |
+| Ruteo (mínimo: hoja de ruta y tablero de entregas) | `ruteo` | Implementado |
+| Transportistas | — | Pendiente |
 
 ## Integraciones
 
@@ -178,7 +184,10 @@ Desde ahí, ese administrador crea los demás usuarios en "Usuarios"
 (`usuarios.xhtml`).
 
 Los usuarios que crea un administrador desde la app se sincronizan solos
-contra el realm (ver `ApplicationRealmSync`).
+contra el realm (ver `ApplicationRealmSync`). Hay cuatro tipos de cuenta:
+`ADMINISTRADOR` y `OPERADOR` (personal de Rabbit), `COMERCIO` (se asocia a
+un comercio) y `REPARTIDOR` (se asocia a un repartidor). Cada uno entra a
+su propia pantalla.
 
 ### 6. Usuario del ERP para la API REST
 

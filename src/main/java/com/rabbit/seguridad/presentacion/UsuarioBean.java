@@ -11,6 +11,10 @@ package com.rabbit.seguridad.presentacion;
  * @RolesAllowed; el guardián de la página solo evita mostrarla.
  */
 
+import com.rabbit.comercios.dto.ComercioDTO;
+import com.rabbit.comercios.negocio.IConsultaComercios;
+import com.rabbit.repartidores.dto.RepartidorDTO;
+import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.seguridad.dto.DatosUsuarioDTO;
 import com.rabbit.seguridad.dto.UsuarioDTO;
 import com.rabbit.seguridad.negocio.IConsultaUsuarios;
@@ -38,14 +42,26 @@ public class UsuarioBean implements Serializable {
     @Inject
     private IConsultaUsuarios consulta;
 
+    // Para asociar una cuenta COMERCIO o REPARTIDOR a quien representa.
+    @Inject
+    private IConsultaComercios comercios;
+
+    @Inject
+    private IGestionRepartidores repartidores;
+
+    private List<ComercioDTO> listaComercios;
+    private List<RepartidorDTO> listaRepartidores;
+
     private List<UsuarioDTO> usuarios;
-    private DatosUsuarioDTO nuevoUsuario = new DatosUsuarioDTO();
+    private DatosUsuarioDTO nuevoUsuario = nuevoUsuarioVacio();
 
     // @PostConstruct: corre una sola vez al crear el Bean, así la tabla ya
     // llega llena en el primer render de usuarios.xhtml.
     @PostConstruct
     public void cargar() {
         usuarios = isAdmin() ? consulta.listarTodos() : Collections.emptyList();
+        listaComercios = comercios.listarTodos();
+        listaRepartidores = repartidores.listarTodos();
     }
 
     // Alta de un usuario nuevo: UsuarioService lo persiste (con el
@@ -56,7 +72,7 @@ public class UsuarioBean implements Serializable {
         try {
             registro.registrarUsuario(nuevoUsuario);
             mensaje(FacesMessage.SEVERITY_INFO, "Usuario registrado correctamente");
-            nuevoUsuario = new DatosUsuarioDTO();
+            nuevoUsuario = nuevoUsuarioVacio();
             cargar();
         } catch (ValidacionException e) {
             mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
@@ -96,6 +112,29 @@ public class UsuarioBean implements Serializable {
     public boolean isAdmin() {
         return FacesContext.getCurrentInstance().getExternalContext().isUserInRole("ADMINISTRADOR");
     }
+
+    // El formulario arranca con Operador elegido, el tipo más común.
+    private static DatosUsuarioDTO nuevoUsuarioVacio() {
+        DatosUsuarioDTO datos = new DatosUsuarioDTO();
+        datos.rol = com.rabbit.seguridad.datos.model.Rol.OPERADOR;
+        return datos;
+    }
+
+    // A quién representa cada cuenta, para la columna del padrón.
+    public String representado(UsuarioDTO u) {
+        if (u.getIdComercio() != null) {
+            return listaComercios.stream().filter(c -> c.getId().equals(u.getIdComercio()))
+                    .map(ComercioDTO::getNombre).findFirst().orElse("Comercio " + u.getIdComercio());
+        }
+        if (u.getIdRepartidor() != null) {
+            return listaRepartidores.stream().filter(r -> r.getId().equals(u.getIdRepartidor()))
+                    .map(RepartidorDTO::getNombre).findFirst().orElse("Repartidor " + u.getIdRepartidor());
+        }
+        return "Rabbit";
+    }
+
+    public List<ComercioDTO> getListaComercios() { return listaComercios; }
+    public List<RepartidorDTO> getListaRepartidores() { return listaRepartidores; }
 
     // Los roles posibles, para el desplegable del formulario de alta.
     public com.rabbit.seguridad.datos.model.Rol[] getRoles() { return com.rabbit.seguridad.datos.model.Rol.values(); }

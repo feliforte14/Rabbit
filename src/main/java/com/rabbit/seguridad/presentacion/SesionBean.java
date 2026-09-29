@@ -6,6 +6,10 @@ package com.rabbit.seguridad.presentacion;
  * simple, sin acoplar los .xhtml a la API de Jakarta Security.
  */
 
+import com.rabbit.comercios.negocio.IConsultaComercios;
+import com.rabbit.repartidores.negocio.IGestionRepartidores;
+import com.rabbit.seguridad.negocio.IContextoUsuario;
+import com.rabbit.seguridad.negocio.ValidacionException;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.faces.context.FacesContext;
 import jakarta.inject.Inject;
@@ -21,6 +25,15 @@ public class SesionBean {
 
     @Inject
     private SecurityContext securityContext;
+
+    @Inject
+    private IContextoUsuario contextoUsuario;
+
+    @Inject
+    private IConsultaComercios comercios;
+
+    @Inject
+    private IGestionRepartidores repartidores;
 
     /**
      * Gatekeeper de páginas que requieren sesión iniciada: cada .xhtml
@@ -42,21 +55,110 @@ public class SesionBean {
         }
     }
 
-    /**
-     * Gatekeeper de páginas solo para ADMINISTRADOR (usuarios.xhtml): sin
-     * sesión manda al login; con sesión pero sin el rol, a comercios.
-     */
+    /** Páginas del personal de Rabbit (ADMINISTRADOR u OPERADOR). */
+    public void exigirPersonal() throws IOException {
+        exigir(isPersonal());
+    }
+
+    /** Páginas solo para ADMINISTRADOR (usuarios.xhtml). */
     public void exigirAdministrador() throws IOException {
+        exigir(isAdmin());
+    }
+
+    /** Páginas del portal del comercio. */
+    public void exigirComercio() throws IOException {
+        exigir(isComercio());
+    }
+
+    /** Páginas del repartidor. */
+    public void exigirRepartidor() throws IOException {
+        exigir(isRepartidor());
+    }
+
+    /** Páginas que comparten el personal y el comercio (puntos de picking). */
+    public void exigirPersonalOComercio() throws IOException {
+        exigir(isPersonal() || isComercio());
+    }
+
+    // Sin sesión, al login; con sesión pero sin el rol, a su página de
+    // inicio. Es solo navegación: la autorización real la impone el EJB.
+    private void exigir(boolean permitido) throws IOException {
         if (!isAutenticado()) {
             exigirSesion();
             return;
         }
-        if (!isAdmin()) {
-            FacesContext facesContext = FacesContext.getCurrentInstance();
-            HttpServletRequest request = (HttpServletRequest) facesContext.getExternalContext().getRequest();
-            facesContext.getExternalContext().redirect(request.getContextPath() + "/comercios.xhtml");
-            facesContext.responseComplete();
+        if (!permitido) {
+            redirigir(getPaginaInicio());
         }
+    }
+
+    private void redirigir(String pagina) throws IOException {
+        FacesContext facesContext = FacesContext.getCurrentInstance();
+        HttpServletRequest request = (HttpServletRequest) facesContext.getExternalContext().getRequest();
+        facesContext.getExternalContext().redirect(request.getContextPath() + pagina);
+        facesContext.responseComplete();
+    }
+
+    /**
+     * Página de inicio según el tipo de usuario; null si el usuario no
+     * tiene acceso a la aplicación web (por ejemplo, el usuario del ERP,
+     * que solo usa la API REST).
+     */
+    public String getPaginaInicio() {
+        if (isPersonal()) {
+            return "/pedidos.xhtml";
+        }
+        if (isComercio()) {
+            return "/mis-pedidos.xhtml";
+        }
+        if (isRepartidor()) {
+            return "/mis-entregas.xhtml";
+        }
+        return null;
+    }
+
+    public boolean isPersonal() {
+        return isAdmin() || securityContext.isCallerInRole("OPERADOR");
+    }
+
+    public boolean isComercio() {
+        return securityContext.isCallerInRole("COMERCIO");
+    }
+
+    public boolean isRepartidor() {
+        return securityContext.isCallerInRole("REPARTIDOR");
+    }
+
+    /** Tipo de usuario, tal como se muestra en el menú. */
+    public String getRolActual() {
+        if (isAdmin()) {
+            return "Administrador";
+        }
+        if (securityContext.isCallerInRole("OPERADOR")) {
+            return "Operador";
+        }
+        if (isComercio()) {
+            return "Comercio";
+        }
+        if (isRepartidor()) {
+            return "Repartidor";
+        }
+        return null;
+    }
+
+    /** A quién representa la cuenta (comercio o repartidor), para el menú. */
+    public String getRepresentado() {
+        try {
+            if (isComercio()) {
+                return comercios.obtenerComercio(contextoUsuario.idComercioActual()).nombre;
+            }
+            if (isRepartidor()) {
+                return repartidores.obtenerRepartidor(contextoUsuario.idRepartidorActual()).getNombre();
+            }
+        } catch (ValidacionException | com.rabbit.comercios.negocio.ValidacionException e) {
+            return "Cuenta sin asociar";
+        }
+        return null;
     }
 
     // Nombre del usuario logueado, para mostrarlo en el sidebar

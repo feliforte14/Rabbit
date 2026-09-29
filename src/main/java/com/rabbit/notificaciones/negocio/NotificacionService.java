@@ -18,6 +18,10 @@ package com.rabbit.notificaciones.negocio;
 import com.rabbit.notificaciones.datos.NotificacionRepository;
 import com.rabbit.notificaciones.datos.model.Notificacion;
 import com.rabbit.notificaciones.dto.NotificacionDTO;
+import com.rabbit.seguridad.negocio.IContextoUsuario;
+import jakarta.annotation.security.DeclareRoles;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
@@ -27,8 +31,16 @@ import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+// SEGURIDAD: @PermitAll de clase porque los avisos los genera el suscriptor
+// del tópico, sin usuario. Un COMERCIO lee solo los avisos de su comercio.
 @Stateless
+@DeclareRoles({"COMERCIO"})
+@PermitAll
 public class NotificacionService implements INotificaciones {
+
+    @Inject
+    private IContextoUsuario contextoUsuario;
+
 
     private static final Logger LOG = Logger.getLogger(NotificacionService.class.getName());
 
@@ -61,6 +73,14 @@ public class NotificacionService implements INotificaciones {
     @Override
     public List<NotificacionDTO> listarRecientes(int cantidad) {
         return repository.listarRecientes(cantidad).stream().map(NotificacionDTO::desde).collect(Collectors.toList());
+    }
+
+    @Override
+    @RolesAllowed("COMERCIO")
+    public List<NotificacionDTO> listarDelComercioActual(int cantidad) {
+        return repository.listarDeComercio(contextoUsuario.idComercioActual(), cantidad).stream()
+                .map(NotificacionDTO::desde)
+                .collect(Collectors.toList());
     }
 
     private static String describir(String estado) {

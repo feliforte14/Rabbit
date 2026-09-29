@@ -24,6 +24,8 @@
 |---|---|---|
 | `ADMINISTRADOR` | Personal de Rabbit con permisos totales | El primero con `add-user.sh -a -u <usuario> -p '<clave>' -g ADMINISTRADOR`; los demás, un administrador desde `usuarios.xhtml` |
 | `OPERADOR` | Personal de Rabbit | Un administrador, desde `usuarios.xhtml` |
+| `COMERCIO` | Un comercio: ve solo sus pedidos, su stock y sus puntos de picking | Un administrador, desde `usuarios.xhtml`, asociándolo a un comercio activo |
+| `REPARTIDOR` | Un repartidor: ve y mueve solo sus entregas | Un administrador, desde `usuarios.xhtml`, asociándolo a un repartidor (una cuenta por repartidor) |
 | `ERP` | Sistema del comercio que usa la API REST (no es una persona) | Solo en WildFly: `add-user.sh -a -u <usuario> -p '<clave>' -g ERP` |
 
 La API REST del ERP se autentica con HTTP Basic (`web.xml`:
@@ -46,6 +48,12 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 |---|---|
 | `ComercioService.eliminarComercio` | Borra físicamente el comercio y sus puntos de picking en cascada |
 | `UsuarioService.registrarUsuario` | Crea cuentas con acceso al sistema. Si fuera público, cualquiera se daría un `OPERADOR` |
+| Alta y cambios de comercios, depósitos, stock y repartidores; `confirmarPedido` y `cancelarPedido` | Solo el personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) |
+| `despacharPedido`, `registrarEntrega` | Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido |
+| `registrarPedidoExterno` | Personal de Rabbit (simulación) o el `ERP` |
+| Puntos de picking (alta, baja, reactivación) | Personal de Rabbit o el `COMERCIO` dueño |
+| Consultas del portal (`listarPedidosDelComercioActual`, `listarStockDelComercioActual`, `listarDelComercioActual`) | Solo `COMERCIO`, y solo lo suyo |
+| Ruteo: tablero de entregas / entregas del repartidor | Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas |
 | `UsuarioService.listarTodos` | Expone el padrón completo de usuarios |
 | `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |
 | `PagoService.anularCobro` | Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR` |
@@ -58,6 +66,26 @@ rol (y además solo acredita un cobro que ya existe).
 Si el caller no tiene el rol, el contenedor lanza `EJBAccessException`;
 la vista la traduce a un mensaje (WildFly igual la loguea como
 `WFLYEJB0034`, es lo esperado).
+
+### Pertenencia: cada uno ve y mueve solo lo suyo
+
+El rol no alcanza: dos comercios tienen el mismo rol. `IContextoUsuario`
+resuelve a quién representa el usuario que llama (la cuenta de la tabla
+`usuarios`, asociada a un comercio o a un repartidor) a partir de la
+identidad autenticada. Los servicios nunca reciben el comercio o el
+repartidor del cliente:
+
+- las consultas del portal del comercio filtran por su comercio;
+- `despacharPedido` y `registrarEntrega` rechazan a un `REPARTIDOR` que no
+  tiene asignado ese pedido;
+- `ComercioService` rechaza que un `COMERCIO` toque puntos de picking de
+  otro comercio (y `puntos-picking.xhtml` ignora el `idComercio` de la URL
+  para un comercio).
+
+Las operaciones que disparan el listener JMS y los timers (sin usuario)
+siguen con `@PermitAll` de clase; por eso cada EJB que tiene alguna
+restricción declara `@PermitAll` a nivel de clase y `@RolesAllowed` en
+los métodos que solo invoca una persona.
 
 ### Reglas que dependen de datos
 
@@ -84,10 +112,12 @@ eso:
 
 ### Control de UX en la vista
 
-`SesionBean.exigirSesion()` (vía `<f:viewAction>`) redirige a
-`login.xhtml` si no hay sesión, y `exigirAdministrador()` saca de
-`usuarios.xhtml` a quien no es `ADMINISTRADOR`. El enlace "Usuarios" del
-menú solo lo ve un administrador. **No es seguridad**: la vista puede
+Cada página tiene su guardián (`<f:viewAction>`): `exigirPersonal`,
+`exigirAdministrador`, `exigirComercio`, `exigirRepartidor` o
+`exigirPersonalOComercio`. Sin sesión mandan al login; con sesión pero
+sin el tipo de usuario correcto, a la página de inicio de ese usuario.
+Cada tipo de usuario ve su propio menú, y un usuario `ERP` no puede
+entrar a la web (el login lo rechaza). **No es seguridad**: la vista puede
 ocultar botones, pero la autorización siempre la impone el EJB.
 
 ### Errores

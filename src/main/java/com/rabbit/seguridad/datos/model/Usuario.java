@@ -31,6 +31,11 @@ public class Usuario {
     // Baja lógica: false = no puede autenticarse aunque la contraseña sea correcta.
     private boolean activo;
 
+    // A quién representa la cuenta: el comercio de un usuario COMERCIO o el
+    // repartidor de un usuario REPARTIDOR. Null para el personal de Rabbit.
+    private Long idComercio;
+    private Long idRepartidor;
+
     public Usuario() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -43,4 +48,8 @@ public class Usuario {
     public void setRol(Rol rol) { this.rol = rol; }
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
+    public Long getIdComercio() { return idComercio; }
+    public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
+    public Long getIdRepartidor() { return idRepartidor; }
+    public void setIdRepartidor(Long idRepartidor) { this.idRepartidor = idRepartidor; }
 }
