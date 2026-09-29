@@ -8,7 +8,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
-                 template="/template.xhtml">
+                 template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
         <f:viewParam name="idDeposito" value="#{itemInventarioBean.idDeposito}" />
@@ -18,7 +18,7 @@
     <ui:define name="titulo">Rabbit · Stock</ui:define>
 
     <ui:define name="contenido">
-        <p><h:link outcome="depositos" value="&#8592; Volver a depósitos" styleClass="enlace-volver" /></p>
+        <p><h:link outcome="/personal/depositos" value="&#8592; Volver a depósitos" styleClass="enlace-volver" /></p>
 
         <h1>Stock de #{itemInventarioBean.deposito.nombre}</h1>
 

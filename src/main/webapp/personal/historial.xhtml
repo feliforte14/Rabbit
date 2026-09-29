@@ -17,7 +17,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
-                 template="/template.xhtml">
+                 template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
@@ -26,7 +26,7 @@
 
     <ui:define name="contenido">
         <p>
-            <h:link outcome="reservas" value="&#8592; Volver a reservar stock" styleClass="enlace-volver" />
+            <h:link outcome="/personal/reservas" value="&#8592; Volver a reservar stock" styleClass="enlace-volver" />
         </p>
 
         <h1>Historial de reservas</h1>
@@ -96,7 +96,7 @@
                     error de conversion en una fecha, que es justo cuando
                     mas querés limpiar, el postback ni siquiera llega.
                 -->
-                <h:button outcome="historial" value="Limpiar filtros" styleClass="btn btn-secondary" />
+                <h:button outcome="/personal/historial" value="Limpiar filtros" styleClass="btn btn-secondary" />
             </div>
 
             <h:messages globalOnly="false" showDetail="false" showSummary="true"

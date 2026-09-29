@@ -139,13 +139,13 @@ public class SesionBean {
      */
     public String getPaginaInicio() {
         if (isPersonal()) {
-            return "/pedidos.xhtml";
+            return "/personal/pedidos.xhtml";
         }
         if (isComercio()) {
-            return "/mis-pedidos.xhtml";
+            return "/comercio/mis-pedidos.xhtml";
         }
         if (isRepartidor()) {
-            return "/mis-entregas.xhtml";
+            return "/repartidor/mis-entregas.xhtml";
         }
         return null;
     }

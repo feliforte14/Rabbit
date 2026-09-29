@@ -25,7 +25,7 @@ generó; si la perdiste, reseteala con:
 
 1. Entrá a `http://localhost:8080/Rabbit/login.xhtml`.
 2. Ingresá con `claude-cb-admin`.
-3. Deberías caer en `pedidos.xhtml` (la pantalla de Pedidos, vacía porque
+3. Deberías caer en `personal/pedidos.xhtml` (la pantalla de Pedidos, vacía porque
    la base está limpia).
 
 **Qué mirar:** el menú lateral muestra "Administrador" como rol; no
@@ -84,7 +84,7 @@ API REST:
 ## 3. Portal del comercio
 
 1. Cerrar sesión, loguearte con `demo.comercio`.
-2. Caés en `mis-pedidos.xhtml`: debería estar vacío, sin errores.
+2. Caés en `comercio/mis-pedidos.xhtml`: debería estar vacío, sin errores.
 3. Ir a **Mis puntos de picking** → agregar uno (nombre, dirección).
 4. Ir a **Mi stock** → confirmar que ves el stock cargado en 2.2. Es solo
    lectura: el stock lo carga el personal de Rabbit.
@@ -252,11 +252,11 @@ de sin zona se confirma o deriva a mano desde Pedidos.
 ## 7. Seguridad: accesos restringidos
 
 Con `demo.comercio` logueado:
-- Intentá entrar directo a `http://localhost:8080/Rabbit/usuarios.xhtml`
+- Intentá entrar directo a `http://localhost:8080/Rabbit/personal/usuarios.xhtml`
   (pantalla solo ADMINISTRADOR): debería redirigirte, no mostrar la
   pantalla.
 - Intentá pegar la URL de puntos de picking de otro comercio
-  (`puntos-picking.xhtml?idComercio=<otro id>`): como usuario COMERCIO el
+  (`comercio/puntos-picking.xhtml?idComercio=<otro id>`): como usuario COMERCIO el
   parámetro se ignora y siempre ves el tuyo — confirmá que no aparecen
   datos ajenos.
 
@@ -303,7 +303,7 @@ Los pasos de estas demos están en
 
 | Ítem | Resultado esperado |
 |---|---|
-| Login admin | Entra a pedidos.xhtml sin error |
+| Login admin | Entra a personal/pedidos.xhtml sin error |
 | Alta comercio/depósito/stock/repartidor | Aparecen en sus listados |
 | Alta de usuarios comercio/repartidor | Cuenta creada, loguea, ve solo lo suyo |
 | POST /api/pedidos-externos (ERP) | 201 + Location, luego Sincronizado |
@@ -311,7 +311,7 @@ Los pasos de estas demos están en
 | Circuit breaker | 3 fallas → ABIERTO → corta instantáneo → SEMIABIERTO a los 30s |
 | Derivar a un transportista | Confirmado con código de seguimiento; pasa solo a En camino y Entregado |
 | Ruteo por zona | Pedidos agrupados por CP; despachar usa el repartidor de la zona, el respaldo o el transportista de la zona |
-| Acceso restringido a usuarios.xhtml | Comercio/repartidor no puede entrar |
+| Acceso restringido a personal/usuarios.xhtml | Comercio/repartidor no puede entrar |
 | REST sin credenciales | 401 |
 | REST con rol incorrecto | 403 |
 | Cuenta sin comercio asociado | Mensaje amigable, no el interno |

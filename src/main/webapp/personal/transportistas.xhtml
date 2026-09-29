@@ -10,7 +10,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
-                 template="/template.xhtml">
+                 template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
@@ -22,7 +22,7 @@
 
         <p class="ayuda">
             Empresas de envío externas. Un pedido pendiente se les deriva desde&#160;
-            <h:link outcome="pedidos" value="Pedidos" />; cada una se integra con su propia
+            <h:link outcome="/personal/pedidos" value="Pedidos" />; cada una se integra con su propia
             tecnología (API REST o SOAP legado) y Rabbit consulta el estado de sus envíos cada 15 s.
         </p>
 

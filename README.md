@@ -48,6 +48,21 @@ com.rabbit.<componente>/
 └── dto/            ← Objetos que cruzan capas y componentes
 ```
 
+Las pantallas (JSF/Facelets) están en `src/main/webapp`, ordenadas por
+tipo de usuario, igual que el menú:
+
+```
+src/main/webapp/
+├── login.xhtml, error.html   ← públicas
+├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
+├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
+├── repartidor/               ← hoja de ruta del REPARTIDOR
+├── resources/rabbit/1_5/     ← CSS y JS versionados
+└── WEB-INF/
+    ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)
+    ├── web.xml, beans.xml, jboss-ejb3.xml
+```
+
 | Componente | Paquete | Estado |
 |---|---|---|
 | Comercios | `comercios` | Implementado |
@@ -223,7 +238,7 @@ $WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADO
 ```
 
 Desde ahí, ese administrador crea los demás usuarios en "Usuarios"
-(`usuarios.xhtml`).
+(`personal/usuarios.xhtml`).
 
 Los usuarios que crea un administrador desde la app se sincronizan solos
 contra el realm (ver `ApplicationRealmSync`). Hay cuatro tipos de cuenta:

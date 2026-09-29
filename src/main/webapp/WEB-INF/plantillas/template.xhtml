@@ -5,7 +5,7 @@
     Layout compartido por todas las pantallas que requieren sesión
     iniciada: sidebar de navegación (tomado del prototipo de Figma del
     equipo) + área de contenido. Cada página lo usa con
-    <ui:composition template="/template.xhtml"> y define su contenido en
+    <ui:composition template="/WEB-INF/plantillas/template.xhtml"> y define su contenido en
     <ui:define name="contenido">.
 
     La sesión NO se exige acá: cada página conserva su propio
@@ -44,42 +44,42 @@
             -->
             <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.personal}">
                 <p class="sidebar-seccion">Operación</p>
-                <h:link outcome="pedidos" value="Pedidos"
-                        styleClass="#{view.viewId == '/pedidos.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="ruteo" value="Ruteo por zona"
-                        styleClass="#{view.viewId == '/ruteo.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="entregas" value="Entregas en curso"
-                        styleClass="#{view.viewId == '/entregas.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="repartidores" value="Repartidores"
-                        styleClass="#{view.viewId == '/repartidores.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="transportistas" value="Transportistas"
-                        styleClass="#{view.viewId == '/transportistas.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/pedidos" value="Pedidos"
+                        styleClass="#{view.viewId == '/personal/pedidos.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/ruteo" value="Ruteo por zona"
+                        styleClass="#{view.viewId == '/personal/ruteo.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/entregas" value="Entregas en curso"
+                        styleClass="#{view.viewId == '/personal/entregas.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/repartidores" value="Repartidores"
+                        styleClass="#{view.viewId == '/personal/repartidores.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/transportistas" value="Transportistas"
+                        styleClass="#{view.viewId == '/personal/transportistas.xhtml' ? 'activo' : ''}" />
                 <p class="sidebar-seccion">Red</p>
-                <h:link outcome="comercios" value="Comercios"
-                        styleClass="#{view.viewId == '/comercios.xhtml' or view.viewId == '/puntos-picking.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="depositos" value="Depósitos y stock"
-                        styleClass="#{view.viewId == '/depositos.xhtml' or view.viewId == '/items.xhtml' or view.viewId == '/reservas.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="historial" value="Historial de reservas"
-                        styleClass="#{view.viewId == '/historial.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/comercios" value="Comercios"
+                        styleClass="#{view.viewId == '/personal/comercios.xhtml' or view.viewId == '/comercio/puntos-picking.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/depositos" value="Depósitos y stock"
+                        styleClass="#{view.viewId == '/personal/depositos.xhtml' or view.viewId == '/personal/items.xhtml' or view.viewId == '/personal/reservas.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/historial" value="Historial de reservas"
+                        styleClass="#{view.viewId == '/personal/historial.xhtml' ? 'activo' : ''}" />
                 <h:panelGroup rendered="#{sesionBean.admin}">
                     <p class="sidebar-seccion">Administración</p>
-                    <h:link outcome="usuarios" value="Usuarios"
-                            styleClass="#{view.viewId == '/usuarios.xhtml' ? 'activo' : ''}" />
+                    <h:link outcome="/personal/usuarios" value="Usuarios"
+                            styleClass="#{view.viewId == '/personal/usuarios.xhtml' ? 'activo' : ''}" />
                 </h:panelGroup>
             </h:panelGroup>
 
             <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.comercio}">
-                <h:link outcome="mis-pedidos" value="Mis pedidos"
-                        styleClass="#{view.viewId == '/mis-pedidos.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="mi-stock" value="Mi stock"
-                        styleClass="#{view.viewId == '/mi-stock.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="puntos-picking" value="Mis puntos de picking"
-                        styleClass="#{view.viewId == '/puntos-picking.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/comercio/mis-pedidos" value="Mis pedidos"
+                        styleClass="#{view.viewId == '/comercio/mis-pedidos.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/comercio/mi-stock" value="Mi stock"
+                        styleClass="#{view.viewId == '/comercio/mi-stock.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/comercio/puntos-picking" value="Mis puntos de picking"
+                        styleClass="#{view.viewId == '/comercio/puntos-picking.xhtml' ? 'activo' : ''}" />
             </h:panelGroup>
 
             <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.repartidor}">
-                <h:link outcome="mis-entregas" value="Mis entregas"
-                        styleClass="#{view.viewId == '/mis-entregas.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/repartidor/mis-entregas" value="Mis entregas"
+                        styleClass="#{view.viewId == '/repartidor/mis-entregas.xhtml' ? 'activo' : ''}" />
             </h:panelGroup>
 
             <div class="sidebar-foot">

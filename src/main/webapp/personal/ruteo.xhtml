@@ -10,7 +10,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
-                 template="/template.xhtml">
+                 template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
@@ -25,7 +25,7 @@
             solo según la zona: en una zona de repartidores propios lo confirma con un repartidor de
             la zona (si no hay libres, lo deriva al transportista de respaldo o usa uno de otra
             zona); en una zona de transportista, se lo deriva. Los pedidos sin zona se despachan a
-            mano desde&#160;<h:link outcome="pedidos" value="Pedidos" />.
+            mano desde&#160;<h:link outcome="/personal/pedidos" value="Pedidos" />.
         </p>
 
         <h:messages globalOnly="true" showDetail="false" showSummary="true"

@@ -162,7 +162,9 @@ de los componentes que ya dependen de él.
 ## Vistas por tipo de usuario
 
 Cada tipo de usuario entra a su propia pantalla y ve su propio menú
-(`SesionBean.getPaginaInicio` y `template.xhtml`). Cada página tiene su
+(`SesionBean.getPaginaInicio` y `WEB-INF/plantillas/template.xhtml`). Las
+páginas están en una carpeta por tipo de usuario (`personal/`,
+`comercio/`, `repartidor/`). Cada página tiene su
 guardián (`<f:viewAction>`) y cada EJB su `@RolesAllowed`; el comercio o
 el repartidor sale siempre de la identidad autenticada
 (`IContextoUsuario`), nunca de un parámetro. Ver
