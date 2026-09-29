@@ -61,20 +61,21 @@ public class BancoClient implements IBancoClient {
 
     @Override
     public ResultadoAutorizacion autorizar(Long idPedido, BigDecimal importe) {
-        if (!circuito.permitirLlamada()) {
+        long ticket = circuito.intentarLlamada();
+        if (ticket == CircuitBreakerBanco.SIN_PERMISO) {
             LOG.info("[Pagos][SOAP] Circuito abierto: no se llama al banco para el pedido " + idPedido);
             return ResultadoAutorizacion.noDisponible();
         }
         try {
             String codigo = puerto().autorizarPago("PEDIDO-" + idPedido, importe);
-            circuito.registrarExito();
+            circuito.registrarExito(ticket);
             return ResultadoAutorizacion.aprobado(codigo);
         } catch (PagoRechazadoException e) {
             // Un rechazo es una respuesta del banco: no es una falla.
-            circuito.registrarExito();
+            circuito.registrarExito(ticket);
             return ResultadoAutorizacion.rechazado(e.getFaultInfo() != null ? e.getFaultInfo().getMotivo() : e.getMessage());
         } catch (WebServiceException | MalformedURLException e) {
-            circuito.registrarFalla();
+            circuito.registrarFalla(ticket);
             LOG.log(Level.WARNING, "[Pagos][SOAP] El banco no respondió al autorizar el pedido " + idPedido, e);
             return ResultadoAutorizacion.noDisponible();
         }
@@ -84,16 +85,17 @@ public class BancoClient implements IBancoClient {
     public boolean reversar(String codigoAutorizacion) {
         // Con el circuito abierto la reversa tampoco se intenta: devuelve
         // false y ReversasBancarias la deja logueada para hacerla a mano.
-        if (!circuito.permitirLlamada()) {
+        long ticket = circuito.intentarLlamada();
+        if (ticket == CircuitBreakerBanco.SIN_PERMISO) {
             LOG.info("[Pagos][SOAP] Circuito abierto: no se llama al banco para reversar " + codigoAutorizacion);
             return false;
         }
         try {
             puerto().reversarPago(codigoAutorizacion);
-            circuito.registrarExito();
+            circuito.registrarExito(ticket);
             return true;
         } catch (WebServiceException | MalformedURLException e) {
-            circuito.registrarFalla();
+            circuito.registrarFalla(ticket);
             LOG.log(Level.WARNING, "[Pagos][SOAP] El banco no respondió al reversar " + codigoAutorizacion, e);
             return false;
         }
