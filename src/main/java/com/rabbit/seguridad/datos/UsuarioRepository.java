@@ -82,6 +82,12 @@ public class UsuarioRepository {
      *
      * @return todos los usuarios persistidos
      */
+    // Cuántas cuentas representan a un comercio (ver EliminacionDeComercio).
+    public long contarCuentasDeComercio(Long idComercio) {
+        return em.createQuery("SELECT COUNT(u) FROM Usuario u WHERE u.idComercio = :id", Long.class)
+                .setParameter("id", idComercio).getSingleResult();
+    }
+
     // Un repartidor tiene una sola cuenta.
     public boolean existeUsuarioDeRepartidor(Long idRepartidor) {
         return em.createQuery(

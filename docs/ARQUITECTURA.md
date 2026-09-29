@@ -62,6 +62,11 @@ Otros detalles de cada componente:
 - **Inventario:** `IReservaStock` mantiene la reserva abierta entre
   requests con `@StatefulTimeout`; `BarredorDeReservas` (`@Schedule`)
   libera las reservas vencidas que el usuario no resolvió.
+- **Comercios:** eliminar un comercio es físico y solo se permite si ya
+  está dado de baja y si nada lo referencia (pedidos, pedidos del ERP,
+  stock consignado, cuentas de usuario): cada componente lo verifica al
+  recibir el evento `EliminacionDeComercio`. Si hay referencias, el
+  comercio queda dado de baja.
 - **Pedidos:** un pedido es multi-línea (`LineaPedido`). Con origen
   `STOCK_CONSIGNADO` cada línea reserva y confirma stock en su propia
   instancia de `IReservaStock`; con `PUNTO_PICKING` solo se valida que el

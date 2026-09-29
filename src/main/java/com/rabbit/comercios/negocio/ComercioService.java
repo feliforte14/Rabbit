@@ -41,6 +41,7 @@ import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
@@ -76,6 +77,11 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
 
     @Resource
     private SessionContext contexto;
+
+    // Antes de eliminar un comercio, pregunta si algo todavía lo referencia
+    // (ver eliminarComercio).
+    @Inject
+    private Event<EliminacionDeComercio> eliminacionDeComercio;
 
     private void exigirComercioPropio(Long idComercio) {
         if (contexto.isCallerInRole("COMERCIO") && !contextoUsuario.idComercioActual().equals(idComercio)) {
@@ -338,7 +344,11 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // Eliminación física — borra el registro de la BD permanentemente,
     // junto con todos sus puntos de picking (cascade). Para evitar
     // pérdidas de datos accidentales, solo se permite si el comercio ya
-    // fue dado de baja (activo=false) previamente.
+    // fue dado de baja (activo=false) previamente, y si nada lo referencia:
+    // otros componentes guardan su ID (pedidos, stock consignado, cuentas)
+    // y quedarían apuntando a un comercio inexistente. Cada uno responde al
+    // evento EliminacionDeComercio.
+
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed("ADMINISTRADOR")
@@ -347,6 +357,13 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
         if (comercio.isActivo()) {
             throw new ValidacionException(
                     "No se puede eliminar un comercio activo. Debe darse de baja primero.");
+        }
+        EliminacionDeComercio evento = new EliminacionDeComercio(idComercio);
+        eliminacionDeComercio.fire(evento);
+        if (!evento.getImpedimentos().isEmpty()) {
+            throw new ValidacionException("No se puede eliminar el comercio: tiene "
+                    + String.join(", ", evento.getImpedimentos())
+                    + ". Queda dado de baja, que alcanza para que no opere.");
         }
         repository.eliminar(comercio);
     }

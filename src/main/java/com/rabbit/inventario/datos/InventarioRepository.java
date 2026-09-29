@@ -136,6 +136,12 @@ public class InventarioRepository {
                 .getResultList();
     }
 
+    // Cuántos ítems de stock consignado tiene un comercio (ver EliminacionDeComercio).
+    public long contarItemsDeComercio(Long idComercio) {
+        return em.createQuery("SELECT COUNT(i) FROM ItemInventario i WHERE i.idComercio = :id", Long.class)
+                .setParameter("id", idComercio).getSingleResult();
+    }
+
     /**
      * TODO el stock consignado por un comercio, en todos los depósitos de
      * Rabbit. Es la vista por defecto al operar en nombre de un comercio:

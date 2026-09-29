@@ -103,6 +103,18 @@ public class PedidoRepository {
                 .getResultList();
     }
 
+    // Cuántos pedidos y pedidos del ERP referencian a un comercio (para no
+    // dejarlos huérfanos al eliminarlo, ver EliminacionDeComercio).
+    public long contarPedidosDeComercio(Long idComercio) {
+        return em.createQuery("SELECT COUNT(p) FROM Pedido p WHERE p.idComercio = :id", Long.class)
+                .setParameter("id", idComercio).getSingleResult();
+    }
+
+    public long contarPedidosExternosDeComercio(Long idComercio) {
+        return em.createQuery("SELECT COUNT(pe) FROM PedidoExterno pe WHERE pe.idComercio = :id", Long.class)
+                .setParameter("id", idComercio).getSingleResult();
+    }
+
     // --- PedidoExterno (mock del ERP del comercio) ---
 
     /**
