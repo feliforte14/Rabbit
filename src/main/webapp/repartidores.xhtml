@@ -42,6 +42,10 @@
                     #{empty r.telefono ? '—' : r.telefono}
                 </h:column>
                 <h:column>
+                    <f:facet name="header">Zona</f:facet>
+                    #{repartidorBean.nombreZona(r.idZona)}
+                </h:column>
+                <h:column>
                     <f:facet name="header">Estado</f:facet>
                     <h:outputText value="#{etiquetas.estadoRepartidor(r.estado)}"
                                   styleClass="#{etiquetas.claseEstadoRepartidor(r.estado)}" />
@@ -77,8 +81,40 @@
                 <h:message for="telefono" styleClass="error-campo" />
             </div>
 
+            <div class="campo">
+                <h:outputLabel for="zona" value="Zona (opcional)" />
+                <h:selectOneMenu id="zona" value="#{repartidorBean.nuevoRepartidor.idZona}">
+                    <f:selectItem itemLabel="— Sin zona fija —" itemValue="#{null}" />
+                    <f:selectItems value="#{repartidorBean.listaZonas}" var="z" itemValue="#{z.id}"
+                                   itemLabel="#{z.nombre} (CP #{z.codigoPostalDesde}-#{z.codigoPostalHasta})" />
+                </h:selectOneMenu>
+            </div>
+
             <div class="form-acciones">
                 <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{repartidorBean.registrar}" />
+            </div>
+        </h:form>
+
+        <h2>Cambiar la zona de un repartidor</h2>
+        <h:form id="formZona" styleClass="formulario" rendered="#{not empty repartidorBean.repartidores}">
+            <div class="campo">
+                <h:outputLabel for="repartidorZona" value="Repartidor" />
+                <h:selectOneMenu id="repartidorZona" value="#{repartidorBean.idRepartidorACambiar}"
+                                 required="true" label="Repartidor" requiredMessage="Elegí el repartidor">
+                    <f:selectItem itemLabel="— Elegí un repartidor —" itemValue="#{null}" />
+                    <f:selectItems value="#{repartidorBean.repartidores}" var="r" itemValue="#{r.id}" itemLabel="#{r.nombre}" />
+                </h:selectOneMenu>
+                <h:message for="repartidorZona" styleClass="error-campo" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="zonaNueva" value="Zona" />
+                <h:selectOneMenu id="zonaNueva" value="#{repartidorBean.idZonaNueva}">
+                    <f:selectItem itemLabel="— Sin zona fija —" itemValue="#{null}" />
+                    <f:selectItems value="#{repartidorBean.listaZonas}" var="z" itemValue="#{z.id}" itemLabel="#{z.nombre}" />
+                </h:selectOneMenu>
+            </div>
+            <div class="form-acciones">
+                <h:commandButton value="Cambiar zona" styleClass="btn btn-primary" action="#{repartidorBean.cambiarZona}" />
             </div>
         </h:form>
     </ui:define>

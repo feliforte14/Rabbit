@@ -65,6 +65,11 @@ public class PedidoExterno {
     @Column(length = 200)
     private String direccionEntrega;
 
+    // Código postal de entrega (4 dígitos): define la zona del pedido (ver
+    // RuteoService). Null si no se pudo determinar: el pedido queda sin zona.
+    @Column(length = 4)
+    private String codigoPostalEntrega;
+
     // false = todavía no lo tomó el sincronizador. true = ya se procesó y
     // no se vuelve a mirar, sea porque generó su Pedido (errorSincronizacion
     // null) o porque se descartó por una regla de negocio
@@ -104,6 +109,8 @@ public class PedidoExterno {
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
     public void setDireccionEntrega(String direccionEntrega) { this.direccionEntrega = direccionEntrega; }
+    public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
+    public void setCodigoPostalEntrega(String codigoPostalEntrega) { this.codigoPostalEntrega = codigoPostalEntrega; }
     public boolean isSincronizado() { return sincronizado; }
     public void setSincronizado(boolean sincronizado) { this.sincronizado = sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }

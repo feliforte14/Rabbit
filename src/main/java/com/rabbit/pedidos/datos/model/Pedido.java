@@ -63,6 +63,11 @@ public class Pedido {
     @Column(length = 200)
     private String direccionEntrega;
 
+    // Código postal de entrega (4 dígitos): define la zona del pedido (ver
+    // RuteoService). Null si no se pudo determinar: el pedido queda sin zona.
+    @Column(length = 4)
+    private String codigoPostalEntrega;
+
     // Repartidor asignado al confirmar (ver IAsignacionRepartidores). Por
     // ID y no por relación JPA: Repartidores es otro componente.
     private Long idRepartidor;
@@ -90,6 +95,8 @@ public class Pedido {
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
     public void setDireccionEntrega(String direccionEntrega) { this.direccionEntrega = direccionEntrega; }
+    public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
+    public void setCodigoPostalEntrega(String codigoPostalEntrega) { this.codigoPostalEntrega = codigoPostalEntrega; }
     public Long getIdRepartidor() { return idRepartidor; }
     public void setIdRepartidor(Long idRepartidor) { this.idRepartidor = idRepartidor; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }

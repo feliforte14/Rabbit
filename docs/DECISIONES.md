@@ -282,3 +282,45 @@ Propuesta o Reemplazada.
   adaptador. El estado llega con hasta 15 s de demora, y si un
   transportista salta un estado entre consultas, el pedido pasa por los
   dos juntos. El timer mueve pedidos con `@RunAs("OPERADOR")`.
+
+## ADR-017: Zonas por rango de código postal y despacho según la cobertura
+
+- **Estado:** Aceptada.
+- **Contexto:** el Ruteo mínimo (ADR-013) solo mostraba la hoja de ruta
+  de cada pedido; qué repartidor o transportista lo llevaba lo decidía el
+  personal a mano, pedido por pedido. Para la Entrega Final el ruteo tiene
+  que agrupar los pedidos y decidir el despacho, y la derivación
+  automática a transportistas (descartada en ADR-016) necesitaba zonas.
+- **Decisión:** el componente Ruteo suma una capa de datos con **zonas**
+  (tabla `zonas`): un rango de códigos postales argentinos de 4 dígitos
+  (1000-9999, sin superponerse) y una **cobertura**: `PROPIA` (reparten
+  repartidores de Rabbit, con un transportista de respaldo opcional) o
+  `TRANSPORTISTA` (se deriva siempre a uno). El pedido suma
+  `codigoPostalEntrega`: el ERP lo manda (opcional) o se toma de la
+  dirección (CPA `C1414ABC`, "CP 1414", "(1414)"). Cada repartidor puede
+  tener una zona. "Despachar" (`despacharPedido` / `despacharZona`)
+  decide solo:
+  - zona de transportista → `derivarATransportista`;
+  - zona propia con un repartidor libre de la zona → se confirma con él;
+  - zona propia sin repartidores libres y con respaldo → se deriva al
+    respaldo;
+  - zona propia sin respaldo → se confirma con un repartidor de otra zona;
+  - sin zona → queda para el personal, a mano.
+- **Alternativas descartadas:**
+  - *Geocodificar la dirección y usar polígonos o distancias:* más
+    preciso, pero necesita un servicio externo de mapas (costo, claves,
+    otra dependencia caída posible) y el ERP ya conoce el código postal.
+  - *Zona derivada de la localidad (texto libre):* las direcciones vienen
+    escritas de mil formas; un rango numérico se valida y no es ambiguo.
+  - *Viajes con varias paradas y orden óptimo del recorrido:* cambia el
+    modelo del repartidor (hoy lleva un pedido por viaje) y ordenar por
+    distancia necesita coordenadas. Queda fuera del alcance.
+  - *Despachar la zona en una sola transacción:* un pedido que falla (por
+    ejemplo, el cobro) desharía los demás. Cada pedido va en su propia
+    transacción y el resultado se informa pedido por pedido.
+- **Consecuencias:** el personal despacha una zona entera con un botón y
+  la derivación a transportistas pasa a ser automática donde conviene.
+  Los pedidos sin código postal (anteriores o sin CP en la dirección)
+  quedan "sin zona" y se despachan a mano como antes. Un rango mal
+  cargado manda pedidos a otra zona: el alta rechaza superposiciones,
+  rangos invertidos y zonas de transportista sin transportista activo.

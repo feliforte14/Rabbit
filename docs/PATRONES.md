@@ -47,6 +47,10 @@ qué alternativa se descartó.
   pendiente hasta la entrega). Hoy está implementado con un `if` en
   `PagoService.registrarCobro`; con solo dos medios alcanza, y pasaría a
   una estrategia por medio de pago si se suman más.
+- **Despacho por zona:** `RuteoService.despacharPedido` elige cómo sale
+  el pedido según la `CoberturaZona` (`PROPIA`: repartidor de la zona o
+  respaldo; `TRANSPORTISTA`: derivar). También es un `if`, por la
+  misma razón: dos casos.
 
 ## Singleton
 

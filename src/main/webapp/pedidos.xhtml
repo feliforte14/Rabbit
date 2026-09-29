@@ -52,6 +52,9 @@
                 <h:column>
                     <f:facet name="header">Entrega en</f:facet>
                     #{empty p.direccionEntrega ? '—' : p.direccionEntrega}
+                    <h:panelGroup rendered="#{not empty p.codigoPostalEntrega}">
+                        <span class="dato-secundario">CP #{p.codigoPostalEntrega}</span>
+                    </h:panelGroup>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Importe</f:facet>
@@ -259,6 +262,14 @@
                 <h:inputText id="direccionEntrega" value="#{pedidoBean.nuevoPedido.direccionEntrega}"
                              required="true" label="Dirección de entrega" maxlength="200"
                              requiredMessage="Ingresá adónde se entrega el pedido" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="codigoPostal" value="Código postal de entrega (opcional)" />
+                <h:inputText id="codigoPostal" value="#{pedidoBean.nuevoPedido.codigoPostalEntrega}"
+                             label="Código postal" maxlength="8" />
+                <p class="ayuda">Define la zona del pedido. Si no se carga, se busca en la dirección
+                    ("CP 1414", "(1414)" o "C1414ABC").</p>
             </div>
 
             <div class="campo">

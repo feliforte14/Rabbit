@@ -109,13 +109,16 @@ curl -i -u demo.erp:<contraseña> \
     "lineas": [{"idItem": 1, "cantidad": 1}],
     "importe": 2500,
     "medioPago": "PREPAGO",
-    "direccionEntrega": "Av. Corrientes 1234, CABA"
+    "direccionEntrega": "Av. Corrientes 1234, CABA",
+    "codigoPostalEntrega": "1043"
   }'
 ```
 
 - Ajustá `idComercio` e `idItem` a los IDs reales que quedaron después del
   alta (columna ID del listado de comercios y de la tabla de stock).
 - `direccionEntrega` es obligatoria: sin ella la API responde `400`.
+- `codigoPostalEntrega` es opcional (4 dígitos o CPA); si falta, se toma
+  de la dirección cuando la trae. Lo usa el Ruteo por zona (sección 6c).
 - Debería responder `201 Created` con `idPedidoExterno` y `Location`.
 
 Consultar cómo terminó:
@@ -218,6 +221,32 @@ Con WildFly corriendo:
 transportista legado responde `EN_VIAJE` y Rabbit lo muestra como
 "En tránsito" (lo traduce su adaptador).
 
+## 6c. Ruteo por zona
+
+Necesita los dos transportistas de la sección 6b.
+
+1. En **Ruteo por zona** → "Registrar zona":
+   - "Norte", códigos postales 1400-1499, reparten repartidores propios,
+     transportista de respaldo: el SOAP legado;
+   - "Sur", 1800-1899, reparte un transportista: el REST.
+   Probá también los rechazos: un rango que se superpone con Norte, uno
+   invertido (1499-1400) y una zona de transportista sin transportista.
+2. En **Repartidores**, poné un repartidor en la zona Norte ("Cambiar la
+   zona", o elegila al darlo de alta).
+3. Simulá (en **Pedidos**) o mandá por la API cuatro pedidos: dos con
+   código postal 1414 y 1426, uno con la dirección "Calle 12 1846, Adrogué
+   (1846)" sin código postal, y uno sin código postal en ninguna parte.
+4. En **Ruteo por zona**: Norte tiene dos, Sur uno (el CP salió de la
+   dirección) y "Sin zona" uno, sin botón Despachar.
+5. "Despachar toda la zona" en Norte: el primero sale con el repartidor de
+   la zona; el segundo, como ya no hay repartidores libres, se deriva al
+   transportista de respaldo. "Despachar" el de Sur: se deriva al
+   transportista REST. La tabla "Resultado del despacho" muestra qué pasó
+   con cada uno y el código de seguimiento.
+
+**Qué mirar:** los derivados siguen solos hasta Entregado (como en 6b); el
+de sin zona se confirma o deriva a mano desde Pedidos.
+
 ---
 
 ## 7. Seguridad: accesos restringidos
@@ -281,6 +310,7 @@ Los pasos de estas demos están en
 | Ciclo pedido completo | Pasa por todos los estados hasta ENTREGADO |
 | Circuit breaker | 3 fallas → ABIERTO → corta instantáneo → SEMIABIERTO a los 30s |
 | Derivar a un transportista | Confirmado con código de seguimiento; pasa solo a En camino y Entregado |
+| Ruteo por zona | Pedidos agrupados por CP; despachar usa el repartidor de la zona, el respaldo o el transportista de la zona |
 | Acceso restringido a usuarios.xhtml | Comercio/repartidor no puede entrar |
 | REST sin credenciales | 401 |
 | REST con rol incorrecto | 403 |
