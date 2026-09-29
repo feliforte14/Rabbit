@@ -34,6 +34,9 @@ import com.rabbit.comercios.dto.*;
 import com.rabbit.comercios.datos.model.Comercio;
 import com.rabbit.comercios.datos.model.PuntoPicking;
 import com.rabbit.comercios.datos.ComercioRepository;
+import com.rabbit.seguridad.negocio.IContextoUsuario;
+import jakarta.annotation.Resource;
+import jakarta.ejb.SessionContext;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -62,10 +65,23 @@ import java.util.stream.Collectors;
 // el porqué de usar el realm nativo del servidor en vez de un
 // IdentityStore propio). Es la operación más sensible del componente —
 // borra físicamente datos sin vuelta atrás.
-@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})
+@DeclareRoles({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
 @PermitAll
 @Stateless
 public class ComercioService implements IRegistroComercios, IConsultaComercios {
+
+    // Un COMERCIO solo gestiona sus propios puntos de picking.
+    @Inject
+    private IContextoUsuario contextoUsuario;
+
+    @Resource
+    private SessionContext contexto;
+
+    private void exigirComercioPropio(Long idComercio) {
+        if (contexto.isCallerInRole("COMERCIO") && !contextoUsuario.idComercioActual().equals(idComercio)) {
+            throw new ValidacionException("Solo podés gestionar los puntos de picking de tu comercio");
+        }
+    }
 
     @Inject
     private ComercioRepository repository;
@@ -83,6 +99,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
      */
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public Long registrarComercio(DatosComercioDTO datos) {
         validarNombre(datos.nombre);
         validarRazonSocial(datos.razonSocial);
@@ -109,6 +126,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
      */
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void actualizarDatosFiscales(Long idComercio, DatosFiscalesDTO datos) {
         Comercio comercio = obtenerOFallar(idComercio);
         validarRazonSocial(datos.razonSocial);
@@ -172,6 +190,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // activo si el comercio dueño no lo está.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void darDeBajaComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
         comercio.setActivo(false);
@@ -186,6 +205,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // Reactiva un comercio dado de baja previamente — vuelve a activo=true
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void reactivarComercio(Long idComercio) {
         Comercio comercio = obtenerOFallar(idComercio);
         comercio.setActivo(true);
@@ -197,7 +217,9 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // Da de alta un punto de picking nuevo sobre un comercio existente
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
     public Long registrarPuntoPicking(Long idComercio, DatosPuntoPickingDTO datos) {
+        exigirComercioPropio(idComercio);
         Comercio comercio = obtenerOFallar(idComercio);
         if (!comercio.isActivo()) {
             throw new ValidacionException("No se pueden agregar puntos de picking a un comercio dado de baja");
@@ -216,8 +238,10 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // Baja lógica de un punto de picking — sigue en la BD pero activa=false
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
     public void darDeBajaPuntoPicking(Long idPuntoPicking) {
         PuntoPicking puntoPicking = obtenerPuntoPickingOFallar(idPuntoPicking);
+        exigirComercioPropio(puntoPicking.getComercio().getId());
         puntoPicking.setActiva(false);
         repository.actualizarPuntoPicking(puntoPicking);
     }
@@ -227,8 +251,10 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // reactivar el comercio.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
     public void reactivarPuntoPicking(Long idPuntoPicking) {
         PuntoPicking puntoPicking = obtenerPuntoPickingOFallar(idPuntoPicking);
+        exigirComercioPropio(puntoPicking.getComercio().getId());
         if (!puntoPicking.getComercio().isActivo()) {
             throw new ValidacionException(
                     "No se puede reactivar el punto de picking porque el comercio está dado de baja. Reactive el comercio primero.");
@@ -240,6 +266,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // Devuelve todos los puntos de picking de un comercio (activos e inactivos) — pantalla de administración
     @Override
     public List<PuntoPickingDTO> listarPuntosPickingDeComercio(Long idComercio) {
+        exigirComercioPropio(idComercio);
         obtenerOFallar(idComercio);
         return repository.listarPuntosPickingDeComercio(idComercio)
                 .stream()

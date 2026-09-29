@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    Administra los puntos de picking de un comercio puntual, recibido por
-    query param (?idComercio=X). Se bindea a puntoPickingBean
+    Administra los puntos de picking de un comercio. El personal de Rabbit
+    elige el comercio por query param (?idComercio=X); un usuario COMERCIO
+    ve solo los suyos (el parametro se ignora). Se bindea a puntoPickingBean
     (PuntoPickingBean.java). Renombrada desde sucursales.xhtml (ver
     Sección 1.2 del documento técnico).
 -->
@@ -12,17 +13,24 @@
                  xmlns:ui="jakarta.faces.facelets"
                  template="/template.xhtml">
     <f:metadata>
-        <f:viewAction action="#{sesionBean.exigirSesion}" />
-        <f:viewParam name="idComercio" value="#{puntoPickingBean.idComercio}" required="true" />
+        <f:viewAction action="#{sesionBean.exigirPersonalOComercio}" />
+        <f:viewParam name="idComercio" value="#{puntoPickingBean.idComercio}" />
         <f:viewAction action="#{puntoPickingBean.cargar}" />
     </f:metadata>
 
     <ui:define name="titulo">Rabbit · Puntos de picking</ui:define>
 
     <ui:define name="contenido">
-        <p><h:link outcome="comercios" value="&#8592; Volver a comercios" styleClass="enlace-volver" /></p>
+        <h:panelGroup rendered="#{sesionBean.personal}">
+            <p><h:link outcome="comercios" value="&#8592; Volver a comercios" styleClass="enlace-volver" /></p>
+        </h:panelGroup>
 
-        <h1>Puntos de picking de #{puntoPickingBean.comercio.nombre}</h1>
+        <h1>#{sesionBean.comercio ? 'Mis puntos de picking' : 'Puntos de picking de '.concat(puntoPickingBean.comercio.nombre)}</h1>
+
+        <p class="ayuda">
+            Un punto de picking es un local del comercio donde el pedido ya está armado: el
+            repartidor de Rabbit lo retira de ahí.
+        </p>
 
         <!-- Solo mensajes de negocio y confirmaciones; los errores de campo
              van inline en el formulario de abajo (ver <h:message for="...">). -->
@@ -30,9 +38,10 @@
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
-        <h:form id="formListado">
+        <h:form id="formListado" rendered="#{not empty puntoPickingBean.comercio}">
             <h:dataTable value="#{puntoPickingBean.puntosPicking}" var="p"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty puntoPickingBean.puntosPicking}">
                 <h:column>
                     <f:facet name="header">ID</f:facet>
                     #{p.id}
@@ -46,8 +55,9 @@
                     #{p.direccion}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Activo</f:facet>
-                    #{p.activa ? 'Sí' : 'No'}
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{p.activa ? 'Activo' : 'Dado de baja'}"
+                                  styleClass="badge #{p.activa ? 'badge-verde' : 'badge-gris'}" />
                 </h:column>
                 <h:column styleClass="acciones">
                     <f:facet name="header">Acciones</f:facet>
@@ -61,6 +71,12 @@
             </h:dataTable>
         </h:form>
 
+        <h:panelGroup layout="block" styleClass="vacio"
+                      rendered="#{not empty puntoPickingBean.comercio and empty puntoPickingBean.puntosPicking}">
+            Todavía no hay puntos de picking.
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{not empty puntoPickingBean.comercio}">
         <h2>Agregar punto de picking</h2>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
@@ -83,5 +99,6 @@
                 <h:commandButton value="Agregar punto de picking" styleClass="btn btn-primary" action="#{puntoPickingBean.registrar}" />
             </div>
         </h:form>
+        </h:panelGroup>
     </ui:define>
 </ui:composition>

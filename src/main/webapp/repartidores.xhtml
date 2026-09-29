@@ -13,7 +13,7 @@
                  template="/template.xhtml">
 
     <f:metadata>
-        <f:viewAction action="#{sesionBean.exigirSesion}" />
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
 
     <ui:define name="titulo">Rabbit · Repartidores</ui:define>
@@ -27,7 +27,8 @@
 
         <h:form id="formListado">
             <h:dataTable value="#{repartidorBean.repartidores}" var="r"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty repartidorBean.repartidores}">
                 <h:column>
                     <f:facet name="header">ID</f:facet>
                     #{r.id}
@@ -38,20 +39,29 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Teléfono</f:facet>
-                    #{r.telefono}
+                    #{empty r.telefono ? '—' : r.telefono}
                 </h:column>
                 <h:column>
                     <f:facet name="header">Estado</f:facet>
-                    #{r.estado}
+                    <h:outputText value="#{etiquetas.estadoRepartidor(r.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoRepartidor(r.estado)}" />
                 </h:column>
                 <h:column>
                     <f:facet name="header">Pedido a cargo</f:facet>
-                    #{empty r.idPedidoActual ? '—' : r.idPedidoActual}
+                    <h:outputText value="Pedido #{r.idPedidoActual}" rendered="#{not empty r.idPedidoActual}" />
+                    <h:outputText value="—" rendered="#{empty r.idPedidoActual}" />
                 </h:column>
             </h:dataTable>
         </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty repartidorBean.repartidores}">
+            Todavía no hay repartidores. Sin repartidores disponibles no se pueden confirmar pedidos.
+        </h:panelGroup>
 
         <h2>Registrar repartidor</h2>
+        <p class="ayuda">
+            Para que el repartidor vea sus entregas desde el celular, un administrador le crea
+            una cuenta de tipo Repartidor en Usuarios.
+        </p>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
                 <h:outputLabel for="nombre" value="Nombre" />
@@ -62,8 +72,9 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="telefono" value="Teléfono" />
+                <h:outputLabel for="telefono" value="Teléfono (opcional)" />
                 <h:inputText id="telefono" value="#{repartidorBean.nuevoRepartidor.telefono}" label="Teléfono" />
+                <h:message for="telefono" styleClass="error-campo" />
             </div>
 
             <div class="form-acciones">

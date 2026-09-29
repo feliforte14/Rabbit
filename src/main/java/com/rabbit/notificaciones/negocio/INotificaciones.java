@@ -23,4 +23,7 @@ public interface INotificaciones {
     boolean avisarCambioDeEstado(Long idPedido, Long idComercio, String estado, LocalDateTime fechaCambio);
 
     List<NotificacionDTO> listarRecientes(int cantidad);
+
+    /** Últimos avisos del comercio que representa el usuario que llama (rol COMERCIO). */
+    List<NotificacionDTO> listarDelComercioActual(int cantidad);
 }

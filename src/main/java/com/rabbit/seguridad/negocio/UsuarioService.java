@@ -25,6 +25,8 @@ package com.rabbit.seguridad.negocio;
  * se repite durante toda la conversación).
  */
 
+import com.rabbit.comercios.negocio.IConsultaComercios;
+import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.seguridad.datos.UsuarioRepository;
 import com.rabbit.seguridad.datos.model.Rol;
 import com.rabbit.seguridad.datos.model.Usuario;
@@ -67,6 +69,13 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
     @Resource
     private SessionContext contexto;
 
+    // Para validar a quién representa una cuenta COMERCIO o REPARTIDOR.
+    @Inject
+    private IConsultaComercios comercios;
+
+    @Inject
+    private IGestionRepartidores repartidores;
+
     /** El contenedor tomó una instancia del pool para atender una llamada. */
     @PostConstruct
     public void alCrear() {
@@ -102,12 +111,15 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         }
 
         Rol rol = datos.rol != null ? datos.rol : Rol.OPERADOR;
+        validarAsociacion(rol, datos);
 
         Usuario usuario = new Usuario();
         usuario.setUsername(datos.username.trim());
         usuario.setPasswordHash(PasswordUtil.hash(datos.password));
         usuario.setRol(rol);
         usuario.setActivo(true);
+        usuario.setIdComercio(rol == Rol.COMERCIO ? datos.idComercio : null);
+        usuario.setIdRepartidor(rol == Rol.REPARTIDOR ? datos.idRepartidor : null);
         Long id = repository.guardar(usuario).getId();
 
         // Sin esto, el usuario queda en esta tabla pero no puede loguearse
@@ -142,6 +154,29 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         usuario.setActivo(false);
         repository.actualizar(usuario);
         ApplicationRealmSync.bajaUsuario(usuario.getUsername());
+    }
+
+    // Una cuenta COMERCIO representa a un comercio existente y activo; una
+    // REPARTIDOR, a un repartidor que todavía no tiene cuenta.
+    private void validarAsociacion(Rol rol, DatosUsuarioDTO datos) {
+        if (rol == Rol.COMERCIO) {
+            if (datos.idComercio == null) {
+                throw new ValidacionException("Elegí el comercio que representa la cuenta");
+            }
+            if (!comercios.validarComercioActivo(datos.idComercio)) {
+                throw new ValidacionException("El comercio elegido no existe o está dado de baja");
+            }
+        } else if (rol == Rol.REPARTIDOR) {
+            if (datos.idRepartidor == null) {
+                throw new ValidacionException("Elegí el repartidor que representa la cuenta");
+            }
+            if (repartidores.obtenerRepartidor(datos.idRepartidor) == null) {
+                throw new ValidacionException("El repartidor elegido no existe");
+            }
+            if (repository.existeUsuarioDeRepartidor(datos.idRepartidor)) {
+                throw new ValidacionException("Ese repartidor ya tiene una cuenta");
+            }
+        }
     }
 
     // El username termina escrito en los archivos de properties del realm

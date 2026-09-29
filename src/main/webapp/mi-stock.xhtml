@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Portal del comercio: su mercaderia consignada en los depositos de Rabbit,
+    deposito por deposito. Solo lectura: la carga de stock la registra el
+    personal de Rabbit cuando la mercaderia entra al deposito.
+    Se bindea a portalComercioBean (PortalComercioBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirComercio}" />
+        <f:viewAction action="#{portalComercioBean.cargarStock}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Mi stock</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Mi stock</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <p class="stat-label">Unidades libres</p>
+                <p class="stat-valor">#{portalComercioBean.unidadesLibres}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Unidades reservadas</p>
+                <p class="stat-valor">#{portalComercioBean.unidadesReservadas}</p>
+            </div>
+        </div>
+
+        <p class="ayuda">
+            Es la mercadería que dejaste en consignación en los depósitos de Rabbit. "Libre" es lo
+            que se puede usar para pedidos nuevos; "reservada", lo que ya está comprometido.
+        </p>
+
+        <h:dataTable value="#{portalComercioBean.items}" var="i"
+                     styleClass="tabla" rowClasses="fila-impar,fila-par"
+                     rendered="#{not empty portalComercioBean.items}">
+            <h:column>
+                <f:facet name="header">Producto</f:facet>
+                #{i.producto}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Depósito</f:facet>
+                #{portalComercioBean.nombreDeposito(i.idDeposito)}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Disponible</f:facet>
+                #{i.cantidadDisponible}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Reservada</f:facet>
+                #{i.cantidadReservada}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Libre</f:facet>
+                #{i.cantidadLibre}
+            </h:column>
+        </h:dataTable>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty portalComercioBean.items}">
+            No tenés stock consignado en los depósitos de Rabbit.
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>

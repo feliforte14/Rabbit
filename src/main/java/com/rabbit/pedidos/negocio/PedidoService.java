@@ -92,6 +92,12 @@ import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import com.rabbit.seguridad.negocio.IContextoUsuario;
+import jakarta.annotation.Resource;
+import jakarta.annotation.security.DeclareRoles;
+import jakarta.annotation.security.PermitAll;
+import jakarta.annotation.security.RolesAllowed;
+import jakarta.ejb.SessionContext;
 import jakarta.enterprise.event.Event;
 import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
@@ -103,7 +109,14 @@ import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
+// SEGURIDAD: @PermitAll de clase porque la sincronización la disparan el
+// listener JMS y el timer, que corren sin usuario (y este WildFly deniega
+// todo método sin permiso declarado en cuanto el EJB tiene alguno). Las
+// operaciones que solo dispara una persona o el ERP llevan @RolesAllowed;
+// un REPARTIDOR solo puede mover los pedidos que tiene asignados.
 @Stateless
+@DeclareRoles({"ADMINISTRADOR", "OPERADOR", "COMERCIO", "REPARTIDOR", "ERP"})
+@PermitAll
 public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     private static final Logger LOG = Logger.getLogger(PedidoService.class.getName());
@@ -139,12 +152,20 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Inject
     private IRegistroCobros cobros;
 
+    // A quién representa el usuario que llama (comercio o repartidor).
+    @Inject
+    private IContextoUsuario contextoUsuario;
+
+    @Resource
+    private SessionContext contexto;
+
     // ===============================================================
     // IGestionPedidos — el Facade
     // ===============================================================
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "ERP"})
     public Long registrarPedidoExterno(DatosPedidoExternoDTO datos) {
         if (datos.idComercio == null) {
             throw new ValidacionException("Debe indicar el comercio del pedido");
@@ -158,6 +179,12 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (datos.medioPago == null) {
             throw new ValidacionException("Debe indicar el medio de pago del pedido");
         }
+        if (datos.direccionEntrega == null || datos.direccionEntrega.isBlank()) {
+            throw new ValidacionException("Debe indicar la dirección de entrega del pedido");
+        }
+        if (datos.direccionEntrega.trim().length() > 200) {
+            throw new ValidacionException("La dirección de entrega no puede superar los 200 caracteres");
+        }
         OrigenPedido origen = datos.origen != null ? datos.origen : OrigenPedido.STOCK_CONSIGNADO;
 
         PedidoExterno externo = new PedidoExterno();
@@ -165,6 +192,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         externo.setOrigen(origen);
         externo.setImporte(datos.importe);
         externo.setMedioPago(datos.medioPago);
+        externo.setDireccionEntrega(datos.direccionEntrega.trim());
         externo.setFechaPedido(LocalDateTime.now());
         externo.setSincronizado(false);
 
@@ -240,6 +268,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setOrigen(externo.getOrigen());
         pedido.setImporte(externo.getImporte());
         pedido.setMedioPago(externo.getMedioPago());
+        pedido.setDireccionEntrega(externo.getDireccionEntrega());
         pedido.setEstado(EstadoPedido.PENDIENTE);
         pedido.setFechaCreacion(ahora);
         pedido.setFechaActualizacion(ahora);
@@ -334,6 +363,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void confirmarPedido(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
@@ -362,15 +392,19 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
     public void despacharPedido(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
+        exigirRepartidorAsignado(pedido);
         cambiarEstado(pedido, EstadoPedido.EN_CAMINO);
     }
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
     public void registrarEntrega(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
+        exigirRepartidorAsignado(pedido);
         cambiarEstado(pedido, EstadoPedido.ENTREGADO);
         // El repartidor queda libre para otro pedido. El cobro CONTRA_ENTREGA
         // NO se hace acá: lo efectiviza Pagos al recibir ENTREGADO por el
@@ -380,6 +414,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void cancelarPedido(Long idPedido) {
         Pedido pedido = obtenerOFallar(idPedido);
         // Se valida antes de devolver el stock: si el pedido ya está
@@ -432,6 +467,37 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Override
     public List<PedidoDTO> listarTodos() {
         return repository.listarTodos().stream().map(PedidoDTO::desde).collect(Collectors.toList());
+    }
+
+    @Override
+    public List<PedidoDTO> listarEntregasEnCurso() {
+        return repository.listarEntregasEnCurso().stream().map(PedidoDTO::desde).collect(Collectors.toList());
+    }
+
+    // Pedidos del comercio que representa el usuario que llama: el comercio
+    // sale de la identidad autenticada, nunca de un parámetro.
+    @Override
+    @RolesAllowed("COMERCIO")
+    public List<PedidoDTO> listarPedidosDelComercioActual() {
+        return listarPedidosDeComercio(contextoUsuario.idComercioActual());
+    }
+
+    // Pedidos que tuvo o tiene asignados el repartidor que llama.
+    @Override
+    @RolesAllowed("REPARTIDOR")
+    public List<PedidoDTO> listarPedidosDelRepartidorActual() {
+        return repository.listarPedidosDeRepartidor(contextoUsuario.idRepartidorActual()).stream()
+                .map(PedidoDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    // Un REPARTIDOR solo mueve los pedidos que tiene asignados; el personal
+    // de Rabbit puede mover cualquiera.
+    private void exigirRepartidorAsignado(Pedido pedido) {
+        if (contexto.isCallerInRole("REPARTIDOR")
+                && !contextoUsuario.idRepartidorActual().equals(pedido.getIdRepartidor())) {
+            throw new ValidacionException("El pedido " + pedido.getId() + " no está asignado a vos");
+        }
     }
 
     // Pedidos reales de un comercio puntual.

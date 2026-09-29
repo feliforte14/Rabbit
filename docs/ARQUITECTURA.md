@@ -29,12 +29,13 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Comercios | Implementado | `IRegistroComercios`, `IConsultaComercios` | `@Stateless` | Cada operación recibe todo lo que necesita; el estado vive en la base |
 | Inventario | Implementado | `IConsultaStock` (`@Stateless`), `IReservaStock` | `@Stateful` | La reserva es una conversación: `reservarStock` y `confirmarReserva` operan sobre la misma instancia |
 | Pedidos | Implementado | `IGestionPedidos`, `ISeguimientoPedido` | `@Stateless` (Facade) | El estado del pedido vive en la base; ninguna operación depende de una llamada anterior |
-| Seguridad | Implementado | `IRegistroUsuarios`, `IConsultaUsuarios` | `@Stateless` | Idem Comercios |
+| Seguridad | Implementado | `IRegistroUsuarios`, `IConsultaUsuarios`, `IContextoUsuario` | `@Stateless` | Idem Comercios |
 | Integración banco legado | Implementado | `IBancoClient` | `@Stateless` + `@Singleton` (`CircuitBreakerBanco`) | Cliente SOAP sin estado de conversación; el estado del circuit breaker es uno solo, compartido por todas las llamadas |
 | Pagos y Cobranzas | Implementado | `IRegistroCobros`, `IConsultaCobros` | `@Stateless` + `@MessageDriven` (suscriptor) | El cobro queda registrado en la base; se suma a la transacción del llamador |
 | Repartidores | Implementado | `IAsignacionRepartidores`, `IGestionRepartidores` | `@Stateless` | La disponibilidad del repartidor es un dato persistido, no de sesión |
 | Notificaciones | Implementado | `INotificaciones` | `@Stateless` + `@MessageDriven` (suscriptor) | Reacciona a eventos del tópico; nadie la llama para avisar |
-| Ruteo, Transportistas | Entrega Final | — | — | — |
+| Ruteo | Implementado (mínimo) | `IRuteo` | `@Stateless` | Arma cada hoja de ruta de cero con lo que está en la base; no guarda nada propio |
+| Transportistas | Entrega Final | — | — | — |
 
 ### Operaciones por componente (implementado)
 
@@ -42,17 +43,19 @@ otro componente. Las referencias entre componentes se guardan como IDs
 |---|---|---|---|
 | Comercios | `IRegistroComercios` | `registrarComercio`, `actualizarDatosFiscales`, `darDeBajaComercio`, `reactivarComercio`, `eliminarComercio`, `registrarPuntoPicking`, `darDeBajaPuntoPicking`, `reactivarPuntoPicking` | `ComercioBean`, `PuntoPickingBean` |
 | Comercios | `IConsultaComercios` | `obtenerComercio`, `listarTodos`, `listarPuntosPicking`, `listarPuntosPickingDeComercio`, `validarComercioActivo` | Vistas, Inventario, Pedidos |
-| Inventario | `IConsultaStock` | `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `listarItemsPorDeposito` / `PorComercio` / `PorComercioYDeposito`, `consultarDisponibilidad`, `listarHistorialReservas` | `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean` |
+| Inventario | `IConsultaStock` | `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `listarItemsPorDeposito` / `PorComercio` / `PorComercioYDeposito`, `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas` | `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Ruteo |
 | Inventario | `IReservaStock` | `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion` | `ReservaBean`, Pedidos |
-| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `despacharPedido`, `registrarEntrega`, `cancelarPedido` | `PedidoBean`, MDB, timer |
-| Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `listarTodos`, `listarPedidosDeComercio` | `PedidoBean`, API REST |
+| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `despacharPedido`, `registrarEntrega`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, MDB, timer |
+| Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual` | `PedidoBean`, `PortalComercioBean`, Ruteo, API REST |
 | Seguridad | `IRegistroUsuarios` | `registrarUsuario`, `darDeBaja` | `UsuarioBean` |
 | Seguridad | `IConsultaUsuarios` | `listarTodos`, `obtenerUsuario` | `UsuarioBean` |
+| Seguridad | `IContextoUsuario` | `idComercioActual`, `idRepartidorActual` | Pedidos, Inventario, Comercios, Notificaciones, `SesionBean` |
+| Ruteo | `IRuteo` | `listarEntregasEnCurso`, `entregaActualDelRepartidor`, `historialDelRepartidor` | `EntregasBean`, `MisEntregasBean` |
 | Pagos | `IRegistroCobros` | `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`) | Pedidos, `SuscriptorPagosEstadoPedido` |
 | Pagos | `IConsultaCobros` | `obtenerCobroDePedido`, `listarTodos` | `PedidoBean` |
 | Repartidores | `IAsignacionRepartidores` | `asignarRepartidor`, `liberarRepartidor` | Pedidos |
-| Repartidores | `IGestionRepartidores` | `registrarRepartidor`, `listarTodos` | `RepartidorBean`, `PedidoBean` |
-| Notificaciones | `INotificaciones` | `avisarCambioDeEstado`, `listarRecientes` | `SuscriptorNotificacionesEstadoPedido`, `PedidoBean` |
+| Repartidores | `IGestionRepartidores` | `registrarRepartidor`, `listarTodos`, `obtenerRepartidor` | `RepartidorBean`, `PedidoBean`, Ruteo, Seguridad |
+| Notificaciones | `INotificaciones` | `avisarCambioDeEstado`, `listarRecientes`, `listarDelComercioActual` | `SuscriptorNotificacionesEstadoPedido`, `PedidoBean`, `PortalComercioBean` |
 
 Otros detalles de cada componente:
 
@@ -75,8 +78,15 @@ Otros detalles de cada componente:
   bloqueo pesimista, para que dos confirmaciones simultáneas no se lleven
   al mismo repartidor. Se libera al entregar o cancelar el pedido.
 - **Notificaciones:** el aviso es simulado (queda guardado y se ve en
-  `pedidos.xhtml`). Descarta eventos más viejos que el último avisado del
-  mismo pedido.
+  `pedidos.xhtml` y en el portal del comercio). Descarta eventos más
+  viejos que el último avisado del mismo pedido.
+- **Ruteo (mínimo):** arma la hoja de ruta de cada pedido: de dónde se
+  retira (el punto de picking, o cada depósito del que sale stock
+  consignado), adónde se entrega (`direccionEntrega`, que manda el ERP) y
+  cuánto cobrar si es contra entrega. No tiene capa de datos: cruza
+  Pedidos, Comercios, Inventario y Repartidores por sus interfaces.
+  Optimizar recorridos y agrupar pedidos por zona queda para la Entrega
+  Final.
 
 ### Dependencias entre componentes (implementadas)
 
@@ -91,11 +101,31 @@ flowchart LR
         Pedidos -. topico.pedidos.estado .-> Notificaciones
         Inventario -->|IConsultaComercios| Comercios
         Pagos -->|IBancoClient| Banco[Integración banco]
+        Ruteo -->|ISeguimientoPedido| Pedidos
+        Ruteo -->|IConsultaComercios| Comercios
+        Ruteo -->|IConsultaStock| Inventario
+        Ruteo -->|IGestionRepartidores| Repartidores
     end
     Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
     ERP[ERP del comercio] -->|REST /api/pedidos-externos| Pedidos
     Cliente[Cliente final] -->|REST /api/seguimiento| Pedidos
 ```
+
+## Vistas por tipo de usuario
+
+Cada tipo de usuario entra a su propia pantalla y ve su propio menú
+(`SesionBean.getPaginaInicio` y `template.xhtml`). Cada página tiene su
+guardián (`<f:viewAction>`) y cada EJB su `@RolesAllowed`; el comercio o
+el repartidor sale siempre de la identidad autenticada
+(`IContextoUsuario`), nunca de un parámetro. Ver
+[SEGURIDAD.md](SEGURIDAD.md).
+
+| Tipo | Pantallas |
+|---|---|
+| Personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) | Pedidos, Entregas en curso (tablero del Ruteo), Repartidores, Comercios y sus puntos de picking, Depósitos y stock, Reserva de stock, Historial de reservas. Usuarios, solo `ADMINISTRADOR` |
+| `COMERCIO` | Mis pedidos (estado, cobro, repartidor y avisos de Rabbit), Mi stock (consignado en los depósitos), Mis puntos de picking |
+| `REPARTIDOR` | Mis entregas: la hoja de ruta de su entrega actual, los botones "Ya retiré el pedido" y "Entregué el pedido", y su historial. Pensada para el celular |
+| `ERP` | Ninguna: solo usa la API REST. Si intenta entrar a la web, el login lo rechaza |
 
 ## Mapa de integración
 
@@ -144,6 +174,8 @@ stateDiagram-v2
 
 ## Datos del pedido que vienen del ERP
 
-`importe` y `medioPago` (`PREPAGO` / `CONTRA_ENTREGA`) llegan en el
-pedido externo y pasan tal cual al `Pedido` al sincronizar. Rabbit no
+`importe`, `medioPago` (`PREPAGO` / `CONTRA_ENTREGA`) y
+`direccionEntrega` llegan en el pedido externo y pasan tal cual al
+`Pedido` al sincronizar. La dirección es obligatoria: es el destino de la
+hoja de ruta. Rabbit no
 calcula precios: ver ADR-004 en [DECISIONES.md](DECISIONES.md).

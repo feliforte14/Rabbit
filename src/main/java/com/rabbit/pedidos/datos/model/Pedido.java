@@ -57,6 +57,12 @@ public class Pedido {
     @Enumerated(EnumType.STRING)
     private MedioPago medioPago;
 
+    // Adónde se entrega (la manda el ERP con el pedido). Es el destino de
+    // la hoja de ruta del repartidor (ver RuteoService). Nullable: los
+    // pedidos anteriores a este cambio no la tienen.
+    @Column(length = 200)
+    private String direccionEntrega;
+
     // Repartidor asignado al confirmar (ver IAsignacionRepartidores). Por
     // ID y no por relación JPA: Repartidores es otro componente.
     private Long idRepartidor;
@@ -82,6 +88,8 @@ public class Pedido {
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public MedioPago getMedioPago() { return medioPago; }
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
+    public String getDireccionEntrega() { return direccionEntrega; }
+    public void setDireccionEntrega(String direccionEntrega) { this.direccionEntrega = direccionEntrega; }
     public Long getIdRepartidor() { return idRepartidor; }
     public void setIdRepartidor(Long idRepartidor) { this.idRepartidor = idRepartidor; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }

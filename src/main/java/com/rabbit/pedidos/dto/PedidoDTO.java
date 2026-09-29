@@ -27,6 +27,8 @@ public class PedidoDTO {
     public Long idRepartidor;
     public String estado;
     public String fechaCreacion;
+    public String fechaActualizacion;
+    public String direccionEntrega;
 
     // Convierte una entidad Pedido en un DTO listo para mostrar en la vista.
     public static PedidoDTO desde(Pedido p) {
@@ -41,6 +43,8 @@ public class PedidoDTO {
         dto.lineas = p.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
         dto.estado = p.getEstado() != null ? p.getEstado().name() : null;
         dto.fechaCreacion = p.getFechaCreacion() != null ? p.getFechaCreacion().format(FORMATO) : null;
+        dto.fechaActualizacion = p.getFechaActualizacion() != null ? p.getFechaActualizacion().format(FORMATO) : null;
+        dto.direccionEntrega = p.getDireccionEntrega();
         return dto;
     }
 
@@ -66,4 +70,6 @@ public class PedidoDTO {
     public Long getIdRepartidor() { return idRepartidor; }
     public String getEstado() { return estado; }
     public String getFechaCreacion() { return fechaCreacion; }
+    public String getFechaActualizacion() { return fechaActualizacion; }
+    public String getDireccionEntrega() { return direccionEntrega; }
 }

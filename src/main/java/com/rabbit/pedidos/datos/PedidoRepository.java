@@ -5,6 +5,7 @@ package com.rabbit.pedidos.datos;
  * explicación completa del patrón, se aplica igual acá.
  */
 
+import com.rabbit.pedidos.datos.model.EstadoPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -76,6 +77,24 @@ public class PedidoRepository {
                 "SELECT p FROM Pedido p WHERE p.idComercio = :idComercio ORDER BY p.fechaCreacion DESC",
                 Pedido.class)
                 .setParameter("idComercio", idComercio)
+                .getResultList();
+    }
+
+    // Pedidos de un repartidor, los más recientes primero.
+    public List<Pedido> listarPedidosDeRepartidor(Long idRepartidor) {
+        return em.createQuery(
+                "SELECT p FROM Pedido p WHERE p.idRepartidor = :idRepartidor ORDER BY p.fechaActualizacion DESC",
+                Pedido.class)
+                .setParameter("idRepartidor", idRepartidor)
+                .getResultList();
+    }
+
+    // Pedidos en viaje o por salir (CONFIRMADO o EN_CAMINO): el tablero de entregas.
+    public List<Pedido> listarEntregasEnCurso() {
+        return em.createQuery(
+                "SELECT p FROM Pedido p WHERE p.estado IN :estados ORDER BY p.fechaActualizacion",
+                Pedido.class)
+                .setParameter("estados", List.of(EstadoPedido.CONFIRMADO, EstadoPedido.EN_CAMINO))
                 .getResultList();
     }
 

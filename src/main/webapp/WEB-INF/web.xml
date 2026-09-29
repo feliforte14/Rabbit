@@ -15,7 +15,7 @@
         PROJECT_STAGE=Production: en Development JSF muestra stack traces y
         detalles internos cuando algo falla, informacion util para un
         atacante. El CSS no queda cacheado viejo porque se sirve desde una
-        carpeta versionada (resources/rabbit/1_3/): al cambiarlo se sube la
+        carpeta versionada (resources/rabbit/1_4/): al cambiarlo se sube la
         version. Para depurar en local se puede volver a Development.
     -->
     <context-param>

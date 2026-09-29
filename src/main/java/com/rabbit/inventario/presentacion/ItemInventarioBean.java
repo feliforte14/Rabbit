@@ -60,7 +60,22 @@ public class ItemInventarioBean implements Serializable {
     // <f:viewParam> de items.xhtml (no hay @PostConstruct porque en ese
     // momento del ciclo de vida idDeposito todavía no llegó).
     public void cargar() {
-        deposito = service.obtenerDeposito(idDeposito);
+        // Un ID que falta o no existe (URL tipeada a mano) muestra un
+        // mensaje en vez de la página de error.
+        deposito = null;
+        items = List.of();
+        listaComercios = List.of();
+        nombresComercio = new HashMap<>();
+        if (idDeposito == null) {
+            mensaje(FacesMessage.SEVERITY_ERROR, "Elegí un depósito desde el listado de depósitos");
+            return;
+        }
+        try {
+            deposito = service.obtenerDeposito(idDeposito);
+        } catch (ValidacionException e) {
+            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            return;
+        }
         listaComercios = comercios.listarTodos();
 
         nombresComercio = new HashMap<>();

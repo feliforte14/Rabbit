@@ -25,6 +25,8 @@ public class DatosPedidoExternoDTO {
     // Total de la venta que cerró el comercio y cómo la cobra (ver PedidoExterno).
     public BigDecimal importe;
     public MedioPago medioPago = MedioPago.CONTRA_ENTREGA;
+    // Adónde se entrega el pedido.
+    public String direccionEntrega;
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public Long getIdComercio() { return idComercio; }
@@ -39,4 +41,6 @@ public class DatosPedidoExternoDTO {
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public MedioPago getMedioPago() { return medioPago; }
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
+    public String getDireccionEntrega() { return direccionEntrega; }
+    public void setDireccionEntrega(String direccionEntrega) { this.direccionEntrega = direccionEntrega; }
 }

@@ -6,7 +6,7 @@
     uno nuevo. Se bindea al Managed Bean comercioBean (ComercioBean.java)
     via Expression Language: por ejemplo #{comercioBean.comercios}.
 
-    El estilo visual vive aparte, en resources/rabbit/1_0/estilos.css
+    El estilo visual vive aparte, en resources/rabbit/1_4/estilos.css
     (recurso JSF versionado), linkeado desde template.xhtml. Es solo
     CSS: no cambia ningun binding ni ninguna accion de los Managed Beans.
 -->
@@ -16,19 +16,13 @@
                  xmlns:ui="jakarta.faces.facelets"
                  template="/template.xhtml">
     <f:metadata>
-        <f:viewAction action="#{sesionBean.exigirSesion}" />
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
 
     <ui:define name="titulo">Rabbit · Comercios</ui:define>
 
     <ui:define name="contenido">
-        <!--
-            A propósito NO se muestra qué usuario ni qué rol está
-            conectado en esta pantalla — la autorización real de
-            "Eliminar" la impone el servidor con @RolesAllowed("ADMINISTRADOR")
-            en ComercioService, así que no hace falta exponerlo acá.
-        -->
-        <h1>Comercios registrados</h1>
+        <h1>Comercios</h1>
 
         <!--
             globalOnly="true": aca SOLO se muestran los mensajes de negocio
@@ -43,7 +37,8 @@
 
         <h:form id="formListado">
             <h:dataTable value="#{comercioBean.comercios}" var="c"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty comercioBean.comercios}">
                 <h:column>
                     <f:facet name="header">ID</f:facet>
                     #{c.id}
@@ -61,12 +56,13 @@
                     #{c.cuit}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Activo</f:facet>
-                    #{c.activo ? 'Sí' : 'No'}
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{c.activo ? 'Activo' : 'Dado de baja'}"
+                                  styleClass="badge #{c.activo ? 'badge-verde' : 'badge-gris'}" />
                 </h:column>
                 <h:column>
                     <f:facet name="header">Puntos de picking</f:facet>
-                    <h:link outcome="puntos-picking" value="Ver puntos de picking">
+                    <h:link outcome="puntos-picking" value="Ver">
                         <f:param name="idComercio" value="#{c.id}" />
                     </h:link>
                 </h:column>
@@ -80,13 +76,20 @@
                                      rendered="#{not c.activo}" />
                     <h:commandButton value="Eliminar" styleClass="btn btn-danger"
                                       action="#{comercioBean.eliminar(c.id)}"
-                                      rendered="#{not c.activo}"
+                                      rendered="#{not c.activo and sesionBean.admin}"
                                       onclick="return confirm('¿Eliminar definitivamente este comercio y todos sus puntos de picking? Esta acción no se puede deshacer.');" />
                 </h:column>
             </h:dataTable>
         </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty comercioBean.comercios}">
+            Todavía no hay comercios registrados.
+        </h:panelGroup>
 
         <h2>Registrar nuevo comercio</h2>
+        <p class="ayuda">
+            Para que el comercio siga sus pedidos y su stock, un administrador le crea una cuenta
+            de tipo Comercio en Usuarios.
+        </p>
         <!--
             El form tiene id propio (formAlta). Si no se lo ponemos, JSF le
             inventa uno tipo "j_idt36" — un numero inestable que cambia al

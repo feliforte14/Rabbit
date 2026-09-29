@@ -10,6 +10,10 @@ package com.rabbit.comercios.presentacion;
  * IConsultaComercios para lectura) y no de la clase que las implementa.
  *
  * Renombrado desde SucursalBean (ver Sección 1.2 del documento técnico).
+ *
+ * La usan el personal de Rabbit (cualquier comercio, por parámetro) y un
+ * usuario COMERCIO (solo el suyo: el parámetro se ignora y el comercio sale
+ * de su identidad; ComercioService además lo vuelve a controlar).
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
@@ -19,6 +23,8 @@ import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.comercios.negocio.IRegistroComercios;
 import com.rabbit.comercios.negocio.ValidacionException;
 
+import com.rabbit.seguridad.negocio.IContextoUsuario;
+import com.rabbit.seguridad.presentacion.SesionBean;
 import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
@@ -39,6 +45,12 @@ public class PuntoPickingBean implements Serializable {
     @Inject
     private IConsultaComercios consulta;
 
+    @Inject
+    private SesionBean sesion;
+
+    @Inject
+    private IContextoUsuario contextoUsuario;
+
     private Long idComercio;
     private ComercioDTO comercio;
     private List<PuntoPickingDTO> puntosPicking;
@@ -49,8 +61,21 @@ public class PuntoPickingBean implements Serializable {
     // <f:viewParam> de puntos-picking.xhtml — no hay @PostConstruct porque
     // en ese momento del ciclo de vida idComercio todavía no llegó.
     public void cargar() {
-        comercio = consulta.obtenerComercio(idComercio);
-        puntosPicking = consulta.listarPuntosPickingDeComercio(idComercio);
+        comercio = null;
+        puntosPicking = List.of();
+        try {
+            if (sesion.isComercio()) {
+                idComercio = contextoUsuario.idComercioActual();
+            }
+            if (idComercio == null) {
+                mensaje(FacesMessage.SEVERITY_ERROR, "Elegí un comercio desde el listado de comercios");
+                return;
+            }
+            comercio = consulta.obtenerComercio(idComercio);
+            puntosPicking = consulta.listarPuntosPickingDeComercio(idComercio);
+        } catch (ValidacionException | com.rabbit.seguridad.negocio.ValidacionException e) {
+            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+        }
     }
 
     // Alta de un punto de picking nuevo para idComercio, a partir de

@@ -183,3 +183,23 @@ Propuesta o Reemplazada.
 - **Consecuencias:** nadie obtiene acceso sin que un administrador lo
   habilite. El arranque de una instalación nueva requiere acceso al
   servidor (ya era así para el usuario del ERP).
+
+## ADR-013: Vistas por tipo de usuario y ruteo mínimo
+
+- **Estado:** Aceptada.
+- **Contexto:** Rabbit conecta comercios con depósitos y repartidores,
+  pero solo el personal de Rabbit tenía acceso: el comercio no podía
+  seguir sus pedidos ni el repartidor ver adónde ir. Los pedidos tampoco
+  tenían dirección de entrega, así que no había recorrido que mostrar.
+- **Decisión:** dos tipos de cuenta nuevos, `COMERCIO` y `REPARTIDOR`,
+  asociados en la tabla `usuarios` a su comercio o repartidor. Cada uno
+  tiene su menú y sus pantallas. El comercio o el repartidor sale de la
+  identidad autenticada (`IContextoUsuario`), nunca de un parámetro. El
+  pedido suma `direccionEntrega` (la manda el ERP) y un componente Ruteo
+  mínimo arma la hoja de ruta (retiro → entrega) para el tablero del
+  personal y para el repartidor.
+- **Consecuencias:** cada actor ve y mueve solo lo suyo, controlado en el
+  EJB y no solo en la vista. El ERP tiene que mandar la dirección de
+  entrega (la API responde `400` sin ella). Los pedidos anteriores quedan
+  sin dirección. El ruteo no optimiza recorridos ni agrupa pedidos: queda
+  para la Entrega Final.

@@ -92,6 +92,9 @@ public interface IConsultaStock {
      */
     List<ItemInventarioDTO> listarItemsPorComercio(Long idComercio);
 
+    /** Stock consignado del comercio que representa el usuario que llama (rol COMERCIO). */
+    List<ItemInventarioDTO> listarStockDelComercioActual();
+
     /**
      * Solo el stock de UN comercio dentro de UN deposito. Es la misma
      * vista que la anterior, acotada a un deposito.

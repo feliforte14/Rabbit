@@ -20,4 +20,7 @@ public interface IGestionRepartidores {
     Long registrarRepartidor(DatosRepartidorDTO datos);
 
     List<RepartidorDTO> listarTodos();
+
+    /** @return el repartidor, o null si no existe */
+    RepartidorDTO obtenerRepartidor(Long idRepartidor);
 }
