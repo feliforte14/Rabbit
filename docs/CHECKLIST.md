@@ -21,7 +21,7 @@ rápido en la defensa.
 
 | Desafío | Estado |
 |---|---|
-| Al menos 2 ADR | Cumple: 13 ADR en [DECISIONES.md](DECISIONES.md) |
-| Resiliencia ante fallas | Cumple: Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
+| Al menos 2 ADR | Cumple: 14 ADR en [DECISIONES.md](DECISIONES.md) |
+| Resiliencia ante fallas | Cumple ([DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)): Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Heterogeneidad tecnológica | No |
-| Prueba de escalabilidad | No |
+| Prueba de escalabilidad | En curso: el consumidor de la cola escala con `rabbit.cola.consumidores` y la prueba de carga está armada; falta correr la medición. Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) |

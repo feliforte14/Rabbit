@@ -203,3 +203,26 @@ Propuesta o Reemplazada.
   entrega (la API responde `400` sin ella). Los pedidos anteriores quedan
   sin dirección. El ruteo no optimiza recorridos ni agrupa pedidos: queda
   para la Entrega Final.
+
+## ADR-014: Escalar el consumidor de la cola con consumidores competidores
+
+- **Estado:** Aceptada.
+- **Contexto:** un comercio que manda muchos pedidos juntos llena
+  `cola.pedidos.externos` y los pedidos tardan en aparecer. Hacía falta
+  poder escalar ese consumidor sin tocar código (desafío de
+  escalabilidad, ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)).
+- **Decisión:** la cantidad de instancias del consumidor (`maxSession` de
+  `PedidoExternoListener`) se fija con la system property
+  `rabbit.cola.consumidores`, aplicada en `WEB-INF/jboss-ejb3.xml` (15 por
+  defecto). Varias instancias compiten por la misma cola y el broker le da
+  cada mensaje a una sola. Se sumó `rabbit.sincronizador.pausado` para
+  poder medir sin que el timer de respaldo procese la carga.
+- **Alternativas descartadas:** escalar con varios servidores (requiere un
+  broker compartido en lugar del embebido); particionar la cola por
+  comercio (agrega colas y configuración sin ganar nada con un solo
+  consumidor lógico); procesar en lotes dentro de un consumidor (una falla
+  de un pedido afectaría al lote).
+- **Consecuencias:** escalar es cambiar una propiedad y redesplegar. El
+  techo lo pone la base: el pooler de Supabase admite 15 conexiones por
+  proyecto, así que el pool de WildFly se limita a 10 y más consumidores
+  que conexiones no mejoran nada.
