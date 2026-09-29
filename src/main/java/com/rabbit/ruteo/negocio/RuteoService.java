@@ -20,7 +20,6 @@ package com.rabbit.ruteo.negocio;
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
-import com.rabbit.comercios.dto.PuntoPickingDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.dto.DepositoDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
@@ -38,7 +37,6 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -68,29 +66,57 @@ public class RuteoService implements IRuteo {
     @Override
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<HojaDeRutaDTO> listarEntregasEnCurso() {
-        return pedidos.listarEntregasEnCurso().stream().map(this::armar).collect(Collectors.toList());
+        return armar(pedidos.listarEntregasEnCurso());
     }
 
     @Override
     @RolesAllowed("REPARTIDOR")
     public HojaDeRutaDTO entregaActualDelRepartidor() {
-        return pedidos.listarPedidosDelRepartidorActual().stream()
+        List<PedidoDTO> enCurso = pedidos.listarPedidosDelRepartidorActual().stream()
                 .filter(p -> !TERMINADOS.contains(p.getEstado()))
-                .findFirst()
-                .map(this::armar)
-                .orElse(null);
+                .limit(1)
+                .collect(Collectors.toList());
+        return enCurso.isEmpty() ? null : armar(enCurso).get(0);
     }
 
     @Override
     @RolesAllowed("REPARTIDOR")
     public List<HojaDeRutaDTO> historialDelRepartidor() {
-        return pedidos.listarPedidosDelRepartidorActual().stream()
+        return armar(pedidos.listarPedidosDelRepartidorActual().stream()
                 .filter(p -> TERMINADOS.contains(p.getEstado()))
-                .map(this::armar)
+                .collect(Collectors.toList()));
+    }
+
+    // Arma las hojas de varios pedidos con una cantidad fija de consultas
+    // (comercios con sus puntos de picking, repartidores, depósitos e
+    // ítems), en vez de consultar a cada componente pedido por pedido.
+    private List<HojaDeRutaDTO> armar(List<PedidoDTO> lista) {
+        if (lista.isEmpty()) {
+            return List.of();
+        }
+        Map<Long, ComercioDTO> comerciosPorId = comercios.listarTodos().stream()
+                .collect(Collectors.toMap(ComercioDTO::getId, Function.identity()));
+        Map<Long, RepartidorDTO> repartidoresPorId = repartidores.listarTodos().stream()
+                .collect(Collectors.toMap(RepartidorDTO::getId, Function.identity()));
+        Map<Long, DepositoDTO> depositosPorId = stock.listarDepositos().stream()
+                .collect(Collectors.toMap(DepositoDTO::getId, Function.identity()));
+        Set<Long> idsItems = lista.stream()
+                .flatMap(p -> p.getLineas().stream())
+                .map(LineaPedidoDTO::getIdItem)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, ItemInventarioDTO> itemsPorId = stock.listarItemsPorIds(idsItems).stream()
+                .collect(Collectors.toMap(i -> i.id, Function.identity()));
+
+        return lista.stream()
+                .map(p -> armar(p, comerciosPorId, repartidoresPorId, depositosPorId, itemsPorId))
                 .collect(Collectors.toList());
     }
 
-    private HojaDeRutaDTO armar(PedidoDTO p) {
+    private HojaDeRutaDTO armar(PedidoDTO p, Map<Long, ComercioDTO> comerciosPorId,
+                                Map<Long, RepartidorDTO> repartidoresPorId,
+                                Map<Long, DepositoDTO> depositosPorId,
+                                Map<Long, ItemInventarioDTO> itemsPorId) {
         HojaDeRutaDTO hoja = new HojaDeRutaDTO();
         hoja.idPedido = p.getId();
         hoja.estado = p.getEstado();
@@ -100,11 +126,11 @@ public class RuteoService implements IRuteo {
         hoja.actualizado = p.getFechaActualizacion();
         hoja.cobrarAlEntregar = p.getMedioPago() == MedioPago.CONTRA_ENTREGA ? p.getImporte() : null;
 
-        ComercioDTO comercio = comercios.obtenerComercio(p.getIdComercio());
-        hoja.comercio = comercio.nombre;
-        hoja.retiros = retiros(p);
+        ComercioDTO comercio = comerciosPorId.get(p.getIdComercio());
+        hoja.comercio = comercio != null ? comercio.nombre : "Comercio " + p.getIdComercio();
+        hoja.retiros = retiros(p, comercio, depositosPorId, itemsPorId);
 
-        RepartidorDTO repartidor = repartidores.obtenerRepartidor(p.getIdRepartidor());
+        RepartidorDTO repartidor = repartidoresPorId.get(p.getIdRepartidor());
         if (repartidor != null) {
             hoja.repartidor = repartidor.getNombre();
             hoja.telefonoRepartidor = repartidor.getTelefono();
@@ -114,23 +140,26 @@ public class RuteoService implements IRuteo {
 
     // Lugares de retiro: el punto de picking del comercio, o los depósitos
     // de los que sale cada línea de stock consignado (sin repetir).
-    private List<String> retiros(PedidoDTO p) {
+    private List<String> retiros(PedidoDTO p, ComercioDTO comercio,
+                                 Map<Long, DepositoDTO> depositosPorId,
+                                 Map<Long, ItemInventarioDTO> itemsPorId) {
         if (p.getOrigen() == OrigenPedido.PUNTO_PICKING) {
-            return comercios.listarPuntosPickingDeComercio(p.getIdComercio()).stream()
+            if (comercio == null || comercio.getPuntosPicking() == null) {
+                return List.of();
+            }
+            return comercio.getPuntosPicking().stream()
                     .filter(pp -> pp.id.equals(p.getIdPuntoPicking()))
                     .map(pp -> "Punto de picking " + pp.nombre + " — " + pp.direccion)
                     .collect(Collectors.toList());
         }
-        Map<Long, ItemInventarioDTO> items = stock.listarItemsPorComercio(p.getIdComercio()).stream()
-                .collect(Collectors.toMap(i -> i.id, Function.identity()));
-        Set<Long> depositos = p.getLineas().stream()
+        return p.getLineas().stream()
                 .map(LineaPedidoDTO::getIdItem)
-                .map(items::get)
+                .map(itemsPorId::get)
                 .filter(Objects::nonNull)
                 .map(i -> i.idDeposito)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
-        return depositos.stream()
-                .map(stock::obtenerDeposito)
+                .distinct()
+                .map(depositosPorId::get)
+                .filter(Objects::nonNull)
                 .map(this::describir)
                 .collect(Collectors.toList());
     }

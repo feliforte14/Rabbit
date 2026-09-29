@@ -89,8 +89,11 @@ public class ComercioRepository {
      *
      * @return todos los comercios persistidos, en el orden que devuelva la BD
      */
+    // JOIN FETCH: ComercioDTO copia los puntos de picking de cada comercio;
+    // sin traerlos en la misma consulta, cada comercio disparaba otra (N+1).
     public List<Comercio> listarTodos() {
-        return em.createQuery("SELECT c FROM Comercio c", Comercio.class).getResultList();
+        return em.createQuery("SELECT DISTINCT c FROM Comercio c LEFT JOIN FETCH c.puntosPicking", Comercio.class)
+                .getResultList();
     }
 
     /**
