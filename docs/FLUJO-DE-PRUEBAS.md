@@ -25,8 +25,8 @@ generó; si la perdiste, reseteala con:
 
 1. Entrá a `http://localhost:8080/Rabbit/login.xhtml`.
 2. Ingresá con `claude-cb-admin`.
-3. Deberías caer en `pedidos.xhtml` (tablero de entregas en curso, vacío
-   porque la base está limpia).
+3. Deberías caer en `pedidos.xhtml` (la pantalla de Pedidos, vacía porque
+   la base está limpia).
 
 **Qué mirar:** el menú lateral muestra "Administrador" como rol; no
 aparece ningún error.
@@ -36,18 +36,22 @@ aparece ningún error.
 ## 2. Alta de datos base (como administrador)
 
 ### 2.1 Crear un comercio
-1. Ir a **Comercios** → "Crear comercio".
-2. Cargar nombre, razón social, CUIT, email y teléfono. Confirmar alta.
+1. Ir a **Comercios** → formulario "Registrar nuevo comercio".
+2. Cargar nombre, razón social, CUIT (formato `XX-XXXXXXXX-X`), email y
+   teléfono. Botón **Registrar**.
 3. Verificar que aparece en el listado con estado "Activo".
 
 ### 2.2 Crear un depósito y algo de stock
-1. Ir a **Depósitos** → crear uno (nombre, dirección).
-2. Ir a **Stock** (items.xhtml) → cargar al menos un ítem con cantidad
-   disponible, asociado al depósito creado.
+1. Ir a **Depósitos y stock** → "Registrar nuevo depósito" (nombre,
+   dirección, provincia, localidad, código postal).
+2. En la fila del depósito, **Ver stock** → "Cargar stock": elegir el
+   comercio dueño, producto y cantidad. Anotá el **ID** del ítem que
+   aparece en la tabla: lo usa el pedido del paso 4.
 
 ### 2.3 Crear un repartidor
-1. Ir a **Repartidores** → "Crear repartidor".
-2. Cargar nombre y datos de contacto. Confirmar alta.
+1. Ir a **Repartidores** → "Registrar repartidor".
+2. Cargar nombre y teléfono. Botón **Registrar**. Sin al menos un
+   repartidor disponible no se puede confirmar ningún pedido.
 
 ### 2.4 Crear las cuentas de usuario (login) para comercio y repartidor
 1. Ir a **Usuarios** (solo visible para ADMINISTRADOR).
@@ -81,10 +85,9 @@ API REST:
 
 1. Cerrar sesión, loguearte con `demo.comercio`.
 2. Caés en `mis-pedidos.xhtml`: debería estar vacío, sin errores.
-3. Ir a **Puntos de picking** → agregar uno (nombre, dirección).
-4. Ir a **Mi stock** → confirmar que ves el stock cargado en 2.2 (o cargá
-   más si el alta de stock es solo desde el admin, según cómo esté armada
-   esa pantalla).
+3. Ir a **Mis puntos de picking** → agregar uno (nombre, dirección).
+4. Ir a **Mi stock** → confirmar que ves el stock cargado en 2.2. Es solo
+   lectura: el stock lo carga el personal de Rabbit.
 
 **Qué mirar:** el título dice "Mis puntos de picking" / "Mis pedidos", no
 pide elegir comercio (a diferencia del personal, que sí lo elige de un
@@ -105,13 +108,14 @@ curl -i -u demo.erp:<contraseña> \
     "origen": "STOCK_CONSIGNADO",
     "lineas": [{"idItem": 1, "cantidad": 1}],
     "importe": 2500,
-    "medioPago": "PREPAGO"
+    "medioPago": "PREPAGO",
+    "direccionEntrega": "Av. Corrientes 1234, CABA"
   }'
 ```
 
 - Ajustá `idComercio` e `idItem` a los IDs reales que quedaron después del
-  alta (revisá el listado de comercios/stock, o mirá la URL al entrar al
-  detalle de cada uno).
+  alta (columna ID del listado de comercios y de la tabla de stock).
+- `direccionEntrega` es obligatoria: sin ella la API responde `400`.
 - Debería responder `201 Created` con `idPedidoExterno` y `Location`.
 
 Consultar cómo terminó:
@@ -125,27 +129,39 @@ que puede tardar un instante en pasar de Pendiente a Sincronizado.
 
 **Qué mirar:** en el log de WildFly deberían verse las trazas de
 `PedidoExternoListener` procesando el mensaje de la cola
-`jms.queue.PedidosExternos`.
+`cola.pedidos.externos` (`[Pedidos][JMS] Pedido externo N sincronizado en
+tiempo real`). En **Pedidos → Recibidos del ERP** el pedido aparece como
+"Sincronizado".
 
 ---
 
 ## 5. Ciclo completo de un pedido (cola + tópico + SOAP + transacción)
 
-1. Con `demo.comercio` logueado, confirmá el pedido creado en el paso 4
-   (o generá uno nuevo desde la pantalla de pedidos si existe alta manual).
-2. Si el medio de pago es `PREPAGO`, el pedido dispara el cobro contra el
-   banco legado por SOAP (`BancoLegadoService`, WSDL publicado en
-   `http://localhost:8080/Rabbit/BancoLegadoService?wsdl`).
-3. Logueate como `demo.repartidor` → `mis-entregas.xhtml`: el pedido
-   confirmado debería aparecer para asignar/retirar.
-4. Marcá retiro y luego entrega.
-5. Volvé a loguearte como `demo.comercio` (u observá el tópico de
-   notificaciones) y confirmá que el estado del pedido se actualizó — eso
-   confirma que el tópico JMS `jms.topic/EstadosPedido` está distribuyendo
-   los cambios de estado a los suscriptores.
+1. Como administrador, en **Pedidos**, botón **Confirmar** del pedido
+   creado en el paso 4. Confirmar es del personal de Rabbit: el comercio no
+   puede. En la misma transacción:
+   - si el medio de pago es `PREPAGO`, se cobra en el banco legado por SOAP
+     (`BancoLegadoService`, WSDL en
+     `http://localhost:8080/Rabbit/BancoLegadoService?wsdl`);
+   - se asigna el repartidor disponible.
+2. En **Entregas en curso** aparece la hoja de ruta del pedido (retiro →
+   entrega).
+3. Logueate como `demo.repartidor` → **Mis entregas**: se ve la hoja de
+   ruta. Botón **Ya retiré el pedido** y después **Entregué el pedido**.
+4. Logueate como `demo.comercio` → **Mis pedidos**: el pedido figura
+   "Entregado" y en "Avisos de Rabbit" aparece un aviso por cada cambio de
+   estado. Eso confirma que el tópico `topico.pedidos.estado` distribuye
+   los cambios a sus suscriptores (Notificaciones y Pagos).
 
-**Qué mirar:** en `pedidos.xhtml` (vista de personal) el pedido pasa por
-sus estados (`CONFIRMADO` → `EN_CAMINO`/similar → `ENTREGADO`).
+**Qué mirar:** en **Pedidos** (vista del personal) el pedido pasa por
+Pendiente → Confirmado → En camino → Entregado, y la columna Cobro por
+"Cobrado" (prepago) o "A cobrar" → "Cobrado" (contra entrega, se acredita
+al entregar).
+
+**Variantes para probar la transacción:** un pedido `PREPAGO` de más de
+$500.000 lo rechaza el banco y sigue Pendiente; un pedido `PREPAGO` sin
+repartidor disponible se cobra, se deshace y el banco lo reversa (se ve en
+el log: `[Banco legado] Reversado ...`).
 
 ---
 
@@ -159,8 +175,9 @@ Con WildFly corriendo:
   --command="/system-property=rabbit.banco.simular.caida:add(value=true)"
 ```
 
-1. Confirmá 4 pedidos `PREPAGO` seguidos (repetí el paso 4 o 5 cuatro
-   veces con pedidos nuevos).
+1. Como administrador, en **Pedidos**, confirmá 4 veces seguidas un pedido
+   `PREPAGO` pendiente (puede ser el mismo: con el banco caído no se
+   confirma y sigue Pendiente).
 2. Los primeros 3 deberían tardar ~5 s cada uno (timeout) y fallar.
 3. El 4.º debería fallar **al instante** — el circuito ya está `ABIERTO` y
    ni siquiera llama al banco.
@@ -190,12 +207,13 @@ Con `demo.comercio` logueado:
   parámetro se ignora y siempre ves el tuyo — confirmá que no aparecen
   datos ajenos.
 
-Con `demo.erp` (o sin credenciales):
+Contra la API del ERP:
 ```bash
-curl -i http://localhost:8080/Rabbit/api/pedidos-externos
+curl -i http://localhost:8080/Rabbit/api/pedidos-externos/1                            # sin credenciales
+curl -i -u claude-cb-admin:<contraseña> http://localhost:8080/Rabbit/api/pedidos-externos/1   # usuario sin rol ERP
 ```
-Debería responder `401` sin Basic Auth, y `403` si las credenciales son
-válidas pero el rol no es `ERP`.
+Debería responder `401` sin credenciales y `403` con un usuario válido que
+no tiene el rol `ERP`.
 
 ---
 
