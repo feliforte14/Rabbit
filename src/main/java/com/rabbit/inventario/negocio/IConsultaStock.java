@@ -26,6 +26,7 @@ import com.rabbit.inventario.dto.FiltroHistorialDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
 import com.rabbit.inventario.dto.ReservaStockDTO;
 import jakarta.ejb.Local;
+import java.util.Collection;
 import java.util.List;
 
 @Local
@@ -91,6 +92,9 @@ public interface IConsultaStock {
      *         parametro es null
      */
     List<ItemInventarioDTO> listarItemsPorComercio(Long idComercio);
+
+    /** Varios ítems por ID en una sola consulta (lo usa Ruteo). */
+    List<ItemInventarioDTO> listarItemsPorIds(Collection<Long> idsItems);
 
     /** Stock consignado del comercio que representa el usuario que llama (rol COMERCIO). */
     List<ItemInventarioDTO> listarStockDelComercioActual();

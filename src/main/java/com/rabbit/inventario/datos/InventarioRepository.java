@@ -19,6 +19,7 @@ import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.Collection;
 import java.util.List;
 
 @ApplicationScoped
@@ -121,6 +122,17 @@ public class InventarioRepository {
                 "SELECT i FROM ItemInventario i WHERE i.deposito.id = :idDeposito ORDER BY i.id",
                 ItemInventario.class)
                 .setParameter("idDeposito", idDeposito)
+                .getResultList();
+    }
+
+    // Varios ítems en una sola consulta (la hoja de ruta necesita el
+    // depósito de cada línea de varios pedidos a la vez).
+    public List<ItemInventario> listarItemsPorIds(Collection<Long> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return em.createQuery("SELECT i FROM ItemInventario i WHERE i.id IN :ids", ItemInventario.class)
+                .setParameter("ids", ids)
                 .getResultList();
     }
 

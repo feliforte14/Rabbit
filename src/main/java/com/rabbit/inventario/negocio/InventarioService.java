@@ -64,6 +64,7 @@ import jakarta.ejb.TransactionAttributeType;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -75,7 +76,7 @@ import java.util.stream.Collectors;
 // COMERCIO consulta únicamente su propio stock consignado.
 @Stateful
 @StatefulTimeout(value = 30, unit = TimeUnit.MINUTES)
-@DeclareRoles({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
+@DeclareRoles({"ADMINISTRADOR", "OPERADOR", "COMERCIO", "REPARTIDOR"})
 @PermitAll
 public class InventarioService implements IConsultaStock, IReservaStock, Serializable {
 
@@ -441,6 +442,14 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         obtenerDepositoOFallar(idDeposito);
         return repository.listarItemsPorDeposito(idDeposito)
                 .stream()
+                .map(ItemInventarioDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
+    public List<ItemInventarioDTO> listarItemsPorIds(Collection<Long> idsItems) {
+        return repository.listarItemsPorIds(idsItems).stream()
                 .map(ItemInventarioDTO::desde)
                 .collect(Collectors.toList());
     }
