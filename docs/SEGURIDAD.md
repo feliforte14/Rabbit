@@ -147,7 +147,8 @@ base viven en el datasource de WildFly y las de management (para
   datos del comercio.
 - El banco simulado (`BancoLegadoService`, SOAP): no es parte de Rabbit
   sino el sistema externo simulado, pero se publica en el mismo WAR y sin
-  autenticación (ver Limitaciones conocidas).
+  autenticación (ver Limitaciones conocidas). El banco en Node.js
+  (`banco-legado/`) tampoco tiene autenticación.
 
 Además, el login y la página de error, que tienen que verse sin sesión.
 
@@ -160,6 +161,8 @@ Además, el login y la página de error, que tienen que verse sin sesión.
 - Un usuario `ERP` puede cargar pedidos de cualquier comercio: no está
   atado al suyo.
 - El banco simulado (`BancoLegadoService`) se publica sin autenticación.
-  En producción no viviría dentro de Rabbit.
+  En producción no viviría dentro de Rabbit: por eso existe también como
+  servicio aparte en Node.js (`banco-legado/`), que Rabbit usa apuntando
+  `rabbit.banco.wsdl`. Tampoco tiene autenticación.
 - `/api/seguimiento/{id}` usa IDs secuenciales: se puede recorrer el
   estado de todos los pedidos (solo el estado).

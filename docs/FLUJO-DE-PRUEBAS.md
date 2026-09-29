@@ -231,6 +231,21 @@ administrador."* — no el mensaje interno `Comercio no encontrado: <id>`.
 
 ---
 
+## 9. Demos de los desafíos opcionales
+
+Los pasos de estas demos están en
+[DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md):
+
+- **Escalabilidad:** `scripts/prueba_escalabilidad.py` manda 100 pedidos
+  por la API y mide cuánto tarda la cola con 1, 4 y 8 consumidores.
+  Necesita un comercio y un punto de picking activos y un usuario `ERP`.
+- **Heterogeneidad:** levantar el banco en Node.js (`banco-legado/`,
+  `npm install && npm start`), apuntar `rabbit.banco.wsdl` y redesplegar;
+  las confirmaciones prepago del paso 5 quedan registradas en la consola
+  de Node.
+
+---
+
 ## Checklist rápido
 
 | Ítem | Resultado esperado |
