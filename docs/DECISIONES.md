@@ -227,3 +227,25 @@ Propuesta o Reemplazada.
   (x3,8) y 6,8 s con 8 (x6,3). El techo lo pone la base: el pooler de Supabase admite 15 conexiones por
   proyecto, así que el pool de WildFly se limita a 10 y más consumidores
   que conexiones no mejoran nada.
+
+## ADR-015: Banco legado en Node.js, detrás del mismo WSDL
+
+- **Estado:** Aceptada.
+- **Contexto:** el banco legado es un sistema externo, pero estaba
+  implementado en Java dentro del mismo WAR que Rabbit. El desafío de
+  heterogeneidad pide integrar componentes de tecnologías distintas.
+- **Decisión:** el banco se implementa también como un servicio aparte en
+  Node.js (`banco-legado/`, librería `soap`), construido a partir del mismo
+  WSDL. Rabbit elige a cuál llamar con `rabbit.banco.wsdl`; el banco en
+  Java sigue siendo el de por defecto, para que levantar Rabbit no exija
+  Node.
+- **Alternativas descartadas:** reemplazar el banco en Java (obligaría a
+  todo el equipo a tener Node para cualquier prueba); un componente nuevo
+  en otra tecnología conectado al broker (el broker embebido no expone
+  STOMP ni AMQP, habría que abrir protocolos solo para esto); un cliente
+  del ERP en otro lenguaje (sería un consumidor externo de la API, no un
+  componente del sistema).
+- **Consecuencias:** se prueba que el acoplamiento es el contrato y no la
+  tecnología: Rabbit usa el banco en Node sin cambiar código, incluido el
+  circuit breaker (probado). Hay dos implementaciones del banco que
+  mantener con las mismas reglas.
