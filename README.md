@@ -106,7 +106,36 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --commands="module add --name=org.postg
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --commands="data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --driver-name=postgresql --connection-url=jdbc:postgresql://HOST:5432/BASE --user-name=USUARIO --password=CONTRASEÑA --use-ccm=false,/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"
 ```
 
-El último comando tiene que responder `"outcome" => "success"`. Si la base
+El último comando tiene que responder `"outcome" => "success"`.
+
+**Configurar el pool de conexiones (una sola vez, importante).**
+
+- **Validar las conexiones:** Supabase cierra las conexiones inactivas.
+  Sin validación, WildFly las sigue entregando y la app falla sola después
+  de un rato sin uso (los timers fallan cada minuto y los despliegues no
+  levantan) hasta que se vacía el pool a mano. Con esto, WildFly revisa las
+  conexiones cada 30 s, descarta las rotas y cierra las que llevan 5
+  minutos sin usarse.
+- **Limitar el pool a 10:** el pooler de Supabase admite como máximo 15
+  conexiones para todo el proyecto (compartidas por todo el equipo) y el
+  pool de WildFly permite 20 por defecto; al pasarse, la base rechaza
+  conexiones (`EMAXCONNSESSION`).
+
+```bash
+DS=/subsystem=datasources/data-source=RabbitDS
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=max-pool-size,value=10)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=valid-connection-checker-class-name,value=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=exception-sorter-class-name,value=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=background-validation,value=true)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=background-validation-millis,value=30000)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=idle-timeout-minutes,value=5)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command=":reload"
+```
+
+Si igual aparece `This connection has been closed` o
+`Unable to determine Dialect without JDBC metadata` al desplegar, vaciar
+el pool:
+`$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:flush-all-connection-in-pool"`. Si la base
 está en Supabase y responde `EAUTHQUERY ... connection to database not
 available`, el proyecto de Supabase está pausado: reactivarlo desde su
 dashboard.
