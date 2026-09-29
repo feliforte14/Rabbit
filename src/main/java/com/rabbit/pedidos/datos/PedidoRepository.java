@@ -61,8 +61,13 @@ public class PedidoRepository {
      *
      * @return todos los pedidos persistidos
      */
+    // Las consultas de listado traen las líneas con JOIN FETCH: PedidoDTO y
+    // PedidoExternoDTO las recorren, y como la colección es LAZY cada pedido
+    // disparaba otra consulta (con 400 pedidos, más de 700 consultas y casi
+    // 40 s para cargar la pantalla de Pedidos). Hibernate descarta solo los
+    // pedidos repetidos que produce el join.
     public List<Pedido> listarTodos() {
-        return em.createQuery("SELECT p FROM Pedido p ORDER BY p.fechaCreacion DESC", Pedido.class)
+        return em.createQuery("SELECT p FROM Pedido p LEFT JOIN FETCH p.lineas ORDER BY p.fechaCreacion DESC", Pedido.class)
                 .getResultList();
     }
 
@@ -74,7 +79,7 @@ public class PedidoRepository {
      */
     public List<Pedido> listarPedidosDeComercio(Long idComercio) {
         return em.createQuery(
-                "SELECT p FROM Pedido p WHERE p.idComercio = :idComercio ORDER BY p.fechaCreacion DESC",
+                "SELECT p FROM Pedido p LEFT JOIN FETCH p.lineas WHERE p.idComercio = :idComercio ORDER BY p.fechaCreacion DESC",
                 Pedido.class)
                 .setParameter("idComercio", idComercio)
                 .getResultList();
@@ -83,7 +88,7 @@ public class PedidoRepository {
     // Pedidos de un repartidor, los más recientes primero.
     public List<Pedido> listarPedidosDeRepartidor(Long idRepartidor) {
         return em.createQuery(
-                "SELECT p FROM Pedido p WHERE p.idRepartidor = :idRepartidor ORDER BY p.fechaActualizacion DESC",
+                "SELECT p FROM Pedido p LEFT JOIN FETCH p.lineas WHERE p.idRepartidor = :idRepartidor ORDER BY p.fechaActualizacion DESC",
                 Pedido.class)
                 .setParameter("idRepartidor", idRepartidor)
                 .getResultList();
@@ -92,7 +97,7 @@ public class PedidoRepository {
     // Pedidos en viaje o por salir (CONFIRMADO o EN_CAMINO): el tablero de entregas.
     public List<Pedido> listarEntregasEnCurso() {
         return em.createQuery(
-                "SELECT p FROM Pedido p WHERE p.estado IN :estados ORDER BY p.fechaActualizacion",
+                "SELECT p FROM Pedido p LEFT JOIN FETCH p.lineas WHERE p.estado IN :estados ORDER BY p.fechaActualizacion",
                 Pedido.class)
                 .setParameter("estados", List.of(EstadoPedido.CONFIRMADO, EstadoPedido.EN_CAMINO))
                 .getResultList();
@@ -169,7 +174,7 @@ public class PedidoRepository {
      */
     public List<PedidoExterno> listarTodosLosExternos() {
         return em.createQuery(
-                "SELECT pe FROM PedidoExterno pe ORDER BY pe.fechaPedido DESC", PedidoExterno.class)
+                "SELECT pe FROM PedidoExterno pe LEFT JOIN FETCH pe.lineas ORDER BY pe.fechaPedido DESC", PedidoExterno.class)
                 .getResultList();
     }
 }
