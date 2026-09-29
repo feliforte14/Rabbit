@@ -55,6 +55,7 @@ public class PortalComercioBean implements Serializable {
     private IGestionRepartidores repartidores;
 
     private List<PedidoDTO> pedidos;
+    private Map<Long, String> estadosCobro;
     private List<NotificacionDTO> avisos;
     private List<ItemInventarioDTO> items;
     private Map<Long, String> nombresDepositos;
@@ -65,9 +66,12 @@ public class PortalComercioBean implements Serializable {
         try {
             pedidos = seguimiento.listarPedidosDelComercioActual();
             avisos = notificaciones.listarDelComercioActual(AVISOS);
+            estadosCobro = cobros.listarCobrosDelComercioActual().stream()
+                    .collect(Collectors.toMap(CobroDTO::getIdPedido, CobroDTO::getEstado));
         } catch (ValidacionException e) {
             pedidos = List.of();
             avisos = List.of();
+            estadosCobro = Map.of();
             mensaje(e.getMessage());
         }
     }
@@ -96,8 +100,7 @@ public class PortalComercioBean implements Serializable {
     }
 
     public String estadoCobro(Long idPedido) {
-        CobroDTO cobro = cobros.obtenerCobroDePedido(idPedido);
-        return cobro != null ? cobro.estado : null;
+        return estadosCobro.get(idPedido);
     }
 
     public String nombreRepartidor(Long idRepartidor) {

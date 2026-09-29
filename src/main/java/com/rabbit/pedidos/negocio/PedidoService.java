@@ -380,7 +380,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         // se traducen a la de Pedidos para que la vista muestre el motivo.
         Long idRepartidor;
         try {
-            cobros.registrarCobro(idPedido, pedido.getImporte(), pedido.getMedioPago());
+            cobros.registrarCobro(idPedido, pedido.getIdComercio(), pedido.getImporte(), pedido.getMedioPago());
             idRepartidor = repartidores.asignarRepartidor(idPedido);
         } catch (com.rabbit.repartidores.negocio.ValidacionException
                  | com.rabbit.pagos.negocio.ValidacionException e) {
@@ -459,17 +459,21 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     // Devuelve el pedido como DTO (nunca expone la entidad directamente)
     @Override
+    // Pública a propósito: la usa el seguimiento sin login
+    // (/api/seguimiento/{id}), que solo expone el estado.
     public PedidoDTO consultarEstadoPedido(Long idPedido) {
         return PedidoDTO.desde(obtenerOFallar(idPedido));
     }
 
     // Devuelve todos los pedidos reales como DTO — usado por la vista de listado
     @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<PedidoDTO> listarTodos() {
         return repository.listarTodos().stream().map(PedidoDTO::desde).collect(Collectors.toList());
     }
 
     @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<PedidoDTO> listarEntregasEnCurso() {
         return repository.listarEntregasEnCurso().stream().map(PedidoDTO::desde).collect(Collectors.toList());
     }
@@ -502,6 +506,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     // Pedidos reales de un comercio puntual.
     @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<PedidoDTO> listarPedidosDeComercio(Long idComercio) {
         return repository.listarPedidosDeComercio(idComercio).stream()
                 .map(PedidoDTO::desde)
@@ -511,6 +516,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     // Todas las filas del mock del ERP (sincronizadas y pendientes) —
     // deja ver en la vista el "antes y después" de la sincronización.
     @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "ERP"})
     public PedidoExternoDTO consultarPedidoExterno(Long idPedidoExterno) {
         PedidoExterno externo = repository.buscarPedidoExternoPorId(idPedidoExterno);
         if (externo == null) {
@@ -520,6 +526,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     }
 
     @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<PedidoExternoDTO> listarPedidosExternos() {
         return repository.listarTodosLosExternos().stream()
                 .map(PedidoExternoDTO::desde)

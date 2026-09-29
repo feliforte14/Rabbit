@@ -17,4 +17,7 @@ public interface IConsultaCobros {
     CobroDTO obtenerCobroDePedido(Long idPedido);
 
     List<CobroDTO> listarTodos();
+
+    /** Cobros del comercio que representa el usuario que llama (rol COMERCIO). */
+    List<CobroDTO> listarCobrosDelComercioActual();
 }
