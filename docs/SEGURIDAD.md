@@ -140,17 +140,16 @@ El repositorio es público: ninguna credencial va en el código. Las de la
 base viven en el datasource de WildFly y las de management (para
 `mvn wildfly:deploy`) en `~/.m2/settings.xml` (README, paso 3).
 
-### Operación pública
+### Operaciones sin autenticación
 
-`GET /api/seguimiento/{idPedido}` (`SeguimientoResource`, `@PermitAll`)
-es la única operación sin autenticación: devuelve solo el estado del
-pedido, sin importes, cobros ni datos del comercio.
+- `GET /api/seguimiento/{idPedido}` (`SeguimientoResource`, `@PermitAll`),
+  a propósito: devuelve solo el estado del pedido, sin importes, cobros ni
+  datos del comercio.
+- El banco simulado (`BancoLegadoService`, SOAP): no es parte de Rabbit
+  sino el sistema externo simulado, pero se publica en el mismo WAR y sin
+  autenticación (ver Limitaciones conocidas).
 
-## Planificado
-
-| Operación | Rol | Motivo |
-|---|---|---|
-| Listado de cobros | `ADMINISTRADOR` | Información financiera |
+Además, el login y la página de error, que tienen que verse sin sesión.
 
 ## Limitaciones conocidas
 

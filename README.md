@@ -6,8 +6,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 
 ## Qué hace
 
-- **Comercios:** alta y gestión de comercios, sus productos y puntos de
-  picking.
+- **Comercios:** alta y gestión de comercios y sus puntos de picking. El
+  catálogo de productos está modelado (entidad `Producto`) pero todavía no
+  tiene servicio ni pantalla.
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
   comercios, y reservas de stock con vencimiento.
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio, su
@@ -75,6 +76,7 @@ El detalle y la justificación de cada decisión están en
 - [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP con el banco legado (con circuit breaker) y API REST.
 - [Mensajería asincrónica](docs/MENSAJERIA-ASINCRONICA.md): cola y tópico.
 - [Decisiones (ADRs)](docs/DECISIONES.md)
+- [Flujo de pruebas](docs/FLUJO-DE-PRUEBAS.md): recorrido manual de punta a punta, para verificar y para la demo.
 
 ## Cómo levantar el sistema
 
@@ -139,8 +141,7 @@ Si igual aparece `This connection has been closed` o
 el pool:
 `$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:flush-all-connection-in-pool"`.
 
-Si la base
-está en Supabase y responde `EAUTHQUERY ... connection to database not
+Si la base está en Supabase y responde `EAUTHQUERY ... connection to database not
 available`, el proyecto de Supabase está pausado: reactivarlo desde su
 dashboard.
 
@@ -156,18 +157,10 @@ consultas de metadata que Hibernate necesita al levantar el
 se comporta como una conexión normal y funciona sin este problema.
 
 `hibernate.hbm2ddl.auto=update` crea/actualiza las tablas solo al
-desplegar: no hace falta correr ningún script de esquema.
-
-**Excepción: valores nuevos en un enum.** Hibernate crea las columnas
-`@Enumerated(EnumType.STRING)` con un `CHECK` que enumera los valores
-válidos, y `update` no lo vuelve a generar cuando el enum crece. Si la
-tabla ya existía, al usar un valor nuevo (por ejemplo `EN_CAMINO` en
-`EstadoPedido`) el `UPDATE` falla por violación del check. Se resuelve
-una vez, borrando el check viejo desde el SQL Editor de Supabase:
-
-```sql
-ALTER TABLE pedidos DROP CONSTRAINT IF EXISTS pedidos_estado_check;
-```
+desplegar: no hace falta correr ningún script de esquema. Los `CHECK` de
+las columnas enum (que `update` no actualiza cuando un enum suma valores)
+los realinea solo `AlineadorDeRestriccionesEnum` en cada despliegue
+(ADR-008): tampoco hay que tocarlos a mano.
 
 ### 3. Usuario de management (una sola vez)
 
