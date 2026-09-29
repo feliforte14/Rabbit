@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Contrato del banco legado. Es el mismo WSDL que publica el banco
+    simulado en Java (BancoLegadoService, dentro de Rabbit): Rabbit lo
+    consume igual sin importar en qué tecnología esté implementado.
+-->
+<wsdl:definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://rabbit.example/legado/banco" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" name="BancoLegadoService" targetNamespace="http://rabbit.example/legado/banco">
+  <wsdl:types>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://rabbit.example/legado/banco" attributeFormDefault="unqualified" elementFormDefault="unqualified" targetNamespace="http://rabbit.example/legado/banco" version="1.0">
+  <xs:element name="autorizarPago" type="tns:autorizarPago"/>
+  <xs:element name="autorizarPagoResponse" type="tns:autorizarPagoResponse"/>
+  <xs:element name="reversarPago" type="tns:reversarPago"/>
+  <xs:element name="reversarPagoResponse" type="tns:reversarPagoResponse"/>
+  <xs:complexType name="autorizarPago">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="referencia" type="xs:string"/>
+      <xs:element minOccurs="0" name="importe" type="xs:decimal"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="autorizarPagoResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="codigoAutorizacion" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="pagoRechazadoFaultInfo">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="motivo" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="reversarPago">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="codigoAutorizacion" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="reversarPagoResponse">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:element name="PagoRechazado" nillable="true" type="tns:pagoRechazadoFaultInfo"/>
+</xs:schema>
+  </wsdl:types>
+  <wsdl:message name="reversarPagoResponse">
+    <wsdl:part element="tns:reversarPagoResponse" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="autorizarPago">
+    <wsdl:part element="tns:autorizarPago" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="PagoRechazadoException">
+    <wsdl:part element="tns:PagoRechazado" name="PagoRechazadoException">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="autorizarPagoResponse">
+    <wsdl:part element="tns:autorizarPagoResponse" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="reversarPago">
+    <wsdl:part element="tns:reversarPago" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:portType name="BancoLegadoPortType">
+    <wsdl:operation name="autorizarPago">
+      <wsdl:input message="tns:autorizarPago" name="autorizarPago">
+    </wsdl:input>
+      <wsdl:output message="tns:autorizarPagoResponse" name="autorizarPagoResponse">
+    </wsdl:output>
+      <wsdl:fault message="tns:PagoRechazadoException" name="PagoRechazadoException">
+    </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="reversarPago">
+      <wsdl:input message="tns:reversarPago" name="reversarPago">
+    </wsdl:input>
+      <wsdl:output message="tns:reversarPagoResponse" name="reversarPagoResponse">
+    </wsdl:output>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="BancoLegadoServiceSoapBinding" type="tns:BancoLegadoPortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="autorizarPago">
+      <soap:operation soapAction="" style="document"/>
+      <wsdl:input name="autorizarPago">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="autorizarPagoResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="PagoRechazadoException">
+        <soap:fault name="PagoRechazadoException" use="literal"/>
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="reversarPago">
+      <soap:operation soapAction="" style="document"/>
+      <wsdl:input name="reversarPago">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="reversarPagoResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="BancoLegadoService">
+    <wsdl:port binding="tns:BancoLegadoServiceSoapBinding" name="BancoLegadoPort">
+      <soap:address location="http://localhost:8090/BancoLegadoService"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

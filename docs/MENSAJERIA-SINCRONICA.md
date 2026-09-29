@@ -20,7 +20,8 @@ errores de negocio tipados (`soap:Fault`).
 | Clase | Rol |
 |---|---|
 | `BancoLegadoService` | Contrato (SEI): `autorizarPago`, `reversarPago` |
-| `BancoLegadoServiceImpl` | Banco simulado, publicado en el mismo WAR |
+| `BancoLegadoServiceImpl` | Banco simulado, publicado en el mismo WAR (el de por defecto) |
+| `banco-legado/server.js` | El mismo banco en Node.js, como servicio aparte (heterogeneidad tecnológica, ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica)) |
 | `PagoRechazadoException` + `PagoRechazadoFaultInfo` | Fault de negocio con el motivo del rechazo |
 | `IBancoClient` | Lo único que conoce `PagoService` |
 | `BancoClient` | Adapter: cliente JAX-WS (proxy dinámico con `Service.getPort`, sin wsimport), timeout de 5 s |

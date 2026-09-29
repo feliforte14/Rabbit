@@ -25,7 +25,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 Jakarta EE 10 sobre WildFly (perfil `standalone-full`), Java 17, JSF +
 Facelets, EJB, JPA/Hibernate, PostgreSQL (Supabase), JMS (ActiveMQ
 Artemis embebido), JAX-WS (SOAP), JAX-RS (REST), Jakarta Security,
-Maven (WAR).
+Maven (WAR). El banco legado también está implementado en Node.js
+([`banco-legado/`](banco-legado/README.md)), como servicio aparte con el
+mismo contrato SOAP.
 
 ## Estructura
 
