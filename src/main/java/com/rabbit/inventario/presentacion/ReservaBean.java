@@ -23,6 +23,7 @@ package com.rabbit.inventario.presentacion;
  * publica los mensajes que devuelve.
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.inventario.dto.DepositoDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
 import com.rabbit.inventario.dto.ReservaStockDTO;
@@ -34,7 +35,6 @@ import com.rabbit.comercios.negocio.IConsultaComercios;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.SessionScoped;
-import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -148,11 +148,11 @@ public class ReservaBean implements Serializable {
     public void reservar() {
         try {
             ReservaStockDTO reserva = reservas.reservarStock(idComercio, idItem, cantidad);
-            mensaje(FacesMessage.SEVERITY_INFO, "Reservaste " + reserva.getCantidad()
+            Mensajes.info("Reservaste " + reserva.getCantidad()
                     + " x " + reserva.getProducto() + ". Vence a las " + reserva.getFechaExpiracion() + ".");
             refrescarItems();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -160,10 +160,10 @@ public class ReservaBean implements Serializable {
     public void confirmar() {
         try {
             reservas.confirmarReserva();
-            mensaje(FacesMessage.SEVERITY_INFO, "Reserva confirmada: el stock se descontó del depósito.");
+            Mensajes.info("Reserva confirmada: el stock se descontó del depósito.");
             refrescarItems();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -171,10 +171,10 @@ public class ReservaBean implements Serializable {
     public void liberar() {
         try {
             reservas.liberarReserva();
-            mensaje(FacesMessage.SEVERITY_INFO, "Reserva liberada: el stock volvió a estar libre.");
+            Mensajes.info("Reserva liberada: el stock volvió a estar libre.");
             refrescarItems();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -183,10 +183,10 @@ public class ReservaBean implements Serializable {
         try {
             reservas.extenderReserva();
             ReservaStockDTO r = reservas.obtenerReservaActual();
-            mensaje(FacesMessage.SEVERITY_INFO, "Reserva extendida. Nuevo vencimiento: "
+            Mensajes.info("Reserva extendida. Nuevo vencimiento: "
                     + (r != null ? r.getFechaExpiracion() : "-"));
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -198,12 +198,6 @@ public class ReservaBean implements Serializable {
     // Controla si se muestra el panel "Reserva en curso" en reservas.xhtml.
     public boolean isHayReserva() {
         return reservas.obtenerReservaActual() != null;
-    }
-
-    // Helper para publicar un FacesMessage global (sin componente asociado)
-    // — lo consume <h:messages> en reservas.xhtml.
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     public List<ComercioDTO> getListaComercios() { return listaComercios; }

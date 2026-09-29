@@ -60,6 +60,39 @@ public class EtiquetasBean {
         }
     }
 
+    public String estadoReserva(Object estado) {
+        switch (texto(estado)) {
+            case "VIGENTE": return "Vigente";
+            case "CONFIRMADA": return "Confirmada";
+            case "LIBERADA": return "Liberada";
+            case "EXPIRADA": return "Expirada";
+            case "DEVUELTA": return "Devuelta";
+            default: return "—";
+        }
+    }
+
+    // Las reservas tienen su propia paleta (.estado-*, ver estilos.css).
+    public String claseEstadoReserva(Object estado) {
+        switch (texto(estado)) {
+            case "VIGENTE": return "estado-vigente";
+            case "CONFIRMADA": return "estado-confirmada";
+            case "LIBERADA": return "estado-liberada";
+            case "EXPIRADA": return "estado-expirada";
+            case "DEVUELTA": return "estado-devuelta";
+            default: return "";
+        }
+    }
+
+    // Cómo terminó un pedido que llegó del ERP (ver PedidoExternoDTO.resultado).
+    public String claseResultadoErp(Object resultado) {
+        switch (texto(resultado)) {
+            case "Sincronizado": return "badge badge-verde";
+            case "Descartado": return "badge badge-rojo";
+            case "Pendiente": return "badge badge-naranja";
+            default: return "";
+        }
+    }
+
     public String estadoRepartidor(Object estado) {
         switch (texto(estado)) {
             case "DISPONIBLE": return "Disponible";

@@ -14,6 +14,7 @@ package com.rabbit.inventario.presentacion;
  * DE un comercio y ahí el filtrado sí es obligatorio.
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.dto.DatosItemInventarioDTO;
@@ -22,8 +23,6 @@ import com.rabbit.inventario.dto.ItemInventarioDTO;
 import com.rabbit.inventario.negocio.IConsultaStock;
 import com.rabbit.inventario.negocio.ValidacionException;
 
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -67,13 +66,13 @@ public class ItemInventarioBean implements Serializable {
         listaComercios = List.of();
         nombresComercio = new HashMap<>();
         if (idDeposito == null) {
-            mensaje(FacesMessage.SEVERITY_ERROR, "Elegí un depósito desde el listado de depósitos");
+            Mensajes.error("Elegí un depósito desde el listado de depósitos");
             return;
         }
         try {
             deposito = service.obtenerDeposito(idDeposito);
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
             return;
         }
         listaComercios = comercios.listarTodos();
@@ -109,18 +108,12 @@ public class ItemInventarioBean implements Serializable {
     public void registrar() {
         try {
             service.registrarItem(idDeposito, nuevoItem);
-            mensaje(FacesMessage.SEVERITY_INFO, "Stock cargado correctamente");
+            Mensajes.info("Stock cargado correctamente");
             nuevoItem = new DatosItemInventarioDTO();
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
-    }
-
-    // Helper para publicar un FacesMessage global (sin componente asociado)
-    // — lo consume <h:messages> en items.xhtml.
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF),

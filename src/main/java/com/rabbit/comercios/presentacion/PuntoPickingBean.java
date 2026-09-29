@@ -16,6 +16,7 @@ package com.rabbit.comercios.presentacion;
  * de su identidad; ComercioService además lo vuelve a controlar).
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.dto.DatosPuntoPickingDTO;
 import com.rabbit.comercios.dto.PuntoPickingDTO;
@@ -25,8 +26,6 @@ import com.rabbit.comercios.negocio.ValidacionException;
 
 import com.rabbit.seguridad.negocio.IContextoUsuario;
 import com.rabbit.seguridad.presentacion.SesionBean;
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -68,13 +67,13 @@ public class PuntoPickingBean implements Serializable {
                 idComercio = contextoUsuario.idComercioActual();
             }
             if (idComercio == null) {
-                mensaje(FacesMessage.SEVERITY_ERROR, "Elegí un comercio desde el listado de comercios");
+                Mensajes.error("Elegí un comercio desde el listado de comercios");
                 return;
             }
             comercio = consulta.obtenerComercio(idComercio);
             puntosPicking = consulta.listarPuntosPickingDeComercio(idComercio);
         } catch (ValidacionException | com.rabbit.seguridad.negocio.ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -83,11 +82,11 @@ public class PuntoPickingBean implements Serializable {
     public void registrar() {
         try {
             registro.registrarPuntoPicking(idComercio, nuevoPuntoPicking);
-            mensaje(FacesMessage.SEVERITY_INFO, "Punto de picking registrado correctamente");
+            Mensajes.info("Punto de picking registrado correctamente");
             nuevoPuntoPicking = new DatosPuntoPickingDTO();
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -95,10 +94,10 @@ public class PuntoPickingBean implements Serializable {
     public void darDeBaja(Long id) {
         try {
             registro.darDeBajaPuntoPicking(id);
-            mensaje(FacesMessage.SEVERITY_INFO, "Punto de picking dado de baja");
+            Mensajes.info("Punto de picking dado de baja");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -107,17 +106,11 @@ public class PuntoPickingBean implements Serializable {
     public void reactivar(Long id) {
         try {
             registro.reactivarPuntoPicking(id);
-            mensaje(FacesMessage.SEVERITY_INFO, "Punto de picking reactivado");
+            Mensajes.info("Punto de picking reactivado");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
-    }
-
-    // Helper para publicar un FacesMessage global (sin componente asociado)
-    // — lo consume <h:messages globalOnly="true"> en puntos-picking.xhtml.
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF),

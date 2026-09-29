@@ -10,6 +10,7 @@ package com.rabbit.comercios.presentacion;
  * datos de otro aunque manipule la página.
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.inventario.dto.DepositoDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
 import com.rabbit.inventario.negocio.IConsultaStock;
@@ -22,8 +23,6 @@ import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.repartidores.dto.RepartidorDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.seguridad.negocio.ValidacionException;
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -72,7 +71,7 @@ public class PortalComercioBean implements Serializable {
             pedidos = List.of();
             avisos = List.of();
             estadosCobro = Map.of();
-            mensaje(e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -81,7 +80,7 @@ public class PortalComercioBean implements Serializable {
             items = stock.listarStockDelComercioActual();
         } catch (ValidacionException e) {
             items = List.of();
-            mensaje(e.getMessage());
+            Mensajes.error(e.getMessage());
         }
         nombresDepositos = stock.listarDepositos().stream()
                 .collect(Collectors.toMap(DepositoDTO::getId, DepositoDTO::getNombre));
@@ -110,10 +109,6 @@ public class PortalComercioBean implements Serializable {
 
     public String nombreDeposito(Long idDeposito) {
         return nombresDepositos.getOrDefault(idDeposito, "Depósito " + idDeposito);
-    }
-
-    private void mensaje(String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(FacesMessage.SEVERITY_ERROR, texto, null));
     }
 
     public List<PedidoDTO> getPedidos() { return pedidos; }

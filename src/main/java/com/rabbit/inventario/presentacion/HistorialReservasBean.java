@@ -99,24 +99,6 @@ public class HistorialReservasBean implements Serializable {
     }
 
     /**
-     * Clase CSS por estado, para que el desenlace se lea de un vistazo en
-     * la tabla en vez de tener que leer palabra por palabra.
-     */
-    public String claseEstado(String estado) {
-        if (estado == null) {
-            return "";
-        }
-        switch (estado) {
-            case "VIGENTE":    return "estado-vigente";
-            case "CONFIRMADA": return "estado-confirmada";
-            case "LIBERADA":   return "estado-liberada";
-            case "EXPIRADA":   return "estado-expirada";
-            case "DEVUELTA":   return "estado-devuelta";
-            default:           return "";
-        }
-    }
-
-    /**
      * Texto de la columna "Cerrada".
      *
      * fechaCierre en null significa dos cosas distintas y no hay que

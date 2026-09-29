@@ -10,14 +10,13 @@ package com.rabbit.ruteo.presentacion;
  * pedidos de otro.
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
 import com.rabbit.pedidos.negocio.ValidacionException;
 import com.rabbit.ruteo.dto.HojaDeRutaDTO;
 import com.rabbit.ruteo.negocio.IRuteo;
 import jakarta.annotation.PostConstruct;
 import jakarta.ejb.EJBException;
-import jakarta.faces.application.FacesMessage;
-import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -46,7 +45,7 @@ public class MisEntregasBean implements Serializable {
             // Cuenta REPARTIDOR sin repartidor asociado.
             entregaActual = null;
             historial = List.of();
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         }
     }
 
@@ -66,17 +65,13 @@ public class MisEntregasBean implements Serializable {
         }
         try {
             accion.run();
-            mensaje(FacesMessage.SEVERITY_INFO, exito);
+            Mensajes.info(exito);
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         } catch (EJBException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, "No se pudo registrar el cambio. Intentá de nuevo.");
+            Mensajes.error("No se pudo registrar el cambio. Intentá de nuevo.");
         }
-    }
-
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     public HojaDeRutaDTO getEntregaActual() { return entregaActual; }

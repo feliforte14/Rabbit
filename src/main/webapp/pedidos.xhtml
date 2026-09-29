@@ -151,8 +151,7 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Resultado</f:facet>
-                    <h:outputText value="#{pe.resultado}"
-                                  styleClass="badge #{pe.resultado == 'Sincronizado' ? 'badge-verde' : (pe.resultado == 'Descartado' ? 'badge-rojo' : 'badge-naranja')}" />
+                    <h:outputText value="#{pe.resultado}" styleClass="#{etiquetas.claseResultadoErp(pe.resultado)}" />
                 </h:column>
                 <h:column>
                     <f:facet name="header">Pedido</f:facet>

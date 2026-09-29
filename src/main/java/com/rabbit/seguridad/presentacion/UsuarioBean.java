@@ -11,6 +11,7 @@ package com.rabbit.seguridad.presentacion;
  * @RolesAllowed; el guardián de la página solo evita mostrarla.
  */
 
+import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.repartidores.dto.RepartidorDTO;
@@ -23,7 +24,6 @@ import com.rabbit.seguridad.negocio.ValidacionException;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.ejb.EJBAccessException;
-import jakarta.faces.application.FacesMessage;
 import jakarta.faces.context.FacesContext;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
@@ -71,14 +71,14 @@ public class UsuarioBean implements Serializable {
     public void registrar() {
         try {
             registro.registrarUsuario(nuevoUsuario);
-            mensaje(FacesMessage.SEVERITY_INFO, "Usuario registrado correctamente");
+            Mensajes.info("Usuario registrado correctamente");
             nuevoUsuario = nuevoUsuarioVacio();
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         } catch (EJBAccessException e) {
             // @RolesAllowed("ADMINISTRADOR") en UsuarioService.registrarUsuario.
-            mensaje(FacesMessage.SEVERITY_ERROR, "Solo un administrador puede registrar usuarios.");
+            Mensajes.error("Solo un administrador puede registrar usuarios.");
         }
     }
 
@@ -86,21 +86,14 @@ public class UsuarioBean implements Serializable {
     public void darDeBaja(Long id) {
         try {
             registro.darDeBaja(id);
-            mensaje(FacesMessage.SEVERITY_INFO, "Usuario dado de baja");
+            Mensajes.info("Usuario dado de baja");
             cargar();
         } catch (ValidacionException e) {
-            mensaje(FacesMessage.SEVERITY_ERROR, e.getMessage());
+            Mensajes.error(e.getMessage());
         } catch (EJBAccessException e) {
             // @RolesAllowed("ADMINISTRADOR") en UsuarioService.darDeBaja.
-            mensaje(FacesMessage.SEVERITY_ERROR,
-                    "No tenés permisos para dar de baja usuarios. Iniciá sesión como administrador.");
+            Mensajes.error("No tenés permisos para dar de baja usuarios. Iniciá sesión como administrador.");
         }
-    }
-
-    // Helper para publicar un FacesMessage global (sin componente asociado)
-    // — lo consume <h:messages> en usuarios.xhtml.
-    private void mensaje(FacesMessage.Severity severidad, String texto) {
-        FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
