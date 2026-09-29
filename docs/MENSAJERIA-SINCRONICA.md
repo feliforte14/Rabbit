@@ -140,6 +140,11 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.banc
 
 En el log se ven las transiciones con el prefijo `[Pagos][Circuito]`.
 
+Con el banco en Node.js (`banco-legado/`), la caída se prende con
+`curl -X POST "http://localhost:8090/admin/caida?activa=true"` y el
+circuito se comporta igual (probado: 5,2 s tres veces y 0,3 s la cuarta).
+Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica).
+
 ### Limitaciones conocidas
 
 - Si el banco cobró pero la respuesta se perdió por timeout, ese cobro

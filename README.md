@@ -77,6 +77,7 @@ El detalle y la justificación de cada decisión están en
 - [Mensajería asincrónica](docs/MENSAJERIA-ASINCRONICA.md): cola y tópico.
 - [Decisiones (ADRs)](docs/DECISIONES.md)
 - [Flujo de pruebas](docs/FLUJO-DE-PRUEBAS.md): recorrido manual de punta a punta, para verificar y para la demo.
+- [Desafíos opcionales](docs/DESAFIOS-OPCIONALES.md): resiliencia, escalabilidad medida, ADRs con alternativas y heterogeneidad tecnológica (banco en Node.js).
 
 ## Cómo levantar el sistema
 
