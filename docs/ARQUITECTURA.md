@@ -27,7 +27,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Componente | Estado | Interfaces | Tipo de EJB | Por qué ese tipo |
 |---|---|---|---|---|
 | Comercios | Implementado | `IRegistroComercios`, `IConsultaComercios` | `@Stateless` | Cada operación recibe todo lo que necesita; el estado vive en la base |
-| Inventario | Implementado | `IConsultaStock` (`@Stateless`), `IReservaStock` | `@Stateful` | La reserva es una conversación: `reservarStock` y `confirmarReserva` operan sobre la misma instancia |
+| Inventario | Implementado | `IConsultaStock`, `IReservaStock` | `@Stateful` (un solo EJB, `InventarioService`, implementa las dos) | La reserva es una conversación: `reservarStock` y `confirmarReserva` operan sobre la misma instancia |
 | Pedidos | Implementado | `IGestionPedidos`, `ISeguimientoPedido` | `@Stateless` (Facade) | El estado del pedido vive en la base; ninguna operación depende de una llamada anterior |
 | Seguridad | Implementado | `IRegistroUsuarios`, `IConsultaUsuarios`, `IContextoUsuario` | `@Stateless` | Idem Comercios |
 | Integración banco legado | Implementado | `IBancoClient` | `@Stateless` + `@Singleton` (`CircuitBreakerBanco`) | Cliente SOAP sin estado de conversación; el estado del circuit breaker es uno solo, compartido por todas las llamadas |
@@ -42,7 +42,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Componente | Interfaz | Operaciones | Quién la usa |
 |---|---|---|---|
 | Comercios | `IRegistroComercios` | `registrarComercio`, `actualizarDatosFiscales`, `darDeBajaComercio`, `reactivarComercio`, `eliminarComercio`, `registrarPuntoPicking`, `darDeBajaPuntoPicking`, `reactivarPuntoPicking` | `ComercioBean`, `PuntoPickingBean` |
-| Comercios | `IConsultaComercios` | `obtenerComercio`, `listarTodos`, `listarPuntosPicking`, `listarPuntosPickingDeComercio`, `validarComercioActivo` | Vistas, Inventario, Pedidos |
+| Comercios | `IConsultaComercios` | `obtenerComercio`, `listarTodos`, `listarPuntosPicking`, `listarPuntosPickingDeComercio`, `validarComercioActivo` | Vistas, Inventario, Pedidos, Ruteo, Seguridad (`UsuarioService`, `SesionBean`) |
 | Inventario | `IConsultaStock` | `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `listarItemsPorDeposito` / `PorComercio` / `PorComercioYDeposito`, `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas` | `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Ruteo |
 | Inventario | `IReservaStock` | `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion` | `ReservaBean`, Pedidos |
 | Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `despacharPedido`, `registrarEntrega`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, MDB, timer |
@@ -52,7 +52,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Seguridad | `IContextoUsuario` | `idComercioActual`, `idRepartidorActual` | Pedidos, Inventario, Comercios, Notificaciones, `SesionBean` |
 | Ruteo | `IRuteo` | `listarEntregasEnCurso`, `entregaActualDelRepartidor`, `historialDelRepartidor` | `EntregasBean`, `MisEntregasBean` |
 | Pagos | `IRegistroCobros` | `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`) | Pedidos, `SuscriptorPagosEstadoPedido` |
-| Pagos | `IConsultaCobros` | `obtenerCobroDePedido`, `listarTodos` | `PedidoBean` |
+| Pagos | `IConsultaCobros` | `obtenerCobroDePedido`, `listarTodos`, `listarCobrosDelComercioActual` | `PedidoBean`, `PortalComercioBean` |
 | Repartidores | `IAsignacionRepartidores` | `asignarRepartidor`, `liberarRepartidor` | Pedidos |
 | Repartidores | `IGestionRepartidores` | `registrarRepartidor`, `listarTodos`, `obtenerRepartidor` | `RepartidorBean`, `PedidoBean`, Ruteo, Seguridad |
 | Notificaciones | `INotificaciones` | `avisarCambioDeEstado`, `listarRecientes`, `listarDelComercioActual` | `SuscriptorNotificacionesEstadoPedido`, `PedidoBean`, `PortalComercioBean` |
@@ -72,8 +72,11 @@ Otros detalles de cada componente:
   instancia de `IReservaStock`; con `PUNTO_PICKING` solo se valida que el
   punto de picking esté activo. Al cancelar, solo se devuelve el stock de
   las líneas con `idReservaStock`.
-- **Seguridad:** `LoginBean` y `SesionBean` no pasan por una interfaz de
-  negocio: hablan directo con el `SecurityContext` de WildFly.
+- **Seguridad:** `LoginBean` y `SesionBean` toman el usuario y sus roles
+  del `SecurityContext` de WildFly. `SesionBean` además usa
+  `IContextoUsuario` para saber a qué comercio o repartidor representa la
+  cuenta (lo muestra en el menú). `IContextoUsuario` es la pieza que usan
+  los demás componentes para filtrar por dueño.
 - **Pagos:** PREPAGO se cobra por SOAP en el banco legado al confirmar
   (rechaza por encima de $500.000); si la confirmación falla después, se
   pide la reversa al banco;
@@ -110,11 +113,26 @@ flowchart LR
         Ruteo -->|IConsultaComercios| Comercios
         Ruteo -->|IConsultaStock| Inventario
         Ruteo -->|IGestionRepartidores| Repartidores
+        Pedidos -->|IContextoUsuario| Seguridad
+        Inventario -->|IContextoUsuario| Seguridad
+        Pagos -->|IContextoUsuario| Seguridad
+        Notificaciones -->|IContextoUsuario| Seguridad
+        Comercios -->|IContextoUsuario| Seguridad
+        Seguridad -->|IConsultaComercios| Comercios
+        Seguridad -->|IGestionRepartidores| Repartidores
+        Comercios -. EliminacionDeComercio .-> Pedidos
+        Comercios -. EliminacionDeComercio .-> Inventario
+        Comercios -. EliminacionDeComercio .-> Seguridad
     end
     Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
     ERP[ERP del comercio] -->|REST /api/pedidos-externos| Pedidos
     Cliente[Cliente final] -->|REST /api/seguimiento| Pedidos
 ```
+
+Las flechas punteadas son eventos, no llamadas: el tópico JMS entre
+Pedidos y sus suscriptores, y el evento CDI `EliminacionDeComercio`, con el
+que Comercios pregunta si algo todavía referencia al comercio sin depender
+de los componentes que ya dependen de él.
 
 ## Vistas por tipo de usuario
 

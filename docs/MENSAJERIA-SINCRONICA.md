@@ -117,6 +117,13 @@ reversas pasan por el mismo circuito: con el circuito abierto no se
 intentan y quedan logueadas para devolverlas a mano, igual que si el
 banco no respondiera.
 
+Cada llamada lleva un ticket con la "generación" del circuito en la que
+empezó, y el resultado de una llamada vieja se ignora. Sin eso, una
+llamada lenta lanzada con el circuito CERRADO que termina bien mientras
+está SEMIABIERTO lo cerraría antes de que responda la llamada de prueba.
+El `@Singleton` con `@Lock(WRITE)` evita que dos hilos cambien el estado a
+la vez; el ticket evita que un resultado viejo lo cambie tarde.
+
 Umbral y espera se configuran con las system properties
 `rabbit.banco.cb.umbral` (3) y `rabbit.banco.cb.espera.ms` (30000).
 

@@ -68,7 +68,7 @@ Propuesta o Reemplazada.
 
 ## ADR-006: Tópico para los cambios de estado del pedido
 
-- **Estado:** Aceptada (implementada).
+- **Estado:** Aceptada.
 - **Contexto:** Notificaciones y Pagos necesitan enterarse de los cambios
   de estado, cada uno por su motivo.
 - **Decisión:** tópico `topico.pedidos.estado` con el formato de
@@ -79,7 +79,7 @@ Propuesta o Reemplazada.
 
 ## ADR-007: Endpoint REST de entrada reemplaza al formulario del ERP
 
-- **Estado:** Aceptada (implementada). El partner se autentica con HTTP
+- **Estado:** Aceptada. El partner se autentica con HTTP
   Basic y rol `ERP`; el formulario queda para la demo.
 - **Contexto:** el formulario JSF no marca una frontera real entre el ERP
   y Rabbit.

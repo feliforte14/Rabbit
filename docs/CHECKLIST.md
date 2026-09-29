@@ -7,7 +7,7 @@ rápido en la defensa.
 |---|---|---|
 | Mínimo 6 componentes de negocio con interfaz explícita y documentada | Cumple (9 implementados) | Comercios, Inventario, Pedidos, Pagos y Cobranzas, Repartidores, Notificaciones, Seguridad, Ruteo (mínimo) e Integración con el banco legado. Interfaces en [ARQUITECTURA.md](ARQUITECTURA.md). Transportistas queda identificado en el diseño, sin implementar |
 | Al menos 1 componente stateful y 1 stateless, justificados | Cumple | `InventarioService` (`@Stateful`, la reserva es una conversación) y el resto `@Stateless`; `@PostConstruct` / `@PreDestroy` como evidencia del ciclo de vida. Ver [ARQUITECTURA.md](ARQUITECTURA.md) |
-| Arquitectura en capas en cada componente | Cumple | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada paquete |
+| Arquitectura en capas en cada componente | Cumple | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente de negocio. Ruteo no tiene `datos/` a propósito: no guarda nada, arma la hoja de ruta con los datos de otros componentes. La integración con el banco (`integracion.banco`) es un adaptador técnico, no un componente de negocio |
 | Al menos 3 patrones de diseño, aplicados y justificados | Cumple | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, máquina de estados, transacción compensatoria, Circuit Breaker. Ver [PATRONES.md](PATRONES.md) |
 | Integración síncrona SOAP con WSDL, con un sistema legado | Cumple | Banco legado: `BancoLegadoService` (`/Rabbit/BancoLegadoService?wsdl`). Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Integración síncrona REST, partner moderno o API de consumo externo | Cumple | `POST /api/pedidos-externos` (ERP) y `GET /api/seguimiento/{id}` (público). Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |

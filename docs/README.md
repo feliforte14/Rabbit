@@ -14,6 +14,7 @@ clases donde vive) de lo **planificado** para la Entrega Obligatoria N.º 2
 | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) | Cola JMS de pedidos externos y tópico de estados del pedido |
 | [DECISIONES.md](DECISIONES.md) | Registro de decisiones de arquitectura (ADRs) |
 | [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) | Desafíos opcionales: resiliencia, escalabilidad, ADRs desarrollados con sus alternativas y heterogeneidad tecnológica |
+| [FLUJO-DE-PRUEBAS.md](FLUJO-DE-PRUEBAS.md) | Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo |
 | [CHECKLIST.md](CHECKLIST.md) | Dónde se cumple cada requisito obligatorio de la consigna (Sección 6) |
 | [USO-DE-IA.md](USO-DE-IA.md) | Declaración de uso de IA generativa (obligatoria por consigna) |
 
