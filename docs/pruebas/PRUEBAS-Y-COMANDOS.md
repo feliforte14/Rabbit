@@ -157,15 +157,9 @@ base vacía, el recorrido completo lleva alrededor de una hora.
 
 **Estado de partida.** La base se limpió el 29/09/2026: no hay
 comercios, depósitos, repartidores, pedidos, transportistas, zonas ni
-cuentas en la tabla `usuarios`. Solo existen las dos cuentas del realm de
-WildFly:
-
-| Cuenta | Rol | Dónde vive | Para qué |
-|---|---|---|---|
-| `claude-cb-admin` | `ADMINISTRADOR` | Realm de WildFly | Todo el bloque del personal |
-| `claude-cb-erp` | `ERP` | Realm de WildFly | La API REST |
-
-Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
+cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
+(`ADMINISTRADOR`, en el realm de WildFly). `demo.comercio`,
+`demo.repartidor` y `demo.erp` se crean en el bloque A.
 
 ### A. Arranque y datos base (como `claude-cb-admin`)
 
@@ -184,13 +178,20 @@ Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
 - [ ] **A7. Validaciones de alta.** Un CUIT mal formado, un usuario
   repetido y un repartidor que ya tiene cuenta se rechazan con un mensaje
   claro.
+- [ ] **A8. Cuenta del ERP.** Es una cuenta de sistema, solo para la API:
+  no se crea desde la app sino en WildFly (pide la contraseña dos veces y
+  no hace falta reiniciar):
+
+  ```bash
+  $WILDFLY_HOME/bin/add-user.sh -a -u demo.erp -g ERP
+  ```
 
 ### B. Pedidos del ERP: REST + cola punto a punto
 
 - [ ] **B1. Alta por la API.** Con los IDs de A2 y A4:
 
   ```bash
-  curl -i -u claude-cb-erp:<contraseña> -X POST \
+  curl -i -u demo.erp:<contraseña> -X POST \
     http://localhost:8080/Rabbit/api/pedidos-externos \
     -H "Content-Type: application/json" \
     -d '{"idComercio":<id>,"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":<id>,"cantidad":1}],
@@ -200,7 +201,7 @@ Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
 
   Responde `201` con `idPedidoExterno` y `Location`.
 - [ ] **B2. Sincronización por la cola.**
-  `curl -u claude-cb-erp:<contraseña> http://localhost:8080/Rabbit/api/pedidos-externos/<idPedidoExterno>`
+  `curl -u demo.erp:<contraseña> http://localhost:8080/Rabbit/api/pedidos-externos/<idPedidoExterno>`
   → pasa de `Pendiente` a `Sincronizado` con el `idPedido`. En el log:
   `[Pedidos][JMS] Pedido externo N sincronizado en tiempo real`.
 - [ ] **B3. Rechazos de la API.** Sin `direccionEntrega` → `400`; con
@@ -320,7 +321,7 @@ Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
 - [ ] **I2. Escalabilidad.** Con un comercio y un punto de picking activos:
 
   ```bash
-  export RABBIT_ERP_USUARIO=claude-cb-erp RABBIT_ERP_CLAVE=<contraseña>
+  export RABBIT_ERP_USUARIO=demo.erp RABBIT_ERP_CLAVE=<contraseña>
   export RABBIT_ID_COMERCIO=<id> RABBIT_ID_PUNTO=<id>
   python3 scripts/prueba_escalabilidad.py 1 4 8 --pedidos 100
   ```
@@ -340,7 +341,7 @@ Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
 - [ ] **S3. Datos ajenos.** Como `demo.comercio`, pegar
   `comercio/puntos-picking.xhtml?idComercio=<otro id>` → el parámetro se
   ignora y ve solo los suyos.
-- [ ] **S4. ERP sin web.** Entrar a la web con `claude-cb-erp` → el login
+- [ ] **S4. ERP sin web.** Entrar a la web con `demo.erp` → el login
   lo rechaza ("no tiene acceso a la aplicación web").
 - [ ] **S5. Cuenta sin asociar.** Ya no se puede reproducir desde la app:
   eliminar un comercio que tiene cuentas se rechaza (S8), así que una
