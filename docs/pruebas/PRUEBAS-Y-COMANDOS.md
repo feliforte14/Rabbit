@@ -13,7 +13,7 @@ Todos los comandos asumen:
 
 ```bash
 export WILDFLY_HOME=~/wildfly
-CLI="$WILDFLY_HOME/bin/jboss-cli.sh --connect"
+cli() { "$WILDFLY_HOME/bin/jboss-cli.sh" --connect "$@"; }
 ```
 
 ---
@@ -37,10 +37,10 @@ simulados viven dentro de WildFly: se prenden y se apagan con él.
 |---|---|
 | Prender (en esta terminal; se apaga con Ctrl+C) | `$WILDFLY_HOME/bin/standalone.sh -c standalone-full.xml` |
 | Prender en segundo plano | `nohup $WILDFLY_HOME/bin/standalone.sh -c standalone-full.xml > ~/wildfly-consola.log 2>&1 &` |
-| ¿Está prendido? | `$CLI --command=":read-attribute(name=server-state)"` → `"running"` |
-| Apagar | `$CLI --command=":shutdown"` |
-| Reiniciar el proceso | `$CLI --command=":shutdown(restart=true)"` |
-| Recargar la configuración (sin reiniciar el proceso) | `$CLI --command=":reload"` |
+| ¿Está prendido? | `cli --command=":read-attribute(name=server-state)"` → `"running"` |
+| Apagar | `cli --command=":shutdown"` |
+| Reiniciar el proceso | `cli --command=":shutdown(restart=true)"` |
+| Recargar la configuración (sin reiniciar el proceso) | `cli --command=":reload"` |
 | Ver el log en vivo | `tail -f $WILDFLY_HOME/standalone/log/server.log` |
 
 Siempre con **`standalone-full.xml`**: con el perfil por defecto no hay
@@ -64,8 +64,8 @@ Desde la raíz del repositorio:
 |---|---|
 | Compilar y desplegar (o redesplegar) | `mvn -q clean package wildfly:deploy` |
 | Quitar el despliegue | `mvn -q wildfly:undeploy` |
-| ¿Está desplegada? | `$CLI --command="deployment-info --name=Rabbit.war"` → `OK` |
-| Redesplegar el WAR ya subido (tras cambiar una system property) | `$CLI --command="/deployment=Rabbit.war:redeploy"` |
+| ¿Está desplegada? | `cli --command="deployment-info --name=Rabbit.war"` → `OK` |
+| Redesplegar el WAR ya subido (tras cambiar una system property) | `cli --command="/deployment=Rabbit.war:redeploy"` |
 | Abrir | http://localhost:8080/Rabbit |
 
 Usá siempre `clean`: una compilación incremental ya dejó pasar un import
@@ -77,8 +77,8 @@ No se prende ni se apaga: es remota. Desde WildFly:
 
 | Qué | Comando |
 |---|---|
-| Probar la conexión | `$CLI --command="/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"` |
-| Vaciar el pool (si aparece `This connection has been closed`) | `$CLI --command="/subsystem=datasources/data-source=RabbitDS:flush-all-connection-in-pool"` |
+| Probar la conexión | `cli --command="/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"` |
+| Vaciar el pool (si aparece `This connection has been closed`) | `cli --command="/subsystem=datasources/data-source=RabbitDS:flush-all-connection-in-pool"` |
 
 Si responde `EAUTHQUERY ... connection to database not available`, el
 proyecto de Supabase está pausado: reactivarlo desde su dashboard. Si
@@ -96,8 +96,8 @@ en el SQL Editor de Supabase.
 |---|---|
 | Prender | `cd banco-legado && npm install && npm start` (escucha en el 8090) |
 | Apagar | Ctrl+C en su terminal, o `kill $(lsof -ti :8090)` |
-| Conectar Rabbit a este banco | `$CLI --command="/system-property=rabbit.banco.wsdl:add(value=http://localhost:8090/BancoLegadoService?wsdl)"` y redesplegar |
-| Volver al banco en Java | `$CLI --command="/system-property=rabbit.banco.wsdl:remove"` y redesplegar |
+| Conectar Rabbit a este banco | `cli --command="/system-property=rabbit.banco.wsdl:add(value=http://localhost:8090/BancoLegadoService?wsdl)"` y redesplegar |
+| Volver al banco en Java | `cli --command="/system-property=rabbit.banco.wsdl:remove"` y redesplegar |
 | Simular la caída | `curl -X POST "http://localhost:8090/admin/caida?activa=true"` |
 | Terminar la caída | `curl -X POST "http://localhost:8090/admin/caida?activa=false"` |
 
@@ -107,8 +107,8 @@ volvé al banco en Java.
 
 ### Perillas para las demos (system properties)
 
-Se agregan con `$CLI --command="/system-property=<nombre>:add(value=<valor>)"`
-y se quitan con `$CLI --command="/system-property=<nombre>:remove"`.
+Se agregan con `cli --command="/system-property=<nombre>:add(value=<valor>)"`
+y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 
 | Propiedad | Por defecto | Qué hace | ¿Hay que redesplegar? |
 |---|---|---|---|
@@ -121,7 +121,7 @@ y se quitan con `$CLI --command="/system-property=<nombre>:remove"`.
 | `rabbit.sincronizador.pausado` | sin definir | `true`: pausa el timer de respaldo de la cola (lo usa la prueba de escalabilidad) | No |
 
 Para ver cuáles están definidas:
-`$CLI --command="/system-property=*:read-resource"`.
+`cli --command="/system-property=*:read-resource"`.
 
 ### Secuencias completas
 
@@ -130,8 +130,8 @@ Para ver cuáles están definidas:
 ```bash
 nohup $WILDFLY_HOME/bin/standalone.sh -c standalone-full.xml > ~/wildfly-consola.log 2>&1 &
 # esperar a que responda "running"
-$CLI --command=":read-attribute(name=server-state)"
-$CLI --command="/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"
+cli --command=":read-attribute(name=server-state)"
+cli --command="/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"
 mvn -q clean package wildfly:deploy
 # opcional: banco en Node, en otra terminal
 cd banco-legado && npm start
@@ -140,10 +140,10 @@ cd banco-legado && npm start
 **Apagar todo:**
 
 ```bash
-$CLI --command="/system-property=rabbit.banco.wsdl:remove"          # si apuntaba al banco en Node
-$CLI --command="/system-property=rabbit.banco.simular.caida:remove"  # si quedó una caída simulada
+cli --command="/system-property=rabbit.banco.wsdl:remove"          # si apuntaba al banco en Node
+cli --command="/system-property=rabbit.banco.simular.caida:remove"  # si quedó una caída simulada
 kill $(lsof -ti :8090)                                               # banco en Node, si estaba prendido
-$CLI --command=":shutdown"
+cli --command=":shutdown"
 ```
 
 Los `:remove` responden error si la propiedad no existía: no importa.
@@ -357,7 +357,7 @@ Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
 ### Cierre
 
 - [ ] Volver al banco en Java y quitar las system properties de las demos
-  (`$CLI --command="/system-property=*:read-resource"` no debería listar
+  (`cli --command="/system-property=*:read-resource"` no debería listar
   ninguna de `rabbit.`).
 - [ ] Revisar el log: sin `ERROR` nuevos salvo los provocados a propósito
   (banco caído, rechazos).
