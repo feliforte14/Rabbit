@@ -156,15 +156,14 @@ Hacelas en este orden: cada bloque usa lo que dejó el anterior. Con la
 base vacía, el recorrido completo lleva alrededor de una hora.
 
 **Estado de partida.** La base se limpió el 29/09/2026: no hay
-comercios, depósitos, repartidores, pedidos, transportistas ni zonas.
-Quedan estas cuentas:
+comercios, depósitos, repartidores, pedidos, transportistas, zonas ni
+cuentas en la tabla `usuarios`. Solo existen las dos cuentas del realm de
+WildFly:
 
 | Cuenta | Rol | Dónde vive | Para qué |
 |---|---|---|---|
 | `claude-cb-admin` | `ADMINISTRADOR` | Realm de WildFly | Todo el bloque del personal |
 | `claude-cb-erp` | `ERP` | Realm de WildFly | La API REST |
-| `prueba.comercio` | `COMERCIO` | Base y realm | Sin comercio asociado: sirve para la prueba S5 |
-| `prueba.repartidor` | `REPARTIDOR` | Base y realm | Sin repartidor asociado |
 
 Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
 
@@ -343,10 +342,12 @@ Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
   ignora y ve solo los suyos.
 - [ ] **S4. ERP sin web.** Entrar a la web con `claude-cb-erp` → el login
   lo rechaza ("no tiene acceso a la aplicación web").
-- [ ] **S5. Cuenta sin asociar.** Entrar con `prueba.comercio`: el menú
-  dice "Cuenta sin asociar" y "Mis puntos de picking" muestra "Tu cuenta
-  no está asociada a un comercio activo. Contactá a un administrador.", no
-  un error interno.
+- [ ] **S5. Cuenta sin asociar.** Ya no se puede reproducir desde la app:
+  eliminar un comercio que tiene cuentas se rechaza (S8), así que una
+  cuenta nunca queda apuntando a un comercio inexistente. Si pasara (por
+  ejemplo, por un borrado a mano en la base), el menú dice "Cuenta sin
+  asociar" y "Mis puntos de picking" muestra "Tu cuenta no está asociada a
+  un comercio activo" (`SesionBean`, `PuntoPickingBean`).
 - [ ] **S6. URLs viejas y plantilla.** `http://localhost:8080/Rabbit/pedidos.xhtml`
   y `.../template.xhtml` → página de error, sin detalles internos.
 - [ ] **S7. Sin sesión.** Cerrar sesión y abrir `personal/pedidos.xhtml`
@@ -355,8 +356,9 @@ Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
   cuentas → se rechaza; darlo de baja primero es obligatorio.
 - [ ] **S9. Reactivar una cuenta.** Usuarios → dar de baja `demo.repartidor`
   → ya no puede entrar. "Reactivar una cuenta" con una contraseña nueva →
-  entra con la nueva y no con la vieja. Reactivar `prueba.comercio` se
-  rechaza: su comercio ya no existe.
+  entra con la nueva y no con la vieja. Dar de baja el comercio de
+  `demo.comercio`, dar de baja la cuenta e intentar reactivarla → se
+  rechaza porque su comercio no está activo.
 
 ### Cierre
 
