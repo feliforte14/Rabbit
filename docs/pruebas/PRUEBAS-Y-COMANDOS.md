@@ -353,6 +353,10 @@ Las cuentas `demo.comercio` y `demo.repartidor` se crean en el bloque A.
   → vuelve al login.
 - [ ] **S8. Eliminar comercio.** Eliminar un comercio con pedidos o
   cuentas → se rechaza; darlo de baja primero es obligatorio.
+- [ ] **S9. Reactivar una cuenta.** Usuarios → dar de baja `demo.repartidor`
+  → ya no puede entrar. "Reactivar una cuenta" con una contraseña nueva →
+  entra con la nueva y no con la vieja. Reactivar `prueba.comercio` se
+  rechaza: su comercio ya no existe.
 
 ### Cierre
 

@@ -63,6 +63,36 @@
             Todavía no hay usuarios creados desde la aplicación.
         </h:panelGroup>
 
+        <h:panelGroup rendered="#{not empty usuarioBean.dadosDeBaja}">
+            <h2>Reactivar una cuenta</h2>
+            <h:form id="formReactivar" styleClass="formulario">
+                <p class="ayuda">
+                    La cuenta vuelve con una contraseña nueva: la anterior no se puede recuperar. Una
+                    cuenta de comercio necesita que su comercio siga activo, y una de repartidor, que
+                    el repartidor no tenga otra cuenta activa.
+                </p>
+                <div class="campo">
+                    <h:outputLabel for="cuenta" value="Cuenta" />
+                    <h:selectOneMenu id="cuenta" value="#{usuarioBean.idAReactivar}" required="true"
+                                     label="Cuenta" requiredMessage="Elegí la cuenta a reactivar">
+                        <f:selectItem itemLabel="— Elegí una cuenta —" itemValue="#{null}" />
+                        <f:selectItems value="#{usuarioBean.dadosDeBaja}" var="u" itemValue="#{u.id}"
+                                       itemLabel="#{u.username} (#{etiquetas.rol(u.rol)})" />
+                    </h:selectOneMenu>
+                    <h:message for="cuenta" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel for="passwordNueva" value="Contraseña nueva" />
+                    <h:inputSecret id="passwordNueva" value="#{usuarioBean.passwordReactivacion}" required="true"
+                                   label="Contraseña nueva" requiredMessage="Ingresá la contraseña nueva" />
+                    <h:message for="passwordNueva" styleClass="error-campo" />
+                </div>
+                <div class="form-acciones">
+                    <h:commandButton value="Reactivar" styleClass="btn btn-primary" action="#{usuarioBean.reactivar}" />
+                </div>
+            </h:form>
+        </h:panelGroup>
+
         <h2>Crear usuario</h2>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">

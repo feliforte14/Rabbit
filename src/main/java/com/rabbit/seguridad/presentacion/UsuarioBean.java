@@ -31,6 +31,7 @@ import jakarta.inject.Named;
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Named
 @ViewScoped
@@ -54,6 +55,10 @@ public class UsuarioBean implements Serializable {
 
     private List<UsuarioDTO> usuarios;
     private DatosUsuarioDTO nuevoUsuario = nuevoUsuarioVacio();
+
+    // Formulario "Reactivar una cuenta".
+    private Long idAReactivar;
+    private String passwordReactivacion;
 
     // @PostConstruct: corre una sola vez al crear el Bean, así la tabla ya
     // llega llena en el primer render de usuarios.xhtml.
@@ -96,8 +101,36 @@ public class UsuarioBean implements Serializable {
         }
     }
 
+    // Reactivar una cuenta dada de baja: vuelve con una contraseña nueva
+    // (ver IRegistroUsuarios.reactivarUsuario).
+    public void reactivar() {
+        try {
+            registro.reactivarUsuario(idAReactivar, passwordReactivacion);
+            Mensajes.info("Usuario reactivado: ya puede entrar con la contraseña nueva");
+            idAReactivar = null;
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        } catch (EJBAccessException e) {
+            // @RolesAllowed("ADMINISTRADOR") en UsuarioService.reactivarUsuario.
+            Mensajes.error("Solo un administrador puede reactivar usuarios.");
+        } finally {
+            // La contraseña no queda guardada en el bean (es @ViewScoped).
+            passwordReactivacion = null;
+        }
+    }
+
+    // Las cuentas dadas de baja, para el desplegable de "Reactivar".
+    public List<UsuarioDTO> getDadosDeBaja() {
+        return usuarios.stream().filter(u -> !u.isActivo()).collect(Collectors.toList());
+    }
+
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public List<UsuarioDTO> getUsuarios() { return usuarios; }
+    public Long getIdAReactivar() { return idAReactivar; }
+    public void setIdAReactivar(Long idAReactivar) { this.idAReactivar = idAReactivar; }
+    public String getPasswordReactivacion() { return passwordReactivacion; }
+    public void setPasswordReactivacion(String passwordReactivacion) { this.passwordReactivacion = passwordReactivacion; }
     public DatosUsuarioDTO getNuevoUsuario() { return nuevoUsuario; }
     public void setNuevoUsuario(DatosUsuarioDTO nuevoUsuario) { this.nuevoUsuario = nuevoUsuario; }
 
