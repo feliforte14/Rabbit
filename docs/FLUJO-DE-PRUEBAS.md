@@ -150,7 +150,9 @@ tiempo real`). En **Pedidos → Recibidos del ERP** el pedido aparece como
 2. En **Entregas en curso** aparece la hoja de ruta del pedido (retiro →
    entrega).
 3. Logueate como `demo.repartidor` → **Mis entregas**: se ve la hoja de
-   ruta. Botón **Ya retiré el pedido** y después **Entregué el pedido**.
+   ruta. **Ver recorrido en el mapa** abre Google Maps con el retiro como
+   parada y la entrega como destino. Botón **Ya retiré el pedido** y
+   después **Entregué el pedido**.
 4. Logueate como `demo.comercio` → **Mis pedidos**: el pedido figura
    "Entregado" y en "Avisos de Rabbit" aparece un aviso por cada cambio de
    estado. Eso confirma que el tópico `topico.pedidos.estado` distribuye

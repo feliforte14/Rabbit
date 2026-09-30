@@ -20,8 +20,8 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 - **Ruteo y entregas:** zonas de reparto por código postal; los pedidos
   pendientes se agrupan por zona y se despachan solos según quién cubre la
   zona (repartidores propios o un transportista). Hoja de ruta de cada
-  pedido (de dónde se retira y adónde se entrega) y tablero de entregas en
-  curso.
+  pedido (de dónde se retira y adónde se entrega, con el recorrido en
+  Google Maps) y tablero de entregas en curso.
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
   (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
   pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
@@ -57,7 +57,7 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_5/     ← CSS y JS versionados
+├── resources/rabbit/1_6/     ← CSS y JS versionados
 └── WEB-INF/
     ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)
     ├── web.xml, beans.xml, jboss-ejb3.xml

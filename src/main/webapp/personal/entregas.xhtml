@@ -34,7 +34,7 @@
                 <p class="stat-label">Repartidores disponibles</p>
                 <p class="stat-valor">#{entregasBean.repartidoresDisponibles}</p>
                 <h:panelGroup rendered="#{entregasBean.repartidoresDisponibles == 0}">
-                    <p class="stat-nota">Sin repartidores libres no se pueden confirmar pedidos</p>
+                    <p class="stat-nota">Sin repartidores libres, los pedidos solo se pueden derivar a un transportista</p>
                 </h:panelGroup>
             </div>
         </div>
@@ -74,6 +74,9 @@
                     </h:panelGroup>
                     <span>Lleva: <b>#{e.productos}</b> (#{e.cantidadTotal} u.)</span>
                     <span>Actualizado: <b>#{e.actualizado}</b></span>
+                    <h:panelGroup rendered="#{empty e.transportista and not empty e.urlMapa}">
+                        <span><h:outputLink value="#{e.urlMapa}" target="_blank" rel="noopener noreferrer">Ver recorrido en el mapa</h:outputLink></span>
+                    </h:panelGroup>
                     <h:panelGroup rendered="#{not empty e.cobrarAlEntregar}">
                         <span class="cobrar">Cobrar al entregar:&#160;
                             <h:outputText value="#{e.cobrarAlEntregar}">
