@@ -12,8 +12,15 @@ Requisitos previos:
 - App deployada: `mvn clean package wildfly:deploy` desde la raíz del repo.
 - App disponible en `http://localhost:8080/Rabbit`.
 
-Credenciales del realm de WildFly disponibles hoy (rol `ADMINISTRADOR`):
-usuario `claude-cb-admin`. La contraseña la tenés guardada de cuando se
+Estado de la base: se limpió el 29/09/2026. No hay comercios, depósitos,
+stock, repartidores, pedidos, cobros, envíos, transportistas ni zonas.
+Solo quedan dos cuentas de prueba activas en la tabla `usuarios`,
+`prueba.comercio` y `prueba.repartidor`, que quedaron **sin asociar** (su
+comercio y su repartidor se borraron): al entrar ven "Cuenta sin asociar"
+(ver 2.4).
+
+Credenciales del realm de WildFly disponibles hoy: `claude-cb-admin` (rol
+`ADMINISTRADOR`) y `claude-cb-erp` (rol `ERP`, para la API REST). La contraseña la tenés guardada de cuando se
 generó; si la perdiste, reseteala con:
 ```bash
 ~/wildfly/bin/add-user.sh -a -u claude-cb-admin -g ADMINISTRADOR
@@ -50,8 +57,9 @@ aparece ningún error.
 
 ### 2.3 Crear un repartidor
 1. Ir a **Repartidores** → "Registrar repartidor".
-2. Cargar nombre y teléfono. Botón **Registrar**. Sin al menos un
-   repartidor disponible no se puede confirmar ningún pedido.
+2. Cargar nombre y teléfono (y, si ya hay zonas, su zona). Botón
+   **Registrar**. Sin repartidores disponibles, un pedido no se puede
+   confirmar: solo derivar a un transportista (6b).
 
 ### 2.4 Crear las cuentas de usuario (login) para comercio y repartidor
 1. Ir a **Usuarios** (solo visible para ADMINISTRADOR).
@@ -66,12 +74,14 @@ aparece ningún error.
    - Repartidor: el que creaste en 2.3
 
 **Por qué así y no reusando `prueba.comercio`/`prueba.repartidor`:** esas
-cuentas viejas quedaron sin fila asociada en la base tras la limpieza. Dar
+cuentas quedaron sin comercio ni repartidor asociado tras la limpieza (la
+app no permite reasociar una cuenta existente). Dar
 de alta desde acá crea la cuenta en el realm de WildFly *y* la asociación
 en la base al mismo tiempo — sin eso, cualquier pantalla del comercio o
 repartidor muestra "cuenta no asociada".
 
-### 2.5 (Opcional) Recrear la cuenta del ERP
+### 2.5 (Opcional) Cuenta del ERP
+Hoy existe `claude-cb-erp`. Si se usa otra, se crea así.
 El usuario del ERP no se gestiona desde la app (no tiene rol en el enum
 `Rol` ni pantalla propia) — es una cuenta de servidor pura, solo para la
 API REST:
