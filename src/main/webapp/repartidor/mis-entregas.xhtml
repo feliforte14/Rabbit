@@ -67,6 +67,10 @@
 
             <h:form id="formEntrega">
                 <div class="form-acciones">
+                    <h:outputLink value="#{e.urlMapa}" target="_blank" rel="noopener noreferrer"
+                                  styleClass="btn btn-secondary" rendered="#{not empty e.urlMapa}">
+                        Ver recorrido en el mapa
+                    </h:outputLink>
                     <h:commandButton value="Ya retiré el pedido" styleClass="btn btn-primary"
                                      action="#{misEntregasBean.retirar}"
                                      rendered="#{e.estado == 'CONFIRMADO'}" />

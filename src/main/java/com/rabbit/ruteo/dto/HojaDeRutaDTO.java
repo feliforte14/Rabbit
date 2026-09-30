@@ -24,6 +24,8 @@ public class HojaDeRutaDTO {
     // del que sale mercadería consignada.
     public List<String> retiros;
     public String direccionEntrega;
+    // Recorrido en Google Maps (retiros → entrega); null sin dirección de entrega.
+    public String urlMapa;
     // Importe a cobrar al entregar; null si el pedido ya está pagado.
     public BigDecimal cobrarAlEntregar;
     public String actualizado;
@@ -40,6 +42,7 @@ public class HojaDeRutaDTO {
     public int getCantidadTotal() { return cantidadTotal; }
     public List<String> getRetiros() { return retiros; }
     public String getDireccionEntrega() { return direccionEntrega; }
+    public String getUrlMapa() { return urlMapa; }
     public BigDecimal getCobrarAlEntregar() { return cobrarAlEntregar; }
     public String getActualizado() { return actualizado; }
 }

@@ -7,10 +7,10 @@
  * No toca Managed Beans, Services ni Repositories: es 100% presentacion.
  *
  * VERSIONADO DE RECURSOS
- * Vive en resources/rabbit/1_5/ y se linkea con:
+ * Vive en resources/rabbit/1_6/ y se linkea con:
  *     <h:outputStylesheet library="rabbit" name="estilos.css" />
- * "rabbit" es la libreria y "1_5" su version. JSF genera una URL que
- * incluye la version (?ln=rabbit&v=1_5), asi que al renombrar la carpeta
+ * "rabbit" es la libreria y "1_6" su version. JSF genera una URL que
+ * incluye la version (?ln=rabbit&v=1_6), asi que al renombrar la carpeta
  * a 1_6 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
  * Sin esto, el navegador se queda con el CSS viejo cacheado aunque el
  * WAR ya tenga el nuevo.
@@ -1054,4 +1054,23 @@ h2 {
 /* URLs largas en textos de ayuda: que corten en vez de salirse del recuadro. */
 .ayuda code {
     word-break: break-all;
+}
+
+/* ---------------------------------------------------------------
+   Links con forma de botón (por ejemplo "Ver recorrido en el mapa")
+   y links dentro de la hoja de ruta.
+   --------------------------------------------------------------- */
+a.btn {
+    text-decoration: none;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.form-acciones {
+    flex-wrap: wrap;
+}
+
+.hoja-ruta-datos a {
+    color: var(--naranja-oscuro);
+    font-weight: 600;
 }

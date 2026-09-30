@@ -135,7 +135,10 @@ Cada tipo de usuario ve su propio menú, y un usuario `ERP` no puede
 entrar a la web (el login lo rechaza). Las páginas están en una carpeta
 por tipo de usuario (`personal/`, `comercio/`, `repartidor/`), y la
 plantilla con el menú vive en `WEB-INF/plantillas/`, que el contenedor
-nunca sirve por URL. **No es seguridad**: la vista puede
+nunca sirve por URL. El link "Ver recorrido en el mapa" manda las
+direcciones del pedido a Google solo cuando alguien lo toca (Rabbit no
+llama a ningún servicio de mapas), y abre en otra pestaña con
+`rel="noopener noreferrer"`. **No es seguridad**: la vista puede
 ocultar botones, pero la autorización siempre la impone el EJB.
 
 ### Errores

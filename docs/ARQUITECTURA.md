@@ -110,6 +110,8 @@ Otros detalles de cada componente:
   libres. Cada pedido se despacha en su propia transacción. Los pedidos
   sin código postal quedan "sin zona" para el despacho manual. Fuera de
   alcance: viajes con varias paradas y ordenar el recorrido por distancia.
+  La hoja de ruta incluye un link "Ver recorrido en el mapa" (Google
+  Maps, sin clave; lo arma `EnlaceMapa`) para el repartidor y el tablero.
   Ver ADR-017.
 
 ### Dependencias entre componentes (implementadas)

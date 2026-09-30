@@ -325,3 +325,6 @@ Propuesta o Reemplazada.
   quedan "sin zona" y se despachan a mano como antes. Un rango mal
   cargado manda pedidos a otra zona: el alta rechaza superposiciones,
   rangos invertidos y zonas de transportista sin transportista activo.
+  Para ver el recorrido, la hoja de ruta tiene un link a Google Maps
+  (retiros como paradas, entrega como destino) que no necesita clave ni
+  guarda coordenadas: el mapa lo resuelve Google cuando se toca el link.

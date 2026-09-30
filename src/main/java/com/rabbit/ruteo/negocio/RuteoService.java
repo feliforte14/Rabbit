@@ -174,7 +174,10 @@ public class RuteoService implements IRuteo {
 
         ComercioDTO comercio = comerciosPorId.get(p.getIdComercio());
         hoja.comercio = comercio != null ? comercio.nombre : "Comercio " + p.getIdComercio();
-        hoja.retiros = retiros(p, comercio, depositosPorId, itemsPorId);
+        List<Retiro> retiros = retiros(p, comercio, depositosPorId, itemsPorId);
+        hoja.retiros = retiros.stream().map(Retiro::descripcion).collect(Collectors.toList());
+        hoja.urlMapa = EnlaceMapa.recorrido(
+                retiros.stream().map(Retiro::direccion).collect(Collectors.toList()), p.getDireccionEntrega());
 
         RepartidorDTO repartidor = repartidoresPorId.get(p.getIdRepartidor());
         if (repartidor != null) {
@@ -184,9 +187,14 @@ public class RuteoService implements IRuteo {
         return hoja;
     }
 
+    // Un lugar de retiro: el texto para la hoja de ruta y la dirección sola
+    // para el mapa.
+    private record Retiro(String descripcion, String direccion) {
+    }
+
     // Lugares de retiro: el punto de picking del comercio, o los depósitos
     // de los que sale cada línea de stock consignado (sin repetir).
-    private List<String> retiros(PedidoDTO p, ComercioDTO comercio,
+    private List<Retiro> retiros(PedidoDTO p, ComercioDTO comercio,
                                  Map<Long, DepositoDTO> depositosPorId,
                                  Map<Long, ItemInventarioDTO> itemsPorId) {
         if (p.getOrigen() == OrigenPedido.PUNTO_PICKING) {
@@ -195,7 +203,7 @@ public class RuteoService implements IRuteo {
             }
             return comercio.getPuntosPicking().stream()
                     .filter(pp -> pp.id.equals(p.getIdPuntoPicking()))
-                    .map(pp -> "Punto de picking " + pp.nombre + " — " + pp.direccion)
+                    .map(pp -> new Retiro("Punto de picking " + pp.nombre + " — " + pp.direccion, pp.direccion))
                     .collect(Collectors.toList());
         }
         return p.getLineas().stream()
@@ -206,12 +214,9 @@ public class RuteoService implements IRuteo {
                 .distinct()
                 .map(depositosPorId::get)
                 .filter(Objects::nonNull)
-                .map(this::describir)
+                .map(d -> new Retiro("Depósito " + d.nombre + " — " + d.direccion + ", " + d.localidad,
+                        d.direccion + ", " + d.localidad))
                 .collect(Collectors.toList());
-    }
-
-    private String describir(DepositoDTO d) {
-        return "Depósito " + d.nombre + " — " + d.direccion + ", " + d.localidad;
     }
 
     // ===============================================================
