@@ -42,6 +42,7 @@ docs/
 | Documento | Qué justifica |
 |---|---|
 | [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md) | Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo. Los tests automatizados están en `src/test` (ver el README principal) |
+| [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md) | Comandos para prender y apagar cada sistema, perillas de las demos y la lista completa de pruebas para marcar |
 
 ### [consigna/](consigna/)
 
