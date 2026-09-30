@@ -129,11 +129,47 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         // Sin esto, el usuario queda en esta tabla pero no puede loguearse
         // — ver ApplicationRealmSync. Si esto falla, el throw revierte
         // también el alta en la tabla "usuarios" (unchecked -> rollback).
-        String username = usuario.getUsername();
-        ApplicationRealmSync.altaUsuario(username, datos.password, usuario.getRol().name());
-        // El caso inverso: el realm ya se escribió pero la transacción se
-        // deshace después (por ejemplo, falla el commit). Sin compensar, la
-        // cuenta podría entrar sin existir en la tabla.
+        ApplicationRealmSync.altaUsuario(usuario.getUsername(), datos.password, usuario.getRol().name());
+        quitarDelRealmSiSeDeshace(usuario.getUsername(), "El alta");
+        return id;
+    }
+
+    /**
+     * Reactiva una cuenta dada de baja con una contraseña nueva y la vuelve
+     * a poner en el ApplicationRealm. Revalida a quién representa: el
+     * comercio pudo darse de baja, o el repartidor tener otra cuenta, desde
+     * que esta se dio de baja.
+     */
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
+    public void reactivarUsuario(Long id, String passwordNueva) {
+        Usuario usuario = obtenerOFallar(id);
+        if (usuario.isActivo()) {
+            throw new ValidacionException("El usuario " + usuario.getUsername() + " ya está activo");
+        }
+        validarPassword(passwordNueva);
+        // Alguien pudo crear en WildFly (add-user.sh) una cuenta con el mismo
+        // nombre mientras esta estaba dada de baja: no se pisa.
+        if (ApplicationRealmSync.existeEnRealm(usuario.getUsername())) {
+            throw new ValidacionException("Ya existe en el servidor otra cuenta llamada " + usuario.getUsername());
+        }
+        DatosUsuarioDTO asociacion = new DatosUsuarioDTO();
+        asociacion.idComercio = usuario.getIdComercio();
+        asociacion.idRepartidor = usuario.getIdRepartidor();
+        validarAsociacion(usuario.getRol(), asociacion);
+
+        usuario.setActivo(true);
+        repository.actualizar(usuario);
+        ApplicationRealmSync.altaUsuario(usuario.getUsername(), passwordNueva, usuario.getRol().name());
+        quitarDelRealmSiSeDeshace(usuario.getUsername(), "La reactivación");
+    }
+
+    // El realm se escribe dentro de la transacción, pero no es parte de
+    // ella: si la transacción se deshace después (por ejemplo, falla el
+    // commit), sin compensar la cuenta podría entrar sin estar activa en la
+    // tabla.
+    private void quitarDelRealmSiSeDeshace(String username, String operacion) {
         transacciones.registerInterposedSynchronization(new Synchronization() {
             @Override
             public void beforeCompletion() {
@@ -142,12 +178,11 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
             @Override
             public void afterCompletion(int estado) {
                 if (estado != Status.STATUS_COMMITTED) {
-                    LOG.warning("[Usuarios] El alta de " + username + " se deshizo: se quita del realm");
+                    LOG.warning("[Usuarios] " + operacion + " de " + username + " se deshizo: se quita del realm");
                     ApplicationRealmSync.bajaUsuario(username);
                 }
             }
         });
-        return id;
     }
 
     /**
@@ -160,7 +195,8 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
      */
     // Si la transacción se deshace después de quitarlo del realm, la cuenta
     // queda sin poder entrar aunque siga activa en la tabla: es el lado
-    // seguro (menos acceso, no más), y se corrige volviendo a darla de alta.
+    // seguro (menos acceso, no más), y se corrige dándola de baja y
+    // reactivándola.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed("ADMINISTRADOR")

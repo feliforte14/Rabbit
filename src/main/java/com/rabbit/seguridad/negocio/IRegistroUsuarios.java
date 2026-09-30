@@ -28,4 +28,18 @@ public interface IRegistroUsuarios {
      * @throws ValidacionException si el usuario no existe
      */
     void darDeBaja(Long id);
+
+    /**
+     * Vuelve a habilitar una cuenta dada de baja, con una contraseña nueva:
+     * la baja la sacó del realm de WildFly, que guarda su propio hash de la
+     * contraseña, y ese hash no se puede reconstruir desde la tabla. Solo
+     * ADMINISTRADOR.
+     *
+     * @param id ID del usuario a reactivar
+     * @param passwordNueva contraseña en claro con la que va a entrar
+     * @throws ValidacionException si no existe, ya está activo, la
+     *         contraseña es inválida o ya no existe (o está dado de baja) el
+     *         comercio o repartidor que representa
+     */
+    void reactivarUsuario(Long id, String passwordNueva);
 }
