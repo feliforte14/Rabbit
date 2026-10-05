@@ -124,7 +124,7 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         usuario.setPasswordHash(PasswordUtil.hash(datos.password));
         usuario.setRol(rol);
         usuario.setActivo(true);
-        usuario.setIdComercio(rol == Rol.COMERCIO ? datos.idComercio : null);
+        usuario.setIdComercio(representaUnComercio(rol) ? datos.idComercio : null);
         usuario.setIdRepartidor(rol == Rol.REPARTIDOR ? datos.idRepartidor : null);
         Long id = repository.guardar(usuario).getId();
 
@@ -182,10 +182,10 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         ApplicationRealmSync.bajaUsuario(usuario.getUsername());
     }
 
-    // Una cuenta COMERCIO representa a un comercio existente y activo; una
-    // REPARTIDOR, a un repartidor que todavía no tiene cuenta.
+    // Una cuenta COMERCIO o ERP representa a un comercio existente y activo;
+    // una REPARTIDOR, a un repartidor que todavía no tiene cuenta.
     private void validarAsociacion(Rol rol, DatosUsuarioDTO datos) {
-        if (rol == Rol.COMERCIO) {
+        if (representaUnComercio(rol)) {
             if (datos.idComercio == null) {
                 throw new ValidacionException("Elegí el comercio que representa la cuenta");
             }
@@ -203,6 +203,12 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
                 throw new ValidacionException("Ese repartidor ya tiene una cuenta");
             }
         }
+    }
+
+    // El ERP de un comercio actúa en nombre de ese comercio por la API, así
+    // que su cuenta queda atada a él igual que la del portal.
+    private static boolean representaUnComercio(Rol rol) {
+        return rol == Rol.COMERCIO || rol == Rol.ERP;
     }
 
     // El username termina escrito en los archivos de properties del realm

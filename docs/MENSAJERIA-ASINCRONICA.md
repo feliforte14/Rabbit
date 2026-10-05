@@ -45,7 +45,7 @@ sequenceDiagram
     participant Pub as PublicadorPedidosExternos
     participant Q as cola.pedidos.externos
     participant MDB as PedidoExternoListener
-    ERP->>PS: registrarPedidoExterno(datos)
+    ERP->>PS: registrarPedidoExterno(datos, clave)
     PS->>PS: INSERT pedidos_externos
     PS-)Pub: evento PedidoExternoRegistrado
     Note over PS,Pub: commit, recién después corre el observer (AFTER_SUCCESS)

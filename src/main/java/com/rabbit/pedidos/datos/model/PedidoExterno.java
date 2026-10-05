@@ -25,7 +25,12 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 @Entity
-@Table(name = "pedidos_externos")
+// Una clave de idempotencia identifica UN pedido de UN comercio: si el ERP
+// reintenta con la misma clave, la restricción impide la fila duplicada
+// aunque los dos intentos lleguen a la vez (ver PedidoService).
+@Table(name = "pedidos_externos",
+        uniqueConstraints = @UniqueConstraint(name = "uk_pedido_externo_idempotencia",
+                columnNames = {"idComercio", "claveIdempotencia"}))
 public class PedidoExterno {
 
     @Id
@@ -89,6 +94,21 @@ public class PedidoExterno {
     // si se descartó). Permite que el ERP siga el pedido por la API REST.
     private Long idPedido;
 
+    // Header Idempotency-Key con el que el ERP mandó el pedido por la API.
+    // Null para los que se cargan desde la pantalla (simulación).
+    @Column(length = 100)
+    private String claveIdempotencia;
+
+    // Hash del contenido del pedido: si la misma clave vuelve con OTRO
+    // pedido, no es un reintento sino un error del ERP (ver PedidoService).
+    @Column(length = 64)
+    private String huellaSolicitud;
+
+    // true = el comercio lo canceló por la API antes de que se convirtiera
+    // en pedido. Boolean y no boolean: "update" agrega la columna nullable,
+    // y las filas anteriores a este cambio quedan en null (= no cancelado).
+    private Boolean cancelado;
+
     public PedidoExterno() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -117,4 +137,10 @@ public class PedidoExterno {
     public void setErrorSincronizacion(String errorSincronizacion) { this.errorSincronizacion = errorSincronizacion; }
     public Long getIdPedido() { return idPedido; }
     public void setIdPedido(Long idPedido) { this.idPedido = idPedido; }
+    public String getClaveIdempotencia() { return claveIdempotencia; }
+    public void setClaveIdempotencia(String claveIdempotencia) { this.claveIdempotencia = claveIdempotencia; }
+    public String getHuellaSolicitud() { return huellaSolicitud; }
+    public void setHuellaSolicitud(String huellaSolicitud) { this.huellaSolicitud = huellaSolicitud; }
+    public boolean isCancelado() { return Boolean.TRUE.equals(cancelado); }
+    public void setCancelado(boolean cancelado) { this.cancelado = cancelado; }
 }

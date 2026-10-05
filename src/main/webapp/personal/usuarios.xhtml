@@ -5,9 +5,11 @@
     (UsuarioBean.java). Solo ADMINISTRADOR: no hay alta publica de cuentas.
 
     Cada cuenta es de un tipo (rol): personal de Rabbit (Administrador u
-    Operador), Comercio o Repartidor. Una cuenta Comercio representa a un
-    comercio y una Repartidor a un repartidor: por eso el formulario pide a
-    quien representa segun el tipo elegido.
+    Operador), Comercio, Repartidor o ERP. Una cuenta Comercio representa a
+    un comercio y una Repartidor a un repartidor: por eso el formulario pide
+    a quien representa segun el tipo elegido. Una cuenta ERP es la del
+    sistema del comercio que usa la API REST: tambien representa a un
+    comercio, y no puede entrar a la web.
 -->
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                  xmlns:h="jakarta.faces.html"
@@ -91,10 +93,10 @@
 
             <h:panelGroup id="asociacion" layout="block">
                 <h:panelGroup layout="block" styleClass="campo"
-                              rendered="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO'}">
+                              rendered="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO' or usuarioBean.nuevoUsuario.rol == 'ERP'}">
                     <h:outputLabel for="comercio" value="Comercio" />
                     <h:selectOneMenu id="comercio" value="#{usuarioBean.nuevoUsuario.idComercio}"
-                                     required="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO'}" label="Comercio"
+                                     required="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO' or usuarioBean.nuevoUsuario.rol == 'ERP'}" label="Comercio"
                                      requiredMessage="Elegí el comercio que representa la cuenta">
                         <f:selectItem itemLabel="— Elegí un comercio —" itemValue="#{null}" />
                         <f:selectItems value="#{usuarioBean.listaComercios}" var="c"

@@ -83,7 +83,7 @@ Propuesta o Reemplazada.
   Basic y rol `ERP`; el formulario queda para la demo.
 - **Contexto:** el formulario JSF no marca una frontera real entre el ERP
   y Rabbit.
-- **Decisión:** `POST /api/pedidos-externos` llama al mismo
+- **Decisión:** `POST /api/v1/pedidos-externos` llama al mismo
   `registrarPedidoExterno`.
 - **Consecuencias:** cola, polling y sincronización no cambian. Hay que
   definir cómo se autentica el partner.
@@ -328,3 +328,58 @@ Propuesta o Reemplazada.
   Para ver el recorrido, la hoja de ruta tiene un link a Google Maps
   (retiros como paradas, entrega como destino) que no necesita clave ni
   guarda coordenadas: el mapa lo resuelve Google cuando se toca el link.
+
+## ADR-018: API REST del ERP versionada, idempotente y atada al comercio
+
+- **Estado:** Aceptada.
+- **Contexto:** la primera versión de la API (`/api/pedidos-externos`)
+  funcionaba, pero contra lo visto en la Clase 10 (Servicios REST) tenía
+  huecos: cualquier usuario `ERP` podía cargar y consultar pedidos de
+  cualquier comercio (el `idComercio` venía en el cuerpo); si el `201` se
+  perdía por un timeout, el reintento del ERP duplicaba el pedido; los
+  errores eran `{"error": "..."}` y un error inesperado devolvía la
+  página `error.html`; no había contrato, versión, cancelación ni
+  seguimiento que no expusiera IDs secuenciales.
+- **Decisión:**
+  - **ERP atado a un comercio:** `ERP` pasa a ser un rol de la app; la
+    cuenta la crea un administrador asociada a un comercio, como la
+    `COMERCIO`. `PedidoService` toma el comercio de la cuenta (nunca del
+    cuerpo) y un pedido ajeno responde `404`.
+  - **Versión en la URI:** `/api/v1/...`.
+  - **Idempotencia del alta:** header `Idempotency-Key` obligatorio,
+    guardado con el pedido junto con una huella (SHA-256) del contenido,
+    y restricción única `(idComercio, claveIdempotencia)`. Misma clave y
+    mismo pedido → se devuelve el existente; otro pedido → `422`.
+  - **Problem Details (RFC 9457)** para todos los errores, con
+    `ProblemaMapper` como red para lo que no maneja un recurso.
+  - **Bean Validation** en un DTO propio de la API (`PedidoExternoRequest`).
+  - **Cancelación** como sub-recurso `POST .../{id}/cancelacion`,
+    idempotente, permitida mientras el pedido está pendiente (`409`
+    después).
+  - **HATEOAS** con `_links` en la representación del pedido externo.
+  - **Seguimiento público por código aleatorio** (`RB-XXXXXXXXXX`), no por ID.
+  - **Contrato OpenAPI** en `docs/openapi.yaml` (contract-first: se
+    escribe a mano, no se genera del código).
+- **Alternativas descartadas:**
+  - *Versión en un header o en el media type:* más alineado con REST,
+    pero más difícil de probar y de explicar al integrar un ERP.
+  - *Validar en el recurso que el `idComercio` del cuerpo sea el del
+    ERP:* el dato sobra; sacarlo del contrato es más simple y no deja
+    lugar a error.
+  - *Idempotency-Key opcional:* el ERP que no la mande vuelve a quedar
+    expuesto a duplicados; obligatoria, el problema no existe.
+  - *Deduplicar por el contenido del pedido, sin clave:* dos pedidos
+    iguales legítimos (el mismo cliente compra dos veces lo mismo) se
+    confundirían con un reintento.
+  - *`@Valid` en el parámetro del recurso:* el runtime responde las
+    violaciones con su propio formato, distinto de Problem Details.
+  - *`DELETE /pedidos-externos/{id}` para cancelar:* el pedido no se
+    borra; queda, cancelado.
+  - *Generar el OpenAPI con MicroProfile OpenAPI:* el perfil
+    `standalone-full` de WildFly no trae ese subsistema.
+- **Consecuencias:** un reintento del ERP ya no duplica pedidos, y un
+  ERP solo ve lo suyo. Rompe a los clientes de la versión anterior (sin
+  `/v1` y sin clave), aceptable porque el único cliente es el script de
+  carga, actualizado en el mismo cambio. Las cuentas ERP creadas con
+  `add-user.sh` dejan de funcionar (`403`) hasta crearlas desde la app.
+  Los pedidos anteriores no tienen código de seguimiento.

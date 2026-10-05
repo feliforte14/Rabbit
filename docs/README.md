@@ -11,6 +11,7 @@ clases donde vive) de lo **planificado** para la Entrega Obligatoria N.º 2
 | [SEGURIDAD.md](SEGURIDAD.md) | Autenticación, roles, `@RolesAllowed`, operaciones sensibles |
 | [TRANSACCIONES.md](TRANSACCIONES.md) | Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo |
 | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) | SOAP con el banco legado (cobro, reversa, timeout, circuit breaker) y API REST (ERP y seguimiento) |
+| [openapi.yaml](openapi.yaml) | Contrato OpenAPI 3.1 de la API REST (se abre en Swagger Editor o se importa en Postman) |
 | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) | Cola JMS de pedidos externos y tópico de estados del pedido |
 | [DECISIONES.md](DECISIONES.md) | Registro de decisiones de arquitectura (ADRs) |
 | [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) | Desafíos opcionales: resiliencia, escalabilidad, ADRs desarrollados con sus alternativas y heterogeneidad tecnológica |

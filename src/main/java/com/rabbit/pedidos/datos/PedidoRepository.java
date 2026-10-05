@@ -115,6 +115,17 @@ public class PedidoRepository {
                 .setParameter("id", idComercio).getSingleResult();
     }
 
+    /**
+     * Busca un pedido por su código público de seguimiento.
+     *
+     * @return el pedido, o null si ningún pedido tiene ese código
+     */
+    public Pedido buscarPedidoPorCodigoSeguimiento(String codigo) {
+        return em.createQuery("SELECT p FROM Pedido p WHERE p.codigoSeguimiento = :codigo", Pedido.class)
+                .setParameter("codigo", codigo)
+                .getResultStream().findFirst().orElse(null);
+    }
+
     // --- PedidoExterno (mock del ERP del comercio) ---
 
     /**
@@ -136,6 +147,21 @@ public class PedidoRepository {
      */
     public PedidoExterno buscarPedidoExternoPorId(Long id) {
         return em.find(PedidoExterno.class, id);
+    }
+
+    /**
+     * El pedido externo que un comercio ya mandó con esta clave de
+     * idempotencia (ver PedidoService.registrarPedidoExterno).
+     *
+     * @return el pedido externo, o null si la clave no se usó todavía
+     */
+    public PedidoExterno buscarPedidoExternoPorClave(Long idComercio, String claveIdempotencia) {
+        return em.createQuery(
+                "SELECT pe FROM PedidoExterno pe WHERE pe.idComercio = :comercio AND pe.claveIdempotencia = :clave",
+                PedidoExterno.class)
+                .setParameter("comercio", idComercio)
+                .setParameter("clave", claveIdempotencia)
+                .getResultStream().findFirst().orElse(null);
     }
 
     /**

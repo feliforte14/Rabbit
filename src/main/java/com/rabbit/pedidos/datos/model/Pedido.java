@@ -75,6 +75,13 @@ public class Pedido {
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
 
+    // Código público para el seguimiento sin login (/api/v1/seguimiento).
+    // Aleatorio a propósito: con el ID secuencial cualquiera podía recorrer
+    // los estados de todos los pedidos. Null en pedidos anteriores a este
+    // cambio (no tienen seguimiento público).
+    @Column(length = 16, unique = true)
+    private String codigoSeguimiento;
+
     public Pedido() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -103,4 +110,6 @@ public class Pedido {
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
     public void setFechaActualizacion(LocalDateTime fechaActualizacion) { this.fechaActualizacion = fechaActualizacion; }
+    public String getCodigoSeguimiento() { return codigoSeguimiento; }
+    public void setCodigoSeguimiento(String codigoSeguimiento) { this.codigoSeguimiento = codigoSeguimiento; }
 }

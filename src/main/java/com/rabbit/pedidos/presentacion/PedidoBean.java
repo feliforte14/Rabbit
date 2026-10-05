@@ -287,7 +287,9 @@ public class PedidoBean implements Serializable {
     // la levanta en su próxima pasada.
     public void registrarPedidoExterno() {
         try {
-            gestion.registrarPedidoExterno(nuevoPedido);
+            // Sin clave de idempotencia: la pantalla es una simulación y no
+            // reintenta sola (eso es cosa del ERP, ver la API REST).
+            gestion.registrarPedidoExterno(nuevoPedido, null);
             Mensajes.info("Pedido recibido: entra por la cola y en unos segundos aparece en la tabla de pedidos (recargá la página).");
             nuevoPedido = nuevoPedidoVacio();
             idDepositoSeleccionado = null;
