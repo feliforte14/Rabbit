@@ -11,9 +11,11 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
   tiene servicio ni pantalla.
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
   comercios, y reservas de stock con vencimiento.
-- **Pedidos:** recepción de pedidos desde el ERP de cada comercio, su
-  sincronización automática con stock y su seguimiento
-  (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`).
+- **Pedidos:** recepción de pedidos desde el ERP de cada comercio por una
+  API REST versionada (`/api/v1`, alta idempotente, consulta y
+  cancelación), su sincronización automática con stock y su seguimiento
+  (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`), también público por
+  código de seguimiento.
 - **Transportistas:** un pedido se puede derivar a una empresa de envíos
   externa (integrada por API REST o por SOAP legado), que lo lleva; Rabbit
   sigue el estado del envío y mueve el pedido solo.
@@ -25,7 +27,8 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
   (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
   pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
-  ruta y marca retiro y entrega desde el celular.
+  ruta y marca retiro y entrega desde el celular; un `ERP` (el sistema del
+  comercio) solo usa la API REST, y solo con los pedidos de su comercio.
 
 ## Tecnologías
 
@@ -96,6 +99,7 @@ El detalle y la justificación de cada decisión están en
 - [Seguridad](docs/SEGURIDAD.md)
 - [Transacciones](docs/TRANSACCIONES.md)
 - [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP con el banco legado (con circuit breaker) y API REST.
+- [Contrato OpenAPI](docs/openapi.yaml) de la API REST (Swagger Editor o Postman).
 - [Mensajería asincrónica](docs/MENSAJERIA-ASINCRONICA.md): cola y tópico.
 - [Decisiones (ADRs)](docs/DECISIONES.md)
 - [Flujo de pruebas](docs/FLUJO-DE-PRUEBAS.md): recorrido manual de punta a punta, para verificar y para la demo.
@@ -241,10 +245,11 @@ Desde ahí, ese administrador crea los demás usuarios en "Usuarios"
 (`personal/usuarios.xhtml`).
 
 Los usuarios que crea un administrador desde la app se sincronizan solos
-contra el realm (ver `ApplicationRealmSync`). Hay cuatro tipos de cuenta:
+contra el realm (ver `ApplicationRealmSync`). Hay cinco tipos de cuenta:
 `ADMINISTRADOR` y `OPERADOR` (personal de Rabbit), `COMERCIO` (se asocia a
-un comercio) y `REPARTIDOR` (se asocia a un repartidor). Cada uno entra a
-su propia pantalla.
+un comercio), `REPARTIDOR` (se asocia a un repartidor) y `ERP` (se asocia
+a un comercio; solo usa la API REST, ver paso 6). Cada uno de los cuatro
+primeros entra a su propia pantalla.
 
 ### 6. Usuario del ERP para la API REST
 

@@ -27,6 +27,10 @@ qué alternativa se descartó.
 - **Dónde:** `dto/` de cada componente (`ComercioDTO`, `PedidoDTO`,
   `DatosPedidoExternoDTO`, `ReservaStockDTO`…).
 - **Regla:** entrada `Datos*DTO`, salida `*DTO` con `desde(entidad)`.
+- **En el borde de la API REST:** `PedidoExternoRequest` es el contrato
+  público del alta, separado de `DatosPedidoExternoDTO` (el del formulario
+  JSF): lleva las reglas de Bean Validation y no tiene `idComercio`. Se
+  convierte con `aDatos()` antes de llegar al negocio.
 
 ## Facade
 
@@ -151,3 +155,28 @@ qué alternativa se descartó.
   prueba. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md).
 - **Descartado:** `@CircuitBreaker` de MicroProfile Fault Tolerance: no
   viene en `standalone-full` de WildFly (ADR-011).
+
+## Exception Mapper (traductor de errores)
+
+- **Problema:** que cada error de la API REST salga en un único formato
+  (Problem Details, RFC 9457), incluso los que no maneja ningún recurso:
+  URL inexistente, JSON roto, acceso denegado o un error inesperado.
+- **Dónde:** `ProblemaMapper` (`ExceptionMapper<Throwable>`, `@Provider`)
+  arma la respuesta con `Problema`; los recursos usan el mismo `Problema`
+  para sus errores de negocio (400, 404, 409, 422). Ver
+  [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md).
+- **Descartado:** dejar que el contenedor responda (sale la página
+  `error.html` o el formato propio del runtime) o un `try/catch` en cada
+  método del recurso.
+
+## Idempotency Key
+
+- **Problema:** si el `201` de un alta se pierde por un timeout, el ERP
+  reintenta y, sin más, el pedido se duplica.
+- **Dónde:** `PedidoService.registrarPedidoExterno` guarda el header
+  `Idempotency-Key` y una huella (SHA-256) del pedido; la misma clave con
+  el mismo pedido devuelve el existente, con otro responde `422`. La
+  restricción única `(idComercio, claveIdempotencia)` cubre los reintentos
+  simultáneos (ADR-018).
+- **Descartado:** deduplicar por el contenido del pedido: dos compras
+  iguales legítimas se confundirían con un reintento.

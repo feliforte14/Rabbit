@@ -128,7 +128,8 @@ hace, para cada cantidad de consumidores:
 2. Pausa el timer de respaldo (`rabbit.sincronizador.pausado=true`), para
    que no procese pedidos de la carga y falsee la medición.
 3. Manda 10 pedidos de calentamiento, que no se miden.
-4. Pausa la cola, manda los 100 pedidos de la carga por la API del ERP y
+4. Pausa la cola, manda los 100 pedidos de la carga por la API del ERP
+   (`POST /api/v1/pedidos-externos`, cada uno con su `Idempotency-Key`) y
    la reanuda. Así se mide solo el procesamiento, no el envío.
 5. Toma del log del servidor la hora en que se sincronizó cada pedido y
    qué hilo lo procesó.
@@ -170,8 +171,8 @@ competir por la base. Para el comercio que manda 100 pedidos juntos, el
 Para correrla de nuevo (el script imprime esta misma tabla al terminar):
 
 ```bash
-export WILDFLY_HOME=... RABBIT_ERP_USUARIO=... RABBIT_ERP_CLAVE=...
-export RABBIT_ID_COMERCIO=... RABBIT_ID_PUNTO=...   # un comercio y un punto de picking activos
+export WILDFLY_HOME=... RABBIT_ERP_USUARIO=... RABBIT_ERP_CLAVE=...   # ERP creado desde la app
+export RABBIT_ID_PUNTO=...   # punto de picking activo del comercio de ese ERP
 python3 scripts/prueba_escalabilidad.py 1 4 8 --pedidos 100
 ```
 
