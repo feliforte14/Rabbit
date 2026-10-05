@@ -5,18 +5,27 @@ package com.rabbit.pedidos.presentacion.rest;
  * (API de consumo externo: la puede usar el cliente final o la web del
  * comercio para mostrar "tu pedido está en camino").
  *
- * GET /api/seguimiento/{idPedido} → {"idPedido", "estado"}
+ * GET /api/v1/seguimiento/{codigoSeguimiento}
+ *   → {"codigoSeguimiento", "estado"}
  *
  * @PermitAll a propósito, sin autenticación: solo expone el estado del
- * pedido, nada de importes, cobros ni datos del comercio. Es la única
- * operación pública del sistema (ver docs/SEGURIDAD.md).
+ * pedido, nada de importes, cobros, direcciones ni datos del comercio. Es
+ * la única operación pública del sistema (ver docs/SEGURIDAD.md).
+ *
+ * Se entra por el código de seguimiento aleatorio (RB-XXXXXXXXXX), no por
+ * el ID: con IDs secuenciales cualquiera podía recorrer el estado de todos
+ * los pedidos de Rabbit. El código lo recibe el ERP del comercio (GET
+ * /api/v1/pedidos-externos/{id}) para pasárselo a su cliente.
  */
 
+import com.rabbit.infraestructura.Problema;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
-import com.rabbit.pedidos.negocio.ValidacionException;
+import com.rabbit.pedidos.negocio.PedidoNoEncontradoException;
 import jakarta.annotation.security.PermitAll;
 import jakarta.ejb.Stateless;
+import jakarta.ejb.TransactionAttribute;
+import jakarta.ejb.TransactionAttributeType;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.ws.rs.GET;
@@ -26,9 +35,10 @@ import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 
-@Path("seguimiento")
+@Path("v1/seguimiento")
 @Produces(MediaType.APPLICATION_JSON)
 @Stateless
+@TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
 @PermitAll
 public class SeguimientoResource {
 
@@ -36,16 +46,17 @@ public class SeguimientoResource {
     private ISeguimientoPedido seguimiento;
 
     @GET
-    @Path("{idPedido}")
-    public Response consultar(@PathParam("idPedido") Long idPedido) {
+    @Path("{codigo}")
+    public Response consultar(@PathParam("codigo") String codigo) {
         try {
-            PedidoDTO pedido = seguimiento.consultarEstadoPedido(idPedido);
+            PedidoDTO pedido = seguimiento.consultarSeguimiento(codigo);
             return Response.ok(Json.createObjectBuilder()
-                    .add("idPedido", pedido.id)
+                    .add("codigoSeguimiento", pedido.codigoSeguimiento)
                     .add("estado", pedido.estado)
                     .build()).build();
-        } catch (ValidacionException e) {
-            return PedidosExternosResource.error(Response.Status.NOT_FOUND, "Pedido no encontrado: " + idPedido);
+        } catch (PedidoNoEncontradoException e) {
+            return Problema.de(Response.Status.NOT_FOUND, "pedido-inexistente", "Pedido inexistente",
+                    "No hay ningún pedido con el código " + codigo).respuesta();
         }
     }
 }

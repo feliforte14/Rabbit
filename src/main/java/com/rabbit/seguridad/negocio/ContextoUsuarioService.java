@@ -8,7 +8,9 @@ package com.rabbit.seguridad.negocio;
  * Exige las dos cosas: el rol en el realm (isCallerInRole) y una cuenta
  * activa en la tabla con la asociación cargada. Un usuario creado a mano
  * con add-user.sh y rol COMERCIO, sin fila en la tabla, no representa a
- * ningún comercio y no ve nada.
+ * ningún comercio y no ve nada. Lo mismo vale para el ERP: su cuenta se
+ * crea desde la app (usuarios.xhtml) asociada a un comercio, y solo opera
+ * los pedidos de ese comercio.
  */
 
 import com.rabbit.seguridad.datos.UsuarioRepository;
@@ -33,6 +35,9 @@ public class ContextoUsuarioService implements IContextoUsuario {
     @Override
     public Long idComercioActual() {
         Usuario usuario = usuarioConRol(Rol.COMERCIO);
+        if (usuario == null) {
+            usuario = usuarioConRol(Rol.ERP);
+        }
         if (usuario == null || usuario.getIdComercio() == null) {
             throw new ValidacionException("Tu usuario no está asociado a ningún comercio");
         }

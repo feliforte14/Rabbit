@@ -226,37 +226,107 @@ nadie: corre en segundo plano). Los simulados guardan todo en memoria.
 ## REST: API para el ERP de los comercios y seguimiento público (implementado)
 
 **En una frase:** el ERP de cada comercio le manda sus pedidos a Rabbit
-por una API REST y consulta cómo terminaron; el cliente final puede ver
-el estado de su pedido sin loguearse.
+por una API REST, consulta cómo terminaron y los puede cancelar; el
+cliente final ve el estado de su pedido sin loguearse, con un código de
+seguimiento.
+
+El contrato completo (esquemas, ejemplos y errores) está en
+[`openapi.yaml`](openapi.yaml): se abre en Swagger Editor o se importa en
+Postman.
 
 | Endpoint | Quién | Qué hace | Respuestas |
 |---|---|---|---|
-| `POST /api/pedidos-externos` | ERP (rol `ERP`, HTTP Basic) | Registra un pedido externo | `201` + `Location` + `{"idPedidoExterno", "resultado": "Pendiente"}` · `400 {"error"}` · `401` · `403` |
-| `GET /api/pedidos-externos/{id}` | ERP (rol `ERP`) | Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`) o `Descartado` (con `motivo`) | `200` · `404` |
-| `GET /api/seguimiento/{idPedido}` | Público | Estado actual del pedido | `200 {"idPedido", "estado"}` · `404` |
+| `POST /api/v1/pedidos-externos` | ERP (HTTP Basic) + header `Idempotency-Key` | Registra un pedido externo de **su** comercio | `201` + `Location` · `400` · `401` · `403` · `422` |
+| `GET /api/v1/pedidos-externos/{id}` | ERP | Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`, `estadoPedido` y `codigoSeguimiento`), `Descartado` (con `motivo`) o `Cancelado` | `200` · `404` |
+| `POST /api/v1/pedidos-externos/{id}/cancelacion` | ERP | Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE`) | `200` · `404` · `409` |
+| `GET /api/v1/seguimiento/{codigo}` | Público | Estado actual del pedido | `200 {"codigoSeguimiento", "estado"}` · `404` |
 
 Ejemplo de alta desde el ERP:
 
 ```bash
-curl -u '<usuario-erp>:<contraseña>' -H "Content-Type: application/json" \
-  -d '{"idComercio":1,"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":1,"cantidad":2}],"importe":1800,"medioPago":"PREPAGO","direccionEntrega":"Av. Corrientes 1234, CABA"}' \
-  http://localhost:8080/Rabbit/api/pedidos-externos
+curl -i -u '<usuario-erp>:<contraseña>' -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $(uuidgen)" \
+  -d '{"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":1,"cantidad":2}],"importe":1800,"medioPago":"PREPAGO","direccionEntrega":"Av. Corrientes 1234, CABA"}' \
+  http://localhost:8080/Rabbit/api/v1/pedidos-externos
 ```
 
-`direccionEntrega` es obligatoria (hasta 200 caracteres): es el destino
-de la hoja de ruta del repartidor. Sin ella la API responde `400`.
+```http
+HTTP/1.1 201 Created
+Location: http://localhost:8080/Rabbit/api/v1/pedidos-externos/42
+Content-Type: application/json
 
+{"idPedidoExterno":42,"resultado":"Pendiente",
+ "_links":{"self":{"href":".../v1/pedidos-externos/42"},
+           "cancelar":{"href":".../v1/pedidos-externos/42/cancelacion","method":"POST"}}}
+```
+
+El cuerpo no lleva `idComercio`: el comercio es el de la cuenta ERP (si
+viene, se ignora). `direccionEntrega` es obligatoria (hasta 200
+caracteres): es el destino de la hoja de ruta del repartidor.
 `codigoPostalEntrega` es opcional: 4 dígitos (`"1414"`) o un CPA
 (`"C1414ABC"`). Si no viene, Rabbit lo busca en la dirección (CPA,
 "CP 1414" o "(1414)"; un número de calle suelto no cuenta). Con él, el
-Ruteo ubica el pedido en su zona (ADR-017). Si viene con otro formato,
-la API responde `400`.
+Ruteo ubica el pedido en su zona (ADR-017).
+
+### Decisiones de diseño de la API
+
+- **Versionado en la URI (`/api/v1/...`):** visible y fácil de probar
+  desde curl o el navegador. Agregar campos opcionales o endpoints no
+  cambia la versión; renombrar o quitar campos, o cambiar su significado,
+  sí (sería `/api/v2`, conviviendo con `v1` mientras los ERP migran). El
+  transportista simulado sigue en `/api/simulador/...`: no es parte de la
+  API de Rabbit sino el sistema de otra empresa.
+- **Idempotencia del alta:** el `POST` exige `Idempotency-Key` (un UUID
+  por pedido). Si el `201` se pierde por un timeout y el ERP reintenta
+  con la misma clave y el mismo pedido, recibe el pedido externo ya
+  creado: no se duplica. La clave se guarda con el pedido, y una
+  restricción única `(idComercio, claveIdempotencia)` cubre el caso de dos
+  reintentos simultáneos (el segundo choca al confirmar, el recurso
+  reintenta una vez y ya encuentra el primero). Ese choque WildFly lo
+  loguea como `WFLYEJB0034` con la violación de
+  `uk_pedido_externo_idempotencia`: es lo esperado, el ERP recibe su
+  `201` igual. La misma clave con **otro** pedido es un error del ERP:
+  `422`.
+- **Cancelación como sub-recurso (`POST .../cancelacion`) y no `DELETE`:**
+  cancelar no borra nada (en logística el pedido queda, cancelado). Es
+  idempotente: cancelar algo ya cancelado devuelve `200` con el mismo
+  estado. El ERP puede cancelar mientras el pedido está pendiente; desde
+  `CONFIRMADO` ya tiene cobro y repartidor, y responde `409`: lo cancela
+  el personal de Rabbit (anular un cobro exige `ADMINISTRADOR`).
+- **Errores con Problem Details (RFC 9457):** todas las respuestas de
+  error son `application/problem+json` con `type`, `title`, `status` y
+  `detail` (el equivalente REST del SOAP Fault). `400` es formato (falta
+  el cuerpo o la clave, JSON inválido, un campo fuera de rango; trae
+  `errores` con un mensaje por campo), `422` es una regla de negocio
+  (`PedidoService`), `404` no existe o es de otro comercio, `409` es un
+  conflicto con el estado. `ProblemaMapper` atrapa lo que se escape (URL
+  inexistente, método no admitido, error inesperado) para que nunca
+  salga la página `error.html` ni un stack trace.
+- **Bean Validation en el borde:** `PedidoExternoRequest` (el contrato de
+  la API, separado del DTO del formulario JSF) lleva `@NotEmpty`,
+  `@DecimalMin`, `@Size`, etc. El recurso lo valida con `Validator` en
+  vez de `@Valid` para que el `400` salga en el mismo formato Problem
+  Details. Las reglas de negocio siguen en `PedidoService`, que valida
+  igual: el borde solo corta antes y dice qué campo está mal.
+- **HATEOAS (nivel 3 de Richardson):** la representación del pedido
+  externo trae `_links` con lo que se puede hacer ahora: `self`,
+  `cancelar` (solo si todavía se puede) y `seguimiento` (cuando ya hay
+  pedido real).
+- **Seguimiento por código y no por ID:** el seguimiento público entra
+  por un código aleatorio (`RB-` + 10 caracteres, `SecureRandom`). Con el
+  ID secuencial cualquiera podía recorrer los estados de todos los
+  pedidos. El ERP recibe el código y se lo pasa a su cliente.
+- **Transacciones:** los recursos son `NOT_SUPPORTED`; cada operación de
+  negocio confirma su propia transacción, así un error al confirmar llega
+  al recurso y se responde bien.
 
 | Clase | Rol |
 |---|---|
 | `ApiRest` | Activa JAX-RS bajo `/Rabbit/api` |
 | `PedidosExternosResource` | Endpoints del ERP; delega en `IGestionPedidos` / `ISeguimientoPedido` |
+| `PedidoExternoRequest` | Cuerpo del alta, con Bean Validation |
 | `SeguimientoResource` | Endpoint público de seguimiento |
+| `Problema` / `ProblemaMapper` | Errores en Problem Details |
 
 - **Por qué sincrónico:** el ERP necesita saber en el momento si Rabbit
   aceptó el pedido (validación de datos) y con qué ID. La **conversión**
@@ -268,6 +338,10 @@ la API responde `400`.
   de presentación del componente Pedidos, como `PedidoBean`; no tienen
   reglas de negocio propias. El formulario "Simular pedido" sigue
   existiendo para la demo.
+- **Si el banco (SOAP) no responde en 5 s:** no afecta a esta API. El
+  alta no llama al banco: responde `201 Pendiente` y el cobro SOAP ocurre
+  después, al confirmar el pedido (con su circuit breaker). El ERP ve el
+  avance con `GET` (`estadoPedido`).
 
 ```mermaid
 sequenceDiagram
@@ -276,22 +350,24 @@ sequenceDiagram
     participant PS as PedidoService
     participant Q as cola.pedidos.externos
     participant MDB as PedidoExternoListener
-    ERP->>API: POST /api/pedidos-externos (Basic, rol ERP)
-    API->>PS: registrarPedidoExterno(datos)
-    alt datos inválidos
-        PS-->>API: ValidacionException
-        API-->>ERP: 400 {"error": motivo}
-    else datos válidos
-        PS->>PS: INSERT pedidos_externos
-        API-->>ERP: 201 Created {idPedidoExterno}
-        PS-)Q: aviso (después del commit)
+    ERP->>API: POST /api/v1/pedidos-externos (Basic, Idempotency-Key)
+    alt formato inválido
+        API-->>ERP: 400 problem+json {errores}
+    else formato válido
+        API->>PS: registrarPedidoExterno(datos, clave)
+        alt la clave ya se usó con el mismo pedido (reintento)
+            PS-->>API: id del pedido externo existente
+        else regla de negocio violada
+            PS-->>API: ValidacionException
+            API-->>ERP: 422 problem+json
+        else pedido nuevo
+            PS->>PS: INSERT pedidos_externos (comercio de la cuenta ERP)
+            PS-)Q: aviso (después del commit)
+        end
+        API-->>ERP: 201 Created + Location {resultado: Pendiente, _links}
         Q-)MDB: onMessage
         MDB->>PS: sincronizarPedidoExterno
     end
-    ERP->>API: GET /api/pedidos-externos/{id}
-    API-->>ERP: 200 {resultado: Sincronizado, idPedido}
+    ERP->>API: GET /api/v1/pedidos-externos/{id}
+    API-->>ERP: 200 {resultado: Sincronizado, estadoPedido, codigoSeguimiento, _links}
 ```
-
-**Limitación conocida:** cualquier usuario con rol `ERP` puede cargar
-pedidos de cualquier comercio. Lo correcto sería asociar cada usuario ERP
-a su comercio y validarlo en el recurso.

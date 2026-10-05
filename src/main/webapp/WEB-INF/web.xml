@@ -66,17 +66,19 @@
     <!--
         API REST para el ERP de los comercios (ver PedidosExternosResource):
         solo usuarios con rol ERP, autenticados por HTTP Basic contra el
-        ApplicationRealm. Afecta unicamente a /api/pedidos-externos: las
+        ApplicationRealm. Afecta unicamente a /api/v1/pedidos-externos: las
         pantallas JSF siguen usando login.xhtml (LoginBean hace
-        request.login) y /api/seguimiento es publica a proposito.
-        El usuario del ERP se crea en WildFly, no desde la app:
-          add-user.sh -a -u <usuario> -p '<clave>' -g ERP
+        request.login) y /api/v1/seguimiento es publica a proposito.
+        El usuario del ERP lo crea un administrador desde la app
+        (personal/usuarios.xhtml, tipo "ERP"), asociado al comercio al que
+        representa: un usuario ERP creado a mano con add-user.sh no tiene
+        comercio y la API le responde 403.
     -->
     <security-constraint>
         <web-resource-collection>
             <web-resource-name>API del ERP</web-resource-name>
-            <url-pattern>/api/pedidos-externos</url-pattern>
-            <url-pattern>/api/pedidos-externos/*</url-pattern>
+            <url-pattern>/api/v1/pedidos-externos</url-pattern>
+            <url-pattern>/api/v1/pedidos-externos/*</url-pattern>
         </web-resource-collection>
         <auth-constraint>
             <role-name>ERP</role-name>

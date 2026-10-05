@@ -12,10 +12,10 @@ Requisitos:
 
 Variables de entorno:
   WILDFLY_HOME          instalación de WildFly (para jboss-cli y el log)
-  RABBIT_ERP_USUARIO    usuario con rol ERP
+  RABBIT_ERP_USUARIO    usuario ERP (creado desde la app, asociado a un comercio:
+                        la carga va a ese comercio)
   RABBIT_ERP_CLAVE      su contraseña
-  RABBIT_ID_COMERCIO    comercio de la carga (por defecto 1)
-  RABBIT_ID_PUNTO       punto de picking de la carga (por defecto 1)
+  RABBIT_ID_PUNTO       punto de picking de ese comercio (por defecto 1)
 
 Uso:
   python3 scripts/prueba_escalabilidad.py 1 4 8        # consumidores a probar
@@ -33,6 +33,7 @@ import re
 import subprocess
 import time
 import urllib.request
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
@@ -43,7 +44,6 @@ LOG = os.path.join(WILDFLY, "standalone", "log", "server.log")
 COLA = "/subsystem=messaging-activemq/server=default/runtime-queue=jms.queue.cola.pedidos.externos"
 USUARIO = os.environ["RABBIT_ERP_USUARIO"]
 CLAVE = os.environ["RABBIT_ERP_CLAVE"]
-ID_COMERCIO = int(os.environ.get("RABBIT_ID_COMERCIO", "1"))
 ID_PUNTO = int(os.environ.get("RABBIT_ID_PUNTO", "1"))
 
 # Pocos hilos al cargar: el pooler de Supabase admite 15 conexiones en total.
@@ -82,15 +82,16 @@ def redesplegar():
 
 def enviar(etiqueta, i):
     cuerpo = {
-        "idComercio": ID_COMERCIO, "origen": "PUNTO_PICKING", "idPuntoPicking": ID_PUNTO,
+        "origen": "PUNTO_PICKING", "idPuntoPicking": ID_PUNTO,
         "lineas": [{"producto": "[CARGA] Caja", "cantidad": 1}],
         "importe": 100, "medioPago": "CONTRA_ENTREGA",
         "direccionEntrega": f"[CARGA] {etiqueta} #{i}",
     }
     credenciales = base64.b64encode(f"{USUARIO}:{CLAVE}".encode()).decode()
     pedido = urllib.request.Request(
-        BASE + "api/pedidos-externos", data=json.dumps(cuerpo).encode(), method="POST",
-        headers={"Content-Type": "application/json", "Authorization": "Basic " + credenciales})
+        BASE + "api/v1/pedidos-externos", data=json.dumps(cuerpo).encode(), method="POST",
+        headers={"Content-Type": "application/json", "Authorization": "Basic " + credenciales,
+                 "Idempotency-Key": str(uuid.uuid4())})
     return json.loads(urllib.request.urlopen(pedido).read())["idPedidoExterno"]
 
 

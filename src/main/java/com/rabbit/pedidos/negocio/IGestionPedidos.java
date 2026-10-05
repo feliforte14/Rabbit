@@ -14,6 +14,7 @@ package com.rabbit.pedidos.negocio;
  */
 
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
+import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import jakarta.ejb.Local;
 
 @Local
@@ -26,11 +27,33 @@ public interface IGestionPedidos {
      * reemplazo, para esta etapa, de lo que en producción sería el
      * webhook o polling contra el sistema del comercio (ver Sección 1.6).
      *
+     * Si llama un ERP, el comercio es SIEMPRE el de su cuenta (el
+     * idComercio de los datos se ignora). Con clave de idempotencia, un
+     * reintento con la misma clave y el mismo pedido devuelve el pedido
+     * externo ya creado, sin duplicarlo.
+     *
      * @param datos comercio, origen y las líneas de producto+cantidad del pedido simulado
-     * @return el ID de la fila mock creada
+     * @param claveIdempotencia header Idempotency-Key de la API, o null (pantalla)
+     * @return el ID de la fila mock creada (o la ya existente, si es un reintento)
      * @throws ValidacionException si los datos son inválidos
+     * @throws ClaveIdempotenciaReutilizadaException si la clave ya se usó con otro pedido
      */
-    Long registrarPedidoExterno(DatosPedidoExternoDTO datos);
+    Long registrarPedidoExterno(DatosPedidoExternoDTO datos, String claveIdempotencia);
+
+    /**
+     * El ERP cancela un pedido que mandó. Si todavía no se convirtió en
+     * pedido, no se convierte; si ya es un pedido PENDIENTE, se cancela
+     * devolviendo el stock. Una vez CONFIRMADO ya tiene cobro y repartidor:
+     * eso lo cancela solo el personal de Rabbit (cancelarPedido).
+     * Cancelar algo ya cancelado (o descartado) no hace nada: se puede
+     * reintentar sin miedo.
+     *
+     * @param idPedidoExterno pedido externo del comercio del ERP que llama
+     * @return cómo quedó el pedido externo
+     * @throws PedidoNoEncontradoException si no existe o es de otro comercio
+     * @throws CancelacionNoPermitidaException si el pedido ya avanzó demasiado
+     */
+    PedidoExternoDTO cancelarPedidoExterno(Long idPedidoExterno);
 
     /**
      * Convierte una fila del mock del ERP (PedidoExterno) en un Pedido

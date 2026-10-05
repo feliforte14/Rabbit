@@ -32,6 +32,10 @@ public class PedidoExternoDTO {
     public String errorSincronizacion;
     public String resultado;
     public Long idPedido;
+    // Del pedido real, si ya se generó: los completa PedidoService (este
+    // DTO solo ve la fila del ERP).
+    public String estadoPedido;
+    public String codigoSeguimiento;
 
     // Convierte una entidad PedidoExterno en un DTO listo para la vista.
     public static PedidoExternoDTO desde(PedidoExterno pe) {
@@ -48,9 +52,11 @@ public class PedidoExternoDTO {
         dto.fechaPedido = pe.getFechaPedido() != null ? pe.getFechaPedido().format(FORMATO) : null;
         dto.sincronizado = pe.isSincronizado();
         dto.errorSincronizacion = pe.getErrorSincronizacion();
-        // Los tres desenlaces posibles, ya resueltos acá para que la vista
+        // Los cuatro desenlaces posibles, ya resueltos acá para que la vista
         // no tenga que combinar dos campos en Expression Language.
-        if (!pe.isSincronizado()) {
+        if (pe.isCancelado()) {
+            dto.resultado = "Cancelado";
+        } else if (!pe.isSincronizado()) {
             dto.resultado = "Pendiente";
         } else if (pe.getErrorSincronizacion() == null) {
             dto.resultado = "Sincronizado";
@@ -91,4 +97,6 @@ public class PedidoExternoDTO {
     public String getErrorSincronizacion() { return errorSincronizacion; }
     public Long getIdPedido() { return idPedido; }
     public String getResultado() { return resultado; }
+    public String getEstadoPedido() { return estadoPedido; }
+    public String getCodigoSeguimiento() { return codigoSeguimiento; }
 }

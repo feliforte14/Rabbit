@@ -248,12 +248,15 @@ su propia pantalla.
 
 ### 6. Usuario del ERP para la API REST
 
-La API `/api/pedidos-externos` exige el rol `ERP` (HTTP Basic). Ese
-usuario representa a un sistema, no a una persona, así que se crea
-directamente en WildFly:
+La API `/api/v1/pedidos-externos` exige un usuario de tipo `ERP` (HTTP
+Basic). Representa al sistema de un comercio, no a una persona, y está
+atado a ese comercio: solo carga y ve sus pedidos. Lo crea un
+administrador desde `personal/usuarios.xhtml`, eligiendo el tipo "ERP
+(API REST)" y el comercio. No puede entrar a la web.
 
-```bash
-$WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ERP -s
-```
+Un usuario ERP creado a mano con `add-user.sh` (como se hacía antes) no
+tiene comercio y la API le responde `403`: hay que borrarlo del realm y
+crearlo desde la app.
 
-Ver ejemplos de uso en [MENSAJERIA-SINCRONICA.md](docs/MENSAJERIA-SINCRONICA.md).
+Contrato en [docs/openapi.yaml](docs/openapi.yaml) y ejemplos en
+[MENSAJERIA-SINCRONICA.md](docs/MENSAJERIA-SINCRONICA.md).

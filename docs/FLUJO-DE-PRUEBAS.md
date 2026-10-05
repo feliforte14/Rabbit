@@ -80,14 +80,18 @@ de alta desde acá crea la cuenta en el realm de WildFly *y* la asociación
 en la base al mismo tiempo — sin eso, cualquier pantalla del comercio o
 repartidor muestra "cuenta no asociada".
 
-### 2.5 (Opcional) Cuenta del ERP
-Hoy existe `claude-cb-erp`. Si se usa otra, se crea así.
-El usuario del ERP no se gestiona desde la app (no tiene rol en el enum
-`Rol` ni pantalla propia) — es una cuenta de servidor pura, solo para la
-API REST:
-```bash
-~/wildfly/bin/add-user.sh -a -u demo.erp -g ERP
-```
+### 2.5 Cuenta del ERP (para la API REST)
+Igual que las anteriores, desde **Usuarios**:
+   - Usuario: `demo.erp`
+   - Tipo de cuenta: `ERP (API REST)`
+   - Comercio: el que creaste en 2.1
+
+La cuenta ERP representa a ese comercio: por la API solo carga y ve sus
+pedidos. No puede entrar a la web.
+
+**Cuentas ERP viejas:** las creadas a mano con `add-user.sh -g ERP` (por
+ejemplo `claude-cb-erp`) no tienen comercio: la API les responde `403`
+("Cuenta ERP sin comercio"). Hay que crear una nueva desde la app.
 
 ---
 
@@ -111,10 +115,10 @@ Con la cuenta `demo.erp` (Basic Auth):
 
 ```bash
 curl -i -u demo.erp:<contraseña> \
-  -X POST http://localhost:8080/Rabbit/api/pedidos-externos \
+  -X POST http://localhost:8080/Rabbit/api/v1/pedidos-externos \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: $(uuidgen)" \
   -d '{
-    "idComercio": 1,
     "origen": "STOCK_CONSIGNADO",
     "lineas": [{"idItem": 1, "cantidad": 1}],
     "importe": 2500,
@@ -124,21 +128,45 @@ curl -i -u demo.erp:<contraseña> \
   }'
 ```
 
-- Ajustá `idComercio` e `idItem` a los IDs reales que quedaron después del
-  alta (columna ID del listado de comercios y de la tabla de stock).
-- `direccionEntrega` es obligatoria: sin ella la API responde `400`.
+- Ajustá `idItem` al ID real del stock del comercio (tabla de stock). El
+  comercio no va en el cuerpo: es el de la cuenta `demo.erp`.
+- `direccionEntrega` es obligatoria: sin ella la API responde `400` con
+  `errores` indicando el campo.
 - `codigoPostalEntrega` es opcional (4 dígitos o CPA); si falta, se toma
   de la dirección cuando la trae. Lo usa el Ruteo por zona (sección 6c).
-- Debería responder `201 Created` con `idPedidoExterno` y `Location`.
+- Debería responder `201 Created` con `idPedidoExterno`, `Location` y
+  `_links`.
 
 Consultar cómo terminó:
 ```bash
 curl -u demo.erp:<contraseña> \
-  http://localhost:8080/Rabbit/api/pedidos-externos/<idPedidoExterno>
+  http://localhost:8080/Rabbit/api/v1/pedidos-externos/<idPedidoExterno>
 ```
-Estados posibles: `Pendiente` → `Sincronizado` (con el ID del pedido real)
-o `Descartado` (con motivo). La conversión es asincrónica (cola JMS), así
-que puede tardar un instante en pasar de Pendiente a Sincronizado.
+Estados posibles: `Pendiente` → `Sincronizado` (con `idPedido`,
+`estadoPedido` y `codigoSeguimiento`), `Descartado` (con motivo) o
+`Cancelado`. La conversión es asincrónica (cola JMS), así que puede tardar
+un instante en pasar de Pendiente a Sincronizado.
+
+### 4.1 Lo que tiene que mostrar la API (Clase 10)
+
+| Prueba | Cómo | Esperado |
+|---|---|---|
+| Idempotencia | Repetir el mismo `curl` con la **misma** `Idempotency-Key` (fijala en una variable: `K=$(uuidgen)`) | `201` con el **mismo** `idPedidoExterno`; en Pedidos hay uno solo |
+| Reintentos simultáneos | La misma clave en varios `curl` en paralelo | Todos `201` con el mismo id; en el log puede aparecer un `WFLYEJB0034` por la restricción única (esperado) |
+| Clave reutilizada | Misma clave, otro `importe` | `422`, `type: /problemas/clave-idempotencia-reutilizada` |
+| Sin clave | Sacar el header `Idempotency-Key` | `400`, `type: /problemas/clave-idempotencia-invalida` |
+| Formato inválido | `"importe": 0` y sin `direccionEntrega` | `400` con `errores` (un mensaje por campo) |
+| Regla de negocio | `"origen": "PUNTO_PICKING"` sin `idPuntoPicking` | `422`, `type: /problemas/datos-invalidos` |
+| JSON roto | `-d '{"importe":'` | `400`, `type: /problemas/cuerpo-invalido` |
+| Pedido de otro comercio | `GET` de un `idPedidoExterno` de otro comercio | `404` (no se revela que existe) |
+| Cancelar | `curl -i -X POST -u demo.erp:<contraseña> .../v1/pedidos-externos/<id>/cancelacion` | `200`; repetirlo da `200` igual |
+| Cancelar tarde | Lo mismo con el pedido ya `CONFIRMADO` | `409`, `type: /problemas/cancelacion-no-permitida` |
+| Seguimiento público | `curl -i http://localhost:8080/Rabbit/api/v1/seguimiento/<codigoSeguimiento>` | `200 {"codigoSeguimiento", "estado"}`, sin login |
+| URL vieja | `curl -i .../Rabbit/api/pedidos-externos/1` | `404` en `application/problem+json` (la API es `/v1`) |
+
+El contrato está en [openapi.yaml](openapi.yaml): pegalo en
+[Swagger Editor](https://editor.swagger.io) o importalo en Postman
+(**Import → File**) para tener la colección armada.
 
 **Qué mirar:** en el log de WildFly deberían verse las trazas de
 `PedidoExternoListener` procesando el mensaje de la cola
@@ -274,8 +302,8 @@ Con `demo.comercio` logueado:
 
 Contra la API del ERP:
 ```bash
-curl -i http://localhost:8080/Rabbit/api/pedidos-externos/1                            # sin credenciales
-curl -i -u claude-cb-admin:<contraseña> http://localhost:8080/Rabbit/api/pedidos-externos/1   # usuario sin rol ERP
+curl -i http://localhost:8080/Rabbit/api/v1/pedidos-externos/1                            # sin credenciales
+curl -i -u claude-cb-admin:<contraseña> http://localhost:8080/Rabbit/api/v1/pedidos-externos/1   # usuario sin rol ERP
 ```
 Debería responder `401` sin credenciales y `403` con un usuario válido que
 no tiene el rol `ERP`.
@@ -318,7 +346,7 @@ Los pasos de estas demos están en
 | Login admin | Entra a personal/pedidos.xhtml sin error |
 | Alta comercio/depósito/stock/repartidor | Aparecen en sus listados |
 | Alta de usuarios comercio/repartidor | Cuenta creada, loguea, ve solo lo suyo |
-| POST /api/pedidos-externos (ERP) | 201 + Location, luego Sincronizado |
+| POST /api/v1/pedidos-externos (ERP) | 201 + Location, luego Sincronizado; reintento con la misma clave no duplica |
 | Ciclo pedido completo | Pasa por todos los estados hasta ENTREGADO |
 | Circuit breaker | 3 fallas → ABIERTO → corta instantáneo → SEMIABIERTO a los 30s |
 | Derivar a un transportista | Confirmado con código de seguimiento; pasa solo a En camino y Entregado |

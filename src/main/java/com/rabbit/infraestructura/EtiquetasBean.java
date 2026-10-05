@@ -89,6 +89,7 @@ public class EtiquetasBean {
             case "Sincronizado": return "badge badge-verde";
             case "Descartado": return "badge badge-rojo";
             case "Pendiente": return "badge badge-naranja";
+            case "Cancelado": return "badge badge-gris";
             default: return "";
         }
     }
@@ -187,6 +188,7 @@ public class EtiquetasBean {
             case "OPERADOR": return "Operador";
             case "COMERCIO": return "Comercio";
             case "REPARTIDOR": return "Repartidor";
+            case "ERP": return "ERP (API REST)";
             default: return "—";
         }
     }
