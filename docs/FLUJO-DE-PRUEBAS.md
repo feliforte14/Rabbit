@@ -20,8 +20,11 @@ comercio y su repartidor se borraron): al entrar ven "Cuenta sin asociar"
 (ver 2.4).
 
 Credenciales del realm de WildFly disponibles hoy: `claude-cb-admin` (rol
-`ADMINISTRADOR`) y `claude-cb-erp` (rol `ERP`, para la API REST). La contraseña la tenés guardada de cuando se
-generó; si la perdiste, reseteala con:
+`ADMINISTRADOR`). `claude-cb-erp` (rol `ERP`) también existe, pero se creó
+con `add-user.sh` y no tiene comercio: desde la API v1 recibe `403`. La
+cuenta ERP para las pruebas se crea desde la app (2.5). La contraseña de
+`claude-cb-admin` la tenés guardada de cuando se generó; si la perdiste,
+reseteala con:
 ```bash
 ~/wildfly/bin/add-user.sh -a -u claude-cb-admin -g ADMINISTRADOR
 ```
@@ -330,8 +333,9 @@ Los pasos de estas demos están en
 [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md):
 
 - **Escalabilidad:** `scripts/prueba_escalabilidad.py` manda 100 pedidos
-  por la API y mide cuánto tarda la cola con 1, 4 y 8 consumidores.
-  Necesita un comercio y un punto de picking activos y un usuario `ERP`.
+  por la API v1 y mide cuánto tarda la cola con 1, 4 y 8 consumidores.
+  Necesita un usuario `ERP` creado desde la app (2.5) y un punto de
+  picking activo de su comercio.
 - **Heterogeneidad:** levantar el banco en Node.js (`banco-legado/`,
   `npm install && npm start`), apuntar `rabbit.banco.wsdl` y redesplegar;
   las confirmaciones prepago del paso 5 quedan registradas en la consola
