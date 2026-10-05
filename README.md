@@ -98,6 +98,7 @@ El detalle y la justificación de cada decisión están en
 - [Patrones de diseño](docs/PATRONES.md)
 - [Seguridad](docs/SEGURIDAD.md)
 - [Transacciones](docs/TRANSACCIONES.md)
+- [Mensajería: justificación final](docs/MensajeriaFinal.md): por qué cada integración usa cola, tópico, SOAP o REST.
 - [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP con el banco legado (con circuit breaker) y API REST.
 - [Contrato OpenAPI](docs/openapi.yaml) de la API REST (Swagger Editor o Postman).
 - [Mensajería asincrónica](docs/MENSAJERIA-ASINCRONICA.md): cola y tópico.

@@ -10,6 +10,7 @@ clases donde vive) de lo **planificado** para la Entrega Obligatoria N.º 2
 | [PATRONES.md](PATRONES.md) | Cada patrón de diseño: qué problema resuelve, dónde está, qué alternativa se descartó |
 | [SEGURIDAD.md](SEGURIDAD.md) | Autenticación, roles, `@RolesAllowed`, operaciones sensibles |
 | [TRANSACCIONES.md](TRANSACCIONES.md) | Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo |
+| [MensajeriaFinal.md](MensajeriaFinal.md) | **Por qué** cada integración usa cola, tópico, SOAP o REST: el criterio de decisión aplicado a todas |
 | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) | SOAP con el banco legado (cobro, reversa, timeout, circuit breaker) y API REST (ERP y seguimiento) |
 | [openapi.yaml](openapi.yaml) | Contrato OpenAPI 3.1 de la API REST (se abre en Swagger Editor o se importa en Postman) |
 | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) | Cola JMS de pedidos externos y tópico de estados del pedido |
