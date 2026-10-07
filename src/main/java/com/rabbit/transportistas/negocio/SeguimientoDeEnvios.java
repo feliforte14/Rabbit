@@ -65,8 +65,17 @@ public class SeguimientoDeEnvios {
                 .collect(Collectors.toMap(TransportistaDTO::getId, Function.identity()));
         for (EnvioDTO envio : activos) {
             TransportistaDTO t = porId.get(envio.getIdTransportista());
-            EstadoExterno externo = adaptadores.para(TipoIntegracion.valueOf(t.getTipoIntegracion()))
-                    .consultarEstado(t.getEndpoint(), envio.getCodigoSeguimiento());
+            EstadoExterno externo;
+            // Cada envío por separado: un transportista que responde algo
+            // inesperado no puede frenar el seguimiento de todos los demás.
+            try {
+                externo = adaptadores.para(TipoIntegracion.valueOf(t.getTipoIntegracion()))
+                        .consultarEstado(t.getEndpoint(), envio.getCodigoSeguimiento());
+            } catch (RuntimeException e) {
+                LOG.warning("[Transportistas] No se pudo consultar el envío " + envio.getCodigoSeguimiento()
+                        + " (pedido " + envio.getIdPedido() + "): " + e + ". Se reintenta en la próxima pasada.");
+                continue;
+            }
             EstadoEnvio nuevo = traducir(externo);
             if (nuevo == null || nuevo.name().equals(envio.getEstado())) {
                 continue;

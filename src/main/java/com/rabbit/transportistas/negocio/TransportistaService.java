@@ -25,6 +25,7 @@ package com.rabbit.transportistas.negocio;
  * Un COMERCIO solo lee sus propios envíos.
  */
 
+import com.rabbit.integracion.transportistas.ResultadoCotizacion;
 import com.rabbit.integracion.transportistas.ResultadoSolicitud;
 import com.rabbit.integracion.transportistas.SolicitudEnvio;
 import com.rabbit.seguridad.negocio.IContextoUsuario;
@@ -32,6 +33,7 @@ import com.rabbit.transportistas.datos.TransportistaRepository;
 import com.rabbit.transportistas.datos.model.Envio;
 import com.rabbit.transportistas.datos.model.EstadoEnvio;
 import com.rabbit.transportistas.datos.model.Transportista;
+import com.rabbit.transportistas.dto.CotizacionDTO;
 import com.rabbit.transportistas.dto.DatosEnvioDTO;
 import com.rabbit.transportistas.dto.DatosTransportistaDTO;
 import com.rabbit.transportistas.dto.EnvioDTO;
@@ -48,6 +50,8 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -136,6 +140,45 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
     // ===============================================================
     // IEnvios
     // ===============================================================
+
+    // Solo consultas a los transportistas: no escribe nada, así que no abre
+    // transacción (y no la retiene mientras espera respuestas de afuera).
+    // Se pregunta a uno por vez, cada uno con su timeout de 5 s.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public List<CotizacionDTO> cotizarEnvio(Long idPedido, DatosEnvioDTO datos) {
+        SolicitudEnvio solicitud = new SolicitudEnvio("PEDIDO-" + idPedido, datos.direccionRetiro,
+                datos.direccionEntrega, datos.bultos, datos.cobrarAlEntregar);
+        List<CotizacionDTO> cotizaciones = new ArrayList<>();
+        for (Transportista t : repository.listarTodos()) {
+            if (!t.isActivo()) {
+                continue;
+            }
+            // Uno que falla de forma inesperada figura como "no respondió":
+            // no puede hacer perder las cotizaciones de los demás.
+            ResultadoCotizacion r;
+            try {
+                r = adaptadores.para(t.getTipoIntegracion()).cotizarEnvio(t.getEndpoint(), solicitud);
+            } catch (RuntimeException e) {
+                LOG.warning("[Transportistas] Error al cotizar con " + t.getNombre() + ": " + e);
+                r = ResultadoCotizacion.noDisponible();
+            }
+            CotizacionDTO c = new CotizacionDTO();
+            c.idTransportista = t.getId();
+            c.transportista = t.getNombre();
+            c.tipoIntegracion = t.getTipoIntegracion().name();
+            c.estado = r.getEstado().name();
+            c.precio = r.getPrecio();
+            c.plazoHoras = r.getPlazoHoras();
+            c.motivo = r.getMotivo();
+            cotizaciones.add(c);
+        }
+        cotizaciones.sort(Comparator.comparing((CotizacionDTO c) -> !c.isCotizado())
+                .thenComparing(c -> c.precio, Comparator.nullsLast(Comparator.naturalOrder())));
+        LOG.info("[Transportistas] Pedido " + idPedido + " cotizado con " + cotizaciones.size() + " transportista(s)");
+        return cotizaciones;
+    }
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)

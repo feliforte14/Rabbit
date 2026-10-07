@@ -17,6 +17,13 @@ public interface IAdaptadorTransportista {
     /** @param endpoint URL base de la API (REST) o del WSDL (SOAP) del transportista */
     ResultadoSolicitud solicitarEnvio(String endpoint, SolicitudEnvio solicitud);
 
+    /**
+     * Cuánto cobraría y cuánto tardaría el envío, sin pedirlo. Un
+     * transportista que no ofrece la operación (el legado) devuelve
+     * NO_COTIZA sin llamar a nadie.
+     */
+    ResultadoCotizacion cotizarEnvio(String endpoint, SolicitudEnvio solicitud);
+
     EstadoExterno consultarEstado(String endpoint, String codigoSeguimiento);
 
     /** @return true si el transportista confirmó la cancelación */

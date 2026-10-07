@@ -53,6 +53,9 @@
 
             <p class="hoja-ruta-datos">
                 <span>Llevás: <b>#{e.productos}</b> (#{e.cantidadTotal} u.)</span>
+                <h:panelGroup rendered="#{not empty e.codigoCliente}">
+                    <span>Código del cliente: <span class="codigo">#{e.codigoCliente}</span></span>
+                </h:panelGroup>
                 <h:panelGroup rendered="#{not empty e.cobrarAlEntregar}">
                     <span class="cobrar">Cobrar al entregar:&#160;
                         <h:outputText value="#{e.cobrarAlEntregar}">
@@ -84,7 +87,7 @@
 
         <h2>Historial</h2>
         <h:dataTable value="#{misEntregasBean.historial}" var="h"
-                     styleClass="tabla" rowClasses="fila-impar,fila-par"
+                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                      rendered="#{not empty misEntregasBean.historial}">
             <h:column>
                 <f:facet name="header">Pedido</f:facet>

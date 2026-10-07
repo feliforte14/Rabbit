@@ -38,5 +38,5 @@ public interface TransportistaLegadoService {
 
     /** Anula un envío que todavía no se entregó. Idempotente. */
     @WebMethod(operationName = "anularEnvio")
-    void anularEnvio(@WebParam(name = "codigoSeguimiento") String codigoSeguimiento);
+    void anularEnvio(@WebParam(name = "codigoSeguimiento") String codigoSeguimiento) throws EnvioRechazadoException;
 }

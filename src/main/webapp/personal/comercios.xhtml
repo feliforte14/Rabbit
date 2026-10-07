@@ -6,7 +6,7 @@
     uno nuevo. Se bindea al Managed Bean comercioBean (ComercioBean.java)
     via Expression Language: por ejemplo #{comercioBean.comercios}.
 
-    El estilo visual vive aparte, en resources/rabbit/1_6/estilos.css
+    El estilo visual vive aparte, en resources/rabbit/1_7/estilos.css
     (recurso JSF versionado), linkeado desde template.xhtml. Es solo
     CSS: no cambia ningun binding ni ninguna accion de los Managed Beans.
 -->
@@ -37,7 +37,7 @@
 
         <h:form id="formListado">
             <h:dataTable value="#{comercioBean.comercios}" var="c"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty comercioBean.comercios}">
                 <h:column>
                     <f:facet name="header">ID</f:facet>
@@ -53,7 +53,7 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">CUIT</f:facet>
-                    #{c.cuit}
+                    <span class="nowrap">#{c.cuit}</span>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Estado</f:facet>

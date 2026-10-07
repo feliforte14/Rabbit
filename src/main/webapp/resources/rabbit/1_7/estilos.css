@@ -7,11 +7,11 @@
  * No toca Managed Beans, Services ni Repositories: es 100% presentacion.
  *
  * VERSIONADO DE RECURSOS
- * Vive en resources/rabbit/1_6/ y se linkea con:
+ * Vive en resources/rabbit/1_7/ y se linkea con:
  *     <h:outputStylesheet library="rabbit" name="estilos.css" />
- * "rabbit" es la libreria y "1_6" su version. JSF genera una URL que
- * incluye la version (?ln=rabbit&v=1_6), asi que al renombrar la carpeta
- * a 1_6 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
+ * "rabbit" es la libreria y "1_7" su version. JSF genera una URL que
+ * incluye la version (?ln=rabbit&v=1_7), asi que al renombrar la carpeta
+ * a 1_7 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
  * Sin esto, el navegador se queda con el CSS viejo cacheado aunque el
  * WAR ya tenga el nuevo.
  */
@@ -1071,6 +1071,359 @@ a.btn {
 }
 
 .hoja-ruta-datos a {
+    color: var(--naranja-oscuro);
+    font-weight: 600;
+}
+
+/* ==================================================================
+   Version 1_7: mejoras visuales para todos los tipos de usuario
+   ================================================================== */
+
+/* ---- Codigos y datos que no se cortan --------------------------- */
+/* Un codigo de seguimiento o un CUIT partido en dos lineas no se puede
+   leer ni copiar: van en una sola linea, con letra monoespaciada. */
+.codigo {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    color: var(--navy);
+}
+
+.nowrap {
+    white-space: nowrap;
+}
+
+a.codigo {
+    text-decoration: none;
+    border-bottom: 1px dashed currentColor;
+}
+
+a.codigo:hover {
+    color: var(--naranja-oscuro);
+}
+
+/* ---- Botones dentro de tablas: mas chicos ------------------------ */
+.tabla .btn {
+    padding: 0.38rem 0.8rem;
+    font-size: 0.8rem;
+}
+
+.tabla td.acciones,
+.tabla .acciones {
+    white-space: nowrap;
+}
+
+/* ---- Celda sin accion: un texto explicito en vez de una celda vacia */
+.sin-accion {
+    font-size: 0.8rem;
+    color: var(--texto-suave);
+    font-style: italic;
+}
+
+/* ---- Encabezado compacto en pantallas chicas --------------------- */
+/* En el celular el menu va arriba: logo, menu y usuario ocupaban media
+   pantalla. Ahora el usuario y "Cerrar sesion" van en una sola fila. */
+@media (max-width: 860px) {
+    .sidebar-logo {
+        padding: 0.9rem 1.25rem 0.6rem;
+        text-align: left;
+        border-bottom: none;
+    }
+
+    .sidebar-logo .slogan {
+        display: none;
+    }
+
+    .sidebar-nav {
+        flex-direction: row;
+        overflow-x: auto;
+        padding: 0.25rem 0.75rem 0.6rem;
+        gap: 0.35rem;
+    }
+
+    .sidebar-nav a {
+        white-space: nowrap;
+        padding: 0.5rem 0.8rem;
+    }
+
+    .sidebar-seccion {
+        display: none;
+    }
+
+    .sidebar-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        padding: 0.6rem 1rem;
+    }
+
+    .sidebar-usuario {
+        padding: 0;
+        line-height: 1.3;
+    }
+
+    .sidebar-foot .btn {
+        width: auto !important;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* ---- Tablas que en el celular se vuelven tarjetas ---------------- */
+/* Para las pantallas que se usan desde el telefono (comercio y
+   repartidor): cada fila pasa a ser una tarjeta, con el nombre de cada
+   dato al lado (data-label), en vez de una tabla que hay que correr de
+   costado. */
+@media (max-width: 640px) {
+    .tabla.tabla-tarjetas {
+        display: block;
+        border: none;
+        background: none;
+        box-shadow: none;
+        overflow: visible;
+    }
+
+    .tabla-tarjetas thead {
+        display: none;
+    }
+
+    .tabla-tarjetas tbody,
+    .tabla-tarjetas tr,
+    .tabla-tarjetas td {
+        display: block;
+    }
+
+    .tabla-tarjetas tr {
+        background: var(--superficie) !important;
+        border: 1px solid var(--borde);
+        border-radius: var(--radio);
+        box-shadow: var(--sombra);
+        padding: 0.6rem 0.9rem;
+        margin-bottom: 0.75rem;
+    }
+
+    /* La etiqueta flota a la izquierda y el contenido (que puede ser mas
+       de una cosa: un codigo y un enlace, un importe y su medio de pago)
+       se alinea a la derecha, uno debajo del otro. */
+    .tabla-tarjetas td {
+        display: block;
+        padding: 0.45rem 0;
+        border-top: 1px solid var(--borde);
+        text-align: right;
+        background: none !important;
+        overflow: hidden;
+    }
+
+    .tabla-tarjetas tr td:first-child {
+        border-top: none;
+    }
+
+    .tabla-tarjetas td::before {
+        content: attr(data-label);
+        float: left;
+        margin-right: 1rem;
+        padding-top: 0.1rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--texto-suave);
+        text-align: left;
+    }
+
+    /* Botones de una tarjeta: a lo ancho, faciles de tocar. */
+    .tabla-tarjetas td.acciones .btn,
+    .tabla-tarjetas td .btn {
+        display: block;
+        width: 100%;
+        margin: 0.35rem 0 0;
+        padding: 0.55rem 0.8rem;
+        font-size: 0.86rem;
+    }
+
+    .tabla-tarjetas td.acciones::before {
+        display: none;
+    }
+
+    /* Los contadores, de a dos por fila en vez de uno debajo del otro. */
+    .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.65rem;
+    }
+
+    .stat-card {
+        padding: 0.85rem 0.9rem;
+    }
+
+    .stat-card .stat-valor {
+        font-size: 1.8rem;
+    }
+
+    .tabla-scroll:has(.tabla-tarjetas) {
+        overflow: visible;
+    }
+}
+
+/* ---- Pagina publica de seguimiento ------------------------------- */
+.seguimiento {
+    width: 100%;
+    max-width: 520px;
+}
+
+.buscador-seguimiento {
+    max-width: none;
+}
+
+.buscador-seguimiento input {
+    width: 100%;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    font: inherit;
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.buscador-seguimiento input:focus {
+    outline: none;
+    border-color: var(--naranja);
+    box-shadow: 0 0 0 3px var(--naranja-suave);
+}
+
+.buscador-seguimiento input::placeholder {
+    text-transform: none;
+    letter-spacing: 0.02em;
+}
+
+.seguimiento-tarjeta {
+    margin-top: 1.5rem;
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-top: 4px solid var(--naranja);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra-media);
+    padding: 1.5rem 1.4rem 1.6rem;
+    text-align: left;
+}
+
+.seguimiento-cancelado {
+    border-top-color: var(--texto-suave);
+}
+
+.seguimiento-vacio {
+    border-top-color: var(--rojo);
+}
+
+.seguimiento-codigo {
+    margin: 0 0 0.6rem;
+    font-size: 0.8rem;
+    color: var(--texto-suave);
+}
+
+.seguimiento-codigo code {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-weight: 600;
+    color: var(--navy);
+}
+
+.seguimiento-titular {
+    margin: 0;
+    font-family: var(--fuente-titulo);
+    font-style: italic;
+    font-weight: 700;
+    font-size: 1.75rem;
+    line-height: 1.15;
+    color: var(--navy);
+}
+
+.seguimiento-detalle {
+    margin: 0.4rem 0 0;
+    color: var(--texto-suave);
+}
+
+/* Linea de tiempo: un punto por paso, unidos por una linea. Hecho =
+   naranja lleno; actual = naranja con aro; pendiente = gris. */
+.linea-tiempo {
+    list-style: none;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin: 1.6rem 0 0;
+    padding: 0;
+}
+
+.linea-tiempo li {
+    position: relative;
+    text-align: center;
+}
+
+.linea-tiempo li::before {
+    content: "";
+    position: absolute;
+    top: 0.55rem;
+    left: -50%;
+    width: 100%;
+    height: 3px;
+    background: var(--borde);
+    z-index: 0;
+}
+
+.linea-tiempo li:first-child::before {
+    display: none;
+}
+
+.linea-tiempo li.hecho::before,
+.linea-tiempo li.actual::before {
+    background: var(--naranja);
+}
+
+.linea-tiempo-punto {
+    position: relative;
+    z-index: 1;
+    display: block;
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0 auto 0.45rem;
+    border-radius: 50%;
+    background: var(--superficie);
+    border: 3px solid var(--borde);
+}
+
+.linea-tiempo li.hecho .linea-tiempo-punto {
+    background: var(--naranja);
+    border-color: var(--naranja);
+}
+
+.linea-tiempo li.actual .linea-tiempo-punto {
+    border-color: var(--naranja);
+    box-shadow: 0 0 0 4px var(--naranja-suave);
+}
+
+.linea-tiempo-texto {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--texto-suave);
+}
+
+.linea-tiempo li.hecho .linea-tiempo-texto,
+.linea-tiempo li.actual .linea-tiempo-texto {
+    color: var(--navy);
+}
+
+.linea-tiempo li.actual .linea-tiempo-texto {
+    color: var(--naranja-oscuro);
+}
+
+/* Enlace al seguimiento debajo del login. */
+.enlace-seguimiento {
+    margin-top: 1.25rem;
+    font-size: 0.88rem;
+}
+
+.enlace-seguimiento a {
     color: var(--naranja-oscuro);
     font-weight: 600;
 }

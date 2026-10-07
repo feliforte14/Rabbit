@@ -165,6 +165,7 @@ public class RuteoService implements IRuteo {
                                 Map<Long, ItemInventarioDTO> itemsPorId) {
         HojaDeRutaDTO hoja = new HojaDeRutaDTO();
         hoja.idPedido = p.getId();
+        hoja.codigoCliente = p.getCodigoSeguimiento();
         hoja.estado = p.getEstado();
         hoja.productos = p.getProductos();
         hoja.cantidadTotal = p.getCantidadTotal();
@@ -214,7 +215,7 @@ public class RuteoService implements IRuteo {
                 .distinct()
                 .map(depositosPorId::get)
                 .filter(Objects::nonNull)
-                .map(d -> new Retiro("Depósito " + d.nombre + " — " + d.direccion + ", " + d.localidad,
+                .map(d -> new Retiro(nombreDeDeposito(d.nombre) + " — " + d.direccion + ", " + d.localidad,
                         d.direccion + ", " + d.localidad))
                 .collect(Collectors.toList());
     }
@@ -242,10 +243,7 @@ public class RuteoService implements IRuteo {
         }
         GrupoZonaDTO sinZona = new GrupoZonaDTO();
         sinZona.repartidoresLibres = libres.size();
-        for (PedidoDTO p : pedidos.listarTodos()) {
-            if (!"PENDIENTE".equals(p.getEstado())) {
-                continue;
-            }
+        for (PedidoDTO p : pedidos.listarPendientes()) {
             ZonaDTO z = activas.stream().filter(zz -> zz.contiene(p.getCodigoPostalEntrega())).findFirst().orElse(null);
             (z != null ? grupos.get(z.getId()) : sinZona).pedidos.add(p);
         }
@@ -317,5 +315,10 @@ public class RuteoService implements IRuteo {
         String nombre = transportistas.listarTodos().stream().filter(t -> t.getId().equals(idTransportista))
                 .map(TransportistaDTO::getNombre).findFirst().orElse("transportista");
         return ResultadoDespachoDTO.de(idPedido, Resultado.DERIVADO, nombre + " (" + motivo + "), seguimiento " + codigo);
+    }
+
+    // "Depósito Sur" ya dice qué es: no se le antepone otro "Depósito".
+    private static String nombreDeDeposito(String nombre) {
+        return nombre != null && nombre.toLowerCase().startsWith("depósito") ? nombre : "Depósito " + nombre;
     }
 }

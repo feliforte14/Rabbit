@@ -19,8 +19,8 @@ info:
 
     Todos los errores usan Problem Details (RFC 9457, `application/problem+json`).
 servers:
-  - url: http://localhost:8080/Rabbit/api
-    description: WildFly local
+  - url: https://localhost:8443/Rabbit/api
+    description: WildFly local (HTTPS obligatorio; en local, certificado autofirmado)
 
 tags:
   - name: Pedidos externos
@@ -85,8 +85,8 @@ paths:
                 idPedidoExterno: 42
                 resultado: Pendiente
                 _links:
-                  self: { href: http://localhost:8080/Rabbit/api/v1/pedidos-externos/42 }
-                  cancelar: { href: http://localhost:8080/Rabbit/api/v1/pedidos-externos/42/cancelacion, method: POST }
+                  self: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42 }
+                  cancelar: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion, method: POST }
         '400':
           description: Falta el cuerpo o el header `Idempotency-Key`, el JSON es inválido o hay campos con formato inválido.
           content:
@@ -146,9 +146,9 @@ paths:
                 estadoPedido: PENDIENTE
                 codigoSeguimiento: RB-7KQ2M9XHTA
                 _links:
-                  self: { href: http://localhost:8080/Rabbit/api/v1/pedidos-externos/42 }
-                  cancelar: { href: http://localhost:8080/Rabbit/api/v1/pedidos-externos/42/cancelacion, method: POST }
-                  seguimiento: { href: http://localhost:8080/Rabbit/api/v1/seguimiento/RB-7KQ2M9XHTA }
+                  self: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42 }
+                  cancelar: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion, method: POST }
+                  seguimiento: { href: https://localhost:8443/Rabbit/api/v1/seguimiento/RB-7KQ2M9XHTA }
         '401': { $ref: '#/components/responses/NoAutenticado' }
         '403': { $ref: '#/components/responses/SinPermiso' }
         '404': { $ref: '#/components/responses/PedidoExternoInexistente' }
@@ -181,7 +181,7 @@ paths:
                 resultado: Cancelado
                 motivo: Cancelado por el comercio
                 _links:
-                  self: { href: http://localhost:8080/Rabbit/api/v1/pedidos-externos/42 }
+                  self: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42 }
         '401': { $ref: '#/components/responses/NoAutenticado' }
         '403': { $ref: '#/components/responses/SinPermiso' }
         '404': { $ref: '#/components/responses/PedidoExternoInexistente' }

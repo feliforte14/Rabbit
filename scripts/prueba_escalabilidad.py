@@ -30,6 +30,7 @@ import base64
 import json
 import os
 import re
+import ssl
 import subprocess
 import time
 import urllib.request
@@ -37,7 +38,10 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
-BASE = "http://localhost:8080/Rabbit/"
+# Rabbit exige HTTPS (web.xml). En local el certificado es autofirmado:
+# solo para esta prueba contra localhost, no se verifica.
+BASE = os.environ.get("RABBIT_BASE", "https://localhost:8443/Rabbit/")
+TLS_LOCAL = ssl._create_unverified_context()
 WILDFLY = os.environ["WILDFLY_HOME"]
 CLI = os.path.join(WILDFLY, "bin", "jboss-cli.sh")
 LOG = os.path.join(WILDFLY, "standalone", "log", "server.log")
@@ -72,7 +76,7 @@ def redesplegar():
         raise RuntimeError("No se pudo redesplegar: " + salida)
     for _ in range(60):
         try:
-            if urllib.request.urlopen(BASE + "login.xhtml").status == 200:
+            if urllib.request.urlopen(BASE + "login.xhtml", context=TLS_LOCAL).status == 200:
                 return
         except OSError:
             pass
@@ -92,7 +96,7 @@ def enviar(etiqueta, i):
         BASE + "api/v1/pedidos-externos", data=json.dumps(cuerpo).encode(), method="POST",
         headers={"Content-Type": "application/json", "Authorization": "Basic " + credenciales,
                  "Idempotency-Key": str(uuid.uuid4())})
-    return json.loads(urllib.request.urlopen(pedido).read())["idPedidoExterno"]
+    return json.loads(urllib.request.urlopen(pedido, context=TLS_LOCAL).read())["idPedidoExterno"]
 
 
 def cargar(etiqueta, cantidad):

@@ -115,7 +115,9 @@ qué alternativa se descartó.
   dos implementaciones, `AdaptadorRestTransportista` (API REST con JSON) y
   `AdaptadorSoapTransportista` (SOAP legado). Cada una traduce protocolo,
   formato y hasta el vocabulario de estados de su transportista (el legado
-  dice `EN_VIAJE`, Rabbit `EN_TRANSITO`). `AdaptadoresTransportista` elige
+  dice `EN_VIAJE`, Rabbit `EN_TRANSITO`), e incluso si una operación
+  existe: el legado no cotiza, y su adaptador responde "no cotiza" sin
+  llamarlo. `AdaptadoresTransportista` elige
   según el `TipoIntegracion` del transportista; `TransportistaService` no
   sabe con cuál habla. Sumar un transportista EDI sería una implementación
   más.

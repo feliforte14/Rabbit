@@ -152,6 +152,29 @@ vista vencida (sesión expirada) vuelve al login. La API REST no usa esas
 páginas: sus errores salen en Problem Details (`application/problem+json`,
 ver `ProblemaMapper`), también sin stack traces ni errores de la base.
 
+### HTTPS obligatorio
+
+Todo lo de Rabbit viaja por HTTPS: las pantallas (el login manda la
+contraseña), la API del ERP (HTTP Basic manda usuario y clave en cada
+pedido) y el seguimiento público. Lo impone `web.xml` con
+`transport-guarantee CONFIDENTIAL` sobre `/` (el patrón por defecto) y
+sobre `/api/v1/pedidos-externos`: un pedido por HTTP (8080) recibe un `302`
+a la misma URL en HTTPS (8443, el `https-listener` de WildFly, que en local
+usa un certificado autofirmado).
+
+- **Excepción:** los sistemas de otras empresas que se simulan en el mismo
+  WAR (`/api/simulador/*`, `/BancoLegadoService`,
+  `/TransportistaLegadoService`) siguen por HTTP. No son parte de Rabbit, y
+  Rabbit los llama por HTTP como a cualquier sistema externo configurado
+  así: la redirección rompería esas llamadas.
+- **Cookie de sesión:** `Secure` (solo viaja por HTTPS) y `HttpOnly`
+  (JavaScript no la puede leer). Y la sesión viaja solo en la cookie
+  (`tracking-mode COOKIE`): nunca como `;jsessionid=` en la URL, donde se
+  podría filtrar al copiarla o en el encabezado `Referer`.
+- **El ERP tiene que llamar directo a HTTPS:** la redirección es para el
+  navegador. Si un ERP manda un pedido por HTTP, sus credenciales ya
+  viajaron en claro antes del `302`.
+
 ### Credenciales fuera del repositorio
 
 El repositorio es público: ninguna credencial va en el código. Las de la
@@ -160,6 +183,9 @@ base viven en el datasource de WildFly y las de management (para
 
 ### Operaciones sin autenticación
 
+- `seguimiento.xhtml?codigo=RB-...` (`SeguimientoBean`): la misma consulta
+  que la API de abajo, en una página para personas. Muestra solo el estado
+  (con una línea de tiempo); el código aleatorio es lo único que la abre.
 - `GET /api/v1/seguimiento/{codigo}` (`SeguimientoResource`, `@PermitAll`),
   a propósito: devuelve solo el estado del pedido, sin importes, cobros ni
   datos del comercio. Entra por un código aleatorio (`RB-` + 10
@@ -177,8 +203,9 @@ Además, el login y la página de error, que tienen que verse sin sesión.
 
 ## Limitaciones conocidas
 
-- Sin HTTPS: el login y el HTTP Basic del ERP viajan en claro. En
-  producción iría `transport-guarantee CONFIDENTIAL` y TLS en WildFly.
+- El certificado HTTPS de WildFly es autofirmado (el navegador advierte,
+  `curl` necesita `-k`). En producción iría un certificado de una
+  autoridad reconocida en el `key-store` de Elytron.
 - Contraseñas con SHA-256 sin salt, mínimo de 6 caracteres y sin límite
   de intentos de login.
 - El banco simulado (`BancoLegadoService`) se publica sin autenticación.

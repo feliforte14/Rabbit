@@ -86,7 +86,8 @@ public class NotificacionService implements INotificaciones {
     private static String describir(String estado) {
         return switch (estado) {
             case "PENDIENTE" -> "fue recibido por Rabbit";
-            case "CONFIRMADO" -> "fue confirmado y tiene repartidor asignado";
+            // Vale para los dos casos: un repartidor propio o un transportista.
+            case "CONFIRMADO" -> "fue confirmado y ya tiene quién lo lleve";
             case "EN_CAMINO" -> "está en camino";
             case "ENTREGADO" -> "fue entregado";
             case "CANCELADO" -> "fue cancelado";

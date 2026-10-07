@@ -57,10 +57,11 @@ tipo de usuario, igual que el menú:
 ```
 src/main/webapp/
 ├── login.xhtml, error.html   ← públicas
+├── seguimiento.xhtml         ← pública: el cliente final sigue su pedido con el código
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_6/     ← CSS y JS versionados
+├── resources/rabbit/1_7/     ← CSS y JS versionados (tablas.js: tablas como tarjetas en el celular)
 └── WEB-INF/
     ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)
     ├── web.xml, beans.xml, jboss-ejb3.xml
@@ -229,7 +230,10 @@ el plugin las toma del `<server>` con id `rabbit-wildfly` de
 mvn package wildfly:deploy
 ```
 
-y abrir http://localhost:8080/Rabbit.
+y abrir https://localhost:8443/Rabbit. Rabbit exige HTTPS: si se entra por
+`http://localhost:8080/Rabbit`, redirige solo. En local WildFly usa un
+certificado autofirmado, así que el navegador muestra una advertencia la
+primera vez (aceptarla) y `curl` necesita `-k`.
 
 ### 5. Primer acceso
 

@@ -35,7 +35,7 @@
         <h:panelGroup rendered="#{not empty ruteoBean.resultados}">
             <h2>Resultado del despacho</h2>
             <h:dataTable value="#{ruteoBean.resultados}" var="r"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
                 <h:column>
                     <f:facet name="header">Pedido</f:facet>
                     #{r.idPedido}
@@ -63,7 +63,7 @@
                             <h:outputText rendered="#{not empty g.zona}"
                                           value=" · CP #{g.zona.codigoPostalDesde}-#{g.zona.codigoPostalHasta}" />
                         </h3>
-                        <h:outputText value="#{g.pedidos.size()} pendiente(s)"
+                        <h:outputText value="#{g.pedidos.size()} #{g.pedidos.size() == 1 ? 'pendiente' : 'pendientes'}"
                                       styleClass="badge #{empty g.pedidos ? 'badge-gris' : 'badge-naranja'}" />
                     </div>
 
@@ -71,7 +71,7 @@
                         <h:panelGroup rendered="#{not empty g.zona}">
                             <span>Reparte: <b>#{etiquetas.cobertura(g.zona.cobertura)}</b></span>
                             <h:outputText rendered="#{g.zona.cobertura == 'PROPIA'}"
-                                          value=" · #{g.repartidoresLibres} repartidor(es) libre(s) en la zona" />
+                                          value=" · #{g.repartidoresLibres == 0 ? 'ningún repartidor libre' : (g.repartidoresLibres == 1 ? '1 repartidor libre' : g.repartidoresLibres.toString().concat(' repartidores libres'))} en la zona" />
                             <h:outputText rendered="#{not empty g.transportista}"
                                           value="#{g.zona.cobertura == 'PROPIA' ? ' · respaldo: ' : ' · '}#{g.transportista}" />
                         </h:panelGroup>
@@ -82,7 +82,7 @@
 
                     <h:panelGroup layout="block" styleClass="tabla-scroll" rendered="#{not empty g.pedidos}">
                         <h:dataTable value="#{ruteoBean.primeros(g)}" var="p"
-                                     styleClass="tabla" rowClasses="fila-impar,fila-par">
+                                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
                             <h:column>
                                 <f:facet name="header">Pedido</f:facet>
                                 #{p.id}
@@ -105,11 +105,13 @@
                                 <h:commandButton value="Despachar" styleClass="btn btn-secondary"
                                                  action="#{ruteoBean.despacharPedido(p.id)}"
                                                  rendered="#{not empty g.zona}" />
+                                <h:outputText value="A mano, desde Pedidos" styleClass="sin-accion"
+                                              rendered="#{empty g.zona}" />
                             </h:column>
                         </h:dataTable>
                     </h:panelGroup>
                     <h:outputText styleClass="ayuda" rendered="#{ruteoBean.restantes(g) > 0}"
-                                  value="… y #{ruteoBean.restantes(g)} pedido(s) más." />
+                                  value="… y #{ruteoBean.restantes(g)} #{ruteoBean.restantes(g) == 1 ? 'pedido' : 'pedidos'} más." />
 
                     <h:panelGroup layout="block" styleClass="form-acciones"
                                   rendered="#{not empty g.zona and not empty g.pedidos}">
@@ -124,7 +126,7 @@
         <h2>Zonas</h2>
         <h:form id="formZonas">
             <h:dataTable value="#{ruteoBean.listaZonas}" var="z"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty ruteoBean.listaZonas}">
                 <h:column>
                     <f:facet name="header">Zona</f:facet>

@@ -32,7 +32,7 @@
 
         <h:form id="formListado">
             <h:dataTable value="#{transportistaBean.transportistas}" var="t"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty transportistaBean.transportistas}">
                 <h:column>
                     <f:facet name="header">Nombre</f:facet>
@@ -68,7 +68,7 @@
         <h2>Envíos derivados</h2>
         <h:panelGroup layout="block" styleClass="tabla-scroll" rendered="#{not empty transportistaBean.listaEnvios}">
             <h:dataTable value="#{transportistaBean.listaEnvios}" var="e"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
                 <h:column>
                     <f:facet name="header">Pedido</f:facet>
                     #{e.idPedido}

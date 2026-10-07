@@ -56,6 +56,31 @@ public class PedidoRepository {
     }
 
     /**
+     * Igual que buscarPedidoPorId, pero bloquea la fila (SELECT ... FOR
+     * UPDATE) hasta que termine la transacción. Lo usan todas las
+     * operaciones que cambian el estado del pedido: si dos llegan a la vez
+     * (el ERP cancela mientras el personal confirma), la segunda espera y
+     * después ve el estado real, en vez de pisar el resultado de la primera.
+     */
+    public Pedido buscarPedidoParaActualizar(Long id) {
+        // flush primero: si esta transacción ya cambió el pedido y todavía no
+        // lo escribió (el seguimiento de envíos lo pasa a EN_CAMINO y enseguida
+        // a ENTREGADO en la misma transacción), ese cambio no se pierde.
+        em.flush();
+        // Si ya estaba cargado, find con bloqueo devolvería esa copia sin
+        // volver a leerla (con un estado que otro pudo cambiar antes del
+        // bloqueo). Se la saca del contexto y se lee de nuevo, bloqueada.
+        // (No se usa refresh con bloqueo: en Hibernate 7.4.5 falla con un
+        // NullPointerException interno sobre un pedido con sus líneas cargadas.)
+        Pedido cargado = em.find(Pedido.class, id);
+        if (cargado == null) {
+            return null;
+        }
+        em.detach(cargado);
+        return em.find(Pedido.class, id, LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    /**
      * Lista todos los pedidos reales, del más reciente al más viejo —
      * usada por la vista de listado.
      *
@@ -68,6 +93,18 @@ public class PedidoRepository {
     // pedidos repetidos que produce el join.
     public List<Pedido> listarTodos() {
         return em.createQuery("SELECT p FROM Pedido p LEFT JOIN FETCH p.lineas ORDER BY p.fechaCreacion DESC", Pedido.class)
+                .getResultList();
+    }
+
+    /**
+     * Los pedidos en un estado, del más viejo al más nuevo (el orden en que
+     * se despachan). La usa el Ruteo para los pendientes, en vez de traer
+     * toda la historia y filtrar en memoria.
+     */
+    public List<Pedido> listarPorEstado(EstadoPedido estado) {
+        return em.createQuery("SELECT DISTINCT p FROM Pedido p LEFT JOIN FETCH p.lineas WHERE p.estado = :estado ORDER BY p.fechaCreacion",
+                        Pedido.class)
+                .setParameter("estado", estado)
                 .getResultList();
     }
 
@@ -113,6 +150,17 @@ public class PedidoRepository {
     public long contarPedidosExternosDeComercio(Long idComercio) {
         return em.createQuery("SELECT COUNT(pe) FROM PedidoExterno pe WHERE pe.idComercio = :id", Long.class)
                 .setParameter("id", idComercio).getSingleResult();
+    }
+
+    /**
+     * Un pedido con sus líneas ya cargadas, en una sola consulta. Para
+     * leerlo fuera de una transacción (ver PedidoService.cotizarDerivacion):
+     * sin transacción, las líneas no se podrían cargar después.
+     */
+    public Pedido buscarPedidoConLineas(Long id) {
+        return em.createQuery("SELECT p FROM Pedido p LEFT JOIN FETCH p.lineas WHERE p.id = :id", Pedido.class)
+                .setParameter("id", id)
+                .getResultStream().findFirst().orElse(null);
     }
 
     /**

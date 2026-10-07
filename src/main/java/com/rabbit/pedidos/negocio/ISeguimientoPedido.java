@@ -51,6 +51,9 @@ public interface ISeguimientoPedido {
      */
     List<PedidoDTO> listarTodos();
 
+    /** Los pedidos PENDIENTE, del más viejo al más nuevo (los usa el Ruteo). */
+    List<PedidoDTO> listarPendientes();
+
     /**
      * @param idComercio comercio a consultar
      * @return los pedidos de ese comercio

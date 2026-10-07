@@ -122,6 +122,37 @@ public class EtiquetasBean {
         }
     }
 
+    // Los pasos de la línea de tiempo del seguimiento público.
+    public String pasoSeguimiento(Object estado) {
+        switch (texto(estado)) {
+            case "PENDIENTE": return "Recibido";
+            case "CONFIRMADO": return "Confirmado";
+            case "EN_CAMINO": return "En camino";
+            case "ENTREGADO": return "Entregado";
+            default: return "—";
+        }
+    }
+
+    public String estadoCotizacion(Object estado) {
+        switch (texto(estado)) {
+            case "COTIZADO": return "Cotizó";
+            case "RECHAZADO": return "No lo toma";
+            case "NO_COTIZA": return "No cotiza (sistema legado)";
+            case "NO_DISPONIBLE": return "No respondió";
+            default: return "—";
+        }
+    }
+
+    public String claseEstadoCotizacion(Object estado) {
+        switch (texto(estado)) {
+            case "COTIZADO": return "badge badge-verde";
+            case "RECHAZADO": return "badge badge-rojo";
+            case "NO_COTIZA": return "badge badge-gris";
+            case "NO_DISPONIBLE": return "badge badge-naranja";
+            default: return "";
+        }
+    }
+
     public String cobertura(Object cobertura) {
         switch (texto(cobertura)) {
             case "PROPIA": return "Repartidores propios";
