@@ -8,12 +8,12 @@ Lo que queda como mejora está marcado como tal en cada documento y en las
 |---|---|
 | [ARQUITECTURA.md](ARQUITECTURA.md) | Capas, componentes, interfaces entre componentes, stateless vs. stateful, máquina de estados del pedido |
 | [PATRONES.md](PATRONES.md) | Cada patrón de diseño: qué problema resuelve, dónde está, qué alternativa se descartó |
-| [SEGURIDAD.md](SEGURIDAD.md) | Autenticación, roles, `@RolesAllowed`, operaciones sensibles |
+| [SEGURIDAD.md](SEGURIDAD.md) | Autenticación, roles, `@RolesAllowed`, operaciones sensibles, límite de intentos de login, HTTPS y clave del webhook |
 | [TRANSACCIONES.md](TRANSACCIONES.md) | Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo |
 | [MensajeriaFinal.md](MensajeriaFinal.md) | **Por qué** cada integración usa cola, tópico, SOAP o REST: el criterio de decisión aplicado a todas |
-| [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) | SOAP con el banco legado (cobro, reversa, timeout, circuit breaker) y API REST (ERP y seguimiento) |
+| [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) | SOAP con el banco legado (cobro, reversa, timeout, circuit breaker), transportistas SOAP y REST (cotización, derivación, polling y webhook) y API REST (ERP y seguimiento) |
 | [openapi.yaml](openapi.yaml) | Contrato OpenAPI 3.1 de la API REST (se abre en Swagger Editor o se importa en Postman) |
-| [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) | Cola JMS de pedidos externos y tópico de estados del pedido |
+| [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) | Cola JMS de pedidos externos, tópico de estados del pedido y avisos por mail |
 | [DECISIONES.md](DECISIONES.md) | Registro de decisiones de arquitectura (ADRs) |
 | [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) | Desafíos opcionales: resiliencia, escalabilidad, ADRs desarrollados con sus alternativas y heterogeneidad tecnológica |
 | [FLUJO-DE-PRUEBAS.md](FLUJO-DE-PRUEBAS.md) | Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo |
