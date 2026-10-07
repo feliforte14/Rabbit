@@ -29,7 +29,7 @@ package com.rabbit.infraestructura;
  *
  * Al sumar una columna enum nueva a una entidad, agregarla en COLUMNAS.
  * En un proyecto real esto lo resolverían migraciones versionadas
- * (Flyway/Liquibase) en vez de hbm2ddl=update — ver docs/DECISIONES.md.
+ * (Flyway/Liquibase) en vez de hbm2ddl=update — ver docs/arquitectura/DECISIONES.md.
  */
 
 import com.rabbit.inventario.datos.model.EstadoReserva;

@@ -14,7 +14,7 @@ package com.rabbit.comercios.negocio;
  * @TransactionAttribute(REQUIRED) garantiza que cada operación de escritura
  * sea atómica: si algo falla a mitad, la BD vuelve al estado anterior
  * (rollback automático). Es el default de un EJB; se deja explícito para
- * que se lea en el código (ver docs/TRANSACCIONES.md).
+ * que se lea en el código (ver docs/arquitectura/TRANSACCIONES.md).
  *
  * ComercioService implementa las dos interfaces de negocio del componente
  * ServicioDeComercios:

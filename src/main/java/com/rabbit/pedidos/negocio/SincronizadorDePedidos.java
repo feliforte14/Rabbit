@@ -101,7 +101,7 @@ public class SincronizadorDePedidos {
     public void sincronizarPendientes() {
         // Interruptor operativo: con rabbit.sincronizador.pausado=true la
         // red de contención no corre y solo sincroniza la cola. Lo usa la
-        // prueba de escalabilidad (docs/DESAFIOS-OPCIONALES.md), para que el
+        // prueba de escalabilidad (docs/consigna/DESAFIOS-OPCIONALES.md), para que el
         // timer no procese pedidos de la carga y falsee la medición. Se lee
         // en cada pasada: se prende y apaga en caliente desde jboss-cli.
         if (Boolean.getBoolean("rabbit.sincronizador.pausado")) {

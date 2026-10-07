@@ -10,7 +10,7 @@ package com.rabbit.pedidos.presentacion.rest;
  *
  * @PermitAll a propósito, sin autenticación: solo expone el estado del
  * pedido, nada de importes, cobros, direcciones ni datos del comercio. Es
- * la única operación pública del sistema (ver docs/SEGURIDAD.md).
+ * la única operación pública del sistema (ver docs/seguridad/SEGURIDAD.md).
  *
  * Se entra por el código de seguimiento aleatorio (RB-XXXXXXXXXX), no por
  * el ID: con IDs secuenciales cualquiera podía recorrer el estado de todos

@@ -82,7 +82,7 @@ public class PublicadorEstadosPedido {
                     + " -> " + evento.estado());
         } catch (RuntimeException | JMSException e) {
             // Mismo criterio que la cola: el cambio de estado ya está guardado;
-            // lo que se pierde es el aviso (ver docs/MENSAJERIA-ASINCRONICA.md).
+            // lo que se pierde es el aviso (ver docs/integraciones/MENSAJERIA-ASINCRONICA.md).
             LOG.log(Level.WARNING, "[Pedidos] No se pudo publicar el cambio de estado del pedido "
                     + evento.idPedido() + " en el tópico", e);
         }

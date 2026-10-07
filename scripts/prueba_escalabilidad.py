@@ -2,7 +2,7 @@
 
 Mide cuánto tarda Rabbit en sincronizar una carga de pedidos del ERP con
 distinta cantidad de consumidores en paralelo (ver
-docs/DESAFIOS-OPCIONALES.md, sección 2).
+docs/consigna/DESAFIOS-OPCIONALES.md, sección 2).
 
 Requisitos:
   - Rabbit desplegado en un WildFly local, con jboss-cli accesible.
