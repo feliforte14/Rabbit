@@ -210,7 +210,7 @@ Propuesta o Reemplazada.
 - **Contexto:** un comercio que manda muchos pedidos juntos llena
   `cola.pedidos.externos` y los pedidos tardan en aparecer. Hacía falta
   poder escalar ese consumidor sin tocar código (desafío de
-  escalabilidad, ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)).
+  escalabilidad, ver [DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md)).
 - **Decisión:** la cantidad de instancias del consumidor (`maxSession` de
   `PedidoExternoListener`) se fija con la system property
   `rabbit.cola.consumidores`, aplicada en `WEB-INF/jboss-ejb3.xml` (15 por
@@ -358,7 +358,7 @@ Propuesta o Reemplazada.
     después).
   - **HATEOAS** con `_links` en la representación del pedido externo.
   - **Seguimiento público por código aleatorio** (`RB-XXXXXXXXXX`), no por ID.
-  - **Contrato OpenAPI** en `docs/openapi.yaml` (contract-first: se
+  - **Contrato OpenAPI** en `docs/integraciones/openapi.yaml` (contract-first: se
     escribe a mano, no se genera del código).
 - **Alternativas descartadas:**
   - *Versión en un header o en el media type:* más alineado con REST,

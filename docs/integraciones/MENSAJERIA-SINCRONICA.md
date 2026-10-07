@@ -21,7 +21,7 @@ errores de negocio tipados (`soap:Fault`).
 |---|---|
 | `BancoLegadoService` | Contrato (SEI): `autorizarPago`, `reversarPago` |
 | `BancoLegadoServiceImpl` | Banco simulado, publicado en el mismo WAR (el de por defecto) |
-| `banco-legado/server.js` | El mismo banco en Node.js, como servicio aparte (heterogeneidad tecnológica, ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica)) |
+| `banco-legado/server.js` | El mismo banco en Node.js, como servicio aparte (heterogeneidad tecnológica, ver [DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica)) |
 | `PagoRechazadoException` + `PagoRechazadoFaultInfo` | Fault de negocio con el motivo del rechazo |
 | `IBancoClient` | Lo único que conoce `PagoService` |
 | `BancoClient` | Adapter: cliente JAX-WS (proxy dinámico con `Service.getPort`, sin wsimport), timeout de 5 s |
@@ -143,7 +143,7 @@ En el log se ven las transiciones con el prefijo `[Pagos][Circuito]`.
 Con el banco en Node.js (`banco-legado/`), la caída se prende con
 `curl -X POST "http://localhost:8090/admin/caida?activa=true"` y el
 circuito se comporta igual (probado: 5,2 s tres veces y 0,3 s la cuarta).
-Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica).
+Ver [DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica).
 
 ### Limitaciones conocidas
 
@@ -213,7 +213,7 @@ aviso perdido: los dos llevan al mismo resultado.
 transportista REST como sistema de otra empresa: proceso, puerto y
 tecnología propios (Python, solo biblioteca estándar), mismo contrato que
 el simulado del WAR, y avisa por el webhook. Ver su
-[README](../transportista-moderno/README.md).
+[README](../../transportista-moderno/README.md).
 
 **Despacho por zona con cotización.** Si el transportista de la zona
 rechaza el envío o no responde, el Ruteo cotiza con los demás y deriva al

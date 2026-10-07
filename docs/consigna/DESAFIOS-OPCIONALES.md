@@ -7,7 +7,7 @@ cómo se muestran en la defensa.
 |---|---|
 | [Resiliencia ante fallas](#1-resiliencia-ante-fallas) | Cumple |
 | [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada) | Cumple: con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido) |
-| [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 24 ADR en [DECISIONES.md](DECISIONES.md); acá se desarrollan 3 con sus alternativas |
+| [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 24 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md); acá se desarrollan 3 con sus alternativas |
 | [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple: el banco legado también está implementado en Node.js y Rabbit (Java) lo consume por SOAP sin cambiar código; el transportista moderno, en Python, por REST y webhook |
 
 ## 1. Resiliencia ante fallas
@@ -48,7 +48,7 @@ stateDiagram-v2
 
 Implementación: `CircuitBreakerBanco` (`@Singleton`), consultado por
 `BancoClient` antes de cada llamada. Detalle en
-[MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md#circuit-breaker).
+[MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md#circuit-breaker).
 
 ### Resultado medido
 
@@ -121,7 +121,7 @@ mismo broker suma consumidores a la misma cola (ver Limitaciones).
 
 ### Cómo se mide
 
-El script [`scripts/prueba_escalabilidad.py`](../scripts/prueba_escalabilidad.py)
+El script [`scripts/prueba_escalabilidad.py`](../../scripts/prueba_escalabilidad.py)
 hace, para cada cantidad de consumidores:
 
 1. Fija `rabbit.cola.consumidores` y redespliega.
@@ -217,7 +217,7 @@ más conexiones.
 
 ## 3. Architecture Decision Records
 
-Los 24 ADR del proyecto están en [DECISIONES.md](DECISIONES.md). Estos
+Los 24 ADR del proyecto están en [DECISIONES.md](../arquitectura/DECISIONES.md). Estos
 tres son los de más peso en la arquitectura; acá se desarrollan con las
 alternativas consideradas y por qué se descartaron.
 
@@ -299,7 +299,7 @@ tecnologías distintas.
 ### Qué se hizo
 
 El banco legado, el sistema externo con el que Rabbit cobra los pedidos
-prepago, está implementado también en **Node.js** ([`banco-legado/`](../banco-legado/README.md)),
+prepago, está implementado también en **Node.js** ([`banco-legado/`](../../banco-legado/README.md)),
 con la librería `soap`. Publica exactamente el mismo contrato WSDL que el
 banco simulado en Java que vive dentro de Rabbit: las mismas dos
 operaciones (`autorizarPago`, `reversarPago`) y el mismo fault tipado

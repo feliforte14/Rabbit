@@ -99,7 +99,7 @@ Otros detalles de cada componente:
   REST o SOAP legado) y `SeguimientoDeEnvios` consulta cada 15 s el estado
   de los envíos activos; Pedidos mueve el pedido al recibir el evento
   `EstadoEnvioCambiado`. Detalle en
-  [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) y ADR-016.
+  [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) y ADR-016.
 - **Ruteo:** arma la hoja de ruta de cada pedido: de dónde se retira (el
   punto de picking, o cada depósito del que sale stock consignado), adónde
   se entrega (`direccionEntrega`, que manda el ERP) y cuánto cobrar si es
@@ -173,7 +173,7 @@ páginas están en una carpeta por tipo de usuario (`personal/`,
 guardián (`<f:viewAction>`) y cada EJB su `@RolesAllowed`; el comercio o
 el repartidor sale siempre de la identidad autenticada
 (`IContextoUsuario`), nunca de un parámetro. Ver
-[SEGURIDAD.md](SEGURIDAD.md).
+[SEGURIDAD.md](../seguridad/SEGURIDAD.md).
 
 | Tipo | Pantallas |
 |---|---|
@@ -187,15 +187,15 @@ el repartidor sale siempre de la identidad autenticada
 | Tramo | Mecanismo | Estado | Detalle |
 |---|---|---|---|
 | ERP del comercio → Rabbit | Formulario JSF (simulación) | Implementado | Queda para la demo |
-| ERP del comercio → Rabbit | REST `/api/v1/pedidos-externos` (alta, consulta y cancelación; contrato en [openapi.yaml](openapi.yaml)) | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
-| Cliente final → Rabbit | REST `GET /api/v1/seguimiento/{codigo}` (público) | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
-| Alta de pedido externo → sincronización | Cola JMS `cola.pedidos.externos` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
-| Pagos → Banco legado | SOAP | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
-| Cambio de estado del pedido → Notificaciones, Pagos | Tópico JMS `topico.pedidos.estado` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
-| Transportistas → transportista moderno | REST/JSON saliente (cliente JAX-RS) | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
-| Transportistas → transportista legado | SOAP saliente | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
-| Transportista moderno → Rabbit | REST entrante `POST /api/v1/transportistas/{id}/novedades` (webhook) | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
-| Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Implementado (si se configura el servidor) | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
+| ERP del comercio → Rabbit | REST `/api/v1/pedidos-externos` (alta, consulta y cancelación; contrato en [openapi.yaml](../integraciones/openapi.yaml)) | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
+| Cliente final → Rabbit | REST `GET /api/v1/seguimiento/{codigo}` (público) | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
+| Alta de pedido externo → sincronización | Cola JMS `cola.pedidos.externos` | Implementado | [MENSAJERIA-ASINCRONICA.md](../integraciones/MENSAJERIA-ASINCRONICA.md) |
+| Pagos → Banco legado | SOAP | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
+| Cambio de estado del pedido → Notificaciones, Pagos | Tópico JMS `topico.pedidos.estado` | Implementado | [MENSAJERIA-ASINCRONICA.md](../integraciones/MENSAJERIA-ASINCRONICA.md) |
+| Transportistas → transportista moderno | REST/JSON saliente (cliente JAX-RS) | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
+| Transportistas → transportista legado | SOAP saliente | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
+| Transportista moderno → Rabbit | REST entrante `POST /api/v1/transportistas/{id}/novedades` (webhook) | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
+| Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Implementado (si se configura el servidor) | [MENSAJERIA-ASINCRONICA.md](../integraciones/MENSAJERIA-ASINCRONICA.md) |
 | Pedidos → Comercios, Inventario, Pagos, Repartidores, Transportistas | Llamada local EJB | Implementado | No es integración entre sistemas: mismo proceso |
 
 ### Criterio sincrónico vs. asincrónico

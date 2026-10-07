@@ -152,7 +152,7 @@ qué alternativa se descartó.
 - **Dónde:** `CircuitBreakerBanco` (`@Singleton`), consultado por
   `BancoClient` antes de cada llamada SOAP. Tras 3 fallas seguidas se
   abre y las llamadas fallan al instante; a los 30 s deja pasar una de
-  prueba. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md).
+  prueba. Ver [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md).
 - **Descartado:** `@CircuitBreaker` de MicroProfile Fault Tolerance: no
   viene en `standalone-full` de WildFly (ADR-011).
 
@@ -164,7 +164,7 @@ qué alternativa se descartó.
 - **Dónde:** `ProblemaMapper` (`ExceptionMapper<Throwable>`, `@Provider`)
   arma la respuesta con `Problema`; los recursos usan el mismo `Problema`
   para sus errores de negocio (400, 404, 409, 422). Ver
-  [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md).
+  [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md).
 - **Descartado:** dejar que el contenedor responda (sale la página
   `error.html` o el formato propio del runtime) o un `try/catch` en cada
   método del recurso.

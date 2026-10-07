@@ -178,7 +178,7 @@ un instante en pasar de Pendiente a Sincronizado.
 | Seguimiento público | `curl -ik https://localhost:8443/Rabbit/api/v1/seguimiento/<codigoSeguimiento>` | `200 {"codigoSeguimiento", "estado"}`, sin login |
 | URL vieja | `curl -i .../Rabbit/api/pedidos-externos/1` | `404` en `application/problem+json` (la API es `/v1`) |
 
-El contrato está en [openapi.yaml](openapi.yaml): pegalo en
+El contrato está en [openapi.yaml](../integraciones/openapi.yaml): pegalo en
 [Swagger Editor](https://editor.swagger.io) o importalo en Postman
 (**Import → File**) para tener la colección armada.
 
@@ -367,7 +367,7 @@ administrador."* — no el mensaje interno `Comercio no encontrado: <id>`.
 ## 9. Demos de los desafíos opcionales
 
 Los pasos de estas demos están en
-[DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md):
+[DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md):
 
 - **Escalabilidad:** `scripts/prueba_escalabilidad.py` manda 100 pedidos
   por la API v1 y mide cuánto tarda la cola con 1, 4 y 8 consumidores.
