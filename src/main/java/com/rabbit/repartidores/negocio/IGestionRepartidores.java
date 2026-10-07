@@ -23,4 +23,7 @@ public interface IGestionRepartidores {
 
     /** @return el repartidor, o null si no existe */
     RepartidorDTO obtenerRepartidor(Long idRepartidor);
+
+    /** Cambia la zona donde reparte (null: sin zona fija). */
+    void asignarZona(Long idRepartidor, Long idZona);
 }

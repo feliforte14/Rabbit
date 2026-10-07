@@ -6,29 +6,46 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 
 ## Qué hace
 
-- **Comercios:** alta y gestión de comercios y sus puntos de picking. El
-  catálogo de productos está modelado (entidad `Producto`) pero todavía no
-  tiene servicio ni pantalla.
+- **Comercios:** alta y gestión de comercios y sus puntos de picking. Rabbit
+  no lleva el catálogo de productos de cada comercio: eso vive en el ERP
+  del comercio, y Rabbit solo conoce lo que tiene que retirar y entregar.
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
   comercios, y reservas de stock con vencimiento.
-- **Pedidos:** recepción de pedidos desde el ERP de cada comercio, su
-  sincronización automática con stock y su seguimiento
-  (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`).
-- **Ruteo y entregas:** hoja de ruta de cada pedido (de dónde se retira y
-  adónde se entrega) y tablero de entregas en curso.
+- **Pedidos:** recepción de pedidos desde el ERP de cada comercio por una
+  API REST versionada (`/api/v1`, alta idempotente, consulta y
+  cancelación), su sincronización automática con stock y su seguimiento
+  (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`), también público por
+  código de seguimiento.
+- **Transportistas:** un pedido se puede derivar a una empresa de envíos
+  externa (integrada por API REST o por SOAP legado), después de comparar
+  sus cotizaciones; Rabbit sigue el estado del envío (consultándolo o
+  recibiendo los avisos del transportista por un webhook) y mueve el
+  pedido solo.
+- **Ruteo y entregas:** zonas de reparto por código postal; los pedidos
+  pendientes se agrupan por zona y se despachan solos según quién cubre la
+  zona (repartidores propios o un transportista; si el transportista no lo
+  toma, el más barato de los demás). Hoja de ruta de cada
+  pedido (de dónde se retira y adónde se entrega, con el recorrido en
+  Google Maps) y tablero de entregas en curso.
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
   (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
   pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
-  ruta y marca retiro y entrega desde el celular.
+  ruta y marca retiro y entrega desde el celular; un `ERP` (el sistema del
+  comercio) solo usa la API REST, y solo con los pedidos de su comercio.
+  Todo por HTTPS, con límite de intentos en el login.
+- **Notificaciones:** cada cambio de estado le llega al comercio en su
+  portal y, si hay un servidor de correo configurado, por mail.
 
 ## Tecnologías
 
 Jakarta EE 10 sobre WildFly (perfil `standalone-full`), Java 17, JSF +
 Facelets, EJB, JPA/Hibernate, PostgreSQL (Supabase), JMS (ActiveMQ
 Artemis embebido), JAX-WS (SOAP), JAX-RS (REST), Jakarta Security,
-Maven (WAR). El banco legado también está implementado en Node.js
+Jakarta Mail, Maven (WAR), JUnit 5 y REST Assured. El banco legado
+también está implementado en Node.js
 ([`banco-legado/`](banco-legado/README.md)), como servicio aparte con el
-mismo contrato SOAP.
+mismo contrato SOAP, y el transportista moderno en Python
+([`transportista-moderno/`](transportista-moderno/README.md)).
 
 ## Estructura
 
@@ -42,6 +59,31 @@ com.rabbit.<componente>/
 └── dto/            ← Objetos que cruzan capas y componentes
 ```
 
+Las pantallas (JSF/Facelets) están en `src/main/webapp`, ordenadas por
+tipo de usuario, igual que el menú:
+
+```
+src/main/webapp/
+├── login.xhtml, error.html   ← públicas
+├── seguimiento.xhtml         ← pública: el cliente final sigue su pedido con el código
+├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
+├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
+├── repartidor/               ← hoja de ruta del REPARTIDOR
+├── resources/rabbit/1_7/     ← CSS y JS versionados (tablas.js: tablas como tarjetas en el celular)
+└── WEB-INF/
+    ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)
+    ├── web.xml, beans.xml, jboss-ejb3.xml
+```
+
+Fuera de la aplicación:
+
+```
+src/test/java/             ← tests unitarios (*Test) y de integración de la API (*IT)
+docs/                      ← documentación técnica, ADR y contrato OpenAPI
+banco-legado/              ← el banco legado como servicio aparte (Node.js, SOAP)
+transportista-moderno/     ← un transportista REST como servicio aparte (Python)
+```
+
 | Componente | Paquete | Estado |
 |---|---|---|
 | Comercios | `comercios` | Implementado |
@@ -52,8 +94,8 @@ com.rabbit.<componente>/
 | Repartidores | `repartidores` | Implementado |
 | Integración con el banco legado (SOAP) | `integracion.banco` | Implementado |
 | Notificaciones | `notificaciones` | Implementado |
-| Ruteo (mínimo: hoja de ruta y tablero de entregas) | `ruteo` | Implementado |
-| Transportistas | — | Pendiente |
+| Ruteo (zonas, despacho por zona, hoja de ruta y tablero de entregas) | `ruteo` | Implementado |
+| Transportistas (REST y SOAP legado) | `transportistas` | Implementado |
 
 ## Integraciones
 
@@ -63,6 +105,9 @@ com.rabbit.<componente>/
 | Pagos → banco legado (cobro y reversa) | Sincrónica, SOAP | Implementado |
 | ERP del comercio → Rabbit (y seguimiento público) | Sincrónica, REST | Implementado |
 | Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Implementado |
+| Transportistas → transportista moderno / legado (cotizar, derivar, seguir, cancelar) | Sincrónica, REST saliente / SOAP | Implementado |
+| Transportista moderno → Rabbit (novedades del envío) | Sincrónica, REST entrante (webhook) | Implementado |
+| Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Implementado (opcional, por configuración) |
 
 ## Documentación técnica
 
@@ -73,7 +118,9 @@ El detalle y la justificación de cada decisión están en
 - [Patrones de diseño](docs/PATRONES.md)
 - [Seguridad](docs/SEGURIDAD.md)
 - [Transacciones](docs/TRANSACCIONES.md)
+- [Mensajería: justificación final](docs/MensajeriaFinal.md): por qué cada integración usa cola, tópico, SOAP o REST.
 - [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP con el banco legado (con circuit breaker) y API REST.
+- [Contrato OpenAPI](docs/openapi.yaml) de la API REST (Swagger Editor o Postman).
 - [Mensajería asincrónica](docs/MENSAJERIA-ASINCRONICA.md): cola y tópico.
 - [Decisiones (ADRs)](docs/DECISIONES.md)
 - [Flujo de pruebas](docs/FLUJO-DE-PRUEBAS.md): recorrido manual de punta a punta, para verificar y para la demo.
@@ -134,8 +181,16 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=exc
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=background-validation,value=true)"
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=background-validation-millis,value=30000)"
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS:write-attribute(name=idle-timeout-minutes,value=5)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS/connection-properties=socketTimeout:add(value=30)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS/connection-properties=connectTimeout:add(value=10)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="$DS/connection-properties=tcpKeepAlive:add(value=true)"
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command=":reload"
 ```
+
+Las tres últimas son del driver de PostgreSQL. `socketTimeout` corta una
+consulta que no responde a los 30 s: sin él, una conexión que Supabase
+dejó colgada (sin cerrarla) bloqueó un hilo 16 minutos, hasta que el
+sistema operativo la cortó; en ese lapso los timers no avanzaron.
 
 Si igual aparece `This connection has been closed` o
 `Unable to determine Dialect without JDBC metadata` al desplegar, vaciar
@@ -194,7 +249,10 @@ el plugin las toma del `<server>` con id `rabbit-wildfly` de
 mvn package wildfly:deploy
 ```
 
-y abrir http://localhost:8080/Rabbit.
+y abrir https://localhost:8443/Rabbit. Rabbit exige HTTPS: si se entra por
+`http://localhost:8080/Rabbit`, redirige solo. En local WildFly usa un
+certificado autofirmado, así que el navegador muestra una advertencia la
+primera vez (aceptarla) y `curl` necesita `-k`.
 
 ### 5. Primer acceso
 
@@ -208,22 +266,74 @@ $WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADO
 ```
 
 Desde ahí, ese administrador crea los demás usuarios en "Usuarios"
-(`usuarios.xhtml`).
+(`personal/usuarios.xhtml`).
 
 Los usuarios que crea un administrador desde la app se sincronizan solos
-contra el realm (ver `ApplicationRealmSync`). Hay cuatro tipos de cuenta:
+contra el realm (ver `ApplicationRealmSync`). Hay cinco tipos de cuenta:
 `ADMINISTRADOR` y `OPERADOR` (personal de Rabbit), `COMERCIO` (se asocia a
-un comercio) y `REPARTIDOR` (se asocia a un repartidor). Cada uno entra a
-su propia pantalla.
+un comercio), `REPARTIDOR` (se asocia a un repartidor) y `ERP` (se asocia
+a un comercio; solo usa la API REST, ver paso 6). Cada uno de los cuatro
+primeros entra a su propia pantalla.
 
 ### 6. Usuario del ERP para la API REST
 
-La API `/api/pedidos-externos` exige el rol `ERP` (HTTP Basic). Ese
-usuario representa a un sistema, no a una persona, así que se crea
-directamente en WildFly:
+La API `/api/v1/pedidos-externos` exige un usuario de tipo `ERP` (HTTP
+Basic). Representa al sistema de un comercio, no a una persona, y está
+atado a ese comercio: solo carga y ve sus pedidos. Lo crea un
+administrador desde `personal/usuarios.xhtml`, eligiendo el tipo "ERP
+(API REST)" y el comercio. No puede entrar a la web.
+
+Un usuario ERP creado a mano con `add-user.sh` (como se hacía antes) no
+tiene comercio y la API le responde `403`: hay que borrarlo del realm y
+crearlo desde la app.
+
+Contrato en [docs/openapi.yaml](docs/openapi.yaml) y ejemplos en
+[MENSAJERIA-SINCRONICA.md](docs/MENSAJERIA-SINCRONICA.md).
+
+### 7. (Opcional) Avisos por mail
+
+Los avisos a los comercios siempre quedan en su portal. Para que además
+salgan por mail (al email que cargó el comercio), configurar un servidor
+SMTP con system properties y redesplegar:
 
 ```bash
-$WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ERP -s
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.host:add(value=smtp.ejemplo.com)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.port:add(value=25)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.remitente:add(value=avisos@rabbit.example)"
 ```
 
-Ver ejemplos de uso en [MENSAJERIA-SINCRONICA.md](docs/MENSAJERIA-SINCRONICA.md).
+Para probar en local sin un servidor real:
+`python3 -m smtpd -n -c DebuggingServer localhost:2525` (Python hasta 3.11)
+y `rabbit.mail.smtp.host=localhost`, `rabbit.mail.smtp.port=2525`: cada
+mail se imprime en esa consola. Sin servidor configurado no se intenta
+mandar nada.
+
+### 8. (Opcional) Transportista moderno aparte
+
+`transportista-moderno/` es un transportista REST que corre fuera de
+Rabbit (Python, sin dependencias) y avisa sus novedades por el webhook.
+Ver su [README](transportista-moderno/README.md).
+
+## Tests
+
+```bash
+mvn test                       # 27 tests unitarios (JUnit 5), sin servidor
+```
+
+Corren en cada `mvn package`: reglas de transición de estados, códigos
+postales y de seguimiento, huella de idempotencia, límite de intentos de
+login, reglas del transportista simulado y validación del cuerpo de la
+API.
+
+Tests de integración de la API REST (REST Assured), contra Rabbit ya
+desplegado y con una cuenta ERP:
+
+```bash
+mvn verify -Pintegracion -Drabbit.erp.usuario=<erp> -Drabbit.erp.clave=<clave> -Drabbit.punto=<id punto de picking>
+# opcional, para el webhook: -Drabbit.webhook.transportista=<id> -Drabbit.webhook.clave=<clave>
+```
+
+Prueban alta, idempotencia, errores en Problem Details, pertenencia,
+cancelación, seguimiento público y webhook. Los pedidos que crean llevan
+`[TEST]` en la dirección. Conviene correrlos contra una base local, no contra la
+compartida del equipo: los pedidos de prueba quedan guardados.

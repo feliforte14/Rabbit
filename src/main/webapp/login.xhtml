@@ -12,6 +12,7 @@
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core">
 <h:head>
+    <meta charset="UTF-8" />
     <title>Rabbit · Iniciar sesión</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -55,6 +56,11 @@
         </h:form>
 
         <p class="ayuda">¿No tenés cuenta? Pedísela a un administrador de Rabbit.</p>
+
+        <!-- Para el cliente final, que no tiene cuenta: el seguimiento publico. -->
+        <p class="enlace-seguimiento">
+            ¿Compraste en una tienda y querés saber dónde está tu pedido?&#160;<h:link outcome="/seguimiento" value="Seguí tu pedido" />
+        </p>
     </div>
 </h:body>
 </html>

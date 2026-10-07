@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+
+    Pantalla de reserva de stock. Es la que hace visible el estado
+    conversacional del componente @Stateful: mientras hay una reserva en
+    curso, el panel de arriba la muestra con su vencimiento, y la tabla de
+    stock deja ver como se mueven las tres cantidades.
+
+    Se bindea a reservaBean (ReservaBean.java), que es @SessionScoped para
+    que la conversacion sobreviva a las recargas de pagina.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <!--
+        El Bean es @SessionScoped para que la conversacion sobreviva a las
+        recargas, pero eso hace que las listas cargadas en @PostConstruct
+        queden viejas: un comercio o un deposito creado despues no aparece.
+        Este viewAction las refresca en cada carga de la pagina.
+    -->
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+        <f:viewAction action="#{reservaBean.cargar}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Reserva de stock</ui:define>
+
+    <ui:define name="cabecera">
+        <h:outputScript library="rabbit" name="reserva.js" target="body" />
+    </ui:define>
+
+    <ui:define name="contenido">
+        <p>
+            <h:link outcome="/personal/depositos" value="&#8592; Volver a depósitos" styleClass="enlace-volver" />
+            &#160;&#183;&#160;
+            <h:link outcome="/personal/historial" value="Ver historial de reservas" styleClass="enlace-volver" />
+        </p>
+
+        <h1>Reserva de stock</h1>
+
+        <p class="ayuda">
+            Esta reserva es manual: la usa un operador de Rabbit para comprometer stock propio
+            (los depósitos, a diferencia de los puntos de picking, son infraestructura de Rabbit,
+            no de un comercio) antes de que exista un pedido formal, o para resolver a mano un
+            caso que el sincronizador automático no pudo procesar. El flujo normal — un pedido que
+            ya nació en el ERP del comercio — se ve en la pantalla de Pedidos y no pasa por acá.
+        </p>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <!--
+            EL ESTADO CONVERSACIONAL EN PANTALLA.
+            Este panel solo aparece si el EJB @Stateful tiene una reserva
+            abierta. Sobrevive a las recargas porque el contenedor mantiene
+            la misma instancia para esta sesion.
+        -->
+        <h:panelGroup rendered="#{reservaBean.hayReserva}">
+            <div class="reserva-activa">
+                <h2 class="reserva-titulo">Reserva en curso</h2>
+                <dl class="reserva-datos">
+                    <dt>Producto</dt>
+                    <dd>#{reservaBean.reservaActual.producto}</dd>
+
+                    <dt>Cantidad</dt>
+                    <dd>#{reservaBean.reservaActual.cantidad}</dd>
+
+                    <dt>Estado</dt>
+                    <dd>#{reservaBean.reservaActual.estado}</dd>
+
+                    <dt>Vence</dt>
+                    <dd>
+                        #{reservaBean.reservaActual.fechaExpiracion}
+                        <!--
+                            El servidor deja los segundos iniciales en
+                            data-segundos y el texto como fallback si no hay
+                            JavaScript. reserva.js toma ese valor y hace
+                            correr la cuenta en el navegador: sin eso el
+                            numero queda congelado y parece que la reserva
+                            no vence nunca.
+                        -->
+                        <span id="cuentaRegresiva"
+                              class="cuenta-regresiva#{reservaBean.reservaActual.vigente ? '' : ' vencida'}"
+                              data-segundos="#{reservaBean.reservaActual.vigente ? reservaBean.reservaActual.segundosRestantes : 0}">#{reservaBean.reservaActual.vigente ? reservaBean.reservaActual.segundosRestantes : 'VENCIDA'}</span>
+                    </dd>
+                </dl>
+
+                <h:form id="formReserva">
+                    <h:commandButton value="Confirmar" styleClass="btn btn-primary"
+                                     action="#{reservaBean.confirmar}" />
+                    <h:commandButton value="Extender" styleClass="btn btn-secondary"
+                                     action="#{reservaBean.extender}" />
+                    <h:commandButton value="Liberar" styleClass="btn btn-danger"
+                                     action="#{reservaBean.liberar}" />
+                </h:form>
+            </div>
+        </h:panelGroup>
+
+        <!--
+            CONTEXTO DE LA OPERACION: en nombre de que comercio y sobre que
+            deposito se trabaja. Los dos filtran el stock que se muestra
+            abajo: un comercio solo ve y reserva su propia mercaderia
+            consignada.
+        -->
+        <h2>Stock disponible</h2>
+        <h:form id="formContexto">
+            <div class="campo">
+                <h:outputLabel for="comercio" value="Comercio" />
+                <h:selectOneMenu id="comercio" value="#{reservaBean.idComercio}">
+                    <f:selectItem itemLabel="— Elegí un comercio —" itemValue="#{null}" />
+                    <f:selectItems value="#{reservaBean.listaComercios}" var="c"
+                                   itemValue="#{c.id}"
+                                   itemLabel="#{c.nombre}#{c.activo ? '' : ' (dado de baja)'}" />
+                    <f:ajax listener="#{reservaBean.refrescarItems}"
+                            render=":tablaStock :formAlta" />
+                </h:selectOneMenu>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="deposito" value="Depósito (opcional)" />
+                <h:selectOneMenu id="deposito" value="#{reservaBean.idDeposito}">
+                    <f:selectItem itemLabel="Todos los depósitos" itemValue="#{null}" />
+                    <f:selectItems value="#{reservaBean.listaDepositos}" var="d"
+                                   itemValue="#{d.id}" itemLabel="#{d.nombre}" />
+                    <!--
+                        IDs absolutos (con ":" adelante): tablaStock y formAlta
+                        son hermanos de este form, no hijos. Con IDs relativos
+                        JSF los busca dentro de formContexto y no los encuentra,
+                        con lo cual el desplegable de productos nunca se llena.
+                    -->
+                    <f:ajax listener="#{reservaBean.refrescarItems}"
+                            render=":tablaStock :formAlta" />
+                </h:selectOneMenu>
+            </div>
+
+            <p class="ayuda">
+                Solo se muestra la mercadería consignada por el comercio elegido: el depósito
+                es de Rabbit, pero el stock que hay adentro tiene dueño. Sin filtrar por
+                depósito se ve todo su stock en la red.
+            </p>
+        </h:form>
+
+        <h:panelGroup id="tablaStock">
+            <h:dataTable value="#{reservaBean.listaItems}" var="i"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty reservaBean.listaItems}">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{i.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Producto</f:facet>
+                    #{i.producto}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Depósito</f:facet>
+                    #{reservaBean.nombreDeposito(i.idDeposito)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Disponible</f:facet>
+                    #{i.cantidadDisponible}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Reservada</f:facet>
+                    #{i.cantidadReservada}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Libre</f:facet>
+                    #{i.cantidadLibre}
+                </h:column>
+            </h:dataTable>
+        </h:panelGroup>
+
+        <h2>Reservar</h2>
+        <h:form id="formAlta" styleClass="formulario">
+            <!--
+                El comercio ya se eligio arriba, en formContexto: es el
+                contexto de toda la operacion, no un dato mas del formulario.
+                Los productos que se ofrecen aca ya vienen filtrados por el.
+            -->
+            <div class="campo">
+                <h:outputLabel for="item" value="Producto" />
+                <h:selectOneMenu id="item" value="#{reservaBean.idItem}"
+                                 required="true" label="Producto"
+                                 requiredMessage="Elegí el producto a reservar">
+                    <f:selectItem itemLabel="— Elegí un producto —" itemValue="#{null}" />
+                    <!--
+                        Se incluye el deposito en la etiqueta: sin filtrar,
+                        la lista puede traer el mismo producto consignado en
+                        depositos distintos, y hay que poder distinguirlos.
+                    -->
+                    <f:selectItems value="#{reservaBean.listaItems}" var="i"
+                                   itemValue="#{i.id}"
+                                   itemLabel="#{i.producto} — #{reservaBean.nombreDeposito(i.idDeposito)} (#{i.cantidadLibre} libres)" />
+                </h:selectOneMenu>
+                <h:message for="item" styleClass="error-campo" />
+                <h:outputText styleClass="ayuda" rendered="#{empty reservaBean.listaItems}"
+                              value="Elegí un comercio arriba para ver su stock consignado." />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="cantidad" value="Cantidad" />
+                <h:inputText id="cantidad" value="#{reservaBean.cantidad}"
+                             required="true" label="Cantidad"
+                             requiredMessage="Ingresá la cantidad a reservar" />
+                <h:message for="cantidad" styleClass="error-campo" />
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Reservar" styleClass="btn btn-primary"
+                                 action="#{reservaBean.reservar}" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

@@ -24,6 +24,14 @@
 | `NOT_SUPPORTED` | `PublicadorPedidosExternos` y `PublicadorEstadosPedido` | El envío JMS corre fuera de la transacción: si el broker falla, no deshace lo ya guardado |
 | `NOT_SUPPORTED` | `ReversasBancarias` | La reversa en el banco corre después de que la transacción de Rabbit terminó (se deshizo o se confirmó) |
 | `NOT_SUPPORTED` | `SincronizadorDePedidos.sincronizarPendientes` | La pasada del timer no abre transacción: cada fila se sincroniza en la suya (`REQUIRES_NEW`), así una fila fallida no arrastra a las demás |
+| `REQUIRES_NEW` | `TransportistaService.recibirNovedad` (webhook) | Igual que `registrarNovedad` del polling: el envío y el pedido cambian en una sola transacción; si falla, no queda la novedad a medias y el transportista puede reintentar |
+| `AFTER_SUCCESS` (observer) | `AvisosPorMail` | El mail del aviso sale recién después del commit, y fuera de la transacción: un servidor de correo caído no deshace el aviso |
+| `NOT_SUPPORTED` | `PedidoService.cotizarDerivacion` | Lee el pedido (con sus líneas, en una sola consulta) y le pide precios a los transportistas sin abrir transacción: no retiene una conexión a la base mientras espera hasta 5 s por transportista |
+| `NOT_SUPPORTED` | `TransportistaService.cotizarEnvio` | Solo pregunta precios a los transportistas: no escribe nada y no retiene una transacción mientras espera respuestas de afuera |
+| `NOT_SUPPORTED` | `CancelacionesDeEnvios`, `SeguimientoDeEnvios` | Las llamadas a los transportistas corren fuera de la transacción de Rabbit (compensaciones y consultas de estado) |
+| `REQUIRES_NEW` | `TransportistaService.registrarNovedad` | Cada novedad de un envío (y el cambio de estado del pedido que dispara) en su propia transacción: una que falla no arrastra a las demás de la pasada |
+| `NOT_SUPPORTED` | `RuteoService.despacharPedido` / `despacharZona` | El despacho no abre transacción: cada pedido se confirma o deriva en la suya (la de `confirmarPedidoEnZona` o `derivarATransportista`), así un pedido que falla (por ejemplo, el cobro) no deshace los demás de la zona. Ver ADR-017 |
+| `NOT_SUPPORTED` | `PedidosExternosResource`, `SeguimientoResource` (API REST) | El recurso no abre transacción: cada operación de negocio confirma la suya, así un error al confirmar (dos reintentos simultáneos con la misma `Idempotency-Key` chocan contra la restricción única) llega al recurso, que reintenta y responde bien, en vez de explotar después de que el método terminó. Ver ADR-018 |
 | `NOT_SUPPORTED` | `CircuitBreakerBanco` | Solo cambia estado en memoria: no tiene nada que hacer en la transacción del llamador |
 
 ## Flujo 1: sincronizar un pedido externo (implementado)
@@ -101,3 +109,59 @@ siga activa en la tabla. Es el lado seguro (menos acceso, no más).
 `eliminarComercio` también es una sola transacción: el evento
 `EliminacionDeComercio` corre adentro (observers sincrónicos) y, si algún
 componente anota un impedimento, no se borra nada.
+
+## Flujo 6: derivar un pedido a un transportista (implementado)
+
+`PedidoService.derivarATransportista`, `REQUIRED`, en una única
+transacción. Es la alternativa a `confirmarPedido` cuando el pedido lo
+lleva una empresa de envíos externa:
+
+| Paso | Si falla… |
+|---|---|
+| 1. Validar que el pedido esté PENDIENTE | No cambia nada |
+| 2. `IRegistroCobros.registrarCobro` (PREPAGO: se cobra en el banco) | Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE |
+| 3. `IEnvios.solicitarEnvio`: el transportista toma el envío y se guarda con su código de seguimiento | Transportista rechaza, no responde o está de baja: rollback **y reversa en el banco** si ya se había cobrado |
+| 4. Estado CONFIRMADO + `EstadoPedidoCambiado` | Rollback de todo **y cancelación del envío en el transportista** (`EnvioSolicitado` + `AFTER_FAILURE`) |
+
+Después, cada novedad que informa el transportista se registra con
+`registrarNovedad` (`REQUIRES_NEW`): el envío cambia de estado y, en la
+misma transacción, Pedidos mueve el pedido (`EstadoEnvioCambiado`). Si
+mover el pedido falla, se deshace también la novedad y el seguimiento la
+reintenta en la próxima pasada.
+
+Cancelar un pedido derivado (desde CONFIRMADO) cancela también el envío;
+al transportista se le avisa recién cuando la cancelación queda
+confirmada (`EnvioCancelado` + `AFTER_SUCCESS`).
+
+Probado en la app: derivación a los dos transportistas simulados (REST y
+SOAP), seguimiento hasta ENTREGADO con el cobro contra entrega acreditado
+por el tópico, y cancelación de un pedido derivado con la anulación en el
+transportista. No se forzó una falla en el paso 4 para ver la
+compensación.
+
+## Bloqueo del pedido al cambiar su estado
+
+Todas las operaciones que cambian el estado de un pedido (confirmar,
+derivar, despachar, entregar, cancelar, y la cancelación del ERP) lo leen
+con `PESSIMISTIC_WRITE` (`PedidoRepository.buscarPedidoParaActualizar`):
+`SELECT ... FOR UPDATE` hasta el fin de la transacción. Si dos llegan a la
+vez (el ERP cancela mientras el personal confirma, o se despacha la zona),
+la segunda espera y después ve el estado real: o se confirma y el ERP
+recibe `409`, o se cancela y la confirmación falla por la transición
+inválida. Antes, las dos leían `PENDIENTE` y la última en confirmar pisaba
+a la otra (por ejemplo, un pedido `CONFIRMADO` con el stock ya devuelto).
+
+El bloqueo hace `flush` y vuelve a leer el pedido bloqueado: si la misma
+transacción ya lo había cambiado (el seguimiento de envíos lo pasa a
+`EN_CAMINO` y enseguida a `ENTREGADO`), ese cambio no se pierde, y si ya
+estaba cargado se trabaja con el estado real de la base. (Con `refresh`
+con bloqueo, Hibernate 7.4.5 falla sobre un pedido con sus líneas
+cargadas; por eso se lo saca del contexto y se lo vuelve a leer.)
+
+**Caso límite:** cancelar un pedido derivado bloquea el pedido y después
+el envío; el seguimiento de envíos bloquea el envío y después el pedido.
+Si coinciden sobre el mismo pedido en el mismo instante, PostgreSQL
+detecta el deadlock y aborta una de las dos: el seguimiento lo reintenta
+en la próxima pasada (15 s) y la pantalla muestra "Intentá de nuevo".
+Ningún dato queda a medias.
+

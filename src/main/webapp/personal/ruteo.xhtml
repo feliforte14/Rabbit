@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Ruteo por zona: los pedidos pendientes agrupados por la zona de su
+    codigo postal de entrega, el despacho segun la zona (de a uno o toda la
+    zona) y la gestion de las zonas. Se bindea a ruteoBean (RuteoBean.java).
+    Solo personal de Rabbit.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Ruteo por zona</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Ruteo por zona</h1>
+
+        <p class="ayuda">
+            Cada pedido pendiente cae en la zona de su código postal de entrega. "Despachar" decide
+            solo según la zona: en una zona de repartidores propios lo confirma con un repartidor de
+            la zona (si no hay libres, lo deriva al transportista de respaldo o usa uno de otra
+            zona); en una zona de transportista, se lo deriva. Los pedidos sin zona se despachan a
+            mano desde&#160;<h:link outcome="/personal/pedidos" value="Pedidos" />.
+        </p>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:panelGroup rendered="#{not empty ruteoBean.resultados}">
+            <h2>Resultado del despacho</h2>
+            <h:dataTable value="#{ruteoBean.resultados}" var="r"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">Pedido</f:facet>
+                    #{r.idPedido}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Resultado</f:facet>
+                    <h:outputText value="#{etiquetas.resultadoDespacho(r.resultado)}"
+                                  styleClass="#{etiquetas.claseResultadoDespacho(r.resultado)}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Detalle</f:facet>
+                    #{r.detalle}
+                </h:column>
+            </h:dataTable>
+        </h:panelGroup>
+
+        <h2>Pendientes por zona</h2>
+        <h:form id="formDespacho">
+            <ui:repeat value="#{ruteoBean.grupos}" var="g">
+                <h:panelGroup layout="block" styleClass="hoja-ruta"
+                              rendered="#{not empty g.zona or not empty g.pedidos}">
+                    <div class="hoja-ruta-encabezado">
+                        <h3 class="hoja-ruta-titulo">
+                            #{empty g.zona ? 'Sin zona' : g.zona.nombre}
+                            <h:outputText rendered="#{not empty g.zona}"
+                                          value=" · CP #{g.zona.codigoPostalDesde}-#{g.zona.codigoPostalHasta}" />
+                        </h3>
+                        <h:outputText value="#{g.pedidos.size()} #{g.pedidos.size() == 1 ? 'pendiente' : 'pendientes'}"
+                                      styleClass="badge #{empty g.pedidos ? 'badge-gris' : 'badge-naranja'}" />
+                    </div>
+
+                    <p class="hoja-ruta-datos">
+                        <h:panelGroup rendered="#{not empty g.zona}">
+                            <span>Reparte: <b>#{etiquetas.cobertura(g.zona.cobertura)}</b></span>
+                            <h:outputText rendered="#{g.zona.cobertura == 'PROPIA'}"
+                                          value=" · #{g.repartidoresLibres == 0 ? 'ningún repartidor libre' : (g.repartidoresLibres == 1 ? '1 repartidor libre' : g.repartidoresLibres.toString().concat(' repartidores libres'))} en la zona" />
+                            <h:outputText rendered="#{not empty g.transportista}"
+                                          value="#{g.zona.cobertura == 'PROPIA' ? ' · respaldo: ' : ' · '}#{g.transportista}" />
+                        </h:panelGroup>
+                        <h:panelGroup rendered="#{empty g.zona}">
+                            <span>Sin código postal o fuera de toda zona: se confirman o derivan a mano.</span>
+                        </h:panelGroup>
+                    </p>
+
+                    <h:panelGroup layout="block" styleClass="tabla-scroll" rendered="#{not empty g.pedidos}">
+                        <h:dataTable value="#{ruteoBean.primeros(g)}" var="p"
+                                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
+                            <h:column>
+                                <f:facet name="header">Pedido</f:facet>
+                                #{p.id}
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header">Comercio</f:facet>
+                                #{ruteoBean.nombreComercio(p.idComercio)}
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header">Entrega en</f:facet>
+                                #{empty p.direccionEntrega ? '—' : p.direccionEntrega}
+                                <span class="dato-secundario">CP #{empty p.codigoPostalEntrega ? 'desconocido' : p.codigoPostalEntrega}</span>
+                            </h:column>
+                            <h:column>
+                                <f:facet name="header">Pago</f:facet>
+                                #{etiquetas.medioPago(p.medioPago)}
+                            </h:column>
+                            <h:column styleClass="acciones">
+                                <f:facet name="header">Acciones</f:facet>
+                                <h:commandButton value="Despachar" styleClass="btn btn-secondary"
+                                                 action="#{ruteoBean.despacharPedido(p.id)}"
+                                                 rendered="#{not empty g.zona}" />
+                                <h:outputText value="A mano, desde Pedidos" styleClass="sin-accion"
+                                              rendered="#{empty g.zona}" />
+                            </h:column>
+                        </h:dataTable>
+                    </h:panelGroup>
+                    <h:outputText styleClass="ayuda" rendered="#{ruteoBean.restantes(g) > 0}"
+                                  value="… y #{ruteoBean.restantes(g)} #{ruteoBean.restantes(g) == 1 ? 'pedido' : 'pedidos'} más." />
+
+                    <h:panelGroup layout="block" styleClass="form-acciones"
+                                  rendered="#{not empty g.zona and not empty g.pedidos}">
+                        <h:commandButton value="Despachar toda la zona" styleClass="btn btn-primary"
+                                         action="#{ruteoBean.despacharZona(g.zona.id)}"
+                                         onclick="return confirm('¿Despachar todos los pedidos pendientes de la zona?');" />
+                    </h:panelGroup>
+                </h:panelGroup>
+            </ui:repeat>
+        </h:form>
+
+        <h2>Zonas</h2>
+        <h:form id="formZonas">
+            <h:dataTable value="#{ruteoBean.listaZonas}" var="z"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty ruteoBean.listaZonas}">
+                <h:column>
+                    <f:facet name="header">Zona</f:facet>
+                    #{z.nombre}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Códigos postales</f:facet>
+                    #{z.codigoPostalDesde}-#{z.codigoPostalHasta}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Reparte</f:facet>
+                    #{etiquetas.cobertura(z.cobertura)}
+                    <h:panelGroup rendered="#{not empty z.idTransportista}">
+                        <span class="dato-secundario">#{z.cobertura == 'PROPIA' ? 'Respaldo: ' : ''}#{ruteoBean.nombreTransportista(z.idTransportista)}</span>
+                    </h:panelGroup>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{z.activa ? 'Activa' : 'Dada de baja'}"
+                                  styleClass="badge #{z.activa ? 'badge-verde' : 'badge-gris'}" />
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Dar de baja" styleClass="btn btn-secondary"
+                                     action="#{ruteoBean.darDeBajaZona(z.id)}" rendered="#{z.activa}" />
+                    <h:commandButton value="Reactivar" styleClass="btn btn-secondary"
+                                     action="#{ruteoBean.reactivarZona(z.id)}" rendered="#{not z.activa}" />
+                </h:column>
+            </h:dataTable>
+        </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty ruteoBean.listaZonas}">
+            Todavía no hay zonas. Sin zonas, todos los pedidos se despachan a mano.
+        </h:panelGroup>
+
+        <h2>Registrar zona</h2>
+        <h:form id="formAltaZona" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="nombre" value="Nombre" />
+                <h:inputText id="nombre" value="#{ruteoBean.nuevaZona.nombre}" required="true"
+                             label="Nombre" requiredMessage="Ingresá el nombre de la zona" />
+                <h:message for="nombre" styleClass="error-campo" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="desde" value="Código postal desde" />
+                <h:inputText id="desde" value="#{ruteoBean.nuevaZona.codigoPostalDesde}" required="true"
+                             label="Código postal desde" requiredMessage="Ingresá el primer código postal"
+                             converterMessage="El código postal tiene que ser un número de 4 dígitos" />
+                <h:message for="desde" styleClass="error-campo" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="hasta" value="Código postal hasta" />
+                <h:inputText id="hasta" value="#{ruteoBean.nuevaZona.codigoPostalHasta}" required="true"
+                             label="Código postal hasta" requiredMessage="Ingresá el último código postal"
+                             converterMessage="El código postal tiene que ser un número de 4 dígitos" />
+                <h:message for="hasta" styleClass="error-campo" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="cobertura" value="Quién reparte" />
+                <h:selectOneMenu id="cobertura" value="#{ruteoBean.nuevaZona.cobertura}">
+                    <f:selectItems value="#{ruteoBean.coberturas}" var="c" itemValue="#{c}"
+                                   itemLabel="#{etiquetas.cobertura(c)}" />
+                </h:selectOneMenu>
+            </div>
+            <div class="campo">
+                <h:outputLabel for="transportista" value="Transportista" />
+                <h:selectOneMenu id="transportista" value="#{ruteoBean.nuevaZona.idTransportista}">
+                    <f:selectItem itemLabel="— Ninguno —" itemValue="#{null}" />
+                    <f:selectItems value="#{ruteoBean.listaTransportistas}" var="t" itemValue="#{t.id}" itemLabel="#{t.nombre}" />
+                </h:selectOneMenu>
+                <p class="ayuda">
+                    Obligatorio si reparte un transportista. En una zona de repartidores propios es el
+                    respaldo cuando no hay repartidores libres (opcional).
+                </p>
+            </div>
+            <div class="form-acciones">
+                <h:commandButton value="Registrar zona" styleClass="btn btn-primary" action="#{ruteoBean.registrarZona}" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

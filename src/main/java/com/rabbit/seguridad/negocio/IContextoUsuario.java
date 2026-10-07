@@ -15,8 +15,8 @@ import jakarta.ejb.Local;
 public interface IContextoUsuario {
 
     /**
-     * @return el comercio de un usuario COMERCIO
-     * @throws ValidacionException si quien llama no es un COMERCIO asociado a un comercio
+     * @return el comercio de un usuario COMERCIO o ERP
+     * @throws ValidacionException si quien llama no es un COMERCIO o ERP asociado a un comercio
      */
     Long idComercioActual();
 

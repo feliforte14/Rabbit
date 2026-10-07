@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Listado y alta de repartidores. Se bindea a repartidorBean
+    (RepartidorBean.java). La asignacion a pedidos no se hace desde aca:
+    la hace PedidoService al confirmar un pedido (ver
+    IAsignacionRepartidores).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Repartidores</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Repartidores</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:form id="formListado">
+            <h:dataTable value="#{repartidorBean.repartidores}" var="r"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty repartidorBean.repartidores}">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{r.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Nombre</f:facet>
+                    #{r.nombre}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Teléfono</f:facet>
+                    #{empty r.telefono ? '—' : r.telefono}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Zona</f:facet>
+                    #{repartidorBean.nombreZona(r.idZona)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{etiquetas.estadoRepartidor(r.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoRepartidor(r.estado)}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Pedido a cargo</f:facet>
+                    <h:outputText value="Pedido #{r.idPedidoActual}" rendered="#{not empty r.idPedidoActual}" />
+                    <h:outputText value="—" rendered="#{empty r.idPedidoActual}" />
+                </h:column>
+            </h:dataTable>
+        </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty repartidorBean.repartidores}">
+            Todavía no hay repartidores. Sin repartidores disponibles, los pedidos solo se pueden derivar a un transportista.
+        </h:panelGroup>
+
+        <h2>Registrar repartidor</h2>
+        <p class="ayuda">
+            Para que el repartidor vea sus entregas desde el celular, un administrador le crea
+            una cuenta de tipo Repartidor en Usuarios.
+        </p>
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="nombre" value="Nombre" />
+                <h:inputText id="nombre" value="#{repartidorBean.nuevoRepartidor.nombre}"
+                             required="true" label="Nombre"
+                             requiredMessage="Ingresá el nombre del repartidor" />
+                <h:message for="nombre" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="telefono" value="Teléfono (opcional)" />
+                <h:inputText id="telefono" value="#{repartidorBean.nuevoRepartidor.telefono}" label="Teléfono" />
+                <h:message for="telefono" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="zona" value="Zona (opcional)" />
+                <h:selectOneMenu id="zona" value="#{repartidorBean.nuevoRepartidor.idZona}">
+                    <f:selectItem itemLabel="— Sin zona fija —" itemValue="#{null}" />
+                    <f:selectItems value="#{repartidorBean.listaZonas}" var="z" itemValue="#{z.id}"
+                                   itemLabel="#{z.nombre} (CP #{z.codigoPostalDesde}-#{z.codigoPostalHasta})" />
+                </h:selectOneMenu>
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{repartidorBean.registrar}" />
+            </div>
+        </h:form>
+
+        <h2>Cambiar la zona de un repartidor</h2>
+        <h:form id="formZona" styleClass="formulario" rendered="#{not empty repartidorBean.repartidores}">
+            <div class="campo">
+                <h:outputLabel for="repartidorZona" value="Repartidor" />
+                <h:selectOneMenu id="repartidorZona" value="#{repartidorBean.idRepartidorACambiar}"
+                                 required="true" label="Repartidor" requiredMessage="Elegí el repartidor">
+                    <f:selectItem itemLabel="— Elegí un repartidor —" itemValue="#{null}" />
+                    <f:selectItems value="#{repartidorBean.repartidores}" var="r" itemValue="#{r.id}" itemLabel="#{r.nombre}" />
+                </h:selectOneMenu>
+                <h:message for="repartidorZona" styleClass="error-campo" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="zonaNueva" value="Zona" />
+                <h:selectOneMenu id="zonaNueva" value="#{repartidorBean.idZonaNueva}">
+                    <f:selectItem itemLabel="— Sin zona fija —" itemValue="#{null}" />
+                    <f:selectItems value="#{repartidorBean.listaZonas}" var="z" itemValue="#{z.id}" itemLabel="#{z.nombre}" />
+                </h:selectOneMenu>
+            </div>
+            <div class="form-acciones">
+                <h:commandButton value="Cambiar zona" styleClass="btn btn-primary" action="#{repartidorBean.cambiarZona}" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

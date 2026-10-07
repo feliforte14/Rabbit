@@ -7,8 +7,8 @@ cómo se muestran en la defensa.
 |---|---|
 | [Resiliencia ante fallas](#1-resiliencia-ante-fallas) | Cumple |
 | [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada) | Cumple: con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido) |
-| [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 15 ADR en [DECISIONES.md](DECISIONES.md); acá se desarrollan 3 con sus alternativas |
-| [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple: el banco legado también está implementado en Node.js y Rabbit (Java) lo consume por SOAP sin cambiar código |
+| [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 24 ADR en [DECISIONES.md](DECISIONES.md); acá se desarrollan 3 con sus alternativas |
+| [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple: el banco legado también está implementado en Node.js y Rabbit (Java) lo consume por SOAP sin cambiar código; el transportista moderno, en Python, por REST y webhook |
 
 ## 1. Resiliencia ante fallas
 
@@ -24,6 +24,9 @@ resto, y que el sistema se recupere solo cuando la falla termina.
 | El banco cobró pero Rabbit falla después (por ejemplo, no hay repartidor) | Rabbit deshace su parte y le pide al banco que devuelva la plata | Transacción compensatoria (ADR-010) |
 | Se pierde el mensaje de un pedido del ERP (broker caído, mensaje sin enviar) | El pedido se sincroniza igual en menos de un minuto | Polling de respaldo sobre la cola (ADR-001) |
 | Un suscriptor del tópico está caído (por ejemplo, en un redeploy) | Recibe los cambios de estado cuando vuelve; no se pierde ningún cobro contra entrega | Suscripciones durables (ADR-009) |
+| Un transportista no responde al derivarle un pedido | El pedido no se deriva y sigue PENDIENTE (si ya se había cobrado, se revierte); el personal puede probar con otro | Timeout de 5 s en el adaptador REST y rollback de la derivación (ADR-016) |
+| El transportista aceptó el envío pero Rabbit falla después | Rabbit deshace su parte y le pide al transportista que cancele el envío | Transacción compensatoria (`CancelacionesDeEnvios`, ADR-016) |
+| El seguimiento de un envío falla (transportista caído o novedad que no se puede aplicar) | Ese envío se reintenta en la próxima pasada, 15 s después; los demás siguen | Una transacción por novedad (`REQUIRES_NEW`) |
 | Un mensaje llega dos veces | Se procesa una sola vez | Sincronización y cobro contra entrega idempotentes |
 
 ### El circuit breaker, en detalle
@@ -125,7 +128,8 @@ hace, para cada cantidad de consumidores:
 2. Pausa el timer de respaldo (`rabbit.sincronizador.pausado=true`), para
    que no procese pedidos de la carga y falsee la medición.
 3. Manda 10 pedidos de calentamiento, que no se miden.
-4. Pausa la cola, manda los 100 pedidos de la carga por la API del ERP y
+4. Pausa la cola, manda los 100 pedidos de la carga por la API del ERP
+   (`POST /api/v1/pedidos-externos`, cada uno con su `Idempotency-Key`) y
    la reanuda. Así se mide solo el procesamiento, no el envío.
 5. Toma del log del servidor la hora en que se sincronizó cada pedido y
    qué hilo lo procesó.
@@ -167,8 +171,9 @@ competir por la base. Para el comercio que manda 100 pedidos juntos, el
 Para correrla de nuevo (el script imprime esta misma tabla al terminar):
 
 ```bash
-export WILDFLY_HOME=... RABBIT_ERP_USUARIO=... RABBIT_ERP_CLAVE=...
-export RABBIT_ID_COMERCIO=... RABBIT_ID_PUNTO=...   # un comercio y un punto de picking activos
+export WILDFLY_HOME=... RABBIT_ERP_USUARIO=... RABBIT_ERP_CLAVE=...   # ERP creado desde la app
+export RABBIT_ID_PUNTO=...   # punto de picking activo del comercio de ese ERP
+# RABBIT_BASE (opcional): por defecto https://localhost:8443/Rabbit/ (acepta el certificado local autofirmado)
 python3 scripts/prueba_escalabilidad.py 1 4 8 --pedidos 100
 ```
 
@@ -212,7 +217,7 @@ más conexiones.
 
 ## 3. Architecture Decision Records
 
-Los 15 ADR del proyecto están en [DECISIONES.md](DECISIONES.md). Estos
+Los 24 ADR del proyecto están en [DECISIONES.md](DECISIONES.md). Estos
 tres son los de más peso en la arquitectura; acá se desarrollan con las
 alternativas consideradas y por qué se descartaron.
 
@@ -325,6 +330,13 @@ flowchart LR
 Además, el banco queda fuera del WAR de Rabbit, como sería un banco real:
 resuelve la limitación de tener el sistema "externo" desplegado dentro del
 mismo servidor.
+
+**Y un segundo sistema en otra tecnología: el transportista moderno.**
+`transportista-moderno/servidor.py` (Python, solo biblioteca estándar) es
+el transportista REST como servicio aparte: mismo contrato que el
+simulado del WAR, y además **le avisa** a Rabbit cada cambio de estado
+por el webhook de novedades (ADR-022). Rabbit lo da de alta como
+cualquier transportista REST, con su endpoint, y no nota la diferencia.
 
 ### Qué se probó
 

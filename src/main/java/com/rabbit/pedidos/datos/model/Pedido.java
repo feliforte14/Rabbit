@@ -63,12 +63,24 @@ public class Pedido {
     @Column(length = 200)
     private String direccionEntrega;
 
+    // Código postal de entrega (4 dígitos): define la zona del pedido (ver
+    // RuteoService). Null si no se pudo determinar: el pedido queda sin zona.
+    @Column(length = 4)
+    private String codigoPostalEntrega;
+
     // Repartidor asignado al confirmar (ver IAsignacionRepartidores). Por
     // ID y no por relación JPA: Repartidores es otro componente.
     private Long idRepartidor;
 
     private LocalDateTime fechaCreacion;
     private LocalDateTime fechaActualizacion;
+
+    // Código público para el seguimiento sin login (/api/v1/seguimiento).
+    // Aleatorio a propósito: con el ID secuencial cualquiera podía recorrer
+    // los estados de todos los pedidos. Null en pedidos anteriores a este
+    // cambio (no tienen seguimiento público).
+    @Column(length = 16, unique = true)
+    private String codigoSeguimiento;
 
     public Pedido() {}
 
@@ -90,10 +102,14 @@ public class Pedido {
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
     public void setDireccionEntrega(String direccionEntrega) { this.direccionEntrega = direccionEntrega; }
+    public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
+    public void setCodigoPostalEntrega(String codigoPostalEntrega) { this.codigoPostalEntrega = codigoPostalEntrega; }
     public Long getIdRepartidor() { return idRepartidor; }
     public void setIdRepartidor(Long idRepartidor) { this.idRepartidor = idRepartidor; }
     public LocalDateTime getFechaCreacion() { return fechaCreacion; }
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
     public void setFechaActualizacion(LocalDateTime fechaActualizacion) { this.fechaActualizacion = fechaActualizacion; }
+    public String getCodigoSeguimiento() { return codigoSeguimiento; }
+    public void setCodigoSeguimiento(String codigoSeguimiento) { this.codigoSeguimiento = codigoSeguimiento; }
 }

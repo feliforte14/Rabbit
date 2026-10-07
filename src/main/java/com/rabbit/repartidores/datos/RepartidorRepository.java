@@ -48,6 +48,23 @@ public class RepartidorRepository {
         return libres.isEmpty() ? null : libres.get(0);
     }
 
+    // Primero uno DISPONIBLE de la zona preferida; si no hay, cualquiera
+    // DISPONIBLE. Mismo bloqueo pesimista que tomarPrimeroDisponible.
+    public Repartidor tomarPrimeroDisponible(Long idZonaPreferida) {
+        if (idZonaPreferida == null) {
+            return tomarPrimeroDisponible();
+        }
+        List<Repartidor> libres = em.createQuery(
+                        "SELECT r FROM Repartidor r WHERE r.estado = :estado "
+                                + "ORDER BY CASE WHEN r.idZona = :zona THEN 0 ELSE 1 END, r.id", Repartidor.class)
+                .setParameter("estado", EstadoRepartidor.DISPONIBLE)
+                .setParameter("zona", idZonaPreferida)
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                .setMaxResults(1)
+                .getResultList();
+        return libres.isEmpty() ? null : libres.get(0);
+    }
+
     public List<Repartidor> listarTodos() {
         return em.createQuery("SELECT r FROM Repartidor r ORDER BY r.id", Repartidor.class).getResultList();
     }

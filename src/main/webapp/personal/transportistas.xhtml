@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Transportistas: las empresas de envio externas a las que se derivan los
+    pedidos que no lleva un repartidor propio, y el seguimiento de esos
+    envios. Se bindea a transportistaBean (TransportistaBean.java). Solo
+    personal de Rabbit.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Transportistas</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Transportistas</h1>
+
+        <p class="ayuda">
+            Empresas de envío externas. Un pedido pendiente se les deriva desde&#160;
+            <h:link outcome="/personal/pedidos" value="Pedidos" />; cada una se integra con su propia
+            tecnología (API REST o SOAP legado) y Rabbit consulta el estado de sus envíos cada 15 s.
+        </p>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:form id="formListado">
+            <!--
+                La clave recien generada: se muestra una unica vez. El
+                transportista la manda en cada aviso (Authorization: Bearer).
+            -->
+            <h:panelGroup layout="block" styleClass="reserva-activa" rendered="#{not empty transportistaBean.claveGenerada}">
+                <p class="reserva-titulo">Clave de webhook de #{transportistaBean.conClaveNueva.nombre}</p>
+                <p>Configurale al transportista estos datos. La clave <strong>no se vuelve a mostrar</strong>;
+                    si se pierde, se genera otra.</p>
+                <dl class="reserva-datos">
+                    <dt>URL</dt>
+                    <dd><code>#{request.scheme}://#{request.serverName}:#{request.serverPort}#{request.contextPath}/api/v1/transportistas/#{transportistaBean.conClaveNueva.id}/novedades</code></dd>
+                    <dt>Header</dt>
+                    <dd><code>Authorization: Bearer #{transportistaBean.claveGenerada}</code></dd>
+                    <dt>Cuerpo</dt>
+                    <dd><code>{"codigoSeguimiento": "...", "estado": "EN_TRANSITO"}</code></dd>
+                </dl>
+            </h:panelGroup>
+            <h:dataTable value="#{transportistaBean.transportistas}" var="t"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty transportistaBean.transportistas}">
+                <h:column>
+                    <f:facet name="header">Nombre</f:facet>
+                    #{t.nombre}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Integración</f:facet>
+                    #{etiquetas.tipoIntegracion(t.tipoIntegracion)}
+                    <span class="dato-secundario">#{t.endpoint}</span>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Envíos en curso</f:facet>
+                    #{transportistaBean.enviosActivos(t.id)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Avisos (webhook)</f:facet>
+                    <h:outputText rendered="#{t.tipoIntegracion != 'REST'}" value="No avisa: se le consulta" styleClass="sin-accion" />
+                    <h:panelGroup rendered="#{t.tipoIntegracion == 'REST'}">
+                        <h:outputText value="#{t.tieneClaveWebhook ? 'Con clave' : 'Sin clave'}"
+                                      styleClass="badge #{t.tieneClaveWebhook ? 'badge-verde' : 'badge-gris'}" />
+                        <h:commandButton value="#{t.tieneClaveWebhook ? 'Cambiar clave' : 'Generar clave'}"
+                                         styleClass="btn btn-secondary"
+                                         action="#{transportistaBean.generarClaveWebhook(t.id)}" />
+                    </h:panelGroup>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{t.activo ? 'Activo' : 'Dado de baja'}"
+                                  styleClass="badge #{t.activo ? 'badge-verde' : 'badge-gris'}" />
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Dar de baja" styleClass="btn btn-secondary"
+                                     action="#{transportistaBean.darDeBaja(t.id)}" rendered="#{t.activo}" />
+                    <h:commandButton value="Reactivar" styleClass="btn btn-secondary"
+                                     action="#{transportistaBean.reactivar(t.id)}" rendered="#{not t.activo}" />
+                </h:column>
+            </h:dataTable>
+        </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty transportistaBean.transportistas}">
+            Todavía no hay transportistas.
+        </h:panelGroup>
+
+        <h2>Envíos derivados</h2>
+        <h:panelGroup layout="block" styleClass="tabla-scroll" rendered="#{not empty transportistaBean.listaEnvios}">
+            <h:dataTable value="#{transportistaBean.listaEnvios}" var="e"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">Pedido</f:facet>
+                    #{e.idPedido}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Transportista</f:facet>
+                    #{e.transportista}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Seguimiento</f:facet>
+                    #{e.codigoSeguimiento}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{etiquetas.estadoEnvio(e.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoEnvio(e.estado)}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Solicitado</f:facet>
+                    #{e.solicitado}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Actualizado</f:facet>
+                    #{e.actualizado}
+                </h:column>
+            </h:dataTable>
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty transportistaBean.listaEnvios}">
+            Todavía no se derivó ningún pedido.
+        </h:panelGroup>
+
+        <h2>Registrar transportista</h2>
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="nombre" value="Nombre" />
+                <h:inputText id="nombre" value="#{transportistaBean.nuevoTransportista.nombre}"
+                             required="true" label="Nombre" requiredMessage="Ingresá el nombre del transportista" />
+                <h:message for="nombre" styleClass="error-campo" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="tipo" value="Integración" />
+                <h:selectOneMenu id="tipo" value="#{transportistaBean.nuevoTransportista.tipoIntegracion}">
+                    <f:selectItems value="#{transportistaBean.tiposIntegracion}" var="ti" itemValue="#{ti}"
+                                   itemLabel="#{etiquetas.tipoIntegracion(ti)}" />
+                </h:selectOneMenu>
+            </div>
+            <div class="campo">
+                <h:outputLabel for="endpoint" value="Endpoint" />
+                <h:inputText id="endpoint" value="#{transportistaBean.nuevoTransportista.endpoint}"
+                             required="true" label="Endpoint" maxlength="300"
+                             requiredMessage="Ingresá la URL del transportista" />
+                <h:message for="endpoint" styleClass="error-campo" />
+                <p class="ayuda">
+                    API REST: la URL base (el simulado:
+                    <code>http://localhost:8080/Rabbit/api/simulador/transportista-rest</code>).
+                    SOAP legado: la URL del WSDL (el simulado:
+                    <code>http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl</code>).
+                </p>
+            </div>
+            <div class="form-acciones">
+                <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{transportistaBean.registrar}" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

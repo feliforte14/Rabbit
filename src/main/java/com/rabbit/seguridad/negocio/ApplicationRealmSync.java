@@ -216,9 +216,8 @@ public final class ApplicationRealmSync {
 
     // Hash MD5 de "usuario:realm:contraseña" — el formato exacto que
     // exige el properties-realm de WildFly para ApplicationRealm (ver
-    // digest-realm-name en standalone.xml). Distinto del SHA-256 de
-    // PasswordUtil: ese es el hash que guarda la tabla "usuarios", este es
-    // el que entiende el archivo de properties del servidor.
+    // digest-realm-name en standalone.xml). Es la única copia de la
+    // credencial: la tabla "usuarios" no guarda contraseñas.
     private static String hashDigest(String username, String passwordEnClaro) {
         try {
             MessageDigest md5 = MessageDigest.getInstance("MD5");

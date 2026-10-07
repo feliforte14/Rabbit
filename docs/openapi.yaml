@@ -1,0 +1,459 @@
+openapi: 3.1.0
+info:
+  title: Rabbit API
+  version: 1.0.0
+  summary: Pedidos del ERP de los comercios y seguimiento público de pedidos.
+  description: |
+    API REST de Rabbit (logística de última milla).
+
+    - **ERP del comercio** (`/v1/pedidos-externos`): registra pedidos, consulta
+      cómo terminaron y los cancela. HTTP Basic con un usuario de tipo ERP,
+      creado por un administrador de Rabbit y asociado a UN comercio: cada
+      cuenta carga y ve solo los pedidos de su comercio.
+    - **Seguimiento público** (`/v1/seguimiento`): estado de un pedido por su
+      código de seguimiento, sin autenticación.
+    - **Webhook de transportistas** (`/v1/transportistas/{id}/novedades`): un
+      transportista moderno avisa cada cambio de estado de sus envíos, con la
+      clave que le genera el personal de Rabbit (Bearer).
+
+    La conversión de un pedido externo en pedido real es asincrónica (cola
+    JMS): el `POST` responde enseguida con `resultado: Pendiente` y el ERP
+    consulta después (o sigue los `_links`).
+
+    Todos los errores usan Problem Details (RFC 9457, `application/problem+json`).
+servers:
+  - url: https://localhost:8443/Rabbit/api
+    description: WildFly local (HTTPS obligatorio; en local, certificado autofirmado)
+
+tags:
+  - name: Pedidos externos
+    description: Integración con el ERP de cada comercio (rol ERP).
+  - name: Seguimiento
+    description: Consulta pública del estado de un pedido.
+  - name: Transportistas
+    description: Avisos de los transportistas modernos (webhook).
+
+paths:
+  /v1/pedidos-externos:
+    post:
+      tags: [Pedidos externos]
+      operationId: registrarPedidoExterno
+      summary: Registrar un pedido del ERP
+      description: |
+        Registra el pedido y lo encola para convertirlo en pedido real.
+        Idempotente con el header `Idempotency-Key`: si el ERP reintenta con
+        la misma clave y el mismo pedido (por ejemplo, tras un timeout),
+        recibe el pedido externo ya creado, sin duplicarlo.
+      security:
+        - basicAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PedidoExternoRequest'
+            examples:
+              stockConsignado:
+                summary: Con stock consignado en un depósito de Rabbit
+                value:
+                  origen: STOCK_CONSIGNADO
+                  lineas:
+                    - { idItem: 3, cantidad: 2 }
+                  importe: 2500.00
+                  medioPago: PREPAGO
+                  direccionEntrega: Av. Corrientes 1234, CABA
+                  codigoPostalEntrega: "1043"
+              puntoPicking:
+                summary: A retirar de un punto de picking del comercio
+                value:
+                  origen: PUNTO_PICKING
+                  idPuntoPicking: 1
+                  lineas:
+                    - { producto: Caja de zapatillas, cantidad: 1 }
+                  importe: 89000.00
+                  medioPago: CONTRA_ENTREGA
+                  direccionEntrega: Lima 775, CABA
+      responses:
+        '201':
+          description: Pedido registrado (o ya registrado con esa clave). Queda Pendiente hasta que se sincroniza.
+          headers:
+            Location:
+              description: URI del pedido externo.
+              schema: { type: string, format: uri }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoExterno'
+              example:
+                idPedidoExterno: 42
+                resultado: Pendiente
+                _links:
+                  self: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42 }
+                  cancelar: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion, method: POST }
+        '400':
+          description: Falta el cuerpo o el header `Idempotency-Key`, el JSON es inválido o hay campos con formato inválido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+              example:
+                type: /problemas/datos-con-formato-invalido
+                title: Hay campos con formato inválido
+                status: 400
+                detail: Revisá los campos indicados en "errores"
+                errores:
+                  - { campo: importe, mensaje: El importe del pedido debe ser mayor a cero }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '422':
+          description: El pedido no cumple una regla de negocio, o la clave de idempotencia ya se usó con otro pedido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+              examples:
+                reglaDeNegocio:
+                  value:
+                    type: /problemas/datos-invalidos
+                    title: El pedido no cumple las reglas de Rabbit
+                    status: 422
+                    detail: Debe indicar el punto de picking del pedido
+                claveReutilizada:
+                  value:
+                    type: /problemas/clave-idempotencia-reutilizada
+                    title: Clave de idempotencia reutilizada
+                    status: 422
+                    detail: La clave de idempotencia "7f3c9e1a-..." ya se usó con otro pedido
+        '500': { $ref: '#/components/responses/ErrorInterno' }
+
+  /v1/pedidos-externos/{id}:
+    get:
+      tags: [Pedidos externos]
+      operationId: consultarPedidoExterno
+      summary: Cómo terminó un pedido enviado
+      security:
+        - basicAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPedidoExterno'
+      responses:
+        '200':
+          description: Estado del pedido externo y, si ya se generó, del pedido real.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoExterno'
+              example:
+                idPedidoExterno: 42
+                resultado: Sincronizado
+                idPedido: 118
+                estadoPedido: PENDIENTE
+                codigoSeguimiento: RB-7KQ2M9XHTA
+                _links:
+                  self: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42 }
+                  cancelar: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion, method: POST }
+                  seguimiento: { href: https://localhost:8443/Rabbit/api/v1/seguimiento/RB-7KQ2M9XHTA }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '404': { $ref: '#/components/responses/PedidoExternoInexistente' }
+        '500': { $ref: '#/components/responses/ErrorInterno' }
+
+  /v1/pedidos-externos/{id}/cancelacion:
+    post:
+      tags: [Pedidos externos]
+      operationId: cancelarPedidoExterno
+      summary: Cancelar un pedido enviado
+      description: |
+        Si todavía no se convirtió en pedido, no se convierte (`resultado: Cancelado`).
+        Si ya es un pedido `PENDIENTE`, se cancela y se devuelve el stock
+        (`estadoPedido: CANCELADO`). Desde `CONFIRMADO` en adelante ya tiene
+        cobro y repartidor: responde 409 y lo cancela el personal de Rabbit.
+        Idempotente: cancelar algo ya cancelado devuelve 200 con el mismo estado.
+      security:
+        - basicAuth: []
+      parameters:
+        - $ref: '#/components/parameters/IdPedidoExterno'
+      responses:
+        '200':
+          description: El pedido quedó cancelado (o ya lo estaba).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PedidoExterno'
+              example:
+                idPedidoExterno: 42
+                resultado: Cancelado
+                motivo: Cancelado por el comercio
+                _links:
+                  self: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42 }
+        '401': { $ref: '#/components/responses/NoAutenticado' }
+        '403': { $ref: '#/components/responses/SinPermiso' }
+        '404': { $ref: '#/components/responses/PedidoExternoInexistente' }
+        '409':
+          description: El pedido ya avanzó y el comercio no puede cancelarlo por la API.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+              example:
+                type: /problemas/cancelacion-no-permitida
+                title: El pedido ya no se puede cancelar
+                status: 409
+                detail: "El pedido 118 está EN_CAMINO: el comercio ya no puede cancelarlo por la API. Si todavía no salió, lo puede cancelar el personal de Rabbit."
+        '500': { $ref: '#/components/responses/ErrorInterno' }
+
+  /v1/seguimiento/{codigo}:
+    get:
+      tags: [Seguimiento]
+      operationId: consultarSeguimiento
+      summary: Estado de un pedido por su código de seguimiento
+      description: Público, sin autenticación. Solo expone el estado.
+      security: []
+      parameters:
+        - name: codigo
+          in: path
+          required: true
+          description: Código de seguimiento que el ERP recibe en `codigoSeguimiento`.
+          schema: { type: string, pattern: '^RB-[2-9A-HJKMNP-Z]{10}$', example: RB-7KQ2M9XHTA }
+      responses:
+        '200':
+          description: Estado actual del pedido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Seguimiento'
+        '404':
+          description: Ningún pedido tiene ese código.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+
+  /v1/transportistas/{id}/novedades:
+    post:
+      tags: [Transportistas]
+      operationId: recibirNovedad
+      summary: El transportista avisa un cambio de estado de un envío
+      description: |
+        Reemplaza esperar al polling (cada 15 s). Repetir un aviso no cambia
+        nada (idempotente): responde 204 igual. Un transportista solo puede
+        avisar novedades de sus propios envíos.
+      security:
+        - claveWebhook: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Id del transportista en Rabbit.
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NovedadEnvio'
+            example:
+              codigoSeguimiento: TR-7
+              estado: EN_TRANSITO
+      responses:
+        '204':
+          description: Aviso aceptado (el envío cambió o ya estaba en ese estado).
+        '400':
+          description: El cuerpo no es JSON.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '401':
+          description: Falta la clave, es incorrecta o es de otro transportista.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: Ese transportista no tiene ningún envío con ese código.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '422':
+          description: Estado desconocido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500': { $ref: '#/components/responses/ErrorInterno' }
+
+components:
+  securitySchemes:
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Usuario de tipo ERP, asociado a un comercio.
+    claveWebhook:
+      type: http
+      scheme: bearer
+      description: Clave del transportista, generada en la pantalla Transportistas (se muestra una sola vez).
+
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Identificador único del pedido en el ERP (por ejemplo un UUID). El mismo en cada reintento.
+      schema: { type: string, pattern: '^[A-Za-z0-9_-]{8,100}$', example: 7f3c9e1a-5b2d-4c8e-9f10-2a6b3c4d5e6f }
+    IdPedidoExterno:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer, format: int64 }
+
+  responses:
+    NoAutenticado:
+      description: Faltan las credenciales o son incorrectas (desafío HTTP Basic del servidor).
+    SinPermiso:
+      description: El usuario no es de tipo ERP, o es un ERP sin comercio asociado.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: /problemas/cuenta-erp-sin-comercio
+            title: Cuenta ERP sin comercio
+            status: 403
+            detail: "Tu usuario ERP no está asociado a ningún comercio: pedile a Rabbit que lo dé de alta desde la app"
+    PedidoExternoInexistente:
+      description: No existe, o es de otro comercio (para el ERP es lo mismo).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: /problemas/pedido-inexistente
+            title: Pedido externo inexistente
+            status: 404
+            detail: No hay ningún pedido externo 42 de tu comercio
+    ErrorInterno:
+      description: Falla de Rabbit. El detalle queda en el log del servidor, nunca en la respuesta.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+
+  schemas:
+    PedidoExternoRequest:
+      type: object
+      required: [lineas, importe, medioPago, direccionEntrega]
+      properties:
+        origen:
+          type: string
+          enum: [STOCK_CONSIGNADO, PUNTO_PICKING]
+          default: STOCK_CONSIGNADO
+        idPuntoPicking:
+          type: integer
+          format: int64
+          description: Obligatorio con origen PUNTO_PICKING. Debe ser del comercio del ERP.
+        lineas:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/LineaPedido'
+        importe:
+          type: number
+          minimum: 0.01
+          description: Total de la venta, con hasta 2 decimales.
+        medioPago:
+          type: string
+          enum: [PREPAGO, CONTRA_ENTREGA]
+        direccionEntrega:
+          type: string
+          maxLength: 200
+        codigoPostalEntrega:
+          type: string
+          maxLength: 8
+          description: 4 dígitos o CPA (C1414ABC). Si no viene, se busca en la dirección.
+    LineaPedido:
+      type: object
+      required: [cantidad]
+      properties:
+        idItem:
+          type: integer
+          format: int64
+          description: Con STOCK_CONSIGNADO, el ítem consignado en Rabbit.
+        producto:
+          type: string
+          maxLength: 200
+          description: Con PUNTO_PICKING, qué se retira.
+        cantidad:
+          type: integer
+          minimum: 1
+    PedidoExterno:
+      type: object
+      required: [idPedidoExterno, resultado, _links]
+      properties:
+        idPedidoExterno: { type: integer, format: int64 }
+        resultado:
+          type: string
+          enum: [Pendiente, Sincronizado, Descartado, Cancelado]
+        idPedido:
+          type: integer
+          format: int64
+          description: Pedido real generado (con resultado Sincronizado).
+        estadoPedido:
+          type: string
+          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO]
+        codigoSeguimiento:
+          type: string
+          description: Para el seguimiento público. Se lo puede pasar al cliente final.
+        motivo:
+          type: string
+          description: Por qué se descartó o canceló.
+        _links:
+          type: object
+          description: Acciones posibles ahora (HATEOAS). `cancelar` aparece solo si se puede cancelar.
+          properties:
+            self: { $ref: '#/components/schemas/Link' }
+            cancelar: { $ref: '#/components/schemas/Link' }
+            seguimiento: { $ref: '#/components/schemas/Link' }
+    Link:
+      type: object
+      required: [href]
+      properties:
+        href: { type: string, format: uri }
+        method: { type: string, description: Método HTTP si no es GET. }
+    Seguimiento:
+      type: object
+      properties:
+        codigoSeguimiento: { type: string, example: RB-7KQ2M9XHTA }
+        estado:
+          type: string
+          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO]
+    NovedadEnvio:
+      type: object
+      required: [codigoSeguimiento, estado]
+      properties:
+        codigoSeguimiento:
+          type: string
+          description: El código que el transportista devolvió al crear el envío.
+        estado:
+          type: string
+          enum: [SOLICITADO, EN_TRANSITO, ENTREGADO, CANCELADO]
+    Problema:
+      type: object
+      description: Problem Details (RFC 9457).
+      required: [type, title, status]
+      properties:
+        type: { type: string, description: Identifica el tipo de problema. }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        errores:
+          type: array
+          description: Solo en 400 por formato, un error por campo.
+          items:
+            type: object
+            properties:
+              campo: { type: string }
+              mensaje: { type: string }

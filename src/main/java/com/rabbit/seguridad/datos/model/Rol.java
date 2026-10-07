@@ -15,5 +15,11 @@ public enum Rol {
     /** Un comercio: ve solo sus pedidos, su stock y sus puntos de picking. */
     COMERCIO,
     /** Un repartidor: ve sus entregas y marca retiro y entrega. */
-    REPARTIDOR
+    REPARTIDOR,
+    /**
+     * El ERP de un comercio: no es una persona ni entra a la web, solo usa
+     * la API REST (HTTP Basic). Representa a UN comercio, igual que una
+     * cuenta COMERCIO: carga y consulta solo los pedidos de ese comercio.
+     */
+    ERP
 }

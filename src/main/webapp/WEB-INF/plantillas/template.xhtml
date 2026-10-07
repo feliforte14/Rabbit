@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<!--
+    TEMPLATE (Facelets) - Capa de Presentacion.
+
+    Layout compartido por todas las pantallas que requieren sesión
+    iniciada: sidebar de navegación (tomado del prototipo de Figma del
+    equipo) + área de contenido. Cada página lo usa con
+    <ui:composition template="/WEB-INF/plantillas/template.xhtml"> y define su contenido en
+    <ui:define name="contenido">.
+
+    La sesión NO se exige acá: cada página conserva su propio
+    <f:metadata> (algunas ya lo necesitan para <f:viewParam>), y ahí
+    agrega su guardián (\#{sesionBean.exigirPersonal},
+    \#{sesionBean.exigirComercio}, ...) — mantiene el patrón explícito que
+    ya usa el resto del proyecto en vez de esconder la regla en el
+    template.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<h:head>
+    <meta charset="UTF-8" />
+    <title><ui:insert name="titulo">Rabbit</ui:insert></title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
+    <!-- En el celular, las tablas se ven como tarjetas (ver tablas.js). -->
+    <h:outputScript library="rabbit" name="tablas.js" />
+    <ui:insert name="cabecera" />
+</h:head>
+<h:body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <p class="marca">rabbit</p>
+                <p class="slogan">Plataforma de entregas urbanas</p>
+            </div>
+
+            <!--
+                Un menú por tipo de usuario (ver SesionBean): el personal de
+                Rabbit opera toda la red; un comercio ve solo lo suyo; un
+                repartidor, sus entregas. Ocultar un enlace no es seguridad:
+                cada página tiene su guardián y cada EJB su @RolesAllowed.
+            -->
+            <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.personal}">
+                <p class="sidebar-seccion">Operación</p>
+                <h:link outcome="/personal/pedidos" value="Pedidos"
+                        styleClass="#{view.viewId == '/personal/pedidos.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/ruteo" value="Ruteo por zona"
+                        styleClass="#{view.viewId == '/personal/ruteo.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/entregas" value="Entregas en curso"
+                        styleClass="#{view.viewId == '/personal/entregas.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/repartidores" value="Repartidores"
+                        styleClass="#{view.viewId == '/personal/repartidores.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/transportistas" value="Transportistas"
+                        styleClass="#{view.viewId == '/personal/transportistas.xhtml' ? 'activo' : ''}" />
+                <p class="sidebar-seccion">Red</p>
+                <h:link outcome="/personal/comercios" value="Comercios"
+                        styleClass="#{view.viewId == '/personal/comercios.xhtml' or view.viewId == '/comercio/puntos-picking.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/depositos" value="Depósitos y stock"
+                        styleClass="#{view.viewId == '/personal/depositos.xhtml' or view.viewId == '/personal/items.xhtml' or view.viewId == '/personal/reservas.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/historial" value="Historial de reservas"
+                        styleClass="#{view.viewId == '/personal/historial.xhtml' ? 'activo' : ''}" />
+                <h:panelGroup rendered="#{sesionBean.admin}">
+                    <p class="sidebar-seccion">Administración</p>
+                    <h:link outcome="/personal/usuarios" value="Usuarios"
+                            styleClass="#{view.viewId == '/personal/usuarios.xhtml' ? 'activo' : ''}" />
+                </h:panelGroup>
+            </h:panelGroup>
+
+            <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.comercio}">
+                <h:link outcome="/comercio/mis-pedidos" value="Mis pedidos"
+                        styleClass="#{view.viewId == '/comercio/mis-pedidos.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/comercio/mi-stock" value="Mi stock"
+                        styleClass="#{view.viewId == '/comercio/mi-stock.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/comercio/puntos-picking" value="Mis puntos de picking"
+                        styleClass="#{view.viewId == '/comercio/puntos-picking.xhtml' ? 'activo' : ''}" />
+            </h:panelGroup>
+
+            <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.repartidor}">
+                <h:link outcome="/repartidor/mis-entregas" value="Mis entregas"
+                        styleClass="#{view.viewId == '/repartidor/mis-entregas.xhtml' ? 'activo' : ''}" />
+            </h:panelGroup>
+
+            <div class="sidebar-foot">
+                <p class="sidebar-usuario">
+                    Conectado como<br />
+                    <b>#{sesionBean.usuarioActual}</b>
+                    #{sesionBean.rolActual}#{empty sesionBean.representado ? '' : ' · '.concat(sesionBean.representado)}
+                </p>
+                <h:form>
+                    <h:commandButton value="Cerrar sesión" styleClass="btn btn-secondary"
+                                     style="width:100%" action="#{loginBean.logout}" />
+                </h:form>
+            </div>
+        </aside>
+
+        <main class="app-contenido">
+            <ui:insert name="contenido" />
+        </main>
+    </div>
+</h:body>
+</html>

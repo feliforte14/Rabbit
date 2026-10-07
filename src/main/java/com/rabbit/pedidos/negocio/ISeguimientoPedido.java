@@ -40,9 +40,19 @@ public interface ISeguimientoPedido {
     PedidoDTO consultarEstadoPedido(Long idPedido);
 
     /**
+     * Seguimiento público (sin login) por el código aleatorio del pedido.
+     *
+     * @throws PedidoNoEncontradoException si ningún pedido tiene ese código
+     */
+    PedidoDTO consultarSeguimiento(String codigoSeguimiento);
+
+    /**
      * @return todos los pedidos, de todos los comercios
      */
     List<PedidoDTO> listarTodos();
+
+    /** Los pedidos PENDIENTE, del más viejo al más nuevo (los usa el Ruteo). */
+    List<PedidoDTO> listarPendientes();
 
     /**
      * @param idComercio comercio a consultar
