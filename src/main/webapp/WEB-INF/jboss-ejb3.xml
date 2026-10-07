@@ -3,7 +3,7 @@
     Cuántas instancias consumen cola.pedidos.externos en paralelo
     (maxSession de PedidoExternoListener). Es el componente que se escala
     horizontalmente en la prueba de escalabilidad
-    (docs/DESAFIOS-OPCIONALES.md): más consumidores compitiendo por la
+    (docs/consigna/DESAFIOS-OPCIONALES.md): más consumidores compitiendo por la
     misma cola, cada pedido lo procesa uno solo.
 
     Se fija con la system property rabbit.cola.consumidores (15 por

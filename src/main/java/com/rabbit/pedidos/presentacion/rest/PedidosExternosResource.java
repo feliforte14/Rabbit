@@ -3,7 +3,7 @@ package com.rabbit.pedidos.presentacion.rest;
 /**
  * CAPA DE PRESENTACIÓN — API REST de entrada de pedidos para el ERP de cada
  * comercio (integración sincrónica con un partner moderno). Contrato
- * completo en docs/openapi.yaml.
+ * completo en docs/integraciones/openapi.yaml.
  *
  *   POST /api/v1/pedidos-externos                    registrar un pedido
  *   GET  /api/v1/pedidos-externos/{id}               cómo terminó

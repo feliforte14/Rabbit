@@ -5,7 +5,7 @@
  * SOAP. Implementa el mismo contrato (banco.wsdl) que el banco simulado en
  * Java que vive dentro del WAR de Rabbit (BancoLegadoServiceImpl): Rabbit no
  * sabe ni le importa en qué tecnología está el banco, solo habla el WSDL.
- * Es el desafío de heterogeneidad tecnológica (docs/DESAFIOS-OPCIONALES.md).
+ * Es el desafío de heterogeneidad tecnológica (docs/consigna/DESAFIOS-OPCIONALES.md).
  *
  * Reglas (las mismas que el banco en Java):
  *   - autorizarPago: un pago de más de $500.000 se rechaza con un

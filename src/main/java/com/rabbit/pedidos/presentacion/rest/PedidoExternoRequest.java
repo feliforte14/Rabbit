@@ -2,7 +2,7 @@ package com.rabbit.pedidos.presentacion.rest;
 
 /**
  * Cuerpo de POST /api/v1/pedidos-externos: el contrato público de la API
- * (ver docs/openapi.yaml), separado de DatosPedidoExternoDTO, que es el
+ * (ver docs/integraciones/openapi.yaml), separado de DatosPedidoExternoDTO, que es el
  * DTO del formulario JSF.
  *
  * Separarlos permite dos cosas: que la API no tenga idComercio (el

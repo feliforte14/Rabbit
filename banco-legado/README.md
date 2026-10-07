@@ -5,7 +5,7 @@ en **Node.js** con [`soap`](https://www.npmjs.com/package/soap). Publica el
 mismo contrato ([`banco.wsdl`](banco.wsdl)) que el banco simulado en Java que
 vive dentro de Rabbit, así que Rabbit lo consume sin cambiar código. Es el
 desafío de heterogeneidad tecnológica: ver
-[DESAFIOS-OPCIONALES.md](../docs/DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica).
+[DESAFIOS-OPCIONALES.md](../docs/consigna/DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica).
 
 ## Levantarlo
 
