@@ -6,9 +6,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 
 ## Qué hace
 
-- **Comercios:** alta y gestión de comercios y sus puntos de picking. El
-  catálogo de productos está modelado (entidad `Producto`) pero todavía no
-  tiene servicio ni pantalla.
+- **Comercios:** alta y gestión de comercios y sus puntos de picking. Rabbit
+  no lleva el catálogo de productos de cada comercio: eso vive en el ERP
+  del comercio, y Rabbit solo conoce lo que tiene que retirar y entregar.
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
   comercios, y reservas de stock con vencimiento.
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio por una
@@ -270,3 +270,51 @@ crearlo desde la app.
 
 Contrato en [docs/openapi.yaml](docs/openapi.yaml) y ejemplos en
 [MENSAJERIA-SINCRONICA.md](docs/MENSAJERIA-SINCRONICA.md).
+
+### 7. (Opcional) Avisos por mail
+
+Los avisos a los comercios siempre quedan en su portal. Para que además
+salgan por mail (al email que cargó el comercio), configurar un servidor
+SMTP con system properties y redesplegar:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.host:add(value=smtp.ejemplo.com)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.port:add(value=25)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.remitente:add(value=avisos@rabbit.example)"
+```
+
+Para probar en local sin un servidor real:
+`python3 -m smtpd -n -c DebuggingServer localhost:2525` (Python hasta 3.11)
+y `rabbit.mail.smtp.host=localhost`, `rabbit.mail.smtp.port=2525`: cada
+mail se imprime en esa consola. Sin servidor configurado no se intenta
+mandar nada.
+
+### 8. (Opcional) Transportista moderno aparte
+
+`transportista-moderno/` es un transportista REST que corre fuera de
+Rabbit (Python, sin dependencias) y avisa sus novedades por el webhook.
+Ver su [README](transportista-moderno/README.md).
+
+## Tests
+
+```bash
+mvn test                       # 27 tests unitarios (JUnit 5), sin servidor
+```
+
+Corren en cada `mvn package`: reglas de transición de estados, códigos
+postales y de seguimiento, huella de idempotencia, límite de intentos de
+login, reglas del transportista simulado y validación del cuerpo de la
+API.
+
+Tests de integración de la API REST (REST Assured), contra Rabbit ya
+desplegado y con una cuenta ERP:
+
+```bash
+mvn verify -Pintegracion -Drabbit.erp.usuario=<erp> -Drabbit.erp.clave=<clave> -Drabbit.punto=<id punto de picking>
+# opcional, para el webhook: -Drabbit.webhook.transportista=<id> -Drabbit.webhook.clave=<clave>
+```
+
+Prueban alta, idempotencia, errores en Problem Details, pertenencia,
+cancelación, seguimiento público y webhook. Los pedidos que crean llevan
+`[TEST]` en la dirección. Conviene correrlos contra una base local, no contra la
+compartida del equipo: los pedidos de prueba quedan guardados.

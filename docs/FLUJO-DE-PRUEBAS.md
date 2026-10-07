@@ -280,6 +280,18 @@ Con WildFly corriendo:
 transportista legado responde `EN_VIAJE` y Rabbit lo muestra como
 "En tránsito" (lo traduce su adaptador).
 
+**Webhook con el transportista moderno aparte:**
+1. Registrar un transportista REST con endpoint `http://localhost:8095`.
+2. En su fila, **Generar clave**: Rabbit muestra la URL y la clave una
+   sola vez.
+3. Levantar `transportista-moderno/servidor.py` con esos datos (ver su
+   README) y `PASO_SEGUNDOS=5`.
+4. Derivarle un pedido: en el log del transportista aparece "avisado a
+   Rabbit: ... -> EN_TRANSITO" y el pedido pasa a **En camino** apenas
+   avisa, sin esperar la consulta cada 15 s; después, **Entregado**.
+5. Apagar el transportista y tocar **Cotizar**: figura "No respondió" y
+   los demás cotizan igual.
+
 ## 6c. Ruteo por zona
 
 Necesita los dos transportistas de la sección 6b.
@@ -330,6 +342,13 @@ no tiene el rol `ERP`. Por HTTP responde `302` a la misma URL en HTTPS
 (puerto 8443). La cookie de sesión del login sale con `Secure` y `HttpOnly`.
 
 ---
+
+## 7b. Límite de intentos de login
+
+1. En el login, poner 5 veces una contraseña incorrecta para un usuario.
+2. Al quinto, y por 15 minutos, cualquier intento (aun con la contraseña
+   correcta) responde "Demasiados intentos fallidos. Probá de nuevo en N
+   minutos". El mensaje es el mismo para un usuario que no existe.
 
 ## 8. Mensaje de cuenta sin asociar (regresión ya corregida)
 

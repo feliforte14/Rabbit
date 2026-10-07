@@ -11,8 +11,6 @@ qué alternativa se descartó.
   `InventarioRepository`, `PedidoRepository`, `CobroRepository`,
   `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`,
   `TransportistaRepository` y `ZonaRepository` (Ruteo).
-  `ProductoRepository` también existe, pero el catálogo de productos
-  todavía no tiene servicio que lo use.
 - **Cómo:** el repositorio es la única clase que toca el `EntityManager`.
   También encapsula decisiones de acceso, como el bloqueo
   `PESSIMISTIC_WRITE` de `buscarPedidoExternoParaActualizar`.
@@ -47,11 +45,11 @@ qué alternativa se descartó.
 
 - **Hoy:** el comportamiento según `OrigenPedido` (`STOCK_CONSIGNADO`
   reserva stock; `PUNTO_PICKING` solo valida el punto de picking).
-- **Planificado:** el cobro según `MedioPago` en ServicioDePagosYCobranzas
-  (`PREPAGO` se cobra en el banco legado, `CONTRA_ENTREGA` queda
-  pendiente hasta la entrega). Hoy está implementado con un `if` en
-  `PagoService.registrarCobro`; con solo dos medios alcanza, y pasaría a
-  una estrategia por medio de pago si se suman más.
+- **Descartado por ahora:** el cobro según `MedioPago` (`PREPAGO` se
+  cobra en el banco legado, `CONTRA_ENTREGA` queda pendiente hasta la
+  entrega) está resuelto con un `if` en `PagoService.registrarCobro`: con
+  dos medios alcanza, y pasaría a una estrategia por medio de pago si se
+  suman más.
 - **Despacho por zona:** `RuteoService.despacharPedido` elige cómo sale
   el pedido según la `CoberturaZona` (`PROPIA`: repartidor de la zona o
   respaldo; `TRANSPORTISTA`: derivar). También es un `if`, por la

@@ -22,4 +22,17 @@ public interface ISeguimientoEnvios {
      * en esa misma transacción).
      */
     void registrarNovedad(Long idEnvio, EstadoEnvio nuevo);
+
+    /**
+     * Webhook: un transportista avisa que su envío cambió de estado, en vez
+     * de esperar a que Rabbit le pregunte. Mismo efecto que el polling
+     * (registrarNovedad). Repetir el mismo aviso no cambia nada.
+     *
+     * @param estado en el vocabulario del transportista REST: SOLICITADO,
+     *               EN_TRANSITO, ENTREGADO o CANCELADO
+     * @return true si el envío cambió de estado
+     * @throws NovedadRechazadaException si la clave no corresponde, el
+     *         envío no es de ese transportista o el estado no se conoce
+     */
+    boolean recibirNovedad(Long idTransportista, String clave, String codigoSeguimiento, String estado);
 }

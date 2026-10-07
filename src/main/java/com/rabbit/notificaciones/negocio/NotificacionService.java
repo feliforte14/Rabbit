@@ -25,6 +25,9 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import com.rabbit.comercios.dto.ComercioDTO;
+import com.rabbit.comercios.negocio.IConsultaComercios;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -47,6 +50,13 @@ public class NotificacionService implements INotificaciones {
     @Inject
     private NotificacionRepository repository;
 
+    // Para el canal de mail (AvisosPorMail), que se manda después del commit.
+    @Inject
+    private Event<AvisoRegistrado> avisoRegistrado;
+
+    @Inject
+    private IConsultaComercios comercios;
+
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public boolean avisarCambioDeEstado(Long idPedido, Long idComercio, String estado, LocalDateTime fechaCambio) {
@@ -67,6 +77,7 @@ public class NotificacionService implements INotificaciones {
         notificacion.setMensaje(texto);
         repository.guardar(notificacion);
         LOG.info("[Notificaciones] Aviso al comercio " + idComercio + ": " + texto);
+        avisoRegistrado.fire(new AvisoRegistrado(idComercio, emailDe(idComercio), idPedido, texto));
         return true;
     }
 
@@ -81,6 +92,18 @@ public class NotificacionService implements INotificaciones {
         return repository.listarDeComercio(contextoUsuario.idComercioActual(), cantidad).stream()
                 .map(NotificacionDTO::desde)
                 .collect(Collectors.toList());
+    }
+
+    // El email del comercio, para el canal de mail. Si no se puede leer, el
+    // aviso igual queda en el portal (no se manda mail).
+    private String emailDe(Long idComercio) {
+        try {
+            ComercioDTO comercio = comercios.obtenerComercio(idComercio);
+            return comercio != null && comercio.email != null && !comercio.email.isBlank() ? comercio.email.trim() : null;
+        } catch (RuntimeException e) {
+            LOG.warning("[Notificaciones] No se pudo leer el email del comercio " + idComercio + ": " + e.getMessage());
+            return null;
+        }
     }
 
     private static String describir(String estado) {

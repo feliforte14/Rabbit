@@ -97,10 +97,9 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
     // IRegistroUsuarios
 
     /**
-     * Crea un usuario nuevo: lo persiste en la tabla "usuarios" (con el
-     * password ya hasheado, ver PasswordUtil) y lo sincroniza contra el
-     * ApplicationRealm de WildFly para que pueda loguearse (ver
-     * ApplicationRealmSync).
+     * Crea un usuario nuevo: guarda su perfil en la tabla "usuarios" y su
+     * credencial SOLO en el ApplicationRealm de WildFly, que es quien la
+     * valida al iniciar sesión (ver ApplicationRealmSync).
      *
      * @param datos datos ingresados en el formulario de alta
      * @return el ID asignado por la BD al nuevo usuario
@@ -121,7 +120,6 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
 
         Usuario usuario = new Usuario();
         usuario.setUsername(datos.username.trim());
-        usuario.setPasswordHash(PasswordUtil.hash(datos.password));
         usuario.setRol(rol);
         usuario.setActivo(true);
         usuario.setIdComercio(representaUnComercio(rol) ? datos.idComercio : null);

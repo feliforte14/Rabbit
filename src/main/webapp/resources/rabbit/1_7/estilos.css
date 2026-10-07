@@ -1427,3 +1427,8 @@ a.codigo:hover {
     color: var(--naranja-oscuro);
     font-weight: 600;
 }
+
+/* Claves y URLs largas dentro de un recuadro de datos: que corten. */
+.reserva-datos code {
+    word-break: break-all;
+}

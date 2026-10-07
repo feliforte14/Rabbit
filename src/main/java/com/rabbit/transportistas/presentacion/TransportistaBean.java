@@ -34,6 +34,10 @@ public class TransportistaBean implements Serializable {
     private List<TransportistaDTO> transportistas;
     private List<EnvioDTO> listaEnvios;
     private DatosTransportistaDTO nuevoTransportista = new DatosTransportistaDTO();
+    // La clave recién generada y a quién corresponde: se muestran una sola
+    // vez (en este render) y no se guardan en ningún otro lado.
+    private String claveGenerada;
+    private TransportistaDTO conClaveNueva;
 
     @PostConstruct
     public void cargar() {
@@ -61,6 +65,22 @@ public class TransportistaBean implements Serializable {
             Mensajes.error(e.getMessage());
         }
     }
+
+    // Genera la clave del webhook de novedades y la muestra una única vez,
+    // con la URL que hay que configurarle al transportista.
+    public void generarClaveWebhook(Long id) {
+        try {
+            claveGenerada = gestion.generarClaveWebhook(id);
+            cargar();
+            conClaveNueva = transportistas.stream().filter(t -> t.getId().equals(id)).findFirst().orElse(null);
+            Mensajes.info("Clave de webhook generada. Copiala ahora: no se vuelve a mostrar.");
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        }
+    }
+
+    public String getClaveGenerada() { return claveGenerada; }
+    public TransportistaDTO getConClaveNueva() { return conClaveNueva; }
 
     public void reactivar(Long id) {
         try {

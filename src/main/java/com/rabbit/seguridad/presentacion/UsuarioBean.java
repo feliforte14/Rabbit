@@ -65,7 +65,7 @@ public class UsuarioBean implements Serializable {
     }
 
     // Alta de un usuario nuevo: UsuarioService lo persiste (con el
-    // password ya hasheado, ver PasswordUtil) y lo sincroniza contra el
+    // perfil en la tabla; la contraseña va solo al realm) y lo sincroniza contra el
     // ApplicationRealm de WildFly (ver ApplicationRealmSync) para que
     // pueda loguearse.
     public void registrar() {

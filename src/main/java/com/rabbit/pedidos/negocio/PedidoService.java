@@ -109,10 +109,6 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -221,7 +217,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         // PedidosExternosResource): ahí ya lo encuentra acá.
         String huella = null;
         if (claveIdempotencia != null) {
-            huella = huellaDe(datos, origen);
+            huella = HuellaDePedido.de(datos, origen);
             PedidoExterno anterior = repository.buscarPedidoExternoPorClave(datos.idComercio, claveIdempotencia);
             if (anterior != null) {
                 if (!huella.equals(anterior.getHuellaSolicitud())) {
@@ -289,31 +285,6 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedidoExternoRegistrado.fire(new PedidoExternoRegistrado(idExterno, origen));
 
         return idExterno;
-    }
-
-    // Resumen del contenido del pedido, para distinguir un reintento (mismo
-    // pedido) de una clave reutilizada (otro pedido). Se arma con los datos
-    // ya normalizados, así un espacio de más no lo hace "otro" pedido.
-    private static String huellaDe(DatosPedidoExternoDTO datos, OrigenPedido origen) {
-        StringBuilder texto = new StringBuilder()
-                .append(origen).append('|').append(datos.idPuntoPicking).append('|')
-                .append(datos.importe.stripTrailingZeros().toPlainString()).append('|')
-                .append(datos.medioPago).append('|')
-                .append(datos.direccionEntrega.trim()).append('|')
-                // El código postal ya resuelto: "C1414ABC", " 1414" y "1414" son el mismo.
-                .append(CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega));
-        for (DatosLineaPedidoDTO linea : datos.lineas) {
-            texto.append('|').append(linea.idItem).append(':')
-                    .append(linea.producto != null ? linea.producto.trim() : null).append(':')
-                    .append(linea.cantidad);
-        }
-        try {
-            byte[] hash = MessageDigest.getInstance("SHA-256").digest(texto.toString().getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            // Todo JRE trae SHA-256 (lo exige la especificación de Java).
-            throw new IllegalStateException(e);
-        }
     }
 
     private void validarCantidadLinea(int cantidad) {
@@ -447,13 +418,13 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
-    public void confirmarPedidoEnZona(Long idPedido, Long idZona) {
-        confirmar(idPedido, idZona);
+    public Long confirmarPedidoEnZona(Long idPedido, Long idZona) {
+        return confirmar(idPedido, idZona);
     }
 
     // idZona: la zona del pedido (la decide Ruteo); el repartidor se busca
     // primero ahí. Null: cualquier repartidor libre.
-    private void confirmar(Long idPedido, Long idZona) {
+    private Long confirmar(Long idPedido, Long idZona) {
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
 
@@ -477,6 +448,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         }
         pedido.setIdRepartidor(idRepartidor);
         cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
+        return idRepartidor;
     }
 
     @Override
