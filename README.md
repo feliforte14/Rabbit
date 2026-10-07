@@ -17,11 +17,14 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
   (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`), también público por
   código de seguimiento.
 - **Transportistas:** un pedido se puede derivar a una empresa de envíos
-  externa (integrada por API REST o por SOAP legado), que lo lleva; Rabbit
-  sigue el estado del envío y mueve el pedido solo.
+  externa (integrada por API REST o por SOAP legado), después de comparar
+  sus cotizaciones; Rabbit sigue el estado del envío (consultándolo o
+  recibiendo los avisos del transportista por un webhook) y mueve el
+  pedido solo.
 - **Ruteo y entregas:** zonas de reparto por código postal; los pedidos
   pendientes se agrupan por zona y se despachan solos según quién cubre la
-  zona (repartidores propios o un transportista). Hoja de ruta de cada
+  zona (repartidores propios o un transportista; si el transportista no lo
+  toma, el más barato de los demás). Hoja de ruta de cada
   pedido (de dónde se retira y adónde se entrega, con el recorrido en
   Google Maps) y tablero de entregas en curso.
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
@@ -29,15 +32,20 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
   pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
   ruta y marca retiro y entrega desde el celular; un `ERP` (el sistema del
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
+  Todo por HTTPS, con límite de intentos en el login.
+- **Notificaciones:** cada cambio de estado le llega al comercio en su
+  portal y, si hay un servidor de correo configurado, por mail.
 
 ## Tecnologías
 
 Jakarta EE 10 sobre WildFly (perfil `standalone-full`), Java 17, JSF +
 Facelets, EJB, JPA/Hibernate, PostgreSQL (Supabase), JMS (ActiveMQ
 Artemis embebido), JAX-WS (SOAP), JAX-RS (REST), Jakarta Security,
-Maven (WAR). El banco legado también está implementado en Node.js
+Jakarta Mail, Maven (WAR), JUnit 5 y REST Assured. El banco legado
+también está implementado en Node.js
 ([`banco-legado/`](banco-legado/README.md)), como servicio aparte con el
-mismo contrato SOAP.
+mismo contrato SOAP, y el transportista moderno en Python
+([`transportista-moderno/`](transportista-moderno/README.md)).
 
 ## Estructura
 
@@ -67,6 +75,15 @@ src/main/webapp/
     ├── web.xml, beans.xml, jboss-ejb3.xml
 ```
 
+Fuera de la aplicación:
+
+```
+src/test/java/             ← tests unitarios (*Test) y de integración de la API (*IT)
+docs/                      ← documentación técnica, ADR y contrato OpenAPI
+banco-legado/              ← el banco legado como servicio aparte (Node.js, SOAP)
+transportista-moderno/     ← un transportista REST como servicio aparte (Python)
+```
+
 | Componente | Paquete | Estado |
 |---|---|---|
 | Comercios | `comercios` | Implementado |
@@ -88,7 +105,9 @@ src/main/webapp/
 | Pagos → banco legado (cobro y reversa) | Sincrónica, SOAP | Implementado |
 | ERP del comercio → Rabbit (y seguimiento público) | Sincrónica, REST | Implementado |
 | Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Implementado |
-| Transportistas → transportista moderno / legado | Sincrónica, REST saliente / SOAP | Implementado |
+| Transportistas → transportista moderno / legado (cotizar, derivar, seguir, cancelar) | Sincrónica, REST saliente / SOAP | Implementado |
+| Transportista moderno → Rabbit (novedades del envío) | Sincrónica, REST entrante (webhook) | Implementado |
+| Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Implementado (opcional, por configuración) |
 
 ## Documentación técnica
 

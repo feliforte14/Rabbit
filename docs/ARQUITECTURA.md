@@ -137,6 +137,7 @@ flowchart LR
         Inventario -->|IContextoUsuario| Seguridad
         Pagos -->|IContextoUsuario| Seguridad
         Notificaciones -->|IContextoUsuario| Seguridad
+        Notificaciones -->|IConsultaComercios| Comercios
         Comercios -->|IContextoUsuario| Seguridad
         Seguridad -->|IConsultaComercios| Comercios
         Seguridad -->|IGestionRepartidores| Repartidores
@@ -152,6 +153,7 @@ flowchart LR
     Transportistas -->|REST/JSON| TransREST[(Transportista REST<br/>simulado o transportista-moderno/)]
     TransREST -.->|webhook de novedades| Transportistas
     Transportistas -->|SOAP/HTTP| TransSOAP[(Transportista legado<br/>simulado)]
+    Notificaciones -->|SMTP, opcional| Correo[(Servidor de correo)]
     ERP[ERP del comercio] -->|REST /api/v1/pedidos-externos| Pedidos
     Cliente[Cliente final] -->|REST /api/v1/seguimiento y seguimiento.xhtml| Pedidos
 ```
@@ -192,6 +194,8 @@ el repartidor sale siempre de la identidad autenticada
 | Cambio de estado del pedido → Notificaciones, Pagos | Tópico JMS `topico.pedidos.estado` | Implementado | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
 | Transportistas → transportista moderno | REST/JSON saliente (cliente JAX-RS) | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
 | Transportistas → transportista legado | SOAP saliente | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
+| Transportista moderno → Rabbit | REST entrante `POST /api/v1/transportistas/{id}/novedades` (webhook) | Implementado | [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
+| Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Implementado (si se configura el servidor) | [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
 | Pedidos → Comercios, Inventario, Pagos, Repartidores, Transportistas | Llamada local EJB | Implementado | No es integración entre sistemas: mismo proceso |
 
 ### Criterio sincrónico vs. asincrónico
