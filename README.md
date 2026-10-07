@@ -79,7 +79,7 @@ Fuera de la aplicación:
 
 ```
 src/test/java/             ← tests unitarios (*Test) y de integración de la API (*IT)
-docs/                      ← documentación técnica, ADR y contrato OpenAPI
+docs/                      ← documentación técnica por tema (ver docs/README.md)
 banco-legado/              ← el banco legado como servicio aparte (Node.js, SOAP)
 transportista-moderno/     ← un transportista REST como servicio aparte (Python)
 ```
@@ -114,17 +114,11 @@ transportista-moderno/     ← un transportista REST como servicio aparte (Pytho
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md):
 
-- [Arquitectura](docs/ARQUITECTURA.md): capas, componentes, interfaces y estados del pedido.
-- [Patrones de diseño](docs/PATRONES.md)
-- [Seguridad](docs/SEGURIDAD.md)
-- [Transacciones](docs/TRANSACCIONES.md)
-- [Mensajería: justificación final](docs/MensajeriaFinal.md): por qué cada integración usa cola, tópico, SOAP o REST.
-- [Mensajería sincrónica](docs/MENSAJERIA-SINCRONICA.md): SOAP con el banco legado (con circuit breaker) y API REST.
-- [Contrato OpenAPI](docs/openapi.yaml) de la API REST (Swagger Editor o Postman).
-- [Mensajería asincrónica](docs/MENSAJERIA-ASINCRONICA.md): cola y tópico.
-- [Decisiones (ADRs)](docs/DECISIONES.md)
-- [Flujo de pruebas](docs/FLUJO-DE-PRUEBAS.md): recorrido manual de punta a punta, para verificar y para la demo.
-- [Desafíos opcionales](docs/DESAFIOS-OPCIONALES.md): resiliencia, escalabilidad medida, ADRs con alternativas y heterogeneidad tecnológica (banco en Node.js).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (ADRs)](docs/arquitectura/DECISIONES.md).
+- **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
+- **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
+- **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo.
+- **Consigna** (`docs/consigna/`): [Checklist](docs/consigna/CHECKLIST.md) de requisitos, [Desafíos opcionales](docs/consigna/DESAFIOS-OPCIONALES.md) y [Uso de IA](docs/consigna/USO-DE-IA.md).
 
 ## Cómo levantar el sistema
 
@@ -287,8 +281,8 @@ Un usuario ERP creado a mano con `add-user.sh` (como se hacía antes) no
 tiene comercio y la API le responde `403`: hay que borrarlo del realm y
 crearlo desde la app.
 
-Contrato en [docs/openapi.yaml](docs/openapi.yaml) y ejemplos en
-[MENSAJERIA-SINCRONICA.md](docs/MENSAJERIA-SINCRONICA.md).
+Contrato en [docs/integraciones/openapi.yaml](docs/integraciones/openapi.yaml) y ejemplos en
+[MENSAJERIA-SINCRONICA.md](docs/integraciones/MENSAJERIA-SINCRONICA.md).
 
 ### 7. (Opcional) Avisos por mail
 

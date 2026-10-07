@@ -107,7 +107,7 @@ mismo mensaje, el stock se reservaría dos veces. En una cola, varias
 instancias de `PedidoExternoListener` compiten y cada mensaje lo procesa
 una sola (consumidores competidores, ADR-014). Así además se escala: con
 4 consumidores la cola procesa 3,8 veces más rápido que con uno (medido,
-ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)).
+ver [DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md)).
 
 **Por qué no un tópico:** todos los suscriptores recibirían el mismo
 pedido y lo procesarían cada uno: reservas duplicadas.

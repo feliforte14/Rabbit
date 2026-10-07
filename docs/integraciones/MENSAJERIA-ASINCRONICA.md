@@ -36,7 +36,7 @@ fija con la system property `rabbit.cola.consumidores` (`maxSession`, en
 `WEB-INF/jboss-ejb3.xml`; 15 por defecto) y se lee al desplegar. Con
 `rabbit.sincronizador.pausado=true` el polling de respaldo no corre: se
 usa para medir la cola sola. Ver la prueba de escalabilidad en
-[DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md#2-escalabilidad-horizontal-bajo-carga-simulada).
+[DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md#2-escalabilidad-horizontal-bajo-carga-simulada).
 
 ```mermaid
 sequenceDiagram

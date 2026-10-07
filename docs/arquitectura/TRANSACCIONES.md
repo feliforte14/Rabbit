@@ -76,7 +76,7 @@ Probado: sin repartidores, el banco llega a cobrar, Rabbit hace rollback
 y se le pide la reversa al banco; con un PREPAGO de más de $500.000 el
 banco lo rechaza y no hay nada que reversar; con el banco caído el pedido
 sigue PENDIENTE (tras 3 fallas seguidas el circuit breaker corta al
-instante, sin esperar el timeout). Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md).
+instante, sin esperar el timeout). Ver [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md).
 
 Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
 = true)` propias de cada componente; `PedidoService` las traduce a la
