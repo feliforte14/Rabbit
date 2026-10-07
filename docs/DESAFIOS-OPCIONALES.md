@@ -331,6 +331,13 @@ Además, el banco queda fuera del WAR de Rabbit, como sería un banco real:
 resuelve la limitación de tener el sistema "externo" desplegado dentro del
 mismo servidor.
 
+**Y un segundo sistema en otra tecnología: el transportista moderno.**
+`transportista-moderno/servidor.py` (Python, solo biblioteca estándar) es
+el transportista REST como servicio aparte: mismo contrato que el
+simulado del WAR, y además **le avisa** a Rabbit cada cambio de estado
+por el webhook de novedades (ADR-022). Rabbit lo da de alta como
+cualquier transportista REST, con su endpoint, y no nota la diferencia.
+
 ### Qué se probó
 
 1. **El contrato:** las mismas peticiones SOAP al banco en Java y al banco

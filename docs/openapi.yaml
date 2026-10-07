@@ -12,6 +12,9 @@ info:
       cuenta carga y ve solo los pedidos de su comercio.
     - **Seguimiento público** (`/v1/seguimiento`): estado de un pedido por su
       código de seguimiento, sin autenticación.
+    - **Webhook de transportistas** (`/v1/transportistas/{id}/novedades`): un
+      transportista moderno avisa cada cambio de estado de sus envíos, con la
+      clave que le genera el personal de Rabbit (Bearer).
 
     La conversión de un pedido externo en pedido real es asincrónica (cola
     JMS): el `POST` responde enseguida con `resultado: Pendiente` y el ERP
@@ -27,6 +30,8 @@ tags:
     description: Integración con el ERP de cada comercio (rol ERP).
   - name: Seguimiento
     description: Consulta pública del estado de un pedido.
+  - name: Transportistas
+    description: Avisos de los transportistas modernos (webhook).
 
 paths:
   /v1/pedidos-externos:
@@ -225,12 +230,71 @@ paths:
               schema:
                 $ref: '#/components/schemas/Problema'
 
+  /v1/transportistas/{id}/novedades:
+    post:
+      tags: [Transportistas]
+      operationId: recibirNovedad
+      summary: El transportista avisa un cambio de estado de un envío
+      description: |
+        Reemplaza esperar al polling (cada 15 s). Repetir un aviso no cambia
+        nada (idempotente): responde 204 igual. Un transportista solo puede
+        avisar novedades de sus propios envíos.
+      security:
+        - claveWebhook: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Id del transportista en Rabbit.
+          schema: { type: integer, format: int64 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NovedadEnvio'
+            example:
+              codigoSeguimiento: TR-7
+              estado: EN_TRANSITO
+      responses:
+        '204':
+          description: Aviso aceptado (el envío cambió o ya estaba en ese estado).
+        '400':
+          description: El cuerpo no es JSON.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '401':
+          description: Falta la clave, es incorrecta o es de otro transportista.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '404':
+          description: Ese transportista no tiene ningún envío con ese código.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '422':
+          description: Estado desconocido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '500': { $ref: '#/components/responses/ErrorInterno' }
+
 components:
   securitySchemes:
     basicAuth:
       type: http
       scheme: basic
       description: Usuario de tipo ERP, asociado a un comercio.
+    claveWebhook:
+      type: http
+      scheme: bearer
+      description: Clave del transportista, generada en la pantalla Transportistas (se muestra una sola vez).
 
   parameters:
     IdempotencyKey:
@@ -366,6 +430,16 @@ components:
         estado:
           type: string
           enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO]
+    NovedadEnvio:
+      type: object
+      required: [codigoSeguimiento, estado]
+      properties:
+        codigoSeguimiento:
+          type: string
+          description: El código que el transportista devolvió al crear el envío.
+        estado:
+          type: string
+          enum: [SOLICITADO, EN_TRANSITO, ENTREGADO, CANCELADO]
     Problema:
       type: object
       description: Problem Details (RFC 9457).

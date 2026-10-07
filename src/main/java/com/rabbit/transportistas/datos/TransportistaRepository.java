@@ -56,6 +56,17 @@ public class TransportistaRepository {
         return em.find(Envio.class, idEnvio, LockModeType.PESSIMISTIC_WRITE);
     }
 
+    /** El envío de un transportista con ese código de seguimiento, bloqueado; null si no hay. */
+    public Envio buscarEnvioPorCodigoParaActualizar(Long idTransportista, String codigoSeguimiento) {
+        // Una sola consulta con bloqueo (SELECT ... FOR UPDATE), así se lee
+        // el estado ya bloqueado y no una copia anterior.
+        return em.createQuery("SELECT e FROM Envio e WHERE e.transportista.id = :t AND e.codigoSeguimiento = :c", Envio.class)
+                .setParameter("t", idTransportista)
+                .setParameter("c", codigoSeguimiento)
+                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
+                .getResultStream().findFirst().orElse(null);
+    }
+
     public Envio buscarEnvioDePedido(Long idPedido) {
         return em.createQuery("SELECT e FROM Envio e WHERE e.idPedido = :id", Envio.class)
                 .setParameter("id", idPedido)

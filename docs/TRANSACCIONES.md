@@ -24,6 +24,8 @@
 | `NOT_SUPPORTED` | `PublicadorPedidosExternos` y `PublicadorEstadosPedido` | El envío JMS corre fuera de la transacción: si el broker falla, no deshace lo ya guardado |
 | `NOT_SUPPORTED` | `ReversasBancarias` | La reversa en el banco corre después de que la transacción de Rabbit terminó (se deshizo o se confirmó) |
 | `NOT_SUPPORTED` | `SincronizadorDePedidos.sincronizarPendientes` | La pasada del timer no abre transacción: cada fila se sincroniza en la suya (`REQUIRES_NEW`), así una fila fallida no arrastra a las demás |
+| `REQUIRES_NEW` | `TransportistaService.recibirNovedad` (webhook) | Igual que `registrarNovedad` del polling: el envío y el pedido cambian en una sola transacción; si falla, no queda la novedad a medias y el transportista puede reintentar |
+| `AFTER_SUCCESS` (observer) | `AvisosPorMail` | El mail del aviso sale recién después del commit, y fuera de la transacción: un servidor de correo caído no deshace el aviso |
 | `NOT_SUPPORTED` | `PedidoService.cotizarDerivacion` | Lee el pedido (con sus líneas, en una sola consulta) y le pide precios a los transportistas sin abrir transacción: no retiene una conexión a la base mientras espera hasta 5 s por transportista |
 | `NOT_SUPPORTED` | `TransportistaService.cotizarEnvio` | Solo pregunta precios a los transportistas: no escribe nada y no retiene una transacción mientras espera respuestas de afuera |
 | `NOT_SUPPORTED` | `CancelacionesDeEnvios`, `SeguimientoDeEnvios` | Las llamadas a los transportistas corren fuera de la transacción de Rabbit (compensaciones y consultas de estado) |

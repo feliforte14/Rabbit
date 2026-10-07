@@ -47,6 +47,7 @@ import com.rabbit.ruteo.dto.GrupoZonaDTO;
 import com.rabbit.ruteo.dto.ResultadoDespachoDTO;
 import com.rabbit.ruteo.dto.ResultadoDespachoDTO.Resultado;
 import com.rabbit.ruteo.dto.ZonaDTO;
+import com.rabbit.transportistas.dto.CotizacionDTO;
 import com.rabbit.transportistas.dto.TransportistaDTO;
 import com.rabbit.transportistas.negocio.IGestionTransportistas;
 import jakarta.ejb.EJBException;
@@ -70,6 +71,8 @@ import java.util.stream.Collectors;
 @DeclareRoles({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
 @PermitAll
 public class RuteoService implements IRuteo {
+
+    private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(RuteoService.class.getName());
 
     private static final Set<String> TERMINADOS = Set.of("ENTREGADO", "CANCELADO");
 
@@ -268,8 +271,58 @@ public class RuteoService implements IRuteo {
         if (!"PENDIENTE".equals(pedido.getEstado())) {
             return ResultadoDespachoDTO.de(idPedido, Resultado.ERROR, "El pedido no está pendiente");
         }
+        return despachar(pedido, new Despacho());
+    }
+
+    // Despachar una zona entera: lo que no cambia entre un pedido y otro
+    // (zonas, transportistas, repartidores) se consulta una sola vez para
+    // todo el lote, en vez de una vez por pedido.
+    @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
+    public List<ResultadoDespachoDTO> despacharZona(Long idZona) {
+        Despacho despacho = new Despacho();
+        ZonaDTO zona = despacho.zonas.stream().filter(z -> z.getId().equals(idZona)).findFirst().orElse(null);
+        if (zona == null) {
+            return List.of();
+        }
+        return pedidos.listarPendientes().stream()
+                .filter(p -> zona.contiene(p.getCodigoPostalEntrega()))
+                .map(p -> despachar(p, despacho))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Lo que un despacho necesita saber de la red, cargado una vez. Los
+     * repartidores se van marcando ocupados a medida que se les asignan
+     * pedidos del lote, así el siguiente pedido ve la disponibilidad real.
+     */
+    private final class Despacho {
+        final List<ZonaDTO> zonas = RuteoService.this.zonas.listarTodas().stream()
+                .filter(ZonaDTO::isActiva).collect(Collectors.toList());
+        final Map<Long, String> nombresTransportistas = transportistas.listarTodos().stream()
+                .collect(Collectors.toMap(TransportistaDTO::getId, TransportistaDTO::getNombre));
+        final Map<Long, RepartidorDTO> repartidores = RuteoService.this.repartidores.listarTodos().stream()
+                .collect(Collectors.toMap(RepartidorDTO::getId, r -> r));
+
+        ZonaDTO zonaDe(String codigoPostal) {
+            return zonas.stream().filter(z -> z.contiene(codigoPostal)).findFirst().orElse(null);
+        }
+
+        boolean hayLibreEn(ZonaDTO zona) {
+            return repartidores.values().stream()
+                    .anyMatch(r -> "DISPONIBLE".equals(r.getEstado()) && zona.getId().equals(r.getIdZona()));
+        }
+
+        String nombre(Long idTransportista) {
+            return nombresTransportistas.getOrDefault(idTransportista, "transportista");
+        }
+    }
+
+    private ResultadoDespachoDTO despachar(PedidoDTO pedido, Despacho despacho) {
+        Long idPedido = pedido.getId();
         String cp = pedido.getCodigoPostalEntrega();
-        ZonaDTO zona = zonas.zonaDeCodigoPostal(cp);
+        ZonaDTO zona = despacho.zonaDe(cp);
         if (zona == null) {
             return ResultadoDespachoDTO.de(idPedido, Resultado.SIN_ZONA, cp == null
                     ? "Sin código postal de entrega: hay que despacharlo a mano"
@@ -277,16 +330,17 @@ public class RuteoService implements IRuteo {
         }
         try {
             if (CoberturaZona.TRANSPORTISTA.name().equals(zona.getCobertura())) {
-                return derivar(idPedido, zona, zona.getIdTransportista(), "cubre la zona " + zona.getNombre());
+                return derivar(idPedido, zona.getIdTransportista(), "cubre la zona " + zona.getNombre(), despacho);
             }
-            boolean hayLibreEnZona = repartidores.listarTodos().stream()
-                    .anyMatch(r -> "DISPONIBLE".equals(r.getEstado()) && zona.getId().equals(r.getIdZona()));
-            if (!hayLibreEnZona && zona.getIdTransportista() != null) {
-                return derivar(idPedido, zona, zona.getIdTransportista(),
-                        "respaldo: no hay repartidores libres en la zona " + zona.getNombre());
+            if (!despacho.hayLibreEn(zona) && zona.getIdTransportista() != null) {
+                return derivar(idPedido, zona.getIdTransportista(),
+                        "respaldo: no hay repartidores libres en la zona " + zona.getNombre(), despacho);
             }
-            gestion.confirmarPedidoEnZona(idPedido, zona.getId());
-            RepartidorDTO asignado = repartidores.obtenerRepartidor(pedidos.consultarEstadoPedido(idPedido).getIdRepartidor());
+            Long idRepartidor = gestion.confirmarPedidoEnZona(idPedido, zona.getId());
+            RepartidorDTO asignado = idRepartidor != null ? despacho.repartidores.get(idRepartidor) : null;
+            if (asignado != null) {
+                asignado.estado = "OCUPADO";
+            }
             boolean deLaZona = asignado != null && zona.getId().equals(asignado.getIdZona());
             return ResultadoDespachoDTO.de(idPedido, Resultado.REPARTIDOR,
                     (asignado != null ? asignado.getNombre() : "Repartidor")
@@ -299,22 +353,30 @@ public class RuteoService implements IRuteo {
         }
     }
 
-    @Override
-    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
-    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
-    public List<ResultadoDespachoDTO> despacharZona(Long idZona) {
-        return listarPendientesPorZona().stream()
-                .filter(g -> g.zona != null && g.zona.getId().equals(idZona))
-                .flatMap(g -> g.pedidos.stream())
-                .map(p -> despacharPedido(p.getId()))
-                .collect(Collectors.toList());
-    }
-
-    private ResultadoDespachoDTO derivar(Long idPedido, ZonaDTO zona, Long idTransportista, String motivo) {
-        String codigo = gestion.derivarATransportista(idPedido, idTransportista);
-        String nombre = transportistas.listarTodos().stream().filter(t -> t.getId().equals(idTransportista))
-                .map(TransportistaDTO::getNombre).findFirst().orElse("transportista");
-        return ResultadoDespachoDTO.de(idPedido, Resultado.DERIVADO, nombre + " (" + motivo + "), seguimiento " + codigo);
+    // Deriva al transportista de la zona. Si lo rechaza o no responde, en
+    // vez de dejar el pedido sin despachar se cotiza con los demás y se
+    // deriva al más barato que lo tome (ADR-020).
+    private ResultadoDespachoDTO derivar(Long idPedido, Long idTransportista, String motivo, Despacho despacho) {
+        try {
+            String codigo = gestion.derivarATransportista(idPedido, idTransportista);
+            return ResultadoDespachoDTO.de(idPedido, Resultado.DERIVADO,
+                    despacho.nombre(idTransportista) + " (" + motivo + "), seguimiento " + codigo);
+        } catch (com.rabbit.pedidos.negocio.ValidacionException e) {
+            for (CotizacionDTO alternativa : gestion.cotizarDerivacion(idPedido)) {
+                if (!alternativa.isCotizado() || alternativa.idTransportista.equals(idTransportista)) {
+                    continue;
+                }
+                try {
+                    String codigo = gestion.derivarATransportista(idPedido, alternativa.idTransportista);
+                    return ResultadoDespachoDTO.de(idPedido, Resultado.DERIVADO, alternativa.transportista
+                            + " (la más barata de las alternativas: " + despacho.nombre(idTransportista)
+                            + " no lo tomó), seguimiento " + codigo);
+                } catch (com.rabbit.pedidos.negocio.ValidacionException otra) {
+                    LOG.info("[Ruteo] " + alternativa.transportista + " tampoco tomó el pedido " + idPedido + ": " + otra.getMessage());
+                }
+            }
+            throw e;
+        }
     }
 
     // "Depósito Sur" ya dice qué es: no se le antepone otro "Depósito".

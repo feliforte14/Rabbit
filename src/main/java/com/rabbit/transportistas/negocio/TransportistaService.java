@@ -49,6 +49,11 @@ import jakarta.inject.Inject;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.util.HexFormat;
+import com.rabbit.transportistas.datos.model.TipoIntegracion;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -62,6 +67,7 @@ import java.util.stream.Collectors;
 public class TransportistaService implements IGestionTransportistas, IEnvios, ISeguimientoEnvios {
 
     private static final Logger LOG = Logger.getLogger(TransportistaService.class.getName());
+    private static final SecureRandom AZAR = new SecureRandom();
 
     @Inject
     private TransportistaRepository repository;
@@ -122,6 +128,23 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
         Transportista t = obtenerOFallar(idTransportista);
         t.setActivo(true);
         repository.actualizar(t);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public String generarClaveWebhook(Long idTransportista) {
+        Transportista t = obtenerOFallar(idTransportista);
+        if (t.getTipoIntegracion() != TipoIntegracion.REST) {
+            throw new ValidacionException(t.getNombre() + " es un sistema legado: no avisa novedades, se le consulta");
+        }
+        byte[] azar = new byte[32];
+        AZAR.nextBytes(azar);
+        String clave = HexFormat.of().formatHex(azar);
+        t.setClaveWebhook(clave);
+        repository.actualizar(t);
+        LOG.info("[Transportistas] Nueva clave de webhook para " + t.getNombre());
+        return clave;
     }
 
     @Override
@@ -270,11 +293,53 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void registrarNovedad(Long idEnvio, EstadoEnvio nuevo) {
-        Envio envio = repository.buscarEnvioParaActualizar(idEnvio);
-        // Una cancelación pudo ganarle al seguimiento: un envío que ya no
-        // está activo no se toca.
+        aplicarNovedad(repository.buscarEnvioParaActualizar(idEnvio), nuevo);
+    }
+
+    // Sin @RolesAllowed: lo llama el transportista, no una persona. Lo que
+    // lo protege es la clave (comparada en tiempo constante) y que el envío
+    // sea de ese transportista.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public boolean recibirNovedad(Long idTransportista, String clave, String codigoSeguimiento, String estado) {
+        Transportista t = idTransportista != null ? repository.buscarPorId(idTransportista) : null;
+        if (t == null || t.getClaveWebhook() == null || clave == null
+                || !MessageDigest.isEqual(t.getClaveWebhook().getBytes(StandardCharsets.UTF_8), clave.getBytes(StandardCharsets.UTF_8))) {
+            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.CLAVE_INVALIDA,
+                    "La clave del webhook no corresponde a ese transportista");
+        }
+        EstadoEnvio nuevo = traducirEstadoExterno(estado);
+        if (nuevo == null) {
+            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.ESTADO_DESCONOCIDO,
+                    "Estado desconocido: " + estado + " (se esperaba SOLICITADO, EN_TRANSITO, ENTREGADO o CANCELADO)");
+        }
+        Envio envio = codigoSeguimiento == null ? null : repository.buscarEnvioPorCodigoParaActualizar(idTransportista, codigoSeguimiento);
+        if (envio == null) {
+            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.ENVIO_DESCONOCIDO,
+                    "No hay ningún envío " + codigoSeguimiento + " de " + t.getNombre());
+        }
+        LOG.info("[Transportistas][Webhook] " + t.getNombre() + " avisa: " + codigoSeguimiento + " -> " + estado);
+        return aplicarNovedad(envio, nuevo);
+    }
+
+    private static EstadoEnvio traducirEstadoExterno(String estado) {
+        if (estado == null) {
+            return null;
+        }
+        switch (estado.trim().toUpperCase()) {
+            case "SOLICITADO": return EstadoEnvio.SOLICITADO;
+            case "EN_TRANSITO": return EstadoEnvio.EN_TRANSITO;
+            case "ENTREGADO": return EstadoEnvio.ENTREGADO;
+            case "CANCELADO": return EstadoEnvio.CANCELADO;
+            default: return null;
+        }
+    }
+
+    // Lo mismo para el polling y el webhook. Una cancelación pudo ganarle al
+    // seguimiento: un envío que ya no está activo no se toca.
+    private boolean aplicarNovedad(Envio envio, EstadoEnvio nuevo) {
         if (envio == null || !envio.getEstado().isActivo() || envio.getEstado() == nuevo) {
-            return;
+            return false;
         }
         EstadoEnvio anterior = envio.getEstado();
         envio.setEstado(nuevo);
@@ -286,6 +351,7 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
         // falla, se deshace también la novedad y se reintenta en la próxima
         // pasada del seguimiento.
         estadoEnvioCambiado.fire(new EstadoEnvioCambiado(envio.getIdPedido(), anterior, nuevo));
+        return true;
     }
 
     // ===============================================================

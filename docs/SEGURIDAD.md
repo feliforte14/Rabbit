@@ -12,11 +12,18 @@
   `add-user.sh` (README, paso 5).
 - Al iniciar sesión se renueva el ID de sesión (`changeSessionId`),
   contra *session fixation*.
-- Contraseñas:
-  - Columna `passwordHash`: SHA-256 sin salt (`PasswordUtil`).
-    Simplificación consciente para el TP, **no apta para producción**.
-  - Realm: MD5 de `usuario:ApplicationRealm:contraseña`, el formato que
-    exige WildFly.
+- Contraseñas: hay **una sola copia**, en el ApplicationRealm de WildFly
+  (MD5 de `usuario:ApplicationRealm:contraseña`, el formato que exige su
+  properties-realm), que es quien la valida. La tabla `usuarios` guarda el
+  perfil (rol, comercio o repartidor), **no** contraseñas: antes guardaba
+  además un SHA-256 sin salt que nadie usaba para autenticar, y una
+  credencial redundante solo suma riesgo si la base se filtra.
+  `LimpiezaDeCredenciales` borra esa columna al desplegar (ADR-023).
+- **Límite de intentos de login:** 5 intentos fallidos seguidos bloquean
+  ese usuario 15 minutos (`LimiteDeIntentos`); el login ni consulta al
+  realm mientras dura. El mensaje es el mismo exista o no el usuario. Vive
+  en memoria de cada servidor; la API del ERP (HTTP Basic) la autentica
+  WildFly y no pasa por ese freno.
 
 ## Roles
 
@@ -183,6 +190,12 @@ base viven en el datasource de WildFly y las de management (para
 
 ### Operaciones sin autenticación
 
+- `POST /api/v1/transportistas/{id}/novedades` (webhook de novedades): no
+  hay usuario, lo que autoriza es la **clave del transportista**
+  (`Authorization: Bearer`), que genera el personal y se muestra una sola
+  vez. Se compara en tiempo constante, y un transportista solo puede tocar
+  sus propios envíos. Corre con `@RunAs("OPERADOR")`, como el polling.
+
 - `seguimiento.xhtml?codigo=RB-...` (`SeguimientoBean`): la misma consulta
   que la API de abajo, en una página para personas. Muestra solo el estado
   (con una línea de tiempo); el código aleatorio es lo único que la abre.
@@ -203,11 +216,20 @@ Además, el login y la página de error, que tienen que verse sin sesión.
 
 ## Limitaciones conocidas
 
+- La clave del webhook se guarda en claro en la tabla `transportistas`
+  (Rabbit tiene que compararla). Con la base comprometida, alguien podría
+  inventar novedades de envíos; se cambia desde la pantalla.
 - El certificado HTTPS de WildFly es autofirmado (el navegador advierte,
   `curl` necesita `-k`). En producción iría un certificado de una
   autoridad reconocida en el `key-store` de Elytron.
-- Contraseñas con SHA-256 sin salt, mínimo de 6 caracteres y sin límite
-  de intentos de login.
+- Las contraseñas del realm de WildFly son un MD5 de
+  `usuario:ApplicationRealm:contraseña` (el formato que exige el
+  properties-realm): el usuario hace de salt, pero MD5 es rápido de
+  probar. En producción iría un realm JDBC o LDAP con bcrypt/PBKDF2.
+  Mínimo de 6 caracteres.
+- El límite de intentos vive en memoria de cada servidor: se pierde al
+  reiniciar y, con varios nodos, cada uno cuenta por su lado. La API del
+  ERP (HTTP Basic, autenticada por WildFly) no tiene ese freno.
 - El banco simulado (`BancoLegadoService`) se publica sin autenticación.
   En producción no viviría dentro de Rabbit: por eso existe también como
   servicio aparte en Node.js (`banco-legado/`), que Rabbit usa apuntando

@@ -44,8 +44,8 @@ Propuesta o Reemplazada.
 
 - **Estado:** Aceptada.
 - **Contexto:** para cobrar hace falta un importe, pero Rabbit no puede
-  calcularlo: `ItemInventario` no referencia a `Producto` (que tiene
-  precio), y lo que se retira de un punto de picking es texto libre.
+  calcularlo: no lleva el catálogo ni los precios de los comercios
+  (ADR-024), y lo que se retira de un punto de picking es texto libre.
 - **Decisión:** el ERP del comercio manda `importe` y `medioPago` en el
   pedido externo; se copian al `Pedido` al sincronizar.
 - **Consecuencias:** Rabbit cobra lo que el comercio vendió, sin mantener
@@ -460,3 +460,69 @@ Propuesta o Reemplazada.
 - **Consecuencias:** sin JavaScript, las tarjetas se ven igual pero sin el
   nombre de cada dato. La página pública muestra solo el estado, igual que
   la API.
+
+## ADR-022: Webhook de novedades y transportista moderno como servicio aparte
+
+- **Estado:** Aceptada. Completa ADR-016 (polling).
+- **Contexto:** el seguimiento por polling (cada 15 s) era lo único
+  posible con un transportista legado, pero un transportista moderno puede
+  avisar. Además, los dos transportistas vivían simulados dentro del WAR,
+  y la rúbrica pide que la demo funcione "sin simulaciones falseadas".
+- **Decisión:**
+  - Webhook `POST /api/v1/transportistas/{id}/novedades`: el transportista
+    avisa `{codigoSeguimiento, estado}` con `Authorization: Bearer <clave>`.
+    La clave (32 bytes al azar) la genera el personal y se ve una sola vez;
+    se compara en tiempo constante; un transportista solo toca sus envíos.
+    Aplica la misma lógica que el polling (`aplicarNovedad`), así repetir
+    un aviso, o que el polling llegue después, no cambia nada.
+  - El polling sigue: para los legados y como respaldo de un aviso perdido.
+  - `transportista-moderno/`: el transportista REST como proceso aparte
+    (Python, biblioteca estándar), mismo contrato que el simulado, que
+    usa el webhook.
+  - Si el transportista de una zona no toma el envío, el despacho cotiza
+    y deriva al más barato de los demás (completa ADR-020).
+- **Alternativas descartadas:**
+  - *Firmar el aviso con HMAC del cuerpo:* más robusto ante un intermediario,
+    pero con HTTPS obligatorio una clave por transportista alcanza para el
+    alcance del TP.
+  - *Sacar el polling:* los legados no avisan, y un aviso perdido dejaría
+    el pedido trabado.
+  - *El transportista aparte en Java:* no suma heterogeneidad; Python sin
+    dependencias se levanta en cualquier máquina.
+- **Consecuencias:** los pedidos de un transportista moderno se mueven al
+  instante. La clave queda guardada en claro (Rabbit tiene que compararla):
+  si se filtra, se cambia desde la pantalla.
+
+## ADR-023: Las contraseñas, solo en el realm; límite de intentos en el login
+
+- **Estado:** Aceptada. Reemplaza el SHA-256 sin salt de la tabla `usuarios`.
+- **Contexto:** la tabla `usuarios` guardaba un SHA-256 sin salt de cada
+  contraseña, pero quien autentica es el ApplicationRealm de WildFly
+  (`request.login`): ese hash no se usaba para nada. Tampoco había freno a
+  la prueba de contraseñas en el login.
+- **Decisión:** la tabla deja de guardar contraseñas; `LimpiezaDeCredenciales`
+  borra la columna al desplegar (idempotente). `LimiteDeIntentos`: 5
+  intentos fallidos seguidos bloquean ese usuario 15 minutos, con el mismo
+  mensaje exista o no.
+- **Alternativas descartadas:**
+  - *Pasar el hash de la tabla a PBKDF2 o bcrypt:* seguiría siendo una
+    credencial que nadie usa; fortalecerla no la hace necesaria.
+  - *Autenticar contra la tabla con un realm JDBC de Elytron y bcrypt:* lo
+    correcto en producción, pero cambia la configuración del servidor de
+    todo el equipo (ver la nota en `LoginBean`).
+  - *Bloquear por IP:* detrás de un proxy, todos comparten IP.
+- **Consecuencias:** si la base se filtra, no hay contraseñas. El realm
+  sigue con el formato MD5 que exige WildFly. El límite vive en memoria de
+  cada servidor y no cubre el HTTP Basic de la API del ERP.
+
+## ADR-024: Sin catálogo de productos en Rabbit
+
+- **Estado:** Aceptada.
+- **Contexto:** la entidad `Producto` (con atributos JSONB) estaba modelada
+  desde la Entrega 1, pero nunca tuvo servicio ni pantalla.
+- **Decisión:** quitarla, junto con su repositorio y la dependencia
+  `hibernate-core` que solo existía para su columna JSONB. El catálogo vive
+  en el ERP de cada comercio; Rabbit solo necesita saber qué retirar y
+  entregar (las líneas del pedido y el stock consignado).
+- **Consecuencias:** menos código muerto. La tabla `productos` queda en las
+  bases existentes (hbm2ddl no borra tablas); se puede borrar a mano.

@@ -47,6 +47,9 @@ public class LoginBean implements Serializable {
     @Inject
     private SesionBean sesion;
 
+    @Inject
+    private LimiteDeIntentos limite;
+
     // Autentica contra el ApplicationRealm vía la API estándar de Servlet
     // (ver el porqué en el comentario de clase) y, si funciona, redirige
     // al primer listado protegido de la app.
@@ -54,8 +57,18 @@ public class LoginBean implements Serializable {
         FacesContext facesContext = FacesContext.getCurrentInstance();
         HttpServletRequest request = (HttpServletRequest) facesContext.getExternalContext().getRequest();
 
+        // Fuerza bruta: con demasiados intentos fallidos, ni se consulta al realm.
+        java.time.Duration espera = limite.esperaPara(username);
+        if (!espera.isZero()) {
+            long minutos = Math.max(1, (espera.getSeconds() + 59) / 60);
+            Mensajes.error("Demasiados intentos fallidos. Probá de nuevo en " + minutos
+                    + (minutos == 1 ? " minuto." : " minutos."));
+            return;
+        }
+
         try {
             request.login(username, password);
+            limite.registrarExito(username);
             // Session fixation: la sesión autenticada no conserva el ID
             // que tenía antes del login (que un tercero pudo haber fijado).
             request.changeSessionId();
@@ -71,6 +84,7 @@ public class LoginBean implements Serializable {
             }
             facesContext.getExternalContext().redirect(request.getContextPath() + inicio);
         } catch (ServletException e) {
+            limite.registrarFallo(username);
             Mensajes.error("Usuario o contraseña incorrectos");
         }
     }

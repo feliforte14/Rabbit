@@ -1,8 +1,8 @@
 # Documentación técnica de Rabbit
 
-Un documento por tema. Cada uno distingue lo **implementado** (con las
-clases donde vive) de lo **planificado** para la Entrega Obligatoria N.º 2
-(09/11/2026), marcado siempre como `Planificado`.
+Un documento por tema, con lo **implementado** y las clases donde vive.
+Lo que queda como mejora está marcado como tal en cada documento y en las
+"Consecuencias" de los ADR.
 
 | Documento | Qué justifica |
 |---|---|

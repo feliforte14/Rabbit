@@ -19,6 +19,13 @@ public interface IGestionTransportistas {
 
     void reactivarTransportista(Long idTransportista);
 
+    /**
+     * Genera (o reemplaza) la clave con la que un transportista REST firma
+     * sus avisos al webhook de novedades. Se devuelve una sola vez: Rabbit
+     * no la vuelve a mostrar.
+     */
+    String generarClaveWebhook(Long idTransportista);
+
     List<TransportistaDTO> listarTodos();
 
     /** Los que pueden recibir envíos nuevos. */

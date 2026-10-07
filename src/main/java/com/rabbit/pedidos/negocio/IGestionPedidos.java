@@ -114,7 +114,8 @@ public interface IGestionPedidos {
      * (si no hay ninguno libre ahí, toma cualquiera). Lo usa el despacho por
      * zona del componente Ruteo.
      */
-    void confirmarPedidoEnZona(Long idPedido, Long idZona);
+    /** @return el ID del repartidor asignado */
+    Long confirmarPedidoEnZona(Long idPedido, Long idZona);
 
     /**
      * Alternativa a confirmarPedido cuando el pedido no lo lleva un

@@ -31,6 +31,23 @@
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
         <h:form id="formListado">
+            <!--
+                La clave recien generada: se muestra una unica vez. El
+                transportista la manda en cada aviso (Authorization: Bearer).
+            -->
+            <h:panelGroup layout="block" styleClass="reserva-activa" rendered="#{not empty transportistaBean.claveGenerada}">
+                <p class="reserva-titulo">Clave de webhook de #{transportistaBean.conClaveNueva.nombre}</p>
+                <p>Configurale al transportista estos datos. La clave <strong>no se vuelve a mostrar</strong>;
+                    si se pierde, se genera otra.</p>
+                <dl class="reserva-datos">
+                    <dt>URL</dt>
+                    <dd><code>#{request.scheme}://#{request.serverName}:#{request.serverPort}#{request.contextPath}/api/v1/transportistas/#{transportistaBean.conClaveNueva.id}/novedades</code></dd>
+                    <dt>Header</dt>
+                    <dd><code>Authorization: Bearer #{transportistaBean.claveGenerada}</code></dd>
+                    <dt>Cuerpo</dt>
+                    <dd><code>{"codigoSeguimiento": "...", "estado": "EN_TRANSITO"}</code></dd>
+                </dl>
+            </h:panelGroup>
             <h:dataTable value="#{transportistaBean.transportistas}" var="t"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty transportistaBean.transportistas}">
@@ -46,6 +63,17 @@
                 <h:column>
                     <f:facet name="header">Envíos en curso</f:facet>
                     #{transportistaBean.enviosActivos(t.id)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Avisos (webhook)</f:facet>
+                    <h:outputText rendered="#{t.tipoIntegracion != 'REST'}" value="No avisa: se le consulta" styleClass="sin-accion" />
+                    <h:panelGroup rendered="#{t.tipoIntegracion == 'REST'}">
+                        <h:outputText value="#{t.tieneClaveWebhook ? 'Con clave' : 'Sin clave'}"
+                                      styleClass="badge #{t.tieneClaveWebhook ? 'badge-verde' : 'badge-gris'}" />
+                        <h:commandButton value="#{t.tieneClaveWebhook ? 'Cambiar clave' : 'Generar clave'}"
+                                         styleClass="btn btn-secondary"
+                                         action="#{transportistaBean.generarClaveWebhook(t.id)}" />
+                    </h:panelGroup>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Estado</f:facet>

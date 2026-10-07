@@ -28,6 +28,12 @@ public class Transportista {
 
     private boolean activo;
 
+    // Clave con la que el transportista firma sus avisos al webhook de
+    // novedades (Authorization: Bearer ...). Null hasta que el personal la
+    // genera; sin clave, el webhook rechaza todo y queda solo el polling.
+    @Column(length = 64)
+    private String claveWebhook;
+
     public Transportista() {}
 
     public Long getId() { return id; }
@@ -39,4 +45,6 @@ public class Transportista {
     public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
+    public String getClaveWebhook() { return claveWebhook; }
+    public void setClaveWebhook(String claveWebhook) { this.claveWebhook = claveWebhook; }
 }

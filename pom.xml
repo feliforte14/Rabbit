@@ -21,24 +21,53 @@
             <version>10.0.0</version>
             <scope>provided</scope>
         </dependency>
-        <!--
-            provided: WildFly ya trae Hibernate como módulo del servidor
-            (ver logs de despliegue: "org.hibernate@7.4.5.Final"). Esta
-            dependencia es solo para que Maven vea en compilación
-            @JdbcTypeCode/SqlTypes (usados por Producto.atributos, columna
-            JSONB) — no se empaqueta en el WAR.
-        -->
+
+        <!-- Tests: solo en compilación de tests, nunca entran al WAR. -->
         <dependency>
-            <groupId>org.hibernate.orm</groupId>
-            <artifactId>hibernate-core</artifactId>
-            <version>7.4.5.Final</version>
-            <scope>provided</scope>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>5.11.3</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Implementación de Bean Validation para probar las reglas del DTO de la API
+             (en el servidor la pone WildFly). -->
+        <dependency>
+            <groupId>org.hibernate.validator</groupId>
+            <artifactId>hibernate-validator</artifactId>
+            <version>8.0.1.Final</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.expressly</groupId>
+            <artifactId>expressly</artifactId>
+            <version>5.0.0</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- Tests de integración de la API contra la app desplegada (perfil "integracion"). -->
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>5.5.0</version>
+            <scope>test</scope>
+        </dependency>
+        <!-- REST Assured necesita una biblioteca JSON para armar los cuerpos de los requests. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.18.2</version>
+            <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <finalName>Rabbit</finalName>
         <plugins>
+            <!-- Tests unitarios (*Test): corren en cada build, no necesitan servidor. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+            </plugin>
             <plugin>
                 <groupId>org.wildfly.plugins</groupId>
                 <artifactId>wildfly-maven-plugin</artifactId>
@@ -56,4 +85,33 @@
             </plugin>
         </plugins>
     </build>
+
+    <!--
+        Tests de integración (*IT) contra Rabbit ya desplegado:
+            mvn verify -Pintegracion -Drabbit.erp.usuario=... -Drabbit.erp.clave=... -Drabbit.punto=...
+        Opcional: -Drabbit.base=https://localhost:8443/Rabbit (por defecto).
+        No corren en el build normal: necesitan el servidor y una cuenta ERP.
+    -->
+    <profiles>
+        <profile>
+            <id>integracion</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-failsafe-plugin</artifactId>
+                        <version>3.5.2</version>
+                        <executions>
+                            <execution>
+                                <goals>
+                                    <goal>integration-test</goal>
+                                    <goal>verify</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 </project>
