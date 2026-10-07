@@ -214,9 +214,15 @@ tiene un sistema legado con WSDL (`registrarEnvio`, `consultarEnvio`,
 necesito saber si tomó el envío). Cambia la pregunta 2:
 
 **Pregunta 2 — ¿expone SOAP o exige WS-\*? No.** Este transportista
-publica una API REST con JSON: `POST /envios` (201 tomado, 422
-rechazado), `GET /envios/{codigo}`, `DELETE /envios/{codigo}`. Rabbit lo
-consume con el cliente estándar de Jakarta REST.
+publica una API REST con JSON: `POST /cotizaciones` (precio y plazo),
+`POST /envios` (201 tomado, 422 rechazado), `GET /envios/{codigo}`,
+`DELETE /envios/{codigo}`. Rabbit lo consume con el cliente estándar de
+Jakarta REST.
+
+La **cotización** también es sincrónica: el personal la pide para elegir
+transportista antes de derivar, y necesita los precios en el momento. El
+legado no la ofrece (su WSDL no tiene esa operación): figura como "no
+cotiza" y se le puede derivar igual.
 
 **Los dos transportistas muestran el criterio en acción:** el **mismo
 problema de negocio** se resuelve con **dos tecnologías distintas**,

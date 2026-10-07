@@ -12,10 +12,14 @@ package com.rabbit.integracion.transportistas.simulador;
  *     primer paso, EN_TRANSITO durante el segundo, y después ENTREGADO.
  *     El paso dura 20 s (system property
  *     rabbit.transportista.simulador.segundos).
- *   - Se puede cancelar mientras no esté entregado.
+ *   - Se puede cancelar mientras no esté entregado; uno entregado se
+ *     rechaza (REST 409, SOAP fault EnvioRechazado).
+ *   - Cotización (solo la ofrece el REST): $2.500 de base, $350 por bulto
+ *     y $500 más si hay que cobrar al entregar; entrega en 24 h.
  * Los envíos viven en memoria: se pierden al redesplegar.
  */
 
+import java.math.BigDecimal;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -55,6 +59,17 @@ final class SimuladorDeEnvios {
         return null;
     }
 
+    static final BigDecimal PRECIO_BASE = new BigDecimal("2500.00");
+    static final BigDecimal PRECIO_POR_BULTO = new BigDecimal("350.00");
+    static final BigDecimal RECARGO_COBRO = new BigDecimal("500.00");
+    static final int PLAZO_HORAS = 24;
+
+    /** Precio del envío (sin validar la capacidad: ver motivoDeRechazo). */
+    BigDecimal precio(int bultos, boolean cobrarAlEntregar) {
+        BigDecimal precio = PRECIO_BASE.add(PRECIO_POR_BULTO.multiply(BigDecimal.valueOf(bultos)));
+        return cobrarAlEntregar ? precio.add(RECARGO_COBRO) : precio;
+    }
+
     String registrar(String referencia, String entrega) {
         String codigo = prefijo + secuencia.incrementAndGet();
         envios.put(codigo, new Envio(referencia, System.currentTimeMillis(), false));
@@ -75,18 +90,26 @@ final class SimuladorDeEnvios {
         return pasos == 0 ? Estado.SOLICITADO : pasos == 1 ? Estado.EN_TRANSITO : Estado.ENTREGADO;
     }
 
-    /** @return false si el código no existe */
-    boolean cancelar(String codigo) {
+    enum ResultadoCancelacion { CANCELADO, INEXISTENTE, YA_ENTREGADO }
+
+    // Lo ya entregado no se puede cancelar: avisarlo como cancelado haría
+    // que Rabbit anule el cobro de algo que el cliente recibió. Cancelar algo
+    // ya cancelado vuelve a dar CANCELADO (se puede reintentar).
+    ResultadoCancelacion cancelar(String codigo) {
         Estado estado = estado(codigo);
         if (estado == null) {
-            return false;
+            return ResultadoCancelacion.INEXISTENTE;
         }
-        if (estado != Estado.ENTREGADO && estado != Estado.CANCELADO) {
+        if (estado == Estado.ENTREGADO) {
+            LOG.warning("[" + nombre + "] Envío " + codigo + " ya entregado: no se puede cancelar");
+            return ResultadoCancelacion.YA_ENTREGADO;
+        }
+        if (estado != Estado.CANCELADO) {
             Envio envio = envios.get(codigo);
             envios.put(codigo, new Envio(envio.referencia(), envio.creado(), true));
             LOG.info("[" + nombre + "] Envío " + codigo + " cancelado (" + envio.referencia() + ")");
         }
-        return true;
+        return ResultadoCancelacion.CANCELADO;
     }
 
     private static long segundosPorPaso() {

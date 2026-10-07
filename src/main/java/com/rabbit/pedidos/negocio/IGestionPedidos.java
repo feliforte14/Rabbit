@@ -15,6 +15,8 @@ package com.rabbit.pedidos.negocio;
 
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
+import com.rabbit.transportistas.dto.CotizacionDTO;
+import java.util.List;
 import jakarta.ejb.Local;
 
 @Local
@@ -128,6 +130,14 @@ public interface IGestionPedidos {
      *         envío, no responde o está dado de baja
      */
     String derivarATransportista(Long idPedido, Long idTransportista);
+
+    /**
+     * Cotiza la derivación de un pedido PENDIENTE con cada transportista
+     * activo, para elegir antes de derivar. No cobra ni pide ningún envío.
+     *
+     * @throws ValidacionException si el pedido no existe o ya no está PENDIENTE
+     */
+    List<CotizacionDTO> cotizarDerivacion(Long idPedido);
 
     /**
      * El repartidor retiró el pedido: CONFIRMADO → EN_CAMINO. Desde acá ya

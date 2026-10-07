@@ -383,3 +383,80 @@ Propuesta o Reemplazada.
   carga, actualizado en el mismo cambio. Las cuentas ERP creadas con
   `add-user.sh` dejan de funcionar (`403`) hasta crearlas desde la app.
   Los pedidos anteriores no tienen código de seguimiento.
+
+## ADR-019: HTTPS obligatorio, salvo los sistemas externos simulados
+
+- **Estado:** Aceptada.
+- **Contexto:** el login manda la contraseña y la API del ERP usa HTTP
+  Basic, que manda usuario y clave en cada pedido. Por HTTP viajaban en
+  claro (era una limitación conocida). WildFly ya trae un
+  `https-listener` (8443) con certificado autofirmado.
+- **Decisión:** `transport-guarantee CONFIDENTIAL` en `web.xml` sobre `/`
+  (todo lo de Rabbit: pantallas, API `/api/v1`, seguimiento) y sobre la
+  regla de la API del ERP (es más específica, así que hay que repetirlo).
+  Un pedido por HTTP recibe un `302` a HTTPS. La cookie de sesión sale con
+  `Secure` y `HttpOnly`. Quedan por HTTP (regla con `NONE`) los sistemas
+  de otras empresas simulados en el mismo WAR: `/api/simulador/*`,
+  `/BancoLegadoService` y `/TransportistaLegadoService`.
+- **Alternativas descartadas:**
+  - *HTTPS solo para la API del ERP:* el login de la web también manda una
+    contraseña, y la cookie de sesión robada da el mismo acceso.
+  - *HTTPS también para los simulados:* Rabbit los llama por HTTP como a
+    cualquier sistema externo configurado así; la redirección rompía esas
+    llamadas (el cliente JAX-RS y el JAX-WS no siguen un `302` en un `POST`).
+  - *Rechazar HTTP en lugar de redirigir:* más estricto, pero el navegador
+    no llegaría solo a la pantalla de login.
+- **Consecuencias:** en local, el navegador advierte por el certificado
+  autofirmado y `curl` necesita `-k`; en producción iría un certificado
+  reconocido. Un ERP tiene que llamar directo a HTTPS: si llama por HTTP,
+  sus credenciales viajan en claro antes de recibir el `302`. El script de
+  carga usa HTTPS (`RABBIT_BASE`).
+
+## ADR-020: Cotización con los transportistas antes de derivar
+
+- **Estado:** Aceptada.
+- **Contexto:** al derivar un pedido, el personal elegía el transportista
+  sin saber cuánto cobraba ni cuánto tardaba. LogiRed pide consumir del
+  transportista moderno la cotización además del despacho.
+- **Decisión:** nueva operación `cotizarEnvio` en `IAdaptadorTransportista`.
+  El REST la implementa con `POST {endpoint}/cotizaciones` (mismos datos
+  que el envío, timeout de 5 s); el legado SOAP responde "no cotiza" sin
+  llamar, porque su WSDL no la tiene. `IEnvios.cotizarEnvio` cotiza con
+  todos los activos (`NOT_SUPPORTED`: no escribe nada) y ordena del más
+  barato al más caro. En **Pedidos**, **Cotizar** muestra la tabla y cada
+  fila tiene **Derivar con este**.
+- **Alternativas descartadas:**
+  - *Elegir solo el más barato al despachar por zona:* cambia el despacho
+    automático (ADR-017), que hoy decide por la cobertura de la zona; queda
+    como mejora.
+  - *Guardar la cotización y exigirla al derivar:* el precio puede cambiar
+    entre la cotización y el envío; hoy es informativa.
+  - *Cotizar en paralelo:* más rápido con muchos transportistas, pero con
+    pocos no hace falta; uno caído suma como máximo 5 s.
+- **Consecuencias:** el personal compara antes de derivar, y un
+  transportista caído aparece como "no respondió" sin frenar a los demás.
+  Sumar la cotización a otra tecnología es implementarla en su adaptador.
+
+## ADR-021: Página pública de seguimiento y tablas como tarjetas en el celular
+
+- **Estado:** Aceptada.
+- **Contexto:** el enlace "Ver lo que ve el cliente" mostraba el JSON de la
+  API; el cliente final no tenía una página para seguir su pedido. En el
+  celular (comercio y repartidor), las tablas había que correrlas de
+  costado.
+- **Decisión:** `seguimiento.xhtml` (pública, `SeguimientoBean`, misma
+  operación que `GET /api/v1/seguimiento`): el código por la URL, el estado
+  en palabras y una línea de tiempo. En pantallas de hasta 640 px, las
+  tablas con clase `tabla-tarjetas` se muestran como tarjetas; `tablas.js`
+  copia el título de cada columna a sus celdas (`data-label`), porque
+  `h:dataTable` no deja ponerle atributos a cada celda. El CSS pasa a la
+  versión `1_7`.
+- **Alternativas descartadas:**
+  - *Reescribir las tablas con `ui:repeat` y `<td data-label>`:* son 22
+    tablas; el script resuelve todas sin tocar su estructura.
+  - *Etiquetas por CSS (`nth-child`) en cada tabla:* frágil, se rompe al
+    agregar o mover una columna.
+  - *Ocultar columnas en el celular:* se pierde información.
+- **Consecuencias:** sin JavaScript, las tarjetas se ven igual pero sin el
+  nombre de cada dato. La página pública muestra solo el estado, igual que
+  la API.

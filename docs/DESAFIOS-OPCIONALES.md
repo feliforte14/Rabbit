@@ -173,6 +173,7 @@ Para correrla de nuevo (el script imprime esta misma tabla al terminar):
 ```bash
 export WILDFLY_HOME=... RABBIT_ERP_USUARIO=... RABBIT_ERP_CLAVE=...   # ERP creado desde la app
 export RABBIT_ID_PUNTO=...   # punto de picking activo del comercio de ese ERP
+# RABBIT_BASE (opcional): por defecto https://localhost:8443/Rabbit/ (acepta el certificado local autofirmado)
 python3 scripts/prueba_escalabilidad.py 1 4 8 --pedidos 100
 ```
 

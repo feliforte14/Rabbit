@@ -40,6 +40,7 @@ import com.rabbit.pagos.negocio.IConsultaCobros;
 import com.rabbit.repartidores.dto.RepartidorDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 
+import com.rabbit.transportistas.dto.CotizacionDTO;
 import com.rabbit.transportistas.dto.EnvioDTO;
 import com.rabbit.transportistas.dto.TransportistaDTO;
 import com.rabbit.transportistas.negocio.IEnvios;
@@ -101,6 +102,11 @@ public class PedidoBean implements Serializable {
     private List<TransportistaDTO> listaTransportistas;
     private Long idPedidoADerivar;
     private Long idTransportistaElegido;
+    // Cotizaciones del último pedido cotizado. Se guarda cuál fue, así
+    // "Derivar con este" deriva ESE pedido aunque después se haya elegido
+    // otro en el desplegable.
+    private List<CotizacionDTO> cotizaciones;
+    private Long idPedidoCotizado;
 
     private Long idDepositoSeleccionado;
     private DatosPedidoExternoDTO nuevoPedido = nuevoPedidoVacio();
@@ -130,9 +136,39 @@ public class PedidoBean implements Serializable {
         return enviosPorPedido.get(idPedido);
     }
 
+    // Para el resumen de arriba de la pantalla (pedidos por estado).
+    public long contarPedidos(String estado) {
+        return pedidos.stream().filter(p -> estado.equals(p.getEstado())).count();
+    }
+
     // Los que se pueden derivar: los PENDIENTE.
     public List<PedidoDTO> getPedidosPendientes() {
         return pedidos.stream().filter(p -> "PENDIENTE".equals(p.getEstado())).collect(Collectors.toList());
+    }
+
+    // Pregunta a cada transportista activo cuánto cobraría por el pedido
+    // elegido, sin pedirle el envío (ver IGestionPedidos.cotizarDerivacion).
+    public void cotizar() {
+        try {
+            cotizaciones = gestion.cotizarDerivacion(idPedidoADerivar);
+            idPedidoCotizado = idPedidoADerivar;
+            if (cotizaciones.isEmpty()) {
+                Mensajes.error("No hay transportistas activos para cotizar");
+            }
+        } catch (ValidacionException e) {
+            cotizaciones = null;
+            Mensajes.error(e.getMessage());
+        } catch (EJBException e) {
+            cotizaciones = null;
+            Mensajes.error("No se pudo cotizar el pedido. Intentá de nuevo.");
+        }
+    }
+
+    // Deriva el pedido cotizado al transportista de esa fila.
+    public void derivarCon(Long idTransportista) {
+        idPedidoADerivar = idPedidoCotizado;
+        idTransportistaElegido = idTransportista;
+        derivar();
     }
 
     // PENDIENTE -> CONFIRMADO con un transportista externo en lugar de un
@@ -146,6 +182,8 @@ public class PedidoBean implements Serializable {
             Mensajes.info("Pedido " + idPedidoADerivar + " derivado a " + transportista + " (seguimiento " + codigo + ")");
             idPedidoADerivar = null;
             idTransportistaElegido = null;
+            cotizaciones = null;
+            idPedidoCotizado = null;
         } catch (ValidacionException e) {
             Mensajes.error(e.getMessage());
             return;
@@ -378,6 +416,8 @@ public class PedidoBean implements Serializable {
     public List<ComercioDTO> getListaComercios() { return listaComercios; }
     public List<DepositoDTO> getListaDepositos() { return listaDepositos; }
     public List<TransportistaDTO> getListaTransportistas() { return listaTransportistas; }
+    public List<CotizacionDTO> getCotizaciones() { return cotizaciones; }
+    public Long getIdPedidoCotizado() { return idPedidoCotizado; }
     public Long getIdPedidoADerivar() { return idPedidoADerivar; }
     public void setIdPedidoADerivar(Long idPedidoADerivar) { this.idPedidoADerivar = idPedidoADerivar; }
     public Long getIdTransportistaElegido() { return idTransportistaElegido; }

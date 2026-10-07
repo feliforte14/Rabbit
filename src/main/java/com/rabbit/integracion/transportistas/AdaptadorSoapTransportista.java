@@ -50,6 +50,13 @@ public class AdaptadorSoapTransportista implements IAdaptadorTransportista {
         }
     }
 
+    // El WSDL del legado no tiene una operación de cotización: no se le
+    // pregunta. Rabbit lo muestra como "no cotiza" y se puede derivar igual.
+    @Override
+    public ResultadoCotizacion cotizarEnvio(String endpoint, SolicitudEnvio s) {
+        return ResultadoCotizacion.noCotiza();
+    }
+
     @Override
     public EstadoExterno consultarEstado(String endpoint, String codigo) {
         try {
@@ -65,6 +72,11 @@ public class AdaptadorSoapTransportista implements IAdaptadorTransportista {
         try {
             puerto(endpoint).anularEnvio(codigo);
             return true;
+        } catch (EnvioRechazadoException e) {
+            // Por ejemplo, ya lo entregó: no hay cancelación que confirmar.
+            LOG.warning("[Transportistas][SOAP] No anuló " + codigo + ": "
+                    + (e.getFaultInfo() != null ? e.getFaultInfo().getMotivo() : e.getMessage()));
+            return false;
         } catch (WebServiceException | MalformedURLException e) {
             LOG.log(Level.WARNING, "[Transportistas][SOAP] Sin respuesta al anular " + codigo, e);
             return false;

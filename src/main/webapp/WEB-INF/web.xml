@@ -19,7 +19,7 @@
         PROJECT_STAGE=Production: en Development JSF muestra stack traces y
         detalles internos cuando algo falla, informacion util para un
         atacante. El CSS no queda cacheado viejo porque se sirve desde una
-        carpeta versionada (resources/rabbit/1_6/): al cambiarlo se sube la
+        carpeta versionada (resources/rabbit/1_7/): al cambiarlo se sube la
         version. Para depurar en local se puede volver a Development.
     -->
     <context-param>
@@ -59,6 +59,24 @@
         <location>/error.html</location>
     </error-page>
 
+    <!--
+        La cookie de sesion solo viaja por HTTPS (secure) y JavaScript no la
+        puede leer (http-only): asi no se puede robar la sesion escuchando la
+        red ni con un script inyectado.
+    -->
+    <session-config>
+        <cookie-config>
+            <http-only>true</http-only>
+            <secure>true</secure>
+        </cookie-config>
+        <!--
+            La sesion viaja SOLO en la cookie, nunca en la URL
+            (";jsessionid=..."): una URL con la sesion se puede filtrar al
+            copiarla, en el historial o en el encabezado Referer.
+        -->
+        <tracking-mode>COOKIE</tracking-mode>
+    </session-config>
+
     <welcome-file-list>
         <welcome-file>login.xhtml</welcome-file>
     </welcome-file-list>
@@ -83,6 +101,49 @@
         <auth-constraint>
             <role-name>ERP</role-name>
         </auth-constraint>
+        <!-- Mas especifico que "/": hay que repetir la exigencia de HTTPS. -->
+        <user-data-constraint>
+            <transport-guarantee>CONFIDENTIAL</transport-guarantee>
+        </user-data-constraint>
+    </security-constraint>
+
+    <!--
+        HTTPS obligatorio para todo lo de Rabbit: las pantallas (el login
+        manda la contrasena), la API del ERP (HTTP Basic manda usuario y
+        clave en cada pedido) y el seguimiento publico. CONFIDENTIAL hace que
+        un pedido por HTTP (8080) se redirija a HTTPS (8443, el
+        https-listener de WildFly; en local, con certificado autofirmado).
+        "/" es el patron por defecto: cubre todo lo que no tenga una regla
+        mas especifica.
+    -->
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Rabbit por HTTPS</web-resource-name>
+            <url-pattern>/</url-pattern>
+        </web-resource-collection>
+        <user-data-constraint>
+            <transport-guarantee>CONFIDENTIAL</transport-guarantee>
+        </user-data-constraint>
+    </security-constraint>
+
+    <!--
+        Excepcion: los sistemas de OTRAS empresas que se simulan en este
+        mismo WAR (el banco legado SOAP y los dos transportistas). No son
+        parte de Rabbit, y Rabbit los llama por HTTP como a cualquier sistema
+        externo configurado asi (rabbit.banco.wsdl, endpoint de cada
+        transportista). Sin esta regla, la redireccion a HTTPS romperia esas
+        llamadas.
+    -->
+    <security-constraint>
+        <web-resource-collection>
+            <web-resource-name>Sistemas externos simulados</web-resource-name>
+            <url-pattern>/api/simulador/*</url-pattern>
+            <url-pattern>/BancoLegadoService</url-pattern>
+            <url-pattern>/TransportistaLegadoService</url-pattern>
+        </web-resource-collection>
+        <user-data-constraint>
+            <transport-guarantee>NONE</transport-guarantee>
+        </user-data-constraint>
     </security-constraint>
 
     <login-config>

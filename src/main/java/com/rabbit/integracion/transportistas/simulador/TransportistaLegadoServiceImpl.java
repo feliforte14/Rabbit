@@ -47,7 +47,10 @@ public class TransportistaLegadoServiceImpl implements TransportistaLegadoServic
     }
 
     @Override
-    public void anularEnvio(String codigoSeguimiento) {
-        SIMULADOR.cancelar(codigoSeguimiento);
+    public void anularEnvio(String codigoSeguimiento) throws EnvioRechazadoException {
+        if (SIMULADOR.cancelar(codigoSeguimiento) == SimuladorDeEnvios.ResultadoCancelacion.YA_ENTREGADO) {
+            String motivo = "El envío ya fue entregado: no se puede anular";
+            throw new EnvioRechazadoException(motivo, new EnvioRechazadoFaultInfo(motivo));
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.rabbit.transportistas.negocio;
 
+import com.rabbit.transportistas.dto.CotizacionDTO;
 import com.rabbit.transportistas.dto.DatosEnvioDTO;
 import com.rabbit.transportistas.dto.EnvioDTO;
 import jakarta.ejb.Local;
@@ -22,6 +23,13 @@ public interface IEnvios {
      *         baja, rechaza el envío o no responde
      */
     EnvioDTO solicitarEnvio(Long idPedido, Long idComercio, Long idTransportista, DatosEnvioDTO datos);
+
+    /**
+     * Le pide una cotización del envío a cada transportista activo, sin
+     * pedirle el envío a ninguno. Los que cotizan van primero, del más
+     * barato al más caro; después los que no cotizan, rechazan o no responden.
+     */
+    List<CotizacionDTO> cotizarEnvio(Long idPedido, DatosEnvioDTO datos);
 
     /** Cancela el envío del pedido, si tiene uno activo. Si no, no hace nada. */
     void cancelarEnvioDePedido(Long idPedido);

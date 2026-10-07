@@ -10,7 +10,9 @@ Requisitos previos:
   ~/wildfly/bin/standalone.sh -c standalone-full.xml
   ```
 - App deployada: `mvn clean package wildfly:deploy` desde la raíz del repo.
-- App disponible en `http://localhost:8080/Rabbit`.
+- App disponible en `https://localhost:8443/Rabbit` (HTTPS obligatorio; por
+  `http://localhost:8080` redirige solo). El certificado local es
+  autofirmado: aceptar la advertencia del navegador y usar `curl -k`.
 
 Estado de la base: se limpió el 29/09/2026. No hay comercios, depósitos,
 stock, repartidores, pedidos, cobros, envíos, transportistas ni zonas.
@@ -33,7 +35,7 @@ reseteala con:
 
 ## 1. Login como administrador
 
-1. Entrá a `http://localhost:8080/Rabbit/login.xhtml`.
+1. Entrá a `https://localhost:8443/Rabbit/login.xhtml`.
 2. Ingresá con `claude-cb-admin`.
 3. Deberías caer en `personal/pedidos.xhtml` (la pantalla de Pedidos, vacía porque
    la base está limpia).
@@ -106,6 +108,15 @@ ejemplo `claude-cb-erp`) no tienen comercio: la API les responde `403`
 4. Ir a **Mi stock** → confirmar que ves el stock cargado en 2.2. Es solo
    lectura: el stock lo carga el personal de Rabbit.
 
+**Seguimiento del cliente final:** en **Mis pedidos**, cada pedido tiene
+su código (`RB-...`) y el enlace **Ver lo que ve el cliente**, que abre
+`seguimiento.xhtml` (pública, sin login) con el estado y una línea de
+tiempo. También se llega desde el login ("Seguí tu pedido") escribiendo el
+código; uno inexistente muestra "No encontramos ese código".
+
+**En el celular:** las tablas del portal se ven como tarjetas (un dato por
+renglón) y el menú queda arriba, compacto.
+
 **Qué mirar:** el título dice "Mis puntos de picking" / "Mis pedidos", no
 pide elegir comercio (a diferencia del personal, que sí lo elige de un
 listado).
@@ -117,8 +128,8 @@ listado).
 Con la cuenta `demo.erp` (Basic Auth):
 
 ```bash
-curl -i -u demo.erp:<contraseña> \
-  -X POST http://localhost:8080/Rabbit/api/v1/pedidos-externos \
+curl -ik -u demo.erp:<contraseña> \
+  -X POST https://localhost:8443/Rabbit/api/v1/pedidos-externos \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{
@@ -142,8 +153,8 @@ curl -i -u demo.erp:<contraseña> \
 
 Consultar cómo terminó:
 ```bash
-curl -u demo.erp:<contraseña> \
-  http://localhost:8080/Rabbit/api/v1/pedidos-externos/<idPedidoExterno>
+curl -k -u demo.erp:<contraseña> \
+  https://localhost:8443/Rabbit/api/v1/pedidos-externos/<idPedidoExterno>
 ```
 Estados posibles: `Pendiente` → `Sincronizado` (con `idPedido`,
 `estadoPedido` y `codigoSeguimiento`), `Descartado` (con motivo) o
@@ -164,7 +175,7 @@ un instante en pasar de Pendiente a Sincronizado.
 | Pedido de otro comercio | `GET` de un `idPedidoExterno` de otro comercio | `404` (no se revela que existe) |
 | Cancelar | `curl -i -X POST -u demo.erp:<contraseña> .../v1/pedidos-externos/<id>/cancelacion` | `200`; repetirlo da `200` igual |
 | Cancelar tarde | Lo mismo con el pedido ya `CONFIRMADO` | `409`, `type: /problemas/cancelacion-no-permitida` |
-| Seguimiento público | `curl -i http://localhost:8080/Rabbit/api/v1/seguimiento/<codigoSeguimiento>` | `200 {"codigoSeguimiento", "estado"}`, sin login |
+| Seguimiento público | `curl -ik https://localhost:8443/Rabbit/api/v1/seguimiento/<codigoSeguimiento>` | `200 {"codigoSeguimiento", "estado"}`, sin login |
 | URL vieja | `curl -i .../Rabbit/api/pedidos-externos/1` | `404` en `application/problem+json` (la API es `/v1`) |
 
 El contrato está en [openapi.yaml](openapi.yaml): pegalo en
@@ -195,8 +206,9 @@ tiempo real`). En **Pedidos → Recibidos del ERP** el pedido aparece como
    parada y la entrega como destino. Botón **Ya retiré el pedido** y
    después **Entregué el pedido**.
 4. Logueate como `demo.comercio` → **Mis pedidos**: el pedido figura
-   "Entregado" y en "Avisos de Rabbit" aparece un aviso por cada cambio de
-   estado. Eso confirma que el tópico `topico.pedidos.estado` distribuye
+   "Entregado", con su **código de seguimiento para el cliente** y el
+   enlace "Ver lo que ve el cliente" (la API pública), y en "Avisos de
+   Rabbit" aparece un aviso por cada cambio de estado. Eso confirma que el tópico `topico.pedidos.estado` distribuye
    los cambios a sus suscriptores (Notificaciones y Pagos).
 
 **Qué mirar:** en **Pedidos** (vista del personal) el pedido pasa por
@@ -250,7 +262,11 @@ Con WildFly corriendo:
    - uno SOAP legado: endpoint
      `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl`.
 2. En **Pedidos** → "Derivar a un transportista": elegí un pedido pendiente
-   y un transportista. El mensaje muestra el código de seguimiento, y en la
+   y tocá **Cotizar** (sin elegir transportista). Aparece la tabla de
+   cotizaciones: el REST cotiza (por ejemplo, 2 bultos prepago = $3.200,
+   24 h) y el legado figura "No cotiza (sistema legado)". Tocá **Derivar
+   con este** en el que quieras (o elegilo en el desplegable y
+   **Derivar**). El mensaje muestra el código de seguimiento, y en la
    tabla el pedido figura Confirmado con el transportista en lugar del
    repartidor.
 3. Esperá: cada 15 s Rabbit consulta al transportista. A los ~20 s el
@@ -295,7 +311,7 @@ de sin zona se confirma o deriva a mano desde Pedidos.
 ## 7. Seguridad: accesos restringidos
 
 Con `demo.comercio` logueado:
-- Intentá entrar directo a `http://localhost:8080/Rabbit/personal/usuarios.xhtml`
+- Intentá entrar directo a `https://localhost:8443/Rabbit/personal/usuarios.xhtml`
   (pantalla solo ADMINISTRADOR): debería redirigirte, no mostrar la
   pantalla.
 - Intentá pegar la URL de puntos de picking de otro comercio
@@ -305,11 +321,13 @@ Con `demo.comercio` logueado:
 
 Contra la API del ERP:
 ```bash
-curl -i http://localhost:8080/Rabbit/api/v1/pedidos-externos/1                            # sin credenciales
-curl -i -u claude-cb-admin:<contraseña> http://localhost:8080/Rabbit/api/v1/pedidos-externos/1   # usuario sin rol ERP
+curl -ik https://localhost:8443/Rabbit/api/v1/pedidos-externos/1                            # sin credenciales
+curl -ik -u claude-cb-admin:<contraseña> https://localhost:8443/Rabbit/api/v1/pedidos-externos/1   # usuario sin rol ERP
+curl -i http://localhost:8080/Rabbit/api/v1/seguimiento/X                                     # por HTTP
 ```
 Debería responder `401` sin credenciales y `403` con un usuario válido que
-no tiene el rol `ERP`.
+no tiene el rol `ERP`. Por HTTP responde `302` a la misma URL en HTTPS
+(puerto 8443). La cookie de sesión del login sale con `Secure` y `HttpOnly`.
 
 ---
 

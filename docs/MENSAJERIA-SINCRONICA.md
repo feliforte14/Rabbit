@@ -171,18 +171,43 @@ no por aviso: un transportista legado no avisa (ver ADR-016).
 
 | Transportista | Tecnología | Endpoint del simulado | Estados que usa |
 |---|---|---|---|
-| Moderno | REST con JSON: `POST /envios`, `GET /envios/{codigo}`, `DELETE /envios/{codigo}` | `http://localhost:8080/Rabbit/api/simulador/transportista-rest` | `SOLICITADO`, `EN_TRANSITO`, `ENTREGADO`, `CANCELADO` |
+| Moderno | REST con JSON: `POST /cotizaciones`, `POST /envios`, `GET /envios/{codigo}`, `DELETE /envios/{codigo}` | `http://localhost:8080/Rabbit/api/simulador/transportista-rest` | `SOLICITADO`, `EN_TRANSITO`, `ENTREGADO`, `CANCELADO` |
 | Legado | SOAP con WSDL: `registrarEnvio`, `consultarEnvio`, `anularEnvio`, fault `EnvioRechazado` | `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl` | `RECIBIDO`, `EN_VIAJE`, `ENTREGADO`, `ANULADO` |
 
 | Clase | Rol |
 |---|---|
-| `IAdaptadorTransportista` | Contrato común: `solicitarEnvio`, `consultarEstado`, `cancelarEnvio` |
-| `AdaptadorRestTransportista` | Cliente JAX-RS, timeout de 5 s; 201 → tomado, 422 → rechazado |
-| `AdaptadorSoapTransportista` | Proxy JAX-WS desde el WSDL, timeout de 5 s; el fault `EnvioRechazado` → rechazado |
+| `IAdaptadorTransportista` | Contrato común: `cotizarEnvio`, `solicitarEnvio`, `consultarEstado`, `cancelarEnvio` |
+| `AdaptadorRestTransportista` | Cliente JAX-RS, timeout de 5 s; 201 → tomado, 422 → rechazado; cotización: 200 → precio y plazo |
+| `AdaptadorSoapTransportista` | Proxy JAX-WS desde el WSDL, timeout de 5 s; el fault `EnvioRechazado` → rechazado; no cotiza (el WSDL no tiene esa operación) |
 | `TransportistaService` | Deriva, cancela y registra las novedades |
 | `SeguimientoDeEnvios` | Timer (cada 15 s): consulta los envíos activos |
 | `CancelacionesDeEnvios` | Cancela en el transportista (compensación y cancelaciones) |
 | `simulador.*` | Los dos transportistas simulados, en el mismo WAR (como el banco) |
+
+**Cotización antes de derivar.** En **Pedidos → Derivar a un
+transportista**, el botón **Cotizar** le pregunta a cada transportista
+activo cuánto cobraría y cuánto tardaría, sin pedirle el envío
+(`IGestionPedidos.cotizarDerivacion` → `IEnvios.cotizarEnvio`, con los
+mismos datos que se mandarían al derivar). Los que cotizan aparecen
+primero, del más barato al más caro; el legado SOAP aparece como "no
+cotiza" y se le puede derivar igual; uno que no responde en 5 s aparece
+como "no respondió" y no frena a los demás. Cada fila tiene **Derivar con
+este**. La cotización no escribe nada (`NOT_SUPPORTED`).
+
+| Cotización | Request | Respuesta del simulado |
+|---|---|---|
+| `POST {endpoint}/cotizaciones` | Igual que `POST /envios` | `200 {"precio", "plazoHoras"}`: $2.500 + $350 por bulto (+$500 si hay que cobrar al entregar), 24 h · `422 {"error"}` si supera los 50 bultos |
+
+**Respuestas inesperadas.** Si un transportista REST responde algo que
+no es el JSON esperado (una página de error HTML, campos que faltan), el
+adaptador lo trata como falta de respuesta y nunca deja escapar la
+excepción: el seguimiento sigue con los demás envíos y la cotización con
+los demás transportistas. Si el envío se tomó (`201`) pero sin código de
+seguimiento, se registra en el log como grave para resolverlo a mano.
+
+**Cancelar algo ya entregado.** El transportista lo rechaza (REST `409`,
+SOAP fault `EnvioRechazado`) y Rabbit lo registra como cancelación no
+confirmada ("hay que cancelarlo a mano"), en vez de darla por hecha.
 
 Reglas de los simulados: rechazan envíos de más de 50 bultos; un envío
 tomado avanza solo con el tiempo (20 s por paso, system property
@@ -244,15 +269,15 @@ Postman.
 Ejemplo de alta desde el ERP:
 
 ```bash
-curl -i -u '<usuario-erp>:<contraseña>' -H "Content-Type: application/json" \
+curl -ik -u '<usuario-erp>:<contraseña>' -H "Content-Type: application/json" \
   -H "Idempotency-Key: $(uuidgen)" \
   -d '{"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":1,"cantidad":2}],"importe":1800,"medioPago":"PREPAGO","direccionEntrega":"Av. Corrientes 1234, CABA"}' \
-  http://localhost:8080/Rabbit/api/v1/pedidos-externos
+  https://localhost:8443/Rabbit/api/v1/pedidos-externos
 ```
 
 ```http
 HTTP/1.1 201 Created
-Location: http://localhost:8080/Rabbit/api/v1/pedidos-externos/42
+Location: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42
 Content-Type: application/json
 
 {"idPedidoExterno":42,"resultado":"Pendiente",

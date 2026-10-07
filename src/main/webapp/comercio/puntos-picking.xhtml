@@ -40,7 +40,7 @@
 
         <h:form id="formListado" rendered="#{not empty puntoPickingBean.comercio}">
             <h:dataTable value="#{puntoPickingBean.puntosPicking}" var="p"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty puntoPickingBean.puntosPicking}">
                 <h:column>
                     <f:facet name="header">ID</f:facet>

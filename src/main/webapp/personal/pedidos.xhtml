@@ -21,6 +21,26 @@
     <ui:define name="contenido">
         <h1>Pedidos</h1>
 
+        <!-- Resumen de un vistazo, igual que en el portal del comercio. -->
+        <div class="stat-grid">
+            <div class="stat-card">
+                <p class="stat-label">Pendientes</p>
+                <p class="stat-valor">#{pedidoBean.contarPedidos('PENDIENTE')}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Confirmados</p>
+                <p class="stat-valor">#{pedidoBean.contarPedidos('CONFIRMADO')}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">En camino</p>
+                <p class="stat-valor">#{pedidoBean.contarPedidos('EN_CAMINO')}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Entregados</p>
+                <p class="stat-valor">#{pedidoBean.contarPedidos('ENTREGADO')}</p>
+            </div>
+        </div>
+
         <p class="ayuda">
             Cada pedido es una venta que el comercio ya cerró y que llega desde su ERP. Al
             confirmarlo se cobra (si es prepago) y se le asigna un repartidor; el recorrido se
@@ -33,12 +53,18 @@
 
         <h:form id="formPedidos" styleClass="tabla-scroll">
             <h:dataTable value="#{pedidoBean.pedidos}" var="p"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty pedidoBean.pedidos}">
                 <h:column>
                     <f:facet name="header">Pedido</f:facet>
                     #{p.id}
                     <span class="dato-secundario">#{p.fechaCreacion}</span>
+                    <h:panelGroup rendered="#{not empty p.codigoSeguimiento}">
+                        <span class="dato-secundario">
+                            <a class="codigo" target="_blank" rel="noopener noreferrer" title="Ver lo que ve el cliente"
+                               href="#{request.contextPath}/seguimiento.xhtml?codigo=#{p.codigoSeguimiento}">#{p.codigoSeguimiento}</a>
+                        </span>
+                    </h:panelGroup>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Comercio</f:facet>
@@ -112,6 +138,8 @@
             En lugar de confirmarlo con un repartidor propio, un pedido pendiente se puede derivar
             a una empresa de envíos externa: se cobra (si es prepago), se le pide el envío y el
             transportista lo lleva. Su estado se actualiza solo con lo que informe.
+            Con <strong>Cotizar</strong> se ve antes cuánto cobra y cuánto tarda cada transportista
+            (los legados por SOAP no cotizan, pero se les puede derivar igual).
         </p>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.listaTransportistas}">
             No hay transportistas activos. Se dan de alta en
@@ -129,16 +157,62 @@
             </div>
             <div class="campo">
                 <h:outputLabel for="transportista" value="Transportista" />
+                <!-- Obligatorio solo al derivar: para cotizar alcanza con el pedido. -->
                 <h:selectOneMenu id="transportista" value="#{pedidoBean.idTransportistaElegido}"
-                                 required="true" label="Transportista" requiredMessage="Elegí el transportista">
+                                 required="#{not empty param['formDerivar:btnDerivar']}"
+                                 label="Transportista" requiredMessage="Elegí el transportista">
                     <f:selectItem itemLabel="— Elegí un transportista —" itemValue="#{null}" />
                     <f:selectItems value="#{pedidoBean.listaTransportistas}" var="t" itemValue="#{t.id}"
                                    itemLabel="#{t.nombre} (#{etiquetas.tipoIntegracion(t.tipoIntegracion)})" />
                 </h:selectOneMenu>
             </div>
             <div class="form-acciones">
-                <h:commandButton value="Derivar" styleClass="btn btn-primary" action="#{pedidoBean.derivar}" />
+                <h:commandButton id="btnCotizar" value="Cotizar" styleClass="btn btn-secondary" action="#{pedidoBean.cotizar}" />
+                <h:commandButton id="btnDerivar" value="Derivar" styleClass="btn btn-primary" action="#{pedidoBean.derivar}" />
             </div>
+        </h:form>
+
+        <!--
+            Cotizaciones del pedido elegido: cuanto cobra y cuanto tarda cada
+            transportista activo (ver IGestionPedidos.cotizarDerivacion). Las
+            que cotizaron van primero, de la mas barata a la mas cara.
+        -->
+        <h:form id="formCotizaciones" rendered="#{not empty pedidoBean.cotizaciones}">
+            <h3>Cotizaciones del pedido #{pedidoBean.idPedidoCotizado}</h3>
+            <h:panelGroup layout="block" styleClass="tabla-scroll">
+            <h:dataTable value="#{pedidoBean.cotizaciones}" var="c"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
+                <h:column>
+                    <f:facet name="header">Transportista</f:facet>
+                    #{c.transportista}
+                    <span class="dato-secundario">#{etiquetas.tipoIntegracion(c.tipoIntegracion)}</span>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Precio</f:facet>
+                    <h:outputText value="#{c.precio}" rendered="#{c.cotizado}">
+                        <f:convertNumber type="currency" currencySymbol="$" />
+                    </h:outputText>
+                    <h:outputText value="—" rendered="#{not c.cotizado}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Entrega en</f:facet>
+                    #{c.cotizado and not empty c.plazoHoras ? c.plazoHoras.toString().concat(' h') : '—'}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Resultado</f:facet>
+                    <h:outputText value="#{etiquetas.estadoCotizacion(c.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoCotizacion(c.estado)}" />
+                    <span class="dato-secundario">#{c.motivo}</span>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Acción</f:facet>
+                    <!-- Se puede derivar si cotizó, o si es legado (no cotiza pero toma envíos). -->
+                    <h:commandButton value="Derivar con este" styleClass="btn btn-primary"
+                                     rendered="#{c.estado == 'COTIZADO' or c.estado == 'NO_COTIZA'}"
+                                     action="#{pedidoBean.derivarCon(c.idTransportista)}" />
+                </h:column>
+            </h:dataTable>
+            </h:panelGroup>
         </h:form>
 
         <!--
@@ -148,7 +222,7 @@
         -->
         <h2>Avisos a comercios</h2>
         <h:dataTable value="#{pedidoBean.avisosRecientes}" var="a" id="tablaAvisos"
-                     styleClass="tabla" rowClasses="fila-impar,fila-par"
+                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                      rendered="#{not empty pedidoBean.avisosRecientes}">
             <h:column>
                 <f:facet name="header">Hora</f:facet>
@@ -174,7 +248,7 @@
         </p>
         <h:form id="formExternos" styleClass="tabla-scroll">
             <h:dataTable value="#{pedidoBean.pedidosExternos}" var="pe"
-                         styleClass="tabla" rowClasses="fila-impar,fila-par">
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
                 <h:column>
                     <f:facet name="header">ID</f:facet>
                     #{pe.id}
