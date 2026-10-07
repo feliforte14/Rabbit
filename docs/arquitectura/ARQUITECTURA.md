@@ -89,9 +89,10 @@ Otros detalles de cada componente:
 - **Repartidores:** `asignarRepartidor` toma el primero DISPONIBLE con
   bloqueo pesimista, para que dos confirmaciones simultáneas no se lleven
   al mismo repartidor. Se libera al entregar o cancelar el pedido.
-- **Notificaciones:** el aviso es simulado (queda guardado y se ve en
-  `pedidos.xhtml` y en el portal del comercio). Descarta eventos más
-  viejos que el último avisado del mismo pedido.
+- **Notificaciones:** el aviso queda guardado y se ve en `pedidos.xhtml`
+  y en el portal del comercio; si hay un servidor de correo configurado,
+  además se le manda por mail (`AvisosPorMail`, después del commit).
+  Descarta eventos más viejos que el último avisado del mismo pedido.
 - **Transportistas:** un pedido pendiente se puede **derivar** a una
   empresa de envíos externa en lugar de confirmarlo con un repartidor
   propio (`derivarATransportista`). Cada transportista se integra con su
