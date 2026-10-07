@@ -27,6 +27,8 @@ public class DatosPedidoExternoDTO {
     public MedioPago medioPago = MedioPago.CONTRA_ENTREGA;
     // Adónde se entrega el pedido.
     public String direccionEntrega;
+    // Opcional: si no viene, se busca en la dirección (ver CodigosPostales).
+    public String codigoPostalEntrega;
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public Long getIdComercio() { return idComercio; }
@@ -43,4 +45,6 @@ public class DatosPedidoExternoDTO {
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
     public void setDireccionEntrega(String direccionEntrega) { this.direccionEntrega = direccionEntrega; }
+    public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
+    public void setCodigoPostalEntrega(String codigoPostalEntrega) { this.codigoPostalEntrega = codigoPostalEntrega; }
 }

@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Muestra el listado de depositos y el formulario para registrar uno
+    nuevo. Se bindea al Managed Bean depositoBean (DepositoBean.java).
+
+    Los depositos son infraestructura PROPIA de Rabbit (ver Sección 1.2
+    del documento técnico): a propósito no se les asigna comercio ni
+    PuntoPicking — son independientes de a quién le pertenece la
+    mercadería que consolidan.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Depósitos</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Depósitos</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:form id="formListado">
+            <h:dataTable value="#{depositoBean.depositos}" var="d"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty depositoBean.depositos}">
+                <h:column>
+                    <f:facet name="header">ID</f:facet>
+                    #{d.id}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Nombre</f:facet>
+                    #{d.nombre}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Dirección</f:facet>
+                    #{d.direccion}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Provincia</f:facet>
+                    #{d.provincia}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Localidad</f:facet>
+                    #{d.localidad}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Código Postal</f:facet>
+                    #{d.codigoPostal}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Stock</f:facet>
+                    <!--
+                        Los dos links llevan el deposito de la fila: al llegar
+                        a la pantalla destino ya viene preseleccionado, en vez
+                        de pedirle al usuario que lo vuelva a elegir.
+                    -->
+                    <h:link outcome="/personal/reservas" value="Reservar stock">
+                        <f:param name="idDeposito" value="#{d.id}" />
+                    </h:link> &#183; <h:link outcome="/personal/items" value="Ver stock">
+                        <f:param name="idDeposito" value="#{d.id}" />
+                    </h:link>
+                </h:column>
+            </h:dataTable>
+        </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty depositoBean.depositos}">
+            Todavía no hay depósitos registrados.
+        </h:panelGroup>
+
+        <h2>Registrar nuevo depósito</h2>
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="nombre" value="Nombre" />
+                <h:inputText id="nombre" value="#{depositoBean.nuevoDeposito.nombre}" required="true" label="Nombre"
+                             requiredMessage="Ingresá el nombre del depósito" />
+                <h:message for="nombre" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="direccion" value="Dirección" />
+                <h:inputText id="direccion" value="#{depositoBean.nuevoDeposito.direccion}" required="true" label="Dirección"
+                             requiredMessage="Ingresá la dirección" />
+                <h:message for="direccion" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="provincia" value="Provincia" />
+                <h:inputText id="provincia" value="#{depositoBean.nuevoDeposito.provincia}" required="true" label="Provincia"
+                             requiredMessage="Ingresá la provincia" />
+                <h:message for="provincia" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="localidad" value="Localidad" />
+                <h:inputText id="localidad" value="#{depositoBean.nuevoDeposito.localidad}" required="true" label="Localidad"
+                             requiredMessage="Ingresá la localidad" />
+                <h:message for="localidad" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="codigoPostal" value="Código Postal" />
+                <h:inputText id="codigoPostal" value="#{depositoBean.nuevoDeposito.codigoPostal}" required="true" label="Código Postal"
+                             requiredMessage="Ingresá el código postal" />
+                <h:message for="codigoPostal" styleClass="error-campo" />
+            </div>
+
+            <div class="form-acciones">
+                <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{depositoBean.registrar}" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

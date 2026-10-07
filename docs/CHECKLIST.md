@@ -5,23 +5,24 @@ rápido en la defensa.
 
 | Requisito | Estado | Dónde |
 |---|---|---|
-| Mínimo 6 componentes de negocio con interfaz explícita y documentada | Cumple (9 implementados) | Comercios, Inventario, Pedidos, Pagos y Cobranzas, Repartidores, Notificaciones, Seguridad, Ruteo (mínimo) e Integración con el banco legado. Interfaces en [ARQUITECTURA.md](ARQUITECTURA.md). Transportistas queda identificado en el diseño, sin implementar |
+| Mínimo 6 componentes de negocio con interfaz explícita y documentada | Cumple (10 implementados) | Comercios, Inventario, Pedidos, Pagos y Cobranzas, Repartidores, Notificaciones, Seguridad, Ruteo, Transportistas e Integración con el banco legado. Interfaces en [ARQUITECTURA.md](ARQUITECTURA.md) |
 | Al menos 1 componente stateful y 1 stateless, justificados | Cumple | `InventarioService` (`@Stateful`, la reserva es una conversación) y el resto `@Stateless`; `@PostConstruct` / `@PreDestroy` como evidencia del ciclo de vida. Ver [ARQUITECTURA.md](ARQUITECTURA.md) |
-| Arquitectura en capas en cada componente | Cumple | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente de negocio. Ruteo no tiene `datos/` a propósito: no guarda nada, arma la hoja de ruta con los datos de otros componentes. La integración con el banco (`integracion.banco`) es un adaptador técnico, no un componente de negocio |
+| Arquitectura en capas en cada componente | Cumple | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente de negocio. La integración con el banco (`integracion.banco`) es un adaptador técnico, no un componente de negocio |
 | Al menos 3 patrones de diseño, aplicados y justificados | Cumple | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, máquina de estados, transacción compensatoria, Circuit Breaker. Ver [PATRONES.md](PATRONES.md) |
-| Integración síncrona SOAP con WSDL, con un sistema legado | Cumple | Banco legado: `BancoLegadoService` (`/Rabbit/BancoLegadoService?wsdl`). Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
-| Integración síncrona REST, partner moderno o API de consumo externo | Cumple | `POST /api/pedidos-externos` (ERP) y `GET /api/seguimiento/{id}` (público). Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
+| Integración síncrona SOAP con WSDL, con un sistema legado | Cumple | Banco legado: `BancoLegadoService` (`/Rabbit/BancoLegadoService?wsdl`). Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md). Además, un transportista legado por SOAP (`TransportistaLegadoService`) |
+| Integración síncrona REST, partner moderno o API de consumo externo | Cumple | `/api/v1/pedidos-externos` (ERP: alta idempotente, consulta y cancelación) y `GET /api/v1/seguimiento/{codigo}` (público). Problem Details, HATEOAS y contrato OpenAPI. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) y [openapi.yaml](openapi.yaml) |
 | 2 procesos asíncronos: cola punto a punto y tópico pub/sub | Cumple | `cola.pedidos.externos` y `topico.pedidos.estado` sobre ActiveMQ Artemis. Ver [MENSAJERIA-ASINCRONICA.md](MENSAJERIA-ASINCRONICA.md) |
-| Seguridad declarativa en al menos 2 operaciones sensibles | Cumple | `@RolesAllowed` en `eliminarComercio`, alta de usuarios (`registrarUsuario`), `listarTodos` / `darDeBaja` usuarios, `anularCobro` y la API del ERP. Ver [SEGURIDAD.md](SEGURIDAD.md) |
+| Seguridad declarativa en al menos 2 operaciones sensibles | Cumple | `@RolesAllowed` en `eliminarComercio`, alta de usuarios (`registrarUsuario`), `listarTodos` / `darDeBaja` usuarios, `anularCobro` y la API del ERP. HTTPS obligatorio (`transport-guarantee CONFIDENTIAL`). Ver [SEGURIDAD.md](SEGURIDAD.md) |
 | Transacciones declarativas en 1 flujo crítico de varios pasos | Cumple | `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla. Ver [TRANSACCIONES.md](TRANSACCIONES.md) |
 | Stack consistente y justificado | Cumple | Jakarta EE 10 sobre WildFly 41 |
 | Repositorio Git con historial incremental | Cumple | Commits desde agosto, de varios integrantes |
+| Tests automatizados (no lo exige la consigna) | Hay | 27 tests unitarios (JUnit 5) en cada build y 12 tests de integración de la API con REST Assured (`mvn verify -Pintegracion`). Ver el README |
 
 ## Desafíos opcionales
 
 | Desafío | Estado |
 |---|---|
-| Al menos 2 ADR | Cumple: 15 ADR en [DECISIONES.md](DECISIONES.md) |
+| Al menos 2 ADR | Cumple: 24 ADR en [DECISIONES.md](DECISIONES.md) |
 | Resiliencia ante fallas | Cumple ([DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)): Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md) |
-| Heterogeneidad tecnológica | Cumple: el banco legado está implementado también en Node.js (`banco-legado/`) y Rabbit lo consume por el mismo WSDL. Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) |
+| Heterogeneidad tecnológica | Cumple: el banco legado está implementado también en Node.js (`banco-legado/`) y Rabbit lo consume por el mismo WSDL; el transportista moderno, en Python (`transportista-moderno/`), por REST y webhook. Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) |
 | Prueba de escalabilidad | Cumple: el consumidor de la cola escala con `rabbit.cola.consumidores`; con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido). Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) |

@@ -45,7 +45,7 @@ sequenceDiagram
     participant Pub as PublicadorPedidosExternos
     participant Q as cola.pedidos.externos
     participant MDB as PedidoExternoListener
-    ERP->>PS: registrarPedidoExterno(datos)
+    ERP->>PS: registrarPedidoExterno(datos, clave)
     PS->>PS: INSERT pedidos_externos
     PS-)Pub: evento PedidoExternoRegistrado
     Note over PS,Pub: commit, recién después corre el observer (AFTER_SUCCESS)
@@ -75,7 +75,7 @@ componente le interesa, por motivos distintos:
 
 | Suscriptor | Qué hace | Por qué |
 |---|---|---|
-| Notificaciones | Avisa al comercio del cambio | Seguimiento del pedido |
+| Notificaciones | Avisa al comercio del cambio: en su portal y, si hay servidor de correo configurado, por mail (`AvisosPorMail`, después del commit, timeout de 5 s) | Seguimiento del pedido |
 | Pagos y Cobranzas | Con `ENTREGADO` y `CONTRA_ENTREGA`, acredita el cobro | El repartidor cobra al entregar |
 
 **Por qué Topic y no Queue:** el mismo evento lo necesitan dos

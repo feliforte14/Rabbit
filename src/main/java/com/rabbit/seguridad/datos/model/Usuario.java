@@ -1,13 +1,15 @@
 package com.rabbit.seguridad.datos.model;
 
 /**
- * Entidad JPA: cada instancia es una fila de la tabla "usuarios".
- * Es la fuente de verdad que consulta RabbitIdentityStore para autenticar
- * (Jakarta Security) y para informarle al contenedor a qué rol pertenece
- * el caller — ese rol es lo que evalúan las anotaciones @RolesAllowed.
+ * Entidad JPA: cada instancia es una fila de la tabla "usuarios": el
+ * perfil de la cuenta en la aplicación (rol, si está activa, a qué
+ * comercio o repartidor representa).
  *
- * passwordHash guarda un hash (ver PasswordUtil), nunca la contraseña en
- * texto plano.
+ * NO guarda credenciales: la contraseña la valida el ApplicationRealm de
+ * WildFly (ver LoginBean y ApplicationRealmSync). Antes se guardaba acá
+ * también un hash que nadie usaba para autenticar; una credencial
+ * redundante solo suma riesgo si la base se filtra, así que se quitó (ver
+ * LimpiezaDeCredenciales).
  */
 
 import jakarta.persistence.*;
@@ -22,8 +24,6 @@ public class Usuario {
 
     @Column(unique = true, nullable = false)
     private String username;
-
-    private String passwordHash;
 
     @Enumerated(EnumType.STRING)
     private Rol rol;
@@ -42,8 +42,6 @@ public class Usuario {
     public Long getId() { return id; }
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }
-    public String getPasswordHash() { return passwordHash; }
-    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
     public Rol getRol() { return rol; }
     public void setRol(Rol rol) { this.rol = rol; }
     public boolean isActivo() { return activo; }

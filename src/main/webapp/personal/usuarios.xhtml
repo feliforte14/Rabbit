@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Alta, listado y baja de usuarios. Se bindea a usuarioBean
+    (UsuarioBean.java). Solo ADMINISTRADOR: no hay alta publica de cuentas.
+
+    Cada cuenta es de un tipo (rol): personal de Rabbit (Administrador u
+    Operador), Comercio, Repartidor o ERP. Una cuenta Comercio representa a
+    un comercio y una Repartidor a un repartidor: por eso el formulario pide
+    a quien representa segun el tipo elegido. Una cuenta ERP es la del
+    sistema del comercio que usa la API REST: tambien representa a un
+    comercio, y no puede entrar a la web.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirAdministrador}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Usuarios</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Usuarios</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:form id="formListado">
+            <h:dataTable value="#{usuarioBean.usuarios}" var="u"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty usuarioBean.usuarios}">
+                <h:column>
+                    <f:facet name="header">Usuario</f:facet>
+                    #{u.username}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Tipo</f:facet>
+                    #{etiquetas.rol(u.rol)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Representa a</f:facet>
+                    #{usuarioBean.representado(u)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{u.activo ? 'Activo' : 'Dado de baja'}"
+                                  styleClass="badge #{u.activo ? 'badge-verde' : 'badge-gris'}" />
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Dar de baja" styleClass="btn btn-secondary"
+                                     action="#{usuarioBean.darDeBaja(u.id)}"
+                                     rendered="#{u.activo and u.username != sesionBean.usuarioActual}"
+                                     onclick="return confirm('¿Dar de baja este usuario? Deja de poder entrar.');" />
+                </h:column>
+            </h:dataTable>
+        </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty usuarioBean.usuarios}">
+            Todavía no hay usuarios creados desde la aplicación.
+        </h:panelGroup>
+
+        <h2>Crear usuario</h2>
+        <h:form id="formAlta" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="username" value="Usuario" />
+                <h:inputText id="username" value="#{usuarioBean.nuevoUsuario.username}"
+                             required="true" label="Usuario" maxlength="30"
+                             requiredMessage="Ingresá el nombre de usuario" />
+                <h:message for="username" styleClass="error-campo" />
+                <p class="ayuda">Entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo.</p>
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="password" value="Contraseña" />
+                <h:inputSecret id="password" value="#{usuarioBean.nuevoUsuario.password}"
+                               required="true" label="Contraseña"
+                               requiredMessage="Ingresá la contraseña" />
+                <h:message for="password" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="rol" value="Tipo de cuenta" />
+                <h:selectOneMenu id="rol" value="#{usuarioBean.nuevoUsuario.rol}" required="true" label="Tipo de cuenta">
+                    <f:selectItems value="#{usuarioBean.roles}" var="r" itemValue="#{r}" itemLabel="#{etiquetas.rol(r)}" />
+                    <f:ajax render="asociacion" />
+                </h:selectOneMenu>
+                <h:message for="rol" styleClass="error-campo" />
+            </div>
+
+            <h:panelGroup id="asociacion" layout="block">
+                <h:panelGroup layout="block" styleClass="campo"
+                              rendered="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO' or usuarioBean.nuevoUsuario.rol == 'ERP'}">
+                    <h:outputLabel for="comercio" value="Comercio" />
+                    <h:selectOneMenu id="comercio" value="#{usuarioBean.nuevoUsuario.idComercio}"
+                                     required="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO' or usuarioBean.nuevoUsuario.rol == 'ERP'}" label="Comercio"
+                                     requiredMessage="Elegí el comercio que representa la cuenta">
+                        <f:selectItem itemLabel="— Elegí un comercio —" itemValue="#{null}" />
+                        <f:selectItems value="#{usuarioBean.listaComercios}" var="c"
+                                       itemValue="#{c.id}" itemLabel="#{c.nombre}"
+                                       itemDisabled="#{not c.activo}" />
+                    </h:selectOneMenu>
+                    <h:message for="comercio" styleClass="error-campo" />
+                </h:panelGroup>
+
+                <h:panelGroup layout="block" styleClass="campo"
+                              rendered="#{usuarioBean.nuevoUsuario.rol == 'REPARTIDOR'}">
+                    <h:outputLabel for="repartidor" value="Repartidor" />
+                    <h:selectOneMenu id="repartidor" value="#{usuarioBean.nuevoUsuario.idRepartidor}"
+                                     required="#{usuarioBean.nuevoUsuario.rol == 'REPARTIDOR'}" label="Repartidor"
+                                     requiredMessage="Elegí el repartidor que representa la cuenta">
+                        <f:selectItem itemLabel="— Elegí un repartidor —" itemValue="#{null}" />
+                        <f:selectItems value="#{usuarioBean.listaRepartidores}" var="r"
+                                       itemValue="#{r.id}" itemLabel="#{r.nombre}" />
+                    </h:selectOneMenu>
+                    <h:message for="repartidor" styleClass="error-campo" />
+                </h:panelGroup>
+            </h:panelGroup>
+
+            <div class="form-acciones">
+                <h:commandButton value="Crear usuario" styleClass="btn btn-primary" action="#{usuarioBean.registrar}" />
+            </div>
+        </h:form>
+    </ui:define>
+</ui:composition>

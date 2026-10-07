@@ -14,6 +14,9 @@ package com.rabbit.pedidos.negocio;
  */
 
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
+import com.rabbit.pedidos.dto.PedidoExternoDTO;
+import com.rabbit.transportistas.dto.CotizacionDTO;
+import java.util.List;
 import jakarta.ejb.Local;
 
 @Local
@@ -26,11 +29,33 @@ public interface IGestionPedidos {
      * reemplazo, para esta etapa, de lo que en producción sería el
      * webhook o polling contra el sistema del comercio (ver Sección 1.6).
      *
+     * Si llama un ERP, el comercio es SIEMPRE el de su cuenta (el
+     * idComercio de los datos se ignora). Con clave de idempotencia, un
+     * reintento con la misma clave y el mismo pedido devuelve el pedido
+     * externo ya creado, sin duplicarlo.
+     *
      * @param datos comercio, origen y las líneas de producto+cantidad del pedido simulado
-     * @return el ID de la fila mock creada
+     * @param claveIdempotencia header Idempotency-Key de la API, o null (pantalla)
+     * @return el ID de la fila mock creada (o la ya existente, si es un reintento)
      * @throws ValidacionException si los datos son inválidos
+     * @throws ClaveIdempotenciaReutilizadaException si la clave ya se usó con otro pedido
      */
-    Long registrarPedidoExterno(DatosPedidoExternoDTO datos);
+    Long registrarPedidoExterno(DatosPedidoExternoDTO datos, String claveIdempotencia);
+
+    /**
+     * El ERP cancela un pedido que mandó. Si todavía no se convirtió en
+     * pedido, no se convierte; si ya es un pedido PENDIENTE, se cancela
+     * devolviendo el stock. Una vez CONFIRMADO ya tiene cobro y repartidor:
+     * eso lo cancela solo el personal de Rabbit (cancelarPedido).
+     * Cancelar algo ya cancelado (o descartado) no hace nada: se puede
+     * reintentar sin miedo.
+     *
+     * @param idPedidoExterno pedido externo del comercio del ERP que llama
+     * @return cómo quedó el pedido externo
+     * @throws PedidoNoEncontradoException si no existe o es de otro comercio
+     * @throws CancelacionNoPermitidaException si el pedido ya avanzó demasiado
+     */
+    PedidoExternoDTO cancelarPedidoExterno(Long idPedidoExterno);
 
     /**
      * Convierte una fila del mock del ERP (PedidoExterno) en un Pedido
@@ -83,6 +108,37 @@ public interface IGestionPedidos {
      *         el pago o no responde
      */
     void confirmarPedido(Long idPedido);
+
+    /**
+     * Como confirmarPedido, pero prefiere un repartidor de la zona indicada
+     * (si no hay ninguno libre ahí, toma cualquiera). Lo usa el despacho por
+     * zona del componente Ruteo.
+     */
+    /** @return el ID del repartidor asignado */
+    Long confirmarPedidoEnZona(Long idPedido, Long idZona);
+
+    /**
+     * Alternativa a confirmarPedido cuando el pedido no lo lleva un
+     * repartidor propio: cobra (si es PREPAGO), le pide el envío al
+     * transportista elegido y pasa a CONFIRMADO, todo en una transacción.
+     * Después el transportista lo lleva: el seguimiento lo pasa a EN_CAMINO
+     * y ENTREGADO según lo que informe.
+     *
+     * @return el código de seguimiento que dio el transportista
+     *
+     * @throws ValidacionException si el pedido no está PENDIENTE, el banco
+     *         rechaza el pago o no responde, o el transportista rechaza el
+     *         envío, no responde o está dado de baja
+     */
+    String derivarATransportista(Long idPedido, Long idTransportista);
+
+    /**
+     * Cotiza la derivación de un pedido PENDIENTE con cada transportista
+     * activo, para elegir antes de derivar. No cobra ni pide ningún envío.
+     *
+     * @throws ValidacionException si el pedido no existe o ya no está PENDIENTE
+     */
+    List<CotizacionDTO> cotizarDerivacion(Long idPedido);
 
     /**
      * El repartidor retiró el pedido: CONFIRMADO → EN_CAMINO. Desde acá ya

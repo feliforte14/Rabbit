@@ -40,6 +40,12 @@ import com.rabbit.pagos.negocio.IConsultaCobros;
 import com.rabbit.repartidores.dto.RepartidorDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 
+import com.rabbit.transportistas.dto.CotizacionDTO;
+import com.rabbit.transportistas.dto.EnvioDTO;
+import com.rabbit.transportistas.dto.TransportistaDTO;
+import com.rabbit.transportistas.negocio.IEnvios;
+import com.rabbit.transportistas.negocio.IGestionTransportistas;
+import java.util.function.Function;
 import jakarta.annotation.PostConstruct;
 import jakarta.ejb.EJBAccessException;
 import jakarta.ejb.EJBException;
@@ -76,6 +82,13 @@ public class PedidoBean implements Serializable {
     @Inject
     private INotificaciones notificaciones;
 
+    // Derivación a transportistas externos.
+    @Inject
+    private IGestionTransportistas transportistas;
+
+    @Inject
+    private IEnvios envios;
+
     private List<PedidoDTO> pedidos;
     private List<PedidoExternoDTO> pedidosExternos;
     private List<ComercioDTO> listaComercios;
@@ -85,6 +98,15 @@ public class PedidoBean implements Serializable {
     private Map<Long, String> nombresRepartidores;
     private Map<Long, String> estadosCobro;
     private List<NotificacionDTO> avisosRecientes;
+    private Map<Long, EnvioDTO> enviosPorPedido;
+    private List<TransportistaDTO> listaTransportistas;
+    private Long idPedidoADerivar;
+    private Long idTransportistaElegido;
+    // Cotizaciones del último pedido cotizado. Se guarda cuál fue, así
+    // "Derivar con este" deriva ESE pedido aunque después se haya elegido
+    // otro en el desplegable.
+    private List<CotizacionDTO> cotizaciones;
+    private Long idPedidoCotizado;
 
     private Long idDepositoSeleccionado;
     private DatosPedidoExternoDTO nuevoPedido = nuevoPedidoVacio();
@@ -103,6 +125,79 @@ public class PedidoBean implements Serializable {
         estadosCobro = cobros.listarTodos().stream()
                 .collect(Collectors.toMap(CobroDTO::getIdPedido, CobroDTO::getEstado));
         avisosRecientes = notificaciones.listarRecientes(10);
+        enviosPorPedido = envios.listarEnvios().stream()
+                .collect(Collectors.toMap(EnvioDTO::getIdPedido, Function.identity(), (a, b) -> a));
+        listaTransportistas = transportistas.listarActivos();
+    }
+
+    // El envío de un pedido derivado a un transportista, o null si lo lleva
+    // (o lo va a llevar) un repartidor propio.
+    public EnvioDTO envio(Long idPedido) {
+        return enviosPorPedido.get(idPedido);
+    }
+
+    // Para el resumen de arriba de la pantalla (pedidos por estado).
+    public long contarPedidos(String estado) {
+        return pedidos.stream().filter(p -> estado.equals(p.getEstado())).count();
+    }
+
+    // Los que se pueden derivar: los PENDIENTE.
+    public List<PedidoDTO> getPedidosPendientes() {
+        return pedidos.stream().filter(p -> "PENDIENTE".equals(p.getEstado())).collect(Collectors.toList());
+    }
+
+    // Pregunta a cada transportista activo cuánto cobraría por el pedido
+    // elegido, sin pedirle el envío (ver IGestionPedidos.cotizarDerivacion).
+    public void cotizar() {
+        try {
+            cotizaciones = gestion.cotizarDerivacion(idPedidoADerivar);
+            idPedidoCotizado = idPedidoADerivar;
+            if (cotizaciones.isEmpty()) {
+                Mensajes.error("No hay transportistas activos para cotizar");
+            }
+        } catch (ValidacionException e) {
+            cotizaciones = null;
+            Mensajes.error(e.getMessage());
+        } catch (EJBException e) {
+            cotizaciones = null;
+            Mensajes.error("No se pudo cotizar el pedido. Intentá de nuevo.");
+        }
+    }
+
+    // Deriva el pedido cotizado al transportista de esa fila.
+    public void derivarCon(Long idTransportista) {
+        idPedidoADerivar = idPedidoCotizado;
+        idTransportistaElegido = idTransportista;
+        derivar();
+    }
+
+    // PENDIENTE -> CONFIRMADO con un transportista externo en lugar de un
+    // repartidor propio (ver IGestionPedidos.derivarATransportista).
+    public void derivar() {
+        try {
+            String codigo = gestion.derivarATransportista(idPedidoADerivar, idTransportistaElegido);
+            String transportista = listaTransportistas.stream()
+                    .filter(t -> t.getId().equals(idTransportistaElegido))
+                    .map(TransportistaDTO::getNombre).findFirst().orElse("el transportista");
+            Mensajes.info("Pedido " + idPedidoADerivar + " derivado a " + transportista + " (seguimiento " + codigo + ")");
+            idPedidoADerivar = null;
+            idTransportistaElegido = null;
+            cotizaciones = null;
+            idPedidoCotizado = null;
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+            return;
+        } catch (EJBException e) {
+            Mensajes.error("No se pudo derivar el pedido. Intentá de nuevo.");
+            return;
+        }
+        // La derivación ya quedó hecha: si falla solo la recarga, no se
+        // informa como si hubiera fallado la derivación.
+        try {
+            cargar();
+        } catch (EJBException e) {
+            Mensajes.error("El pedido se derivó, pero no se pudo actualizar la lista: recargá la página.");
+        }
     }
 
     public String nombreRepartidor(Long idRepartidor) {
@@ -230,7 +325,9 @@ public class PedidoBean implements Serializable {
     // la levanta en su próxima pasada.
     public void registrarPedidoExterno() {
         try {
-            gestion.registrarPedidoExterno(nuevoPedido);
+            // Sin clave de idempotencia: la pantalla es una simulación y no
+            // reintenta sola (eso es cosa del ERP, ver la API REST).
+            gestion.registrarPedidoExterno(nuevoPedido, null);
             Mensajes.info("Pedido recibido: entra por la cola y en unos segundos aparece en la tabla de pedidos (recargá la página).");
             nuevoPedido = nuevoPedidoVacio();
             idDepositoSeleccionado = null;
@@ -318,6 +415,13 @@ public class PedidoBean implements Serializable {
     public List<PedidoExternoDTO> getPedidosExternos() { return pedidosExternos; }
     public List<ComercioDTO> getListaComercios() { return listaComercios; }
     public List<DepositoDTO> getListaDepositos() { return listaDepositos; }
+    public List<TransportistaDTO> getListaTransportistas() { return listaTransportistas; }
+    public List<CotizacionDTO> getCotizaciones() { return cotizaciones; }
+    public Long getIdPedidoCotizado() { return idPedidoCotizado; }
+    public Long getIdPedidoADerivar() { return idPedidoADerivar; }
+    public void setIdPedidoADerivar(Long idPedidoADerivar) { this.idPedidoADerivar = idPedidoADerivar; }
+    public Long getIdTransportistaElegido() { return idTransportistaElegido; }
+    public void setIdTransportistaElegido(Long idTransportistaElegido) { this.idTransportistaElegido = idTransportistaElegido; }
     public Long getIdDepositoSeleccionado() { return idDepositoSeleccionado; }
     public void setIdDepositoSeleccionado(Long idDepositoSeleccionado) { this.idDepositoSeleccionado = idDepositoSeleccionado; }
     public DatosPedidoExternoDTO getNuevoPedido() { return nuevoPedido; }

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Seguimiento publico de un pedido, para el cliente final: sin login, con
+    el codigo que le paso la tienda (seguimiento.xhtml?codigo=RB-...). Muestra
+    solo el estado, con una linea de tiempo. Se bindea a seguimientoBean
+    (SeguimientoBean.java). Es la version para personas de
+    GET /api/v1/seguimiento/{codigo}.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<f:metadata>
+    <f:viewParam name="codigo" value="#{seguimientoBean.codigo}" />
+    <f:viewAction action="#{seguimientoBean.buscar}" />
+</f:metadata>
+<h:head>
+    <meta charset="UTF-8" />
+    <title>Rabbit · Seguí tu pedido</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
+</h:head>
+<h:body styleClass="pagina-sola">
+    <div class="container seguimiento">
+        <div class="login-marca">
+            <p class="marca">rabbit</p>
+            <p class="slogan">Entregas urbanas para comercios</p>
+        </div>
+
+        <h1>Seguí tu pedido</h1>
+
+        <!-- GET comun: el codigo queda en la URL y el enlace se puede compartir. -->
+        <form method="get" action="#{request.contextPath}/seguimiento.xhtml" class="formulario buscador-seguimiento">
+            <div class="campo">
+                <label for="codigo">Código de seguimiento</label>
+                <input id="codigo" name="codigo" type="text" value="#{seguimientoBean.codigo}"
+                       placeholder="RB-XXXXXXXXXX" autocomplete="off" autocapitalize="characters"
+                       spellcheck="false" required="required" maxlength="20" />
+            </div>
+            <div class="form-acciones">
+                <button type="submit" class="btn btn-primary">Buscar</button>
+            </div>
+        </form>
+
+        <h:panelGroup rendered="#{empty seguimientoBean.codigo}">
+            <p class="ayuda">El código te lo pasa la tienda donde compraste. Empieza con <code>RB-</code>.</p>
+        </h:panelGroup>
+
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta seguimiento-vacio" rendered="#{seguimientoBean.noEncontrado}">
+            <p class="seguimiento-titular">No encontramos ese código</p>
+            <p class="seguimiento-detalle">
+                Revisá que esté bien escrito (por ejemplo, <code>RB-7KQ2M9XHTA</code>). Si el problema
+                sigue, consultá con la tienda donde compraste.
+            </p>
+        </h:panelGroup>
+
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta #{seguimientoBean.cancelado ? 'seguimiento-cancelado' : ''}"
+                      rendered="#{not empty seguimientoBean.pedido}">
+            <p class="seguimiento-codigo">Pedido <code>#{seguimientoBean.pedido.codigoSeguimiento}</code></p>
+            <p class="seguimiento-titular">#{seguimientoBean.titular}</p>
+            <p class="seguimiento-detalle">#{seguimientoBean.detalle}</p>
+
+            <h:panelGroup rendered="#{not seguimientoBean.cancelado}">
+                <ol class="linea-tiempo">
+                    <ui:repeat value="#{seguimientoBean.pasos}" var="paso">
+                        <li class="#{seguimientoBean.claseDelPaso(paso)}">
+                            <span class="linea-tiempo-punto"></span>
+                            <span class="linea-tiempo-texto">#{etiquetas.pasoSeguimiento(paso)}</span>
+                        </li>
+                    </ui:repeat>
+                </ol>
+            </h:panelGroup>
+        </h:panelGroup>
+    </div>
+</h:body>
+</html>

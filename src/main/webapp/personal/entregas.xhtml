@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Tablero de entregas del personal de Rabbit (componente Ruteo): los
+    pedidos que tienen que salir (CONFIRMADO) y los que estan en viaje
+    (EN_CAMINO), cada uno con su hoja de ruta. Se bindea a entregasBean
+    (EntregasBean.java). Solo lectura: el retiro y la entrega los marca el
+    repartidor desde mis-entregas.xhtml (o el operador desde Pedidos).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Entregas en curso</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Entregas en curso</h1>
+
+        <div class="stat-grid">
+            <div class="stat-card">
+                <p class="stat-label">Por salir</p>
+                <p class="stat-valor">#{entregasBean.porSalir}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">En camino</p>
+                <p class="stat-valor">#{entregasBean.enCamino}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Repartidores disponibles</p>
+                <p class="stat-valor">#{entregasBean.repartidoresDisponibles}</p>
+                <h:panelGroup rendered="#{entregasBean.repartidoresDisponibles == 0}">
+                    <p class="stat-nota">Sin repartidores libres, los pedidos solo se pueden derivar a un transportista</p>
+                </h:panelGroup>
+            </div>
+        </div>
+
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty entregasBean.entregas}">
+            No hay entregas en curso. Los pedidos aparecen acá cuando se confirman.
+        </h:panelGroup>
+
+        <ui:repeat value="#{entregasBean.entregas}" var="e">
+            <div class="hoja-ruta">
+                <div class="hoja-ruta-encabezado">
+                    <h2 class="hoja-ruta-titulo">Pedido #{e.idPedido} · #{e.comercio}</h2>
+                    <h:outputText value="#{etiquetas.estadoPedido(e.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoPedido(e.estado)}" />
+                </div>
+
+                <ol class="paradas">
+                    <ui:repeat value="#{e.retiros}" var="retiro">
+                        <li class="parada">
+                            <span class="parada-tipo">Retiro</span>
+                            <span class="parada-lugar">#{retiro}</span>
+                        </li>
+                    </ui:repeat>
+                    <li class="parada parada-entrega">
+                        <span class="parada-tipo">Entrega</span>
+                        <span class="parada-lugar">#{empty e.direccionEntrega ? 'Sin dirección cargada' : e.direccionEntrega}</span>
+                    </li>
+                </ol>
+
+                <p class="hoja-ruta-datos">
+                    <h:panelGroup rendered="#{empty e.transportista}">
+                        <span>Repartidor: <b>#{e.repartidor}</b>
+                            <h:outputText value=" · #{e.telefonoRepartidor}" rendered="#{not empty e.telefonoRepartidor}" /></span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty e.transportista}">
+                        <span>Transportista: <b>#{e.transportista}</b> · seguimiento #{e.codigoSeguimiento}</span>
+                    </h:panelGroup>
+                    <span>Lleva: <b>#{e.productos}</b> (#{e.cantidadTotal} u.)</span>
+                    <span>Actualizado: <b>#{e.actualizado}</b></span>
+                    <h:panelGroup rendered="#{empty e.transportista and not empty e.urlMapa}">
+                        <span><h:outputLink value="#{e.urlMapa}" target="_blank" rel="noopener noreferrer">Ver recorrido en el mapa</h:outputLink></span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty e.cobrarAlEntregar}">
+                        <span class="cobrar">Cobrar al entregar:&#160;
+                            <h:outputText value="#{e.cobrarAlEntregar}">
+                                <f:convertNumber type="currency" currencySymbol="$" />
+                            </h:outputText>
+                        </span>
+                    </h:panelGroup>
+                </p>
+            </div>
+        </ui:repeat>
+
+        <h2>Repartidores</h2>
+        <h:dataTable value="#{entregasBean.listaRepartidores}" var="r"
+                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
+            <h:column>
+                <f:facet name="header">Nombre</f:facet>
+                #{r.nombre}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Teléfono</f:facet>
+                #{empty r.telefono ? '—' : r.telefono}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Estado</f:facet>
+                <h:outputText value="#{etiquetas.estadoRepartidor(r.estado)}"
+                              styleClass="#{etiquetas.claseEstadoRepartidor(r.estado)}" />
+            </h:column>
+            <h:column>
+                <f:facet name="header">Pedido a cargo</f:facet>
+                <h:outputText value="Pedido #{r.idPedidoActual}" rendered="#{not empty r.idPedidoActual}" />
+                <h:outputText value="—" rendered="#{empty r.idPedidoActual}" />
+            </h:column>
+        </h:dataTable>
+    </ui:define>
+</ui:composition>

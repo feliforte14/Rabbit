@@ -27,7 +27,7 @@ public class UsuarioRepository {
     /**
      * Persiste un usuario nuevo (sin ID) en la BD.
      *
-     * @param usuario entidad transitoria (recién creada con new, sin ID), con passwordHash ya calculado
+     * @param usuario entidad transitoria (recién creada con new, sin ID)
      * @return el mismo objeto, ya con el ID asignado por la BD
      */
     public Usuario guardar(Usuario usuario) {

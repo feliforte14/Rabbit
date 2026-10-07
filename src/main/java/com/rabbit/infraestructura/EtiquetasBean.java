@@ -89,6 +89,94 @@ public class EtiquetasBean {
             case "Sincronizado": return "badge badge-verde";
             case "Descartado": return "badge badge-rojo";
             case "Pendiente": return "badge badge-naranja";
+            case "Cancelado": return "badge badge-gris";
+            default: return "";
+        }
+    }
+
+    public String estadoEnvio(Object estado) {
+        switch (texto(estado)) {
+            case "SOLICITADO": return "Solicitado";
+            case "EN_TRANSITO": return "En tránsito";
+            case "ENTREGADO": return "Entregado";
+            case "CANCELADO": return "Cancelado";
+            default: return "—";
+        }
+    }
+
+    public String claseEstadoEnvio(Object estado) {
+        switch (texto(estado)) {
+            case "SOLICITADO": return "badge badge-naranja";
+            case "EN_TRANSITO": return "badge badge-azul";
+            case "ENTREGADO": return "badge badge-verde";
+            case "CANCELADO": return "badge badge-gris";
+            default: return "";
+        }
+    }
+
+    public String tipoIntegracion(Object tipo) {
+        switch (texto(tipo)) {
+            case "REST": return "API REST";
+            case "SOAP_LEGADO": return "SOAP (legado)";
+            default: return "—";
+        }
+    }
+
+    // Los pasos de la línea de tiempo del seguimiento público.
+    public String pasoSeguimiento(Object estado) {
+        switch (texto(estado)) {
+            case "PENDIENTE": return "Recibido";
+            case "CONFIRMADO": return "Confirmado";
+            case "EN_CAMINO": return "En camino";
+            case "ENTREGADO": return "Entregado";
+            default: return "—";
+        }
+    }
+
+    public String estadoCotizacion(Object estado) {
+        switch (texto(estado)) {
+            case "COTIZADO": return "Cotizó";
+            case "RECHAZADO": return "No lo toma";
+            case "NO_COTIZA": return "No cotiza (sistema legado)";
+            case "NO_DISPONIBLE": return "No respondió";
+            default: return "—";
+        }
+    }
+
+    public String claseEstadoCotizacion(Object estado) {
+        switch (texto(estado)) {
+            case "COTIZADO": return "badge badge-verde";
+            case "RECHAZADO": return "badge badge-rojo";
+            case "NO_COTIZA": return "badge badge-gris";
+            case "NO_DISPONIBLE": return "badge badge-naranja";
+            default: return "";
+        }
+    }
+
+    public String cobertura(Object cobertura) {
+        switch (texto(cobertura)) {
+            case "PROPIA": return "Repartidores propios";
+            case "TRANSPORTISTA": return "Transportista";
+            default: return "—";
+        }
+    }
+
+    public String resultadoDespacho(Object resultado) {
+        switch (texto(resultado)) {
+            case "REPARTIDOR": return "Con repartidor";
+            case "DERIVADO": return "Derivado";
+            case "SIN_ZONA": return "Sin zona";
+            case "ERROR": return "No se despachó";
+            default: return "—";
+        }
+    }
+
+    public String claseResultadoDespacho(Object resultado) {
+        switch (texto(resultado)) {
+            case "REPARTIDOR": return "badge badge-verde";
+            case "DERIVADO": return "badge badge-azul";
+            case "SIN_ZONA": return "badge badge-naranja";
+            case "ERROR": return "badge badge-rojo";
             default: return "";
         }
     }
@@ -131,6 +219,7 @@ public class EtiquetasBean {
             case "OPERADOR": return "Operador";
             case "COMERCIO": return "Comercio";
             case "REPARTIDOR": return "Repartidor";
+            case "ERP": return "ERP (API REST)";
             default: return "—";
         }
     }

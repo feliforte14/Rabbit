@@ -9,9 +9,8 @@ qué alternativa se descartó.
   `EntityManager`.
 - **Dónde:** un repositorio por componente: `ComercioRepository`,
   `InventarioRepository`, `PedidoRepository`, `CobroRepository`,
-  `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`.
-  `ProductoRepository` también existe, pero el catálogo de productos
-  todavía no tiene servicio que lo use.
+  `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`,
+  `TransportistaRepository` y `ZonaRepository` (Ruteo).
 - **Cómo:** el repositorio es la única clase que toca el `EntityManager`.
   También encapsula decisiones de acceso, como el bloqueo
   `PESSIMISTIC_WRITE` de `buscarPedidoExternoParaActualizar`.
@@ -26,6 +25,10 @@ qué alternativa se descartó.
 - **Dónde:** `dto/` de cada componente (`ComercioDTO`, `PedidoDTO`,
   `DatosPedidoExternoDTO`, `ReservaStockDTO`…).
 - **Regla:** entrada `Datos*DTO`, salida `*DTO` con `desde(entidad)`.
+- **En el borde de la API REST:** `PedidoExternoRequest` es el contrato
+  público del alta, separado de `DatosPedidoExternoDTO` (el del formulario
+  JSF): lleva las reglas de Bean Validation y no tiene `idComercio`. Se
+  convierte con `aDatos()` antes de llegar al negocio.
 
 ## Facade
 
@@ -42,11 +45,15 @@ qué alternativa se descartó.
 
 - **Hoy:** el comportamiento según `OrigenPedido` (`STOCK_CONSIGNADO`
   reserva stock; `PUNTO_PICKING` solo valida el punto de picking).
-- **Planificado:** el cobro según `MedioPago` en ServicioDePagosYCobranzas
-  (`PREPAGO` se cobra en el banco legado, `CONTRA_ENTREGA` queda
-  pendiente hasta la entrega). Hoy está implementado con un `if` en
-  `PagoService.registrarCobro`; con solo dos medios alcanza, y pasaría a
-  una estrategia por medio de pago si se suman más.
+- **Descartado por ahora:** el cobro según `MedioPago` (`PREPAGO` se
+  cobra en el banco legado, `CONTRA_ENTREGA` queda pendiente hasta la
+  entrega) está resuelto con un `if` en `PagoService.registrarCobro`: con
+  dos medios alcanza, y pasaría a una estrategia por medio de pago si se
+  suman más.
+- **Despacho por zona:** `RuteoService.despacharPedido` elige cómo sale
+  el pedido según la `CoberturaZona` (`PROPIA`: repartidor de la zona o
+  respaldo; `TRANSPORTISTA`: derivar). También es un `if`, por la
+  misma razón: dos casos.
 
 ## Singleton
 
@@ -56,7 +63,8 @@ qué alternativa se descartó.
   (`@Singleton @Startup` + `@Schedule`). También `CircuitBreakerBanco`,
   cuyo estado tiene que ser uno solo para todas las llamadas al banco, y
   `AlineadorDeRestriccionesEnum` (`@Singleton @Startup`), que corre una
-  sola vez al desplegar.
+  sola vez al desplegar. `SeguimientoDeEnvios` (`@Singleton @Startup` +
+  `@Schedule`) consulta a los transportistas en una sola pasada a la vez.
 
 ## Provider (`Instance<T>` como fábrica)
 
@@ -82,6 +90,10 @@ qué alternativa se descartó.
     pedidos, stock consignado o cuentas de ese comercio. Comercios no
     depende de ellos (ya dependen de él), y nada queda apuntando a un
     comercio inexistente. Implementado.
+  - `EstadoEnvioCambiado` (sincrónico): Transportistas avisa que un
+    transportista informó un estado nuevo; Pedidos
+    (`ActualizacionDePedidosPorEnvio`) mueve el pedido en la misma
+    transacción. Transportistas no depende de Pedidos. Implementado.
 - **Y entre componentes, publicación/suscripción:** del otro lado del
   tópico, `SuscriptorPagosEstadoPedido` y
   `SuscriptorNotificacionesEstadoPedido` reaccionan al mismo evento sin
@@ -97,8 +109,16 @@ qué alternativa se descartó.
   (`autorizar → ResultadoAutorizacion`, `reversar`). `PagoService` no ve
   JAX-WS, `BindingProvider` ni los Faults; si el banco pasara a REST, solo
   cambia el Adapter.
-- **Planificado:** ServicioDeIntegracionTransportistas (Entrega Final),
-  un Adapter por tipo de transportista (SOAP/EDI legado, REST moderno).
+- **Y con varias tecnologías a la vez:** `IAdaptadorTransportista` tiene
+  dos implementaciones, `AdaptadorRestTransportista` (API REST con JSON) y
+  `AdaptadorSoapTransportista` (SOAP legado). Cada una traduce protocolo,
+  formato y hasta el vocabulario de estados de su transportista (el legado
+  dice `EN_VIAJE`, Rabbit `EN_TRANSITO`), e incluso si una operación
+  existe: el legado no cotiza, y su adaptador responde "no cotiza" sin
+  llamarlo. `AdaptadoresTransportista` elige
+  según el `TipoIntegracion` del transportista; `TransportistaService` no
+  sabe con cuál habla. Sumar un transportista EDI sería una implementación
+  más.
 
 ## Máquina de estados (State simplificado)
 
@@ -116,7 +136,11 @@ qué alternativa se descartó.
   pero no lo que ya hizo un sistema externo: si el banco cobró y después
   la confirmación falla, el cliente quedaría cobrado.
 - **Dónde:** `ReversasBancarias` observa `PagoAutorizado` con
-  `AFTER_FAILURE` y le pide al banco `reversarPago`.
+  `AFTER_FAILURE` y le pide al banco `reversarPago`. Con el mismo
+  mecanismo, `CancelacionesDeEnvios` cancela en el transportista un envío
+  que ya había tomado si la derivación se deshace (`EnvioSolicitado` +
+  `AFTER_FAILURE`), y avisa las cancelaciones confirmadas (`EnvioCancelado`
+  + `AFTER_SUCCESS`).
 - **Descartado:** meter al banco en una transacción distribuida (XA/2PC):
   un sistema legado por SOAP no participa de la transacción de Rabbit.
 
@@ -131,3 +155,28 @@ qué alternativa se descartó.
   prueba. Ver [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md).
 - **Descartado:** `@CircuitBreaker` de MicroProfile Fault Tolerance: no
   viene en `standalone-full` de WildFly (ADR-011).
+
+## Exception Mapper (traductor de errores)
+
+- **Problema:** que cada error de la API REST salga en un único formato
+  (Problem Details, RFC 9457), incluso los que no maneja ningún recurso:
+  URL inexistente, JSON roto, acceso denegado o un error inesperado.
+- **Dónde:** `ProblemaMapper` (`ExceptionMapper<Throwable>`, `@Provider`)
+  arma la respuesta con `Problema`; los recursos usan el mismo `Problema`
+  para sus errores de negocio (400, 404, 409, 422). Ver
+  [MENSAJERIA-SINCRONICA.md](MENSAJERIA-SINCRONICA.md).
+- **Descartado:** dejar que el contenedor responda (sale la página
+  `error.html` o el formato propio del runtime) o un `try/catch` en cada
+  método del recurso.
+
+## Idempotency Key
+
+- **Problema:** si el `201` de un alta se pierde por un timeout, el ERP
+  reintenta y, sin más, el pedido se duplica.
+- **Dónde:** `PedidoService.registrarPedidoExterno` guarda el header
+  `Idempotency-Key` y una huella (SHA-256) del pedido; la misma clave con
+  el mismo pedido devuelve el existente, con otro responde `422`. La
+  restricción única `(idComercio, claveIdempotencia)` cubre los reintentos
+  simultáneos (ADR-018).
+- **Descartado:** deduplicar por el contenido del pedido: dos compras
+  iguales legítimas se confundirían con un reintento.

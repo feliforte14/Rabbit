@@ -73,7 +73,13 @@ package com.rabbit.pedidos.negocio;
 
 import com.rabbit.comercios.dto.PuntoPickingDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
+import com.rabbit.inventario.dto.ItemInventarioDTO;
+import com.rabbit.inventario.negocio.IConsultaStock;
 import com.rabbit.inventario.negocio.IReservaStock;
+import com.rabbit.transportistas.dto.CotizacionDTO;
+import com.rabbit.transportistas.dto.DatosEnvioDTO;
+import com.rabbit.transportistas.negocio.IEnvios;
+import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pagos.negocio.IRegistroCobros;
 import com.rabbit.repartidores.negocio.IAsignacionRepartidores;
 import com.rabbit.inventario.dto.ReservaStockDTO;
@@ -152,7 +158,15 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Inject
     private IRegistroCobros cobros;
 
-    // A quién representa el usuario que llama (comercio o repartidor).
+    // Derivación a transportistas externos (ver derivarATransportista).
+    @Inject
+    private IEnvios envios;
+
+    // Para armar la dirección de retiro de un pedido de stock consignado.
+    @Inject
+    private IConsultaStock stock;
+
+    // A quién representa el usuario que llama (comercio, ERP o repartidor).
     @Inject
     private IContextoUsuario contextoUsuario;
 
@@ -166,7 +180,12 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "ERP"})
-    public Long registrarPedidoExterno(DatosPedidoExternoDTO datos) {
+    public Long registrarPedidoExterno(DatosPedidoExternoDTO datos, String claveIdempotencia) {
+        // El ERP carga pedidos SOLO de su comercio: sale de su cuenta, nunca
+        // del cuerpo del pedido (mismo criterio que el portal del comercio).
+        if (contexto.isCallerInRole("ERP")) {
+            datos.idComercio = idComercioDelErp();
+        }
         if (datos.idComercio == null) {
             throw new ValidacionException("Debe indicar el comercio del pedido");
         }
@@ -185,7 +204,30 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (datos.direccionEntrega.trim().length() > 200) {
             throw new ValidacionException("La dirección de entrega no puede superar los 200 caracteres");
         }
+        if (CodigosPostales.esInvalido(datos.codigoPostalEntrega)) {
+            throw new ValidacionException("El código postal de entrega tiene que tener 4 dígitos (o ser un CPA como C1414ABC)");
+        }
         OrigenPedido origen = datos.origen != null ? datos.origen : OrigenPedido.STOCK_CONSIGNADO;
+
+        // Idempotencia: si el ERP no recibió la respuesta (timeout) y
+        // reintenta, la misma clave con el mismo pedido devuelve el que ya
+        // se creó. Si dos intentos llegan a la vez, los dos pasan esta
+        // consulta pero la restricción única (idComercio, clave) rechaza al
+        // segundo al confirmar, y la API lo reintenta (ver
+        // PedidosExternosResource): ahí ya lo encuentra acá.
+        String huella = null;
+        if (claveIdempotencia != null) {
+            huella = HuellaDePedido.de(datos, origen);
+            PedidoExterno anterior = repository.buscarPedidoExternoPorClave(datos.idComercio, claveIdempotencia);
+            if (anterior != null) {
+                if (!huella.equals(anterior.getHuellaSolicitud())) {
+                    throw new ClaveIdempotenciaReutilizadaException(claveIdempotencia);
+                }
+                LOG.info("[Pedidos] Reintento con la clave " + claveIdempotencia
+                        + ": se devuelve el pedido externo " + anterior.getId() + " sin duplicarlo");
+                return anterior.getId();
+            }
+        }
 
         PedidoExterno externo = new PedidoExterno();
         externo.setIdComercio(datos.idComercio);
@@ -193,8 +235,11 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         externo.setImporte(datos.importe);
         externo.setMedioPago(datos.medioPago);
         externo.setDireccionEntrega(datos.direccionEntrega.trim());
+        externo.setCodigoPostalEntrega(CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega));
         externo.setFechaPedido(LocalDateTime.now());
         externo.setSincronizado(false);
+        externo.setClaveIdempotencia(claveIdempotencia);
+        externo.setHuellaSolicitud(huella);
 
         List<LineaPedidoExterno> lineas = new ArrayList<>();
         if (origen == OrigenPedido.PUNTO_PICKING) {
@@ -269,9 +314,11 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setImporte(externo.getImporte());
         pedido.setMedioPago(externo.getMedioPago());
         pedido.setDireccionEntrega(externo.getDireccionEntrega());
+        pedido.setCodigoPostalEntrega(externo.getCodigoPostalEntrega());
         pedido.setEstado(EstadoPedido.PENDIENTE);
         pedido.setFechaCreacion(ahora);
         pedido.setFechaActualizacion(ahora);
+        pedido.setCodigoSeguimiento(CodigosDeSeguimiento.nuevo());
 
         List<LineaPedido> lineasPedido = new ArrayList<>();
         if (externo.getOrigen() == OrigenPedido.PUNTO_PICKING) {
@@ -365,7 +412,20 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void confirmarPedido(Long idPedido) {
-        Pedido pedido = obtenerOFallar(idPedido);
+        confirmar(idPedido, null);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public Long confirmarPedidoEnZona(Long idPedido, Long idZona) {
+        return confirmar(idPedido, idZona);
+    }
+
+    // idZona: la zona del pedido (la decide Ruteo); el repartidor se busca
+    // primero ahí. Null: cualquier repartidor libre.
+    private Long confirmar(Long idPedido, Long idZona) {
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
 
         // Los tres pasos son UNA transacción: si algo falla, el pedido sigue
@@ -381,20 +441,96 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         Long idRepartidor;
         try {
             cobros.registrarCobro(idPedido, pedido.getIdComercio(), pedido.getImporte(), pedido.getMedioPago());
-            idRepartidor = repartidores.asignarRepartidor(idPedido);
+            idRepartidor = repartidores.asignarRepartidor(idPedido, idZona);
         } catch (com.rabbit.repartidores.negocio.ValidacionException
                  | com.rabbit.pagos.negocio.ValidacionException e) {
             throw new ValidacionException(e.getMessage());
         }
         pedido.setIdRepartidor(idRepartidor);
         cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
+        return idRepartidor;
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public String derivarATransportista(Long idPedido, Long idTransportista) {
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        validarTransicion(pedido, EstadoPedido.CONFIRMADO);
+        if (idTransportista == null) {
+            throw new ValidacionException("Elegí a qué transportista derivar el pedido");
+        }
+
+        // Mismo esquema que confirmarPedido, con el transportista en lugar
+        // del repartidor: todo en una transacción. Si el transportista ya
+        // tomó el envío y después algo falla, se lo cancela (compensación,
+        // ver CancelacionesDeEnvios); si el banco ya cobró, se reversa.
+        DatosEnvioDTO datos = datosDeEnvio(pedido);
+        String codigoSeguimiento;
+        try {
+            cobros.registrarCobro(idPedido, pedido.getIdComercio(), pedido.getImporte(), pedido.getMedioPago());
+            codigoSeguimiento = envios.solicitarEnvio(idPedido, pedido.getIdComercio(), idTransportista, datos)
+                    .getCodigoSeguimiento();
+        } catch (com.rabbit.pagos.negocio.ValidacionException
+                 | com.rabbit.transportistas.negocio.ValidacionException e) {
+            throw new ValidacionException(e.getMessage());
+        }
+        pedido.setIdRepartidor(null);
+        cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
+        return codigoSeguimiento;
+    }
+
+    // Lo mismo que se le mandaría al transportista al derivar, así la
+    // cotización corresponde exactamente al envío que después se pide.
+    // NOT_SUPPORTED: no escribe nada, y así no retiene una transacción (ni
+    // una conexión a la base) mientras espera a los transportistas. Por eso
+    // el pedido se lee con sus líneas en una sola consulta.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public List<CotizacionDTO> cotizarDerivacion(Long idPedido) {
+        Pedido pedido = repository.buscarPedidoConLineas(idPedido);
+        if (pedido == null) {
+            throw new PedidoNoEncontradoException("Pedido no encontrado: " + idPedido);
+        }
+        validarTransicion(pedido, EstadoPedido.CONFIRMADO);
+        return envios.cotizarEnvio(idPedido, datosDeEnvio(pedido));
+    }
+
+    private DatosEnvioDTO datosDeEnvio(Pedido pedido) {
+        DatosEnvioDTO datos = new DatosEnvioDTO();
+        datos.direccionRetiro = direccionDeRetiro(pedido);
+        datos.direccionEntrega = pedido.getDireccionEntrega();
+        datos.bultos = pedido.getLineas().stream().mapToInt(LineaPedido::getCantidad).sum();
+        datos.cobrarAlEntregar = pedido.getMedioPago() == MedioPago.CONTRA_ENTREGA ? pedido.getImporte() : null;
+        return datos;
+    }
+
+    // De dónde retira el transportista: el punto de picking del comercio, o
+    // los depósitos de Rabbit de los que sale el stock consignado.
+    private String direccionDeRetiro(Pedido pedido) {
+        if (pedido.getOrigen() == OrigenPedido.PUNTO_PICKING) {
+            return comercios.listarPuntosPickingDeComercio(pedido.getIdComercio()).stream()
+                    .filter(pp -> pp.id.equals(pedido.getIdPuntoPicking()))
+                    .map(pp -> pp.nombre + " — " + pp.direccion)
+                    .findFirst().orElse("Punto de picking " + pedido.getIdPuntoPicking());
+        }
+        List<Long> idsItems = pedido.getLineas().stream()
+                .map(LineaPedido::getIdItem).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+        return stock.listarItemsPorIds(idsItems).stream()
+                .map(ItemInventarioDTO::getIdDeposito)
+                .distinct()
+                .map(stock::obtenerDeposito)
+                .map(d -> (d.getNombre() != null && d.getNombre().toLowerCase().startsWith("depósito")
+                        ? d.getNombre() : "Depósito " + d.getNombre()) + " — " + d.getDireccion() + ", " + d.getLocalidad())
+                .collect(Collectors.joining("; "));
     }
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
     public void despacharPedido(Long idPedido) {
-        Pedido pedido = obtenerOFallar(idPedido);
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         exigirRepartidorAsignado(pedido);
         cambiarEstado(pedido, EstadoPedido.EN_CAMINO);
     }
@@ -403,7 +539,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
     public void registrarEntrega(Long idPedido) {
-        Pedido pedido = obtenerOFallar(idPedido);
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         exigirRepartidorAsignado(pedido);
         cambiarEstado(pedido, EstadoPedido.ENTREGADO);
         // El repartidor queda libre para otro pedido. El cobro CONTRA_ENTREGA
@@ -416,7 +552,44 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void cancelarPedido(Long idPedido) {
-        Pedido pedido = obtenerOFallar(idPedido);
+        cancelar(obtenerParaActualizarOFallar(idPedido));
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ERP")
+    public PedidoExternoDTO cancelarPedidoExterno(Long idPedidoExterno) {
+        // Con bloqueo: no puede cruzarse con la sincronización de la misma fila.
+        PedidoExterno externo = repository.buscarPedidoExternoParaActualizar(idPedidoExterno);
+        verificarQueEsDelErp(externo, idPedidoExterno);
+
+        if (!externo.isSincronizado()) {
+            // Todavía no es un pedido: se cierra la fila y la sincronización
+            // la va a saltear (ver PedidoYaSincronizadoException).
+            externo.setSincronizado(true);
+            externo.setCancelado(true);
+            externo.setErrorSincronizacion("Cancelado por el comercio");
+            repository.actualizarPedidoExterno(externo);
+            LOG.info("[Pedidos] Pedido externo " + idPedidoExterno + " cancelado por el ERP antes de sincronizarse");
+        } else if (externo.getIdPedido() != null) {
+            Pedido pedido = obtenerParaActualizarOFallar(externo.getIdPedido());
+            if (pedido.getEstado() == EstadoPedido.PENDIENTE) {
+                cancelar(pedido);
+                LOG.info("[Pedidos] Pedido " + pedido.getId() + " cancelado por el ERP");
+            } else if (pedido.getEstado() != EstadoPedido.CANCELADO) {
+                throw new CancelacionNoPermitidaException("El pedido " + pedido.getId() + " está "
+                        + pedido.getEstado() + ": el comercio ya no puede cancelarlo por la API."
+                        + " Si todavía no salió, lo puede cancelar el personal de Rabbit.");
+            }
+        }
+        // Ya cancelado o descartado: no queda nada que cancelar.
+        return aDTOConPedido(externo);
+    }
+
+    // Cancela un pedido devolviendo lo que tenía comprometido. Lo usan el
+    // personal (cancelarPedido) y el ERP (cancelarPedidoExterno, solo PENDIENTE).
+    private void cancelar(Pedido pedido) {
+        Long idPedido = pedido.getId();
         // Se valida antes de devolver el stock: si el pedido ya está
         // EN_CAMINO o ENTREGADO, la mercadería no está para devolverla.
         validarTransicion(pedido, EstadoPedido.CANCELADO);
@@ -427,6 +600,9 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (pedido.getEstado() == EstadoPedido.CONFIRMADO) {
             cobros.anularCobro(idPedido);
             repartidores.liberarRepartidor(pedido.getIdRepartidor());
+            // Si lo llevaba un transportista, se le cancela el envío (se le
+            // avisa recién cuando esta cancelación queda confirmada).
+            envios.cancelarEnvioDePedido(idPedido);
         }
 
         // El stock de cada línea con reserva se descontó al sincronizarla
@@ -459,10 +635,25 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     // Devuelve el pedido como DTO (nunca expone la entidad directamente)
     @Override
-    // Pública a propósito: la usa el seguimiento sin login
-    // (/api/seguimiento/{id}), que solo expone el estado.
+    // Sin restricción de rol: la usan Ruteo y el seguimiento de envíos,
+    // que corre sin usuario. El seguimiento público ya no entra por acá
+    // (el ID es secuencial) sino por consultarSeguimiento.
     public PedidoDTO consultarEstadoPedido(Long idPedido) {
         return PedidoDTO.desde(obtenerOFallar(idPedido));
+    }
+
+    @Override
+    // Pública a propósito: el seguimiento sin login (/api/v1/seguimiento)
+    // entra por el código aleatorio, no por el ID secuencial.
+    public PedidoDTO consultarSeguimiento(String codigoSeguimiento) {
+        // Normalizado acá, en el negocio: la página y la API aceptan lo mismo
+        // ("rb-7kq2m9xhta", con espacios de más, etc.).
+        String codigo = codigoSeguimiento == null ? null : codigoSeguimiento.trim().toUpperCase();
+        Pedido pedido = codigo == null || codigo.isEmpty() ? null : repository.buscarPedidoPorCodigoSeguimiento(codigo);
+        if (pedido == null) {
+            throw new PedidoNoEncontradoException("No hay ningún pedido con el código " + codigoSeguimiento);
+        }
+        return PedidoDTO.desde(pedido);
     }
 
     // Devuelve todos los pedidos reales como DTO — usado por la vista de listado
@@ -470,6 +661,13 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<PedidoDTO> listarTodos() {
         return repository.listarTodos().stream().map(PedidoDTO::desde).collect(Collectors.toList());
+    }
+
+    @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public List<PedidoDTO> listarPendientes() {
+        return repository.listarPorEstado(EstadoPedido.PENDIENTE).stream()
+                .map(PedidoDTO::desde).collect(Collectors.toList());
     }
 
     @Override
@@ -519,10 +717,8 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "ERP"})
     public PedidoExternoDTO consultarPedidoExterno(Long idPedidoExterno) {
         PedidoExterno externo = repository.buscarPedidoExternoPorId(idPedidoExterno);
-        if (externo == null) {
-            throw new ValidacionException("Pedido externo no encontrado: " + idPedidoExterno);
-        }
-        return PedidoExternoDTO.desde(externo);
+        verificarQueEsDelErp(externo, idPedidoExterno);
+        return aDTOConPedido(externo);
     }
 
     @Override
@@ -535,12 +731,57 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     // --- privados ---
 
+    // Un ERP solo ve los pedidos externos de su comercio. Uno ajeno se
+    // informa como inexistente: ni siquiera se confirma que existe.
+    private void verificarQueEsDelErp(PedidoExterno externo, Long idPedidoExterno) {
+        boolean ajeno = externo != null && contexto.isCallerInRole("ERP")
+                && !externo.getIdComercio().equals(idComercioDelErp());
+        if (externo == null || ajeno) {
+            throw new PedidoNoEncontradoException("Pedido externo no encontrado: " + idPedidoExterno);
+        }
+    }
+
+    // Traduce la excepción de Seguridad a la propia de este componente
+    // (mismo criterio que con Inventario en sincronizarPedidoExterno).
+    private Long idComercioDelErp() {
+        try {
+            return contextoUsuario.idComercioActual();
+        } catch (com.rabbit.seguridad.negocio.ValidacionException e) {
+            throw new CuentaErpSinComercioException(
+                    "Tu usuario ERP no está asociado a ningún comercio: pedile a Rabbit que lo dé de alta desde la app");
+        }
+    }
+
+    // El DTO de la fila del ERP más el estado y el código de seguimiento del
+    // pedido real, si ya se generó: es lo que el ERP necesita para seguirlo.
+    private PedidoExternoDTO aDTOConPedido(PedidoExterno externo) {
+        PedidoExternoDTO dto = PedidoExternoDTO.desde(externo);
+        if (externo.getIdPedido() != null) {
+            Pedido pedido = repository.buscarPedidoPorId(externo.getIdPedido());
+            if (pedido != null) {
+                dto.estadoPedido = pedido.getEstado().name();
+                dto.codigoSeguimiento = pedido.getCodigoSeguimiento();
+            }
+        }
+        return dto;
+    }
+
     // Lanza excepción si el pedido no existe — evita repetir este chequeo
     // en cada método que opera sobre uno puntual.
+    // Para las operaciones que cambian el estado: bloquea la fila del pedido
+    // hasta el fin de la transacción (ver PedidoRepository.buscarPedidoParaActualizar).
+    private Pedido obtenerParaActualizarOFallar(Long id) {
+        Pedido pedido = repository.buscarPedidoParaActualizar(id);
+        if (pedido == null) {
+            throw new PedidoNoEncontradoException("Pedido no encontrado: " + id);
+        }
+        return pedido;
+    }
+
     private Pedido obtenerOFallar(Long id) {
         Pedido pedido = repository.buscarPedidoPorId(id);
         if (pedido == null) {
-            throw new ValidacionException("Pedido no encontrado: " + id);
+            throw new PedidoNoEncontradoException("Pedido no encontrado: " + id);
         }
         return pedido;
     }
@@ -551,7 +792,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     private PedidoExterno obtenerExternoParaActualizarOFallar(Long id) {
         PedidoExterno externo = repository.buscarPedidoExternoParaActualizar(id);
         if (externo == null) {
-            throw new ValidacionException("Pedido externo no encontrado: " + id);
+            throw new PedidoNoEncontradoException("Pedido externo no encontrado: " + id);
         }
         return externo;
     }
