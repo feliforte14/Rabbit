@@ -191,16 +191,30 @@ paths:
         '403': { $ref: '#/components/responses/SinPermiso' }
         '404': { $ref: '#/components/responses/PedidoExternoInexistente' }
         '409':
-          description: El pedido ya avanzó y el comercio no puede cancelarlo por la API.
+          description: |
+            El pedido ya avanzó y el comercio no puede cancelarlo por la API
+            (`cancelacion-no-permitida`), o la devolución de stock chocó con
+            otra sesión tocando el mismo ítem al mismo tiempo
+            (`stock-en-conflicto`: pasajero, reintentar).
           content:
             application/problem+json:
               schema:
                 $ref: '#/components/schemas/Problema'
-              example:
-                type: /problemas/cancelacion-no-permitida
-                title: El pedido ya no se puede cancelar
-                status: 409
-                detail: "El pedido 118 está EN_CAMINO: el comercio ya no puede cancelarlo por la API. Si todavía no salió, lo puede cancelar el personal de Rabbit."
+              examples:
+                cancelacionNoPermitida:
+                  summary: El pedido ya avanzó
+                  value:
+                    type: /problemas/cancelacion-no-permitida
+                    title: El pedido ya no se puede cancelar
+                    status: 409
+                    detail: "El pedido 118 está EN_CAMINO: el comercio ya no puede cancelarlo por la API. Ya salió a reparto: no se puede cancelar."
+                stockEnConflicto:
+                  summary: Choque pasajero de stock, reintentar
+                  value:
+                    type: /problemas/stock-en-conflicto
+                    title: El stock cambió al mismo tiempo, reintentá
+                    status: 409
+                    detail: "No se pudo devolver el stock del pedido: Otro usuario acaba de modificar el stock de \"Afeitadoras eléctricas\" al mismo tiempo. Volvé a intentarlo para ver el stock actualizado."
         '500': { $ref: '#/components/responses/ErrorInterno' }
 
   /v1/seguimiento/{codigo}:
@@ -273,6 +287,14 @@ paths:
                 $ref: '#/components/schemas/Problema'
         '404':
           description: Ese transportista no tiene ningún envío con ese código.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+        '409':
+          description: |
+            El pedido cambió en Rabbit al mismo tiempo (por ejemplo, el personal
+            lo tocó justo entonces) y la novedad no se aplicó. Reintentar.
           content:
             application/problem+json:
               schema:

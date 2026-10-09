@@ -50,20 +50,38 @@ public class TransportistaRepository {
         return em.merge(envio);
     }
 
+    public Envio buscarEnvioPorId(Long idEnvio) {
+        return em.find(Envio.class, idEnvio);
+    }
+
     // Bloqueo pesimista: el seguimiento y una cancelación pueden tocar el
-    // mismo envío a la vez.
+    // mismo envío a la vez. Si el envío ya estaba cargado en esta
+    // transacción, find con bloqueo solo toma el lock y devuelve esa copia
+    // (con el estado de antes del bloqueo): se lo saca del contexto y se
+    // lo vuelve a leer, ya bloqueado, así el chequeo de estado que sigue
+    // es sobre lo último (mismo esquema que
+    // PedidoRepository.buscarPedidoParaActualizar).
     public Envio buscarEnvioParaActualizar(Long idEnvio) {
+        em.flush();
+        Envio cargado = em.find(Envio.class, idEnvio);
+        if (cargado == null) {
+            return null;
+        }
+        em.detach(cargado);
         return em.find(Envio.class, idEnvio, LockModeType.PESSIMISTIC_WRITE);
     }
 
-    /** El envío de un transportista con ese código de seguimiento, bloqueado; null si no hay. */
-    public Envio buscarEnvioPorCodigoParaActualizar(Long idTransportista, String codigoSeguimiento) {
-        // Una sola consulta con bloqueo (SELECT ... FOR UPDATE), así se lee
-        // el estado ya bloqueado y no una copia anterior.
+    /** El envío de un pedido, bloqueado y releído; null si no hay. */
+    public Envio buscarEnvioDePedidoParaActualizar(Long idPedido) {
+        Envio envio = buscarEnvioDePedido(idPedido);
+        return envio == null ? null : buscarEnvioParaActualizar(envio.getId());
+    }
+
+    /** El envío de un transportista con ese código de seguimiento, sin bloquear; null si no hay. */
+    public Envio buscarEnvioPorCodigo(Long idTransportista, String codigoSeguimiento) {
         return em.createQuery("SELECT e FROM Envio e WHERE e.transportista.id = :t AND e.codigoSeguimiento = :c", Envio.class)
                 .setParameter("t", idTransportista)
                 .setParameter("c", codigoSeguimiento)
-                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
                 .getResultStream().findFirst().orElse(null);
     }
 

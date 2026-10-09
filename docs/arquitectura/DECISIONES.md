@@ -526,3 +526,65 @@ Propuesta o Reemplazada.
   entregar (las líneas del pedido y el stock consignado).
 - **Consecuencias:** menos código muerto. La tabla `productos` queda en las
   bases existentes (hbm2ddl no borra tablas); se puede borrar a mano.
+
+## ADR-025: Mismo orden de bloqueo (pedido → envío) en cancelación y novedades
+
+- **Estado:** Aceptada.
+- **Contexto:** cancelar un pedido derivado bloquea el pedido y después
+  cancela su envío; una novedad del transportista (polling o webhook)
+  bloqueaba primero el envío y, a través del evento sincrónico a Pedidos,
+  terminaba bloqueando el pedido después. Si las dos coincidían sobre el
+  mismo pedido, PostgreSQL detectaba el deadlock y abortaba una de las dos
+  transacciones al azar — funcional (nada quedaba a medias) pero ruidoso:
+  el webhook o el polling fallaban con una excepción cruda en vez de un
+  conflicto entendible, y `TransportistaService.cancelarEnvioDePedido`
+  tenía además una ventana real (sin deadlock de por medio) donde una
+  novedad podía marcar el envío ENTREGADO entre la lectura sin bloqueo y
+  el bloqueo posterior, dejando que la cancelación lo pisara igual.
+- **Decisión:** las novedades ahora disparan el evento a Pedidos (que
+  bloquea la fila del pedido) **antes** de bloquear y escribir el envío —
+  mismo orden que la cancelación. `TransportistaRepository.buscarEnvioParaActualizar`
+  usa el mismo esquema de `PedidoRepository.buscarPedidoParaActualizar`
+  (`flush` + `detach` + `find` con bloqueo) para releer el estado real tras
+  el bloqueo, no una copia de antes. Si el pedido no se pudo mover (regla
+  de negocio) o el envío cambió mientras tanto, se deshace todo y se
+  responde `409` (`PEDIDO_EN_CONFLICTO`): el webhook lo reintenta solo, el
+  polling lo vuelve a tomar en la próxima pasada.
+- **Alternativas descartadas:**
+  - *Bloquear siempre el envío primero:* invierte el problema en vez de
+    resolverlo (la cancelación sería la que corre el riesgo).
+  - *Reintentar automáticamente el deadlock:* PostgreSQL ya lo resuelve
+    abortando una transacción; agregar un reintento acá duplicaría esa
+    lógica sin eliminar la causa (el orden cruzado).
+- **Consecuencias:** sin deadlocks entre estos dos caminos. El contrato de
+  `recibirNovedad`/`registrarNovedad` ahora incluye `409` como respuesta
+  posible (documentado en `ISeguimientoEnvios` y el OpenAPI del webhook).
+
+## ADR-026: Cierre de una reserva de stock, con el mismo bloqueo que abrirla
+
+- **Estado:** Aceptada.
+- **Contexto:** `reservarStock` ya manejaba `OptimisticLockException` sobre
+  `ItemInventario` (flush explícito + mensaje entendible, ver el comentario
+  de `@Version` en esa entidad), pero `confirmarReserva`, `liberarReserva`
+  y `registrarDevolucion` no: un choque ahí salía como una excepción de
+  persistencia cruda en vez de un mensaje de negocio. Además,
+  `BarredorDeReservas` expiraba todas las reservas vencidas de una pasada
+  en una sola transacción: un choque sobre una sola fila abortaba la
+  pasada entera, dejando sin liberar también a las demás reservas vencidas
+  de ese minuto.
+- **Decisión:** las tres operaciones ahora pasan por el mismo
+  `escribirStock` (flush + catch de `OptimisticLockException`) que ya
+  usaba `reservarStock`, y leen la reserva con `PESSIMISTIC_WRITE`
+  (`InventarioRepository.buscarReservaParaActualizar`) antes de cerrarla,
+  para que dos caminos no puedan cerrar la misma reserva a la vez. El
+  barredor expira cada reserva vencida en su propia transacción
+  (`REQUIRES_NEW`, `BarredorDeReservas.expirarReserva`): un choque falla
+  esa reserva sola y se reintenta en la próxima pasada, sin tocar a las
+  demás. El conflicto se distingue con tipo propio
+  (`StockModificadoException`, en Inventario) para que Pedidos lo traduzca
+  a `ConflictoDeStockException` — pasajera, no una regla de negocio — y
+  `SincronizadorDePedidos`/`PedidoExternoListener` la reintenten en vez de
+  descartar el pedido del ERP como si el choque fuera permanente.
+- **Consecuencias:** un choque de concurrencia en Inventario nunca más
+  tira abajo un lote entero del barredor ni hace que el ERP pierda un
+  pedido por un conflicto que se resolvía solo un segundo después.

@@ -126,6 +126,11 @@ public class SincronizadorDePedidos {
                 // Lo sincronizó PedidoExternoListener entre el listado y
                 // esta llamada: nada que hacer.
                 LOG.fine("[Sincronizador] Pedido externo " + idExterno + " ya sincronizado por JMS");
+            } catch (ConflictoDeStockException e) {
+                // Choque pasajero con otra sesion sobre el mismo item: la
+                // fila queda pendiente y se reintenta en la proxima pasada.
+                LOG.warning("[Sincronizador] Conflicto de stock con el pedido externo "
+                        + idExterno + ", se reintenta en la proxima pasada: " + e.getMessage());
             } catch (ValidacionException e) {
                 // Falla de negocio (comercio dado de baja, sin stock, item
                 // inexistente): no se arregla sola con el tiempo. Se marca

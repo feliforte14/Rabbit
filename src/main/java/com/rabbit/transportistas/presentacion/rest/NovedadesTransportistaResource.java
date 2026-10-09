@@ -20,7 +20,8 @@ package com.rabbit.transportistas.presentacion.rest;
  * (EN_CAMINO / ENTREGADO) es una operación del personal.
  *
  * Respuestas: 204 aceptado (cambió o ya estaba así) · 400 cuerpo inválido ·
- * 401 clave inválida · 404 envío desconocido · 422 estado desconocido.
+ * 401 clave inválida · 404 envío desconocido · 409 el pedido cambió al mismo
+ * tiempo y la novedad no se aplicó (reintentar) · 422 estado desconocido.
  */
 
 import com.rabbit.infraestructura.Problema;
@@ -85,6 +86,9 @@ public class NovedadesTransportistaResource {
                 case ENVIO_DESCONOCIDO:
                     return Problema.de(Response.Status.NOT_FOUND, "envio-inexistente",
                             "Envío inexistente", e.getMessage()).respuesta();
+                case PEDIDO_EN_CONFLICTO:
+                    return Problema.de(Response.Status.CONFLICT, "pedido-en-conflicto",
+                            "Pedido en conflicto", e.getMessage()).respuesta();
                 default:
                     return Problema.de(422, "estado-desconocido", "Estado desconocido", e.getMessage()).respuesta();
             }

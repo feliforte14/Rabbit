@@ -218,7 +218,7 @@ public class RuteoService implements IRuteo {
                 .distinct()
                 .map(depositosPorId::get)
                 .filter(Objects::nonNull)
-                .map(d -> new Retiro(nombreDeDeposito(d.nombre) + " — " + d.direccion + ", " + d.localidad,
+                .map(d -> new Retiro(d.getEtiqueta() + " — " + d.direccion + ", " + d.localidad,
                         d.direccion + ", " + d.localidad))
                 .collect(Collectors.toList());
     }
@@ -377,10 +377,5 @@ public class RuteoService implements IRuteo {
             }
             throw e;
         }
-    }
-
-    // "Depósito Sur" ya dice qué es: no se le antepone otro "Depósito".
-    private static String nombreDeDeposito(String nombre) {
-        return nombre != null && nombre.toLowerCase().startsWith("depósito") ? nombre : "Depósito " + nombre;
     }
 }

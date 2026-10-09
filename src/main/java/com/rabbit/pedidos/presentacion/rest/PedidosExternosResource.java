@@ -49,6 +49,7 @@ import com.rabbit.infraestructura.Problema;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import com.rabbit.pedidos.negocio.CancelacionNoPermitidaException;
 import com.rabbit.pedidos.negocio.ClaveIdempotenciaReutilizadaException;
+import com.rabbit.pedidos.negocio.ConflictoDeStockException;
 import com.rabbit.pedidos.negocio.CuentaErpSinComercioException;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
@@ -190,6 +191,10 @@ public class PedidosExternosResource {
                     "El pedido ya no se puede cancelar", e.getMessage()).respuesta();
         } catch (CuentaErpSinComercioException e) {
             return sinComercio(e);
+        } catch (ConflictoDeStockException e) {
+            // Pasajero: otra sesión tocó el mismo stock justo ahora.
+            return Problema.de(Response.Status.CONFLICT, "stock-en-conflicto",
+                    "El stock cambió al mismo tiempo, reintentá", e.getMessage()).respuesta();
         } catch (ValidacionException e) {
             return Problema.de(422, "cancelacion-fallida", "No se pudo cancelar el pedido",
                     e.getMessage()).respuesta();

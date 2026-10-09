@@ -28,6 +28,15 @@ public class DepositoDTO {
         return dto;
     }
 
+    /** Nombre para mostrar: "Depósito Sur" (o "deposito sur") ya dice qué es, no se le antepone otro "Depósito". */
+    public String getEtiqueta() {
+        if (nombre == null || nombre.isBlank()) {
+            return "Depósito";
+        }
+        String normalizado = nombre.trim().toLowerCase().replace('ó', 'o');
+        return normalizado.startsWith("deposito") ? nombre.trim() : "Depósito " + nombre.trim();
+    }
+
     // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getId() { return id; }
     public String getNombre() { return nombre; }

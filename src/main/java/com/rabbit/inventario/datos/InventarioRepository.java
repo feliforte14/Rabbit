@@ -16,6 +16,7 @@ import com.rabbit.inventario.datos.model.ReservaStock;
 import com.rabbit.inventario.dto.FiltroHistorialDTO;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -249,6 +250,20 @@ public class InventarioRepository {
     }
 
     /**
+     * Busca una reserva bloqueando su fila (SELECT ... FOR UPDATE) hasta el
+     * fin de la transacción. Lo usan los caminos que la cierran (confirmar,
+     * liberar, devolver, expirar): dos transacciones no pueden cerrar la
+     * misma reserva a la vez y devolver dos veces la cantidad al item.
+     * Requiere transacción activa.
+     *
+     * @param id identificador de la reserva
+     * @return la reserva bloqueada, o null si no existe
+     */
+    public ReservaStock buscarReservaParaActualizar(Long id) {
+        return em.find(ReservaStock.class, id, LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    /**
      * Reservas de un item que siguen marcadas VIGENTE, sin importar si ya
      * vencieron. Sirve para auditar cuanto stock hay comprometido.
      *
@@ -340,10 +355,12 @@ public class InventarioRepository {
      * @param ahora instante contra el que se compara el vencimiento
      * @return reservas vencidas pendientes de liberar
      */
-    public List<ReservaStock> listarReservasVencidas(LocalDateTime ahora) {
+    public List<Long> listarIdsReservasVencidas(LocalDateTime ahora) {
+        // Solo los IDs: el barredor recarga cada reserva, bloqueada, en su
+        // propia transacción.
         return em.createQuery(
-                "SELECT r FROM ReservaStock r WHERE r.estado = :estado AND r.fechaExpiracion < :ahora",
-                ReservaStock.class)
+                "SELECT r.id FROM ReservaStock r WHERE r.estado = :estado AND r.fechaExpiracion < :ahora",
+                Long.class)
                 .setParameter("estado", EstadoReserva.VIGENTE)
                 .setParameter("ahora", ahora)
                 .getResultList();
