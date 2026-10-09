@@ -1,8 +1,19 @@
 # Flujo de pruebas manual — Rabbit
 
-Guía paso a paso para probar la app de punta a punta con la base ya limpia
-(sin datos de prueba). Sirve tanto para verificar que todo anda como para
+Guía paso a paso para probar la app de punta a punta, con los cinco tipos
+de usuario (`ADMINISTRADOR`, `OPERADOR`, `COMERCIO`, `REPARTIDOR`, `ERP`) y
+todos los componentes. Sirve tanto para verificar que todo anda como para
 la demo.
+
+## Qué rol prueba cada sección
+
+| Rol | Qué puede hacer | Dónde se prueba |
+|---|---|---|
+| `ADMINISTRADOR` | Todo lo del personal, **más** dar de alta/baja usuarios, eliminar (no solo dar de baja) un comercio, y anular el cobro de un pedido ya `CONFIRMADO` en adelante | 1, 2, 5, 6, 6b, 6c, 7b, 9 |
+| `OPERADOR` | Todo lo del personal **salvo** esas tres operaciones — las rechaza con `EJBAccessException` | 1b |
+| `COMERCIO` | Solo lo suyo: sus pedidos, su stock (solo lectura), sus puntos de picking | 3, 7 |
+| `REPARTIDOR` | Solo su hoja de ruta: retirar y entregar | 5 (paso 3) |
+| `ERP` | Solo la API REST, solo los pedidos de su comercio | 4 |
 
 Requisitos previos:
 - WildFly corriendo con `standalone-full.xml` (necesario por JMS/MDBs):
@@ -14,22 +25,34 @@ Requisitos previos:
   `http://localhost:8080` redirige solo). El certificado local es
   autofirmado: aceptar la advertencia del navegador y usar `curl -k`.
 
-Estado de la base: se limpió el 29/09/2026. No hay comercios, depósitos,
-stock, repartidores, pedidos, cobros, envíos, transportistas ni zonas.
-Solo quedan dos cuentas de prueba activas en la tabla `usuarios`,
-`prueba.comercio` y `prueba.repartidor`, que quedaron **sin asociar** (su
-comercio y su repartidor se borraron): al entrar ven "Cuenta sin asociar"
-(ver 2.4).
+Estado de la base: puede tener datos de corridas de prueba anteriores (no
+hace falta limpiarla para seguir esta guía — los pasos de alta validan
+duplicados y, si el dato ya existe, usá el que está en vez de crear uno
+nuevo). Si preferís arrancar de cero, los pasos 2.1 a 2.5 dan de alta todo
+lo que hace falta.
 
-Credenciales del realm de WildFly disponibles hoy: `claude-cb-admin` (rol
-`ADMINISTRADOR`). `claude-cb-erp` (rol `ERP`) también existe, pero se creó
-con `add-user.sh` y no tiene comercio: desde la API v1 recibe `403`. La
-cuenta ERP para las pruebas se crea desde la app (2.5). La contraseña de
-`claude-cb-admin` la tenés guardada de cuando se generó; si la perdiste,
-reseteala con:
+Credenciales del realm de WildFly: `claude-cb-admin` (rol
+`ADMINISTRADOR`). Si no tenés la contraseña (se perdió o nunca se generó),
+reseteala vos mismo — es una cuenta de prueba, no de un usuario real:
 ```bash
-~/wildfly/bin/add-user.sh -a -u claude-cb-admin -g ADMINISTRADOR
+~/wildfly/bin/add-user.sh -a -u claude-cb-admin -p '<una contraseña nueva>' -g ADMINISTRADOR -s
 ```
+El resto de las cuentas (operador, comercio, repartidor, ERP) se crean
+desde la propia app en los pasos 1b y 2.4/2.5 — no hace falta `add-user.sh`
+para esas.
+
+**Cuentas ERP viejas:** las creadas a mano con `add-user.sh -g ERP` (por
+ejemplo `claude-cb-erp`) no tienen comercio: la API les responde `403`
+("Cuenta ERP sin comercio"). Hay que crear una nueva desde la app (2.5).
+
+**Una línea de log que podés ignorar:** al cargar **Pedidos**
+(`personal/pedidos.xhtml`) vas a ver un `SEVERE`
+`parseBigDecimal="true" Unhandled by MetaTagHandler for type
+jakarta.faces.convert.NumberConverter`. Es un wart conocido de esta
+versión de Mojarra (el atributo igual se aplica correctamente — el campo
+Importe sigue parseando a `BigDecimal` sin problema); no indica que algo
+haya fallado. Está documentado como comentario en el propio
+`pedidos.xhtml`.
 
 ---
 
@@ -37,21 +60,58 @@ reseteala con:
 
 1. Entrá a `https://localhost:8443/Rabbit/login.xhtml`.
 2. Ingresá con `claude-cb-admin`.
-3. Deberías caer en `personal/pedidos.xhtml` (la pantalla de Pedidos, vacía porque
-   la base está limpia).
+3. Deberías caer en `personal/pedidos.xhtml` (la pantalla de Pedidos).
 
 **Qué mirar:** el menú lateral muestra "Administrador" como rol; no
 aparece ningún error.
 
 ---
 
-## 2. Alta de datos base (como administrador)
+## 1b. Login como operador (permisos acotados)
+
+El `OPERADOR` ve y usa las mismas pantallas que el `ADMINISTRADOR`
+(Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas,
+Ruteo) — **no** ve **Usuarios** (es solo `ADMINISTRADOR`) — y tiene
+exactamente tres operaciones bloqueadas por rol, no por la vista:
+
+1. Como administrador, en **Usuarios**, creá una cuenta:
+   - Usuario: `demo.operador`
+   - Tipo de cuenta: `Operador`
+2. Cerrá sesión y entrá con `demo.operador`.
+3. **Qué mirar en el menú:** no aparece la opción **Usuarios**. Si pegás
+   la URL directo (`personal/usuarios.xhtml`), te redirige sin mostrar la
+   pantalla (igual que el 7 para `demo.comercio`).
+4. Las tres operaciones que el operador **no puede** hacer:
+   - **Comercios** → en un comercio dado de baja, el botón **Eliminar**
+     (no **Dar de baja**, que sí puede): falla con un mensaje de negocio
+     (no el stack trace), porque el EJB rechaza con `EJBAccessException`
+     antes de llegar a `eliminarComercio`.
+   - **Pedidos** → cancelar un pedido que ya está `CONFIRMADO` (o más
+     adelante): falla igual, porque cancelar desde ahí pasa por
+     `PagoService.anularCobro` (solo `ADMINISTRADOR`). Cancelar un pedido
+     todavía `PENDIENTE` sí funciona (no involucra un cobro para anular).
+   - **Usuarios**: ni siquiera se ve el menú, y entrar por URL redirige.
+5. Todo lo demás (alta de comercio/depósito/stock/repartidor, confirmar,
+   despachar, entregar, derivar a un transportista, zonas y despacho)
+   funciona igual que con `ADMINISTRADOR` — probalo con el mismo pedido
+   del paso 2 para confirmar que el flujo normal no está restringido.
+
+**Qué mirar:** el mensaje de error en los dos casos bloqueados es de
+negocio ("no podés eliminar...", "no podés cancelar..."), nunca la
+excepción cruda `EJBAccessException` ni una pantalla de error genérica.
+
+---
+
+## 2. Alta de datos base (como administrador u operador)
 
 ### 2.1 Crear un comercio
 1. Ir a **Comercios** → formulario "Registrar nuevo comercio".
 2. Cargar nombre, razón social, CUIT (formato `XX-XXXXXXXX-X`), email y
    teléfono. Botón **Registrar**.
-3. Verificar que aparece en el listado con estado "Activo".
+3. Verificar que aparece en el listado con estado "Activo". Si la base ya
+   tenía un comercio con ese CUIT, el alta rechaza con "Ya existe un
+   comercio registrado con el CUIT ..." — usá ese comercio existente en
+   vez de inventar otro CUIT.
 
 ### 2.2 Crear un depósito y algo de stock
 1. Ir a **Depósitos y stock** → "Registrar nuevo depósito" (nombre,
@@ -67,23 +127,22 @@ aparece ningún error.
    confirmar: solo derivar a un transportista (6b).
 
 ### 2.4 Crear las cuentas de usuario (login) para comercio y repartidor
-1. Ir a **Usuarios** (solo visible para ADMINISTRADOR).
+1. Ir a **Usuarios** (solo visible para `ADMINISTRADOR`).
 2. Crear un usuario con:
    - Usuario: `demo.comercio` (o el que prefieras)
    - Contraseña: la que quieras
    - Tipo de cuenta: `Comercio`
-   - Comercio: el que creaste en 2.1
+   - Comercio: el que creaste (o reusaste) en 2.1
 3. Repetir para el repartidor:
    - Usuario: `demo.repartidor`
    - Tipo de cuenta: `Repartidor`
    - Repartidor: el que creaste en 2.3
 
-**Por qué así y no reusando `prueba.comercio`/`prueba.repartidor`:** esas
-cuentas quedaron sin comercio ni repartidor asociado tras la limpieza (la
-app no permite reasociar una cuenta existente). Dar
-de alta desde acá crea la cuenta en el realm de WildFly *y* la asociación
-en la base al mismo tiempo — sin eso, cualquier pantalla del comercio o
-repartidor muestra "cuenta no asociada".
+**Por qué una cuenta nueva y no reusar una vieja sin asociar:** una cuenta
+cuyo comercio o repartidor se borró queda "sin asociar" (la app no permite
+reasociarla). Dar de alta desde acá crea la cuenta en el realm de WildFly
+*y* la asociación en la base al mismo tiempo — sin eso, cualquier pantalla
+del comercio o repartidor muestra "cuenta no asociada" (ver sección 8).
 
 ### 2.5 Cuenta del ERP (para la API REST)
 Igual que las anteriores, desde **Usuarios**:
@@ -94,16 +153,13 @@ Igual que las anteriores, desde **Usuarios**:
 La cuenta ERP representa a ese comercio: por la API solo carga y ve sus
 pedidos. No puede entrar a la web.
 
-**Cuentas ERP viejas:** las creadas a mano con `add-user.sh -g ERP` (por
-ejemplo `claude-cb-erp`) no tienen comercio: la API les responde `403`
-("Cuenta ERP sin comercio"). Hay que crear una nueva desde la app.
-
 ---
 
 ## 3. Portal del comercio
 
 1. Cerrar sesión, loguearte con `demo.comercio`.
-2. Caés en `comercio/mis-pedidos.xhtml`: debería estar vacío, sin errores.
+2. Caés en `comercio/mis-pedidos.xhtml`: debería estar vacío (o con los
+   pedidos que ya tenga ese comercio), sin errores.
 3. Ir a **Mis puntos de picking** → agregar uno (nombre, dirección).
 4. Ir a **Mi stock** → confirmar que ves el stock cargado en 2.2. Es solo
    lectura: el stock lo carga el personal de Rabbit.
@@ -161,7 +217,7 @@ Estados posibles: `Pendiente` → `Sincronizado` (con `idPedido`,
 `Cancelado`. La conversión es asincrónica (cola JMS), así que puede tardar
 un instante en pasar de Pendiente a Sincronizado.
 
-### 4.1 Lo que tiene que mostrar la API (Clase 10)
+### 4.1 Lo que tiene que mostrar la API
 
 | Prueba | Cómo | Esperado |
 |---|---|---|
@@ -178,6 +234,12 @@ un instante en pasar de Pendiente a Sincronizado.
 | Seguimiento público | `curl -ik https://localhost:8443/Rabbit/api/v1/seguimiento/<codigoSeguimiento>` | `200 {"codigoSeguimiento", "estado"}`, sin login |
 | URL vieja | `curl -i .../Rabbit/api/pedidos-externos/1` | `404` en `application/problem+json` (la API es `/v1`) |
 
+**Sobre el `409` de cancelar tarde:** puede salir con dos tipos distintos
+de `Problema` — `cancelacion-no-permitida` (el pedido ya avanzó, es
+definitivo) o, más raro, `stock-en-conflicto` (la devolución de stock
+chocó con otra sesión tocando el mismo ítem al mismo tiempo — ahí sí vale
+la pena reintentar la cancelación, el conflicto es pasajero).
+
 El contrato está en [openapi.yaml](../integraciones/openapi.yaml): pegalo en
 [Swagger Editor](https://editor.swagger.io) o importalo en Postman
 (**Import → File**) para tener la colección armada.
@@ -192,9 +254,9 @@ tiempo real`). En **Pedidos → Recibidos del ERP** el pedido aparece como
 
 ## 5. Ciclo completo de un pedido (cola + tópico + SOAP + transacción)
 
-1. Como administrador, en **Pedidos**, botón **Confirmar** del pedido
-   creado en el paso 4. Confirmar es del personal de Rabbit: el comercio no
-   puede. En la misma transacción:
+1. Como administrador u operador, en **Pedidos**, botón **Confirmar** del
+   pedido creado en el paso 4. Confirmar es del personal de Rabbit: el
+   comercio no puede. En la misma transacción:
    - si el medio de pago es `PREPAGO`, se cobra en el banco legado por SOAP
      (`BancoLegadoService`, WSDL en
      `http://localhost:8080/Rabbit/BancoLegadoService?wsdl`);
@@ -256,7 +318,8 @@ Con WildFly corriendo:
 
 ## 6b. Derivar un pedido a un transportista
 
-1. Como administrador, **Transportistas** → "Registrar transportista":
+1. Como administrador u operador, **Transportistas** → "Registrar
+   transportista":
    - uno REST: endpoint
      `http://localhost:8080/Rabbit/api/simulador/transportista-rest`;
    - uno SOAP legado: endpoint
@@ -274,7 +337,9 @@ Con WildFly corriendo:
    Transportistas, el envío pasa por En tránsito y Entregado). Si era
    contra entrega, el cobro pasa a Cobrado.
 4. Derivá otro y cancelalo enseguida desde Pedidos: en el log aparece
-   `[Transportista ...] Envío ... cancelado`.
+   `[Transportista ...] Envío ... cancelado`. Esto bloquea el pedido y
+   después el envío — el mismo orden que usan las novedades del
+   transportista (ver más abajo), así que no hay riesgo de que se crucen.
 
 **Qué mirar:** en el log, `[Transportistas]` con cada novedad; el
 transportista legado responde `EN_VIAJE` y Rabbit lo muestra como
@@ -291,6 +356,17 @@ transportista legado responde `EN_VIAJE` y Rabbit lo muestra como
    avisa, sin esperar la consulta cada 15 s; después, **Entregado**.
 5. Apagar el transportista y tocar **Cotizar**: figura "No respondió" y
    los demás cotizan igual.
+
+**Novedad que no se pudo aplicar (`409`):** si justo cuando el
+transportista avisa un cambio de estado el personal tocó el mismo pedido
+(lo canceló, por ejemplo), el webhook responde `409`
+(`type: /problemas/pedido-en-conflicto`) en vez de `204`. No es un error
+del transportista: el aviso se reintenta solo (automático en el servidor
+de prueba, o a mano con el mismo `curl` si lo estás probando directo
+contra `POST /api/v1/transportistas/{id}/novedades`) y la segunda vez ya
+no hay conflicto. Difícil de forzar a propósito sin automatizar los dos
+lados a la vez — si lo ves en el log durante una prueba normal, no es un
+bug, es el camino de reintento funcionando.
 
 ## 6c. Ruteo por zona
 
@@ -324,8 +400,8 @@ de sin zona se confirma o deriva a mano desde Pedidos.
 
 Con `demo.comercio` logueado:
 - Intentá entrar directo a `https://localhost:8443/Rabbit/personal/usuarios.xhtml`
-  (pantalla solo ADMINISTRADOR): debería redirigirte, no mostrar la
-  pantalla.
+  (pantalla solo `ADMINISTRADOR`): debería redirigirte, no mostrar la
+  pantalla. Con `demo.operador` pasa lo mismo (ver 1b).
 - Intentá pegar la URL de puntos de picking de otro comercio
   (`comercio/puntos-picking.xhtml?idComercio=<otro id>`): como usuario COMERCIO el
   parámetro se ignora y siempre ves el tuyo — confirmá que no aparecen
@@ -385,14 +461,18 @@ Los pasos de estas demos están en
 | Ítem | Resultado esperado |
 |---|---|
 | Login admin | Entra a personal/pedidos.xhtml sin error |
-| Alta comercio/depósito/stock/repartidor | Aparecen en sus listados |
-| Alta de usuarios comercio/repartidor | Cuenta creada, loguea, ve solo lo suyo |
+| Login operador | Mismas pantallas que admin, sin **Usuarios** en el menú |
+| Operador intenta eliminar comercio / cancelar pedido confirmado | Rechazado con mensaje de negocio, no una excepción cruda |
+| Alta comercio/depósito/stock/repartidor | Aparecen en sus listados; CUIT duplicado se rechaza con mensaje claro |
+| Alta de usuarios operador/comercio/repartidor/ERP | Cuenta creada, loguea, ve solo lo suyo (o nada, si es ERP) |
 | POST /api/v1/pedidos-externos (ERP) | 201 + Location, luego Sincronizado; reintento con la misma clave no duplica |
 | Ciclo pedido completo | Pasa por todos los estados hasta ENTREGADO |
 | Circuit breaker | 3 fallas → ABIERTO → corta instantáneo → SEMIABIERTO a los 30s |
 | Derivar a un transportista | Confirmado con código de seguimiento; pasa solo a En camino y Entregado |
+| Cancelar un pedido derivado | Se cancela sin cruzarse con una novedad del transportista en curso |
 | Ruteo por zona | Pedidos agrupados por CP; despachar usa el repartidor de la zona, el respaldo o el transportista de la zona |
-| Acceso restringido a personal/usuarios.xhtml | Comercio/repartidor no puede entrar |
+| Acceso restringido a personal/usuarios.xhtml | Comercio/repartidor/operador no puede entrar |
 | REST sin credenciales | 401 |
 | REST con rol incorrecto | 403 |
+| Cancelar pedido externo tarde | 409 `cancelacion-no-permitida` (definitivo) o `stock-en-conflicto` (reintentar) |
 | Cuenta sin comercio asociado | Mensaje amigable, no el interno |

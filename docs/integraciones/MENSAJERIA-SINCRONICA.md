@@ -205,7 +205,9 @@ un transportista REST puede **avisar** cada cambio de estado:
 (`NovedadesTransportistaResource` → `ISeguimientoEnvios.recibirNovedad`).
 La clave la genera el personal en **Transportistas** y se ve una sola vez.
 Respuestas: `204` (aceptado, o ya estaba así), `400`, `401` (clave),
-`404` (envío que no es de ese transportista), `422` (estado desconocido).
+`404` (envío que no es de ese transportista), `409` (el pedido cambió en
+Rabbit al mismo tiempo y la novedad no se aplicó: reintentar), `422`
+(estado desconocido).
 El polling sigue para los legados (que no avisan) y como respaldo de un
 aviso perdido: los dos llevan al mismo resultado.
 
@@ -286,7 +288,7 @@ Postman.
 | `GET /api/v1/pedidos-externos/{id}` | ERP | Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`, `estadoPedido` y `codigoSeguimiento`), `Descartado` (con `motivo`) o `Cancelado` | `200` · `404` |
 | `POST /api/v1/pedidos-externos/{id}/cancelacion` | ERP | Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE`) | `200` · `404` · `409` |
 | `GET /api/v1/seguimiento/{codigo}` | Público | Estado actual del pedido | `200 {"codigoSeguimiento", "estado"}` · `404` |
-| `POST /api/v1/transportistas/{id}/novedades` | Transportista moderno (`Bearer <clave>`) | Avisa un cambio de estado de uno de sus envíos (webhook) | `204` · `400` · `401` · `404` · `422` |
+| `POST /api/v1/transportistas/{id}/novedades` | Transportista moderno (`Bearer <clave>`) | Avisa un cambio de estado de uno de sus envíos (webhook) | `204` · `400` · `401` · `404` · `409` · `422` |
 
 Ejemplo de alta desde el ERP:
 
@@ -339,7 +341,10 @@ Ruteo ubica el pedido en su zona (ADR-017).
   idempotente: cancelar algo ya cancelado devuelve `200` con el mismo
   estado. El ERP puede cancelar mientras el pedido está pendiente; desde
   `CONFIRMADO` ya tiene cobro y repartidor, y responde `409`: lo cancela
-  el personal de Rabbit (anular un cobro exige `ADMINISTRADOR`).
+  el personal de Rabbit (anular un cobro exige `ADMINISTRADOR`). Un `409`
+  también puede salir si devolver el stock de una línea choca con otra
+  sesión tocando el mismo ítem al mismo tiempo (`stock-en-conflicto`):
+  a diferencia del anterior, este es pasajero — reintentar alcanza.
 - **Errores con Problem Details (RFC 9457):** todas las respuestas de
   error son `application/problem+json` con `type`, `title`, `status` y
   `detail` (el equivalente REST del SOAP Fault). `400` es formato (falta

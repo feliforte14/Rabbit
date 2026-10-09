@@ -90,6 +90,12 @@ public class PedidoExternoListener implements MessageListener {
         } catch (PedidoYaSincronizadoException e) {
             // Ver comentario de clase: ya procesado por otro camino.
             LOG.fine("[Pedidos][JMS] Pedido externo " + idPedidoExterno + " ya estaba sincronizado");
+        } catch (ConflictoDeStockException e) {
+            // Choque pasajero con otra sesión sobre el mismo item: se
+            // relanza para que el contenedor reintente la entrega.
+            LOG.warning("[Pedidos][JMS] Conflicto de stock con el pedido externo "
+                    + idPedidoExterno + ", el contenedor va a reintentar la entrega: " + e.getMessage());
+            throw e;
         } catch (ValidacionException e) {
             // Ver comentario de clase: falla de negocio, no de transporte.
             LOG.warning("[Pedidos][JMS] Pedido externo " + idPedidoExterno

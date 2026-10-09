@@ -124,8 +124,14 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
      * de las dos redes de seguridad; la otra es BarredorDeReservas, que
      * ademas cubre el caso de la reserva vencida con la instancia todavia
      * viva.
+     *
+     * REQUIRES_NEW: un callback de ciclo de vida corre sin transaccion
+     * salvo que se le pida una, y liberarReserva escribe (y bloquea la
+     * fila de la reserva), cosa que sin transaccion falla con
+     * TransactionRequiredException.
      */
     @PreDestroy
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     public void alDestruir() {
         if (idReservaActual != null) {
             LOG.warning("[Inventario] Conversacion terminada con reserva " + idReservaActual
@@ -203,19 +209,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         // disponible. El stock recien sale del deposito al confirmar.
         item.setCantidadReservada(item.getCantidadReservada() + cantidad);
         repository.actualizarItem(item);
-
-        // Se fuerza el UPDATE ahora, sin esperar al commit, para que el
-        // bloqueo optimista (@Version en ItemInventario) falle ACA y no
-        // despues del metodo: si otra sesion toco el mismo item entre la
-        // lectura y esta escritura, la version ya no coincide. Sin este
-        // flush el error saldria como un RollbackException crudo en la
-        // pantalla, en vez de un mensaje que el usuario entienda.
-        try {
-            repository.sincronizar();
-        } catch (OptimisticLockException e) {
-            throw new ValidacionException("Otro usuario acaba de reservar \"" + item.getProducto()
-                    + "\" al mismo tiempo. Volvé a intentarlo para ver el stock actualizado.");
-        }
+        escribirStock(item);
 
         LocalDateTime ahora = LocalDateTime.now();
         ReservaStock reserva = new ReservaStock();
@@ -253,6 +247,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         item.setCantidadDisponible(item.getCantidadDisponible() - reserva.getCantidad());
         item.setCantidadReservada(item.getCantidadReservada() - reserva.getCantidad());
         repository.actualizarItem(item);
+        escribirStock(item);
 
         reserva.setEstado(EstadoReserva.CONFIRMADA);
         reserva.setFechaCierre(LocalDateTime.now());
@@ -274,6 +269,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
             ItemInventario item = reserva.getItem();
             item.setCantidadReservada(item.getCantidadReservada() - reserva.getCantidad());
             repository.actualizarItem(item);
+            escribirStock(item);
 
             reserva.setEstado(EstadoReserva.LIBERADA);
             reserva.setFechaCierre(LocalDateTime.now());
@@ -321,7 +317,9 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         if (idReserva == null) {
             throw new ValidacionException("Falta el identificador de la reserva a devolver");
         }
-        ReservaStock reserva = repository.buscarReservaPorId(idReserva);
+        // Con bloqueo: dos devoluciones de la misma reserva no pueden pasar
+        // las dos el chequeo de estado y sumar dos veces la cantidad.
+        ReservaStock reserva = repository.buscarReservaParaActualizar(idReserva);
         if (reserva == null) {
             throw new ValidacionException("La reserva " + idReserva + " no existe");
         }
@@ -336,6 +334,7 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
         ItemInventario item = reserva.getItem();
         item.setCantidadDisponible(item.getCantidadDisponible() + reserva.getCantidad());
         repository.actualizarItem(item);
+        escribirStock(item);
 
         reserva.setEstado(EstadoReserva.DEVUELTA);
         reserva.setFechaCierre(LocalDateTime.now());
@@ -350,17 +349,40 @@ public class InventarioService implements IConsultaStock, IReservaStock, Seriali
                 + " x " + reserva.getProducto() + " al stock disponible");
     }
 
-    /** La reserva que esta conversacion dejo abierta, o error si no hay. */
+    /**
+     * La reserva que esta conversacion dejo abierta, bloqueada para
+     * escribirla, o error si no hay. Con la fila bloqueada, el barredor no
+     * puede expirarla mientras este metodo la confirma o libera (ni al
+     * reves): el que llega segundo espera y ve el estado ya cambiado.
+     */
     private ReservaStock reservaEnCursoOFallar() {
         if (idReservaActual == null) {
             throw new ValidacionException("No hay ninguna reserva en curso en esta sesión.");
         }
-        ReservaStock reserva = repository.buscarReservaPorId(idReservaActual);
+        ReservaStock reserva = repository.buscarReservaParaActualizar(idReservaActual);
         if (reserva == null) {
             idReservaActual = null;
             throw new ValidacionException("La reserva en curso ya no existe.");
         }
         return reserva;
+    }
+
+    /**
+     * Fuerza el UPDATE del item ahora, sin esperar al commit, para que el
+     * bloqueo optimista (@Version en ItemInventario) falle ACA y no despues
+     * del metodo: si otra sesion toco el mismo item entre la lectura y esta
+     * escritura, la version ya no coincide. Sin este flush el error saldria
+     * como un RollbackException crudo en la pantalla, en vez de un mensaje
+     * que el usuario entienda. Lo usan todos los caminos que tocan los
+     * contadores del item (reservar, confirmar, liberar, devolver).
+     */
+    private void escribirStock(ItemInventario item) {
+        try {
+            repository.sincronizar();
+        } catch (OptimisticLockException e) {
+            throw new StockModificadoException("Otro usuario acaba de modificar el stock de \"" + item.getProducto()
+                    + "\" al mismo tiempo. Volvé a intentarlo para ver el stock actualizado.");
+        }
     }
 
     // ===============================================================

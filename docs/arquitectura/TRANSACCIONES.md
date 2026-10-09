@@ -124,10 +124,12 @@ lleva una empresa de envíos externa:
 | 4. Estado CONFIRMADO + `EstadoPedidoCambiado` | Rollback de todo **y cancelación del envío en el transportista** (`EnvioSolicitado` + `AFTER_FAILURE`) |
 
 Después, cada novedad que informa el transportista se registra con
-`registrarNovedad` (`REQUIRES_NEW`): el envío cambia de estado y, en la
-misma transacción, Pedidos mueve el pedido (`EstadoEnvioCambiado`). Si
-mover el pedido falla, se deshace también la novedad y el seguimiento la
-reintenta en la próxima pasada.
+`registrarNovedad` (`REQUIRES_NEW`): primero Pedidos mueve el pedido
+(`EstadoEnvioCambiado`, que bloquea su fila) y recién después se bloquea,
+relee y escribe el envío, en la misma transacción. Si mover el pedido
+falla, o el envío cambió mientras tanto (lo cancelaron), se deshace todo:
+el webhook responde `409` y el seguimiento la reintenta en la próxima
+pasada.
 
 Cancelar un pedido derivado (desde CONFIRMADO) cancela también el envío;
 al transportista se le avisa recién cuando la cancelación queda
@@ -158,10 +160,19 @@ estaba cargado se trabaja con el estado real de la base. (Con `refresh`
 con bloqueo, Hibernate 7.4.5 falla sobre un pedido con sus líneas
 cargadas; por eso se lo saca del contexto y se lo vuelve a leer.)
 
-**Caso límite:** cancelar un pedido derivado bloquea el pedido y después
-el envío; el seguimiento de envíos bloquea el envío y después el pedido.
-Si coinciden sobre el mismo pedido en el mismo instante, PostgreSQL
-detecta el deadlock y aborta una de las dos: el seguimiento lo reintenta
-en la próxima pasada (15 s) y la pantalla muestra "Intentá de nuevo".
-Ningún dato queda a medias.
+**Orden de bloqueo:** cancelar un pedido derivado bloquea el pedido y
+después el envío; las novedades del transportista (polling y webhook)
+siguen el mismo orden — Pedidos mueve el pedido antes de que se bloquee
+el envío. Antes el seguimiento bloqueaba al revés y, si coincidían sobre
+el mismo pedido en el mismo instante, PostgreSQL abortaba una de las dos
+por deadlock. Con el mismo orden en los dos caminos, la segunda espera y
+ve el estado real: un envío ya entregado no se cancela, y una novedad
+sobre un pedido recién cancelado se rechaza (`409`, reintento).
+
+Lo mismo en Inventario: cerrar una reserva (confirmar, liberar, devolver
+o expirar) la lee con `PESSIMISTIC_WRITE`, y cada escritura del item hace
+`flush` para atrapar la `OptimisticLockException` del `@Version` dentro
+del método y traducirla a un mensaje ("otro usuario modificó el stock,
+volvé a intentar"). El barredor expira cada reserva vencida en su propia
+transacción: un choque sobre un item no deshace la pasada entera.
 

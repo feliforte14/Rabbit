@@ -76,6 +76,7 @@ import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
 import com.rabbit.inventario.negocio.IConsultaStock;
 import com.rabbit.inventario.negocio.IReservaStock;
+import com.rabbit.inventario.negocio.StockModificadoException;
 import com.rabbit.transportistas.dto.CotizacionDTO;
 import com.rabbit.transportistas.dto.DatosEnvioDTO;
 import com.rabbit.transportistas.negocio.IEnvios;
@@ -351,6 +352,10 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
                     reservaCreada = reserva.reservarStock(
                             externo.getIdComercio(), lineaExterna.getIdItem(), lineaExterna.getCantidad());
                     reserva.confirmarReserva();
+                } catch (StockModificadoException e) {
+                    // Choque pasajero con otra sesión sobre el mismo item: no
+                    // es una regla de negocio, se reintenta (ver la excepción).
+                    throw new ConflictoDeStockException("No se pudo comprometer el stock del pedido: " + e.getMessage());
                 } catch (RuntimeException e) {
                     // Traduce la excepción de Inventario a la propia de este
                     // componente: cada ServicioDeX no expone hacia afuera las
@@ -521,8 +526,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
                 .map(ItemInventarioDTO::getIdDeposito)
                 .distinct()
                 .map(stock::obtenerDeposito)
-                .map(d -> (d.getNombre() != null && d.getNombre().toLowerCase().startsWith("depósito")
-                        ? d.getNombre() : "Depósito " + d.getNombre()) + " — " + d.getDireccion() + ", " + d.getLocalidad())
+                .map(d -> d.getEtiqueta() + " — " + d.getDireccion() + ", " + d.getLocalidad())
                 .collect(Collectors.joining("; "));
     }
 
@@ -578,12 +582,22 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
                 LOG.info("[Pedidos] Pedido " + pedido.getId() + " cancelado por el ERP");
             } else if (pedido.getEstado() != EstadoPedido.CANCELADO) {
                 throw new CancelacionNoPermitidaException("El pedido " + pedido.getId() + " está "
-                        + pedido.getEstado() + ": el comercio ya no puede cancelarlo por la API."
-                        + " Si todavía no salió, lo puede cancelar el personal de Rabbit.");
+                        + pedido.getEstado() + ": el comercio ya no puede cancelarlo por la API. "
+                        + porQueNoSeCancela(pedido.getEstado()));
             }
         }
         // Ya cancelado o descartado: no queda nada que cancelar.
         return aDTOConPedido(externo);
+    }
+
+    // Qué le queda al ERP según hasta dónde llegó el pedido: solo un
+    // CONFIRMADO lo puede cancelar todavía el personal.
+    private static String porQueNoSeCancela(EstadoPedido estado) {
+        switch (estado) {
+            case EN_CAMINO: return "Ya salió a reparto: no se puede cancelar.";
+            case ENTREGADO: return "Ya fue entregado: no se puede cancelar.";
+            default: return "Si todavía no salió, lo puede cancelar el personal de Rabbit.";
+        }
     }
 
     // Cancela un pedido devolviendo lo que tenía comprometido. Lo usan el
@@ -618,6 +632,11 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             IReservaStock reserva = reservaProvider.get();
             try {
                 reserva.registrarDevolucion(linea.getIdReservaStock());
+            } catch (StockModificadoException e) {
+                // Choque pasajero con otra sesión sobre el mismo item: con
+                // reintentar alcanza (ver ConflictoDeStockException).
+                throw new ConflictoDeStockException(
+                        "No se pudo devolver el stock del pedido: " + e.getMessage());
             } catch (RuntimeException e) {
                 throw new ValidacionException(
                         "No se pudo devolver el stock del pedido: " + e.getMessage());

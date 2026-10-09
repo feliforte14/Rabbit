@@ -41,6 +41,7 @@ import com.rabbit.transportistas.dto.TransportistaDTO;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
+import jakarta.ejb.EJBException;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
@@ -58,6 +59,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -251,11 +253,15 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void cancelarEnvioDePedido(Long idPedido) {
-        Envio envio = repository.buscarEnvioDePedido(idPedido);
+        // Bloqueado y releído: una novedad del transportista pudo darlo por
+        // ENTREGADO justo antes, y un envío entregado no se cancela. El
+        // pedido ya viene bloqueado por cancelarPedido — pedido y después
+        // envío, el mismo orden que aplicarNovedad, para no cruzarse en un
+        // deadlock.
+        Envio envio = repository.buscarEnvioDePedidoParaActualizar(idPedido);
         if (envio == null || !envio.getEstado().isActivo()) {
             return;
         }
-        envio = repository.buscarEnvioParaActualizar(envio.getId());
         envio.setEstado(EstadoEnvio.CANCELADO);
         envio.setFechaActualizacion(LocalDateTime.now());
         repository.actualizarEnvio(envio);
@@ -293,7 +299,7 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void registrarNovedad(Long idEnvio, EstadoEnvio nuevo) {
-        aplicarNovedad(repository.buscarEnvioParaActualizar(idEnvio), nuevo);
+        aplicarNovedad(repository.buscarEnvioPorId(idEnvio), nuevo);
     }
 
     // Sin @RolesAllowed: lo llama el transportista, no una persona. Lo que
@@ -313,7 +319,7 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
             throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.ESTADO_DESCONOCIDO,
                     "Estado desconocido: " + estado + " (se esperaba SOLICITADO, EN_TRANSITO, ENTREGADO o CANCELADO)");
         }
-        Envio envio = codigoSeguimiento == null ? null : repository.buscarEnvioPorCodigoParaActualizar(idTransportista, codigoSeguimiento);
+        Envio envio = codigoSeguimiento == null ? null : repository.buscarEnvioPorCodigo(idTransportista, codigoSeguimiento);
         if (envio == null) {
             throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.ENVIO_DESCONOCIDO,
                     "No hay ningún envío " + codigoSeguimiento + " de " + t.getNombre());
@@ -337,20 +343,75 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
 
     // Lo mismo para el polling y el webhook. Una cancelación pudo ganarle al
     // seguimiento: un envío que ya no está activo no se toca.
+    //
+    // ORDEN DE BLOQUEO: primero el pedido, después el envío. El evento es
+    // sincrónico y Pedidos bloquea la fila del pedido al moverlo; recién
+    // después se bloquea el envío para escribirlo. cancelarPedido hace lo
+    // mismo (bloquea el pedido y llama a cancelarEnvioDePedido): con el
+    // mismo orden en los dos caminos no se cruzan en un deadlock.
     private boolean aplicarNovedad(Envio envio, EstadoEnvio nuevo) {
         if (envio == null || !envio.getEstado().isActivo() || envio.getEstado() == nuevo) {
             return false;
         }
+        Long idEnvio = envio.getId();
+        Long idPedido = envio.getIdPedido();
+        String codigo = envio.getCodigoSeguimiento();
         EstadoEnvio anterior = envio.getEstado();
+
+        // Sincrónico: Pedidos mueve el pedido en esta misma transacción. Si
+        // falla (por ejemplo, el personal cambió el pedido justo en ese
+        // momento), se deshace todo: el webhook responde 409 para que el
+        // transportista reintente, y el polling la vuelve a tomar en la
+        // próxima pasada. Se envuelve acá, y no en el recurso REST, porque
+        // Transportistas no conoce las excepciones de Pedidos; el detalle
+        // queda en el log y no se le cuenta al transportista.
+        try {
+            estadoEnvioCambiado.fire(new EstadoEnvioCambiado(idPedido, anterior, nuevo));
+        } catch (EJBException e) {
+            // Falla del sistema en Pedidos (la base no responde, un error de
+            // programación): no es un conflicto, se deja pasar como error
+            // interno para que se note.
+            throw e;
+        } catch (RuntimeException e) {
+            // Excepción de aplicación de Pedidos: una regla de negocio no
+            // dejó mover el pedido (cambió de estado justo ahora).
+            LOG.log(Level.WARNING, "[Transportistas] El pedido " + idPedido + " no se pudo mover a " + nuevo
+                    + " con la novedad del envío " + codigo, e);
+            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.PEDIDO_EN_CONFLICTO,
+                    "El pedido del envío " + codigo + " cambió al mismo tiempo y la novedad no se aplicó."
+                    + " Reintentá en unos segundos.");
+        }
+
+        // Ahora sí el envío, bloqueado y releído.
+        envio = repository.buscarEnvioParaActualizar(idEnvio);
+        if (envio == null) {
+            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.ENVIO_DESCONOCIDO,
+                    "El envío " + codigo + " ya no existe");
+        }
+        if (envio.getEstado() == nuevo) {
+            // El polling y el webhook trajeron la misma novedad a la vez y
+            // el otro ya la aplicó: no cambió nada que haga falta escribir.
+            // (No se marca rollback-only: con CMT, una transacción REQUIRES_NEW
+            // que termina rollback-only sin que la propia aplicación haya
+            // lanzado una excepción hace que el contenedor le tire
+            // EJBTransactionRolledbackException al llamador — convertiría
+            // este caso, que es el idempotente y debería responder 204, en
+            // un error.)
+            return false;
+        }
+        if (envio.getEstado() != anterior) {
+            // Lo cancelaron mientras tanto: el pedido ya se movió por una
+            // novedad que no corresponde, así que se deshace todo.
+            LOG.warning("[Transportistas] El envío " + codigo + " cambió mientras se aplicaba " + nuevo
+                    + " (está " + envio.getEstado() + "): no se aplica");
+            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.PEDIDO_EN_CONFLICTO,
+                    "El envío " + codigo + " cambió al mismo tiempo y la novedad no se aplicó."
+                    + " Reintentá en unos segundos.");
+        }
         envio.setEstado(nuevo);
         envio.setFechaActualizacion(LocalDateTime.now());
         repository.actualizarEnvio(envio);
-        LOG.info("[Transportistas] Envío " + envio.getCodigoSeguimiento() + " (pedido " + envio.getIdPedido()
-                + "): " + anterior + " -> " + nuevo);
-        // Sincrónico: Pedidos mueve el pedido en esta misma transacción; si
-        // falla, se deshace también la novedad y se reintenta en la próxima
-        // pasada del seguimiento.
-        estadoEnvioCambiado.fire(new EstadoEnvioCambiado(envio.getIdPedido(), anterior, nuevo));
+        LOG.info("[Transportistas] Envío " + codigo + " (pedido " + idPedido + "): " + anterior + " -> " + nuevo);
         return true;
     }
 

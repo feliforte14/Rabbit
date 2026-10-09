@@ -327,6 +327,11 @@
                              required="true" label="Importe"
                              requiredMessage="Ingresá el importe del pedido"
                              converterMessage="El importe tiene que ser un número">
+                    <!-- parseBigDecimal="true": BigDecimal es el tipo correcto para un importe
+                         (evita el redondeo flotante). Mojarra 4.1.7 loguea un SEVERE "Unhandled
+                         by MetaTagHandler" para este atributo del NumberConverter — wart conocido
+                         de esa versión, no significa que algo haya fallado; el valor se parsea
+                         bien. Ver docs/pruebas/FLUJO-DE-PRUEBAS.md. -->
                     <f:convertNumber pattern="#0.##" parseBigDecimal="true" />
                 </h:inputText>
             </div>
