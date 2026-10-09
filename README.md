@@ -120,6 +120,56 @@ El detalle y la justificación de cada decisión están en
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo.
 - **Consigna** (`docs/consigna/`): [Checklist](docs/consigna/CHECKLIST.md) de requisitos, [Desafíos opcionales](docs/consigna/DESAFIOS-OPCIONALES.md) y [Uso de IA](docs/consigna/USO-DE-IA.md).
 
+## Credenciales y cuentas necesarias
+
+Ninguna credencial real va en este repositorio (es público). Esta sección
+es el checklist de qué necesita cada quien y dónde se consigue o se crea
+— no reemplaza al detalle de cada paso en
+[Cómo levantar el sistema](#cómo-levantar-el-sistema).
+
+### Infraestructura
+
+| Credencial | Para qué | De dónde sale |
+|---|---|---|
+| Usuario/contraseña de la base PostgreSQL | Datasource `RabbitDS` (paso 2) | Si es la base compartida de Supabase, pedírsela al equipo; si es una base propia, la que elijas al crearla |
+| Usuario/contraseña de management de WildFly | `wildfly-maven-plugin` para desplegar (paso 3), puerto `9990` | Se crea una sola vez con `add-user.sh -u ... -p ...` (sin `-a`, no es un usuario de la app) y se guarda en `~/.m2/settings.xml`, nunca en `pom.xml` |
+| Servidor SMTP (host, puerto, remitente) | Avisos por mail al comercio (paso 7, opcional) | El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal |
+
+### Cuentas de la aplicación (realm de WildFly)
+
+Estas **no** se precargan: las crea cada administrador desde la pantalla
+**Usuarios**, salvo la primera, que arranca el sistema.
+
+| Tipo de cuenta | Cómo se crea | Qué usa/ve |
+|---|---|---|
+| `ADMINISTRADOR` (la primera) | `add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s` (paso 5) — es la única que se crea por fuera de la app | Todo; además, único rol que puede eliminar un comercio, anular un cobro y dar de alta/baja otros usuarios |
+| `ADMINISTRADOR` / `OPERADOR` (resto) | Desde **Usuarios**, con un `ADMINISTRADOR` ya logueado | Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar comercios/anular cobros |
+| `COMERCIO` | Desde **Usuarios**, asociándola a un comercio ya dado de alta | Sus pedidos, su stock (solo lectura), sus puntos de picking |
+| `REPARTIDOR` | Desde **Usuarios**, asociándola a un repartidor ya dado de alta | Su hoja de ruta; marca retiro y entrega |
+| `ERP` | Desde **Usuarios**, asociándola a un comercio (paso 6) | Nada de la web — solo la API REST `/api/v1`, y solo los pedidos de ese comercio (HTTP Basic) |
+
+Un usuario creado a mano con `add-user.sh -g ERP`/`-g COMERCIO` (sin pasar
+por la app) no queda asociado a ningún comercio ni repartidor: la app
+responde "cuenta sin asociar" (web) o `403` (API). El flujo completo para
+probar los cinco tipos de cuenta está en
+[FLUJO-DE-PRUEBAS.md](docs/pruebas/FLUJO-DE-PRUEBAS.md).
+
+### Sistemas legados y modernos (aparte de Rabbit)
+
+No hace falta levantar ninguno de estos para que Rabbit funcione (cada uno
+tiene un equivalente simulado adentro del WAR); son para probar la
+heterogeneidad tecnológica y los desafíos opcionales.
+
+| Sistema | Lenguaje | Cómo levantarlo | Reemplaza a |
+|---|---|---|---|
+| Banco legado ([`banco-legado/`](banco-legado/README.md)) | Node.js (SOAP) | `cd banco-legado && npm install && npm start` (puerto `8090`), después apuntar `rabbit.banco.wsdl` y redesplegar Rabbit | El banco simulado en Java dentro de Rabbit (`BancoLegadoServiceImpl`) |
+| Transportista moderno ([`transportista-moderno/`](transportista-moderno/README.md)) | Python (REST), sin dependencias | `python3 transportista-moderno/servidor.py` (puerto `8095`), registrarlo en **Transportistas** y generarle una clave de webhook | El transportista REST simulado dentro de Rabbit (`TransportistaRestSimuladoResource`) — ambos usan el mismo contrato |
+| Transportista SOAP legado | Java, dentro del WAR | No se levanta aparte: ya corre con Rabbit en `TransportistaLegadoService?wsdl` | — (es el único que no tiene versión "externa" en este repo) |
+
+No necesitan credenciales propias: el banco legado no tiene auth, y el
+transportista moderno usa la clave de webhook que genera Rabbit (no al
+revés).
+
 ## Cómo levantar el sistema
 
 ### Requisitos
