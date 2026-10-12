@@ -24,7 +24,7 @@ cli() { "$WILDFLY_HOME/bin/jboss-cli.sh" --connect "$@"; }
 
 | Sistema | Dónde corre | Puerto | Hace falta para |
 |---|---|---|---|
-| WildFly 41 (Rabbit + broker JMS + banco y transportistas simulados) | Local | 8080 (app), 9990 (management) | Todo |
+| WildFly 41 (Rabbit + broker JMS + banco y transportistas simulados) | Local | 8443 (app, HTTPS), 8080 (simuladores), 9990 (management) | Todo |
 | Base PostgreSQL | Supabase (remota, siempre prendida) | 5432 (Session Pooler) | Todo |
 | Banco legado en Node.js | Local, opcional | 8090 | Solo la demo de heterogeneidad |
 
@@ -66,7 +66,7 @@ Desde la raíz del repositorio:
 | Quitar el despliegue | `mvn -q wildfly:undeploy` |
 | ¿Está desplegada? | `cli --command="deployment-info --name=Rabbit.war"` → `OK` |
 | Redesplegar el WAR ya subido (tras cambiar una system property) | `cli --command="/deployment=Rabbit.war:redeploy"` |
-| Abrir | http://localhost:8080/Rabbit |
+| Abrir | https://localhost:8443/Rabbit (certificado autofirmado: aceptar la advertencia) |
 
 Usá siempre `clean`: una compilación incremental ya dejó pasar un import
 faltante.
@@ -163,7 +163,7 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
 
 ### A. Arranque y datos base (como `claude-cb-admin`)
 
-- [ ] **A1. Login.** Entrar a http://localhost:8080/Rabbit → cae en
+- [ ] **A1. Login.** Entrar a https://localhost:8443/Rabbit → cae en
   `personal/pedidos.xhtml`, vacío y sin errores; el menú marca "Pedidos".
 - [ ] **A2. Comercio.** Comercios → registrar uno (CUIT `XX-XXXXXXXX-X`).
   Aparece Activo.
@@ -178,21 +178,17 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
 - [ ] **A7. Validaciones de alta.** Un CUIT mal formado, un usuario
   repetido y un repartidor que ya tiene cuenta se rechazan con un mensaje
   claro.
-- [ ] **A8. Cuenta del ERP.** Es una cuenta de sistema, solo para la API:
-  no se crea desde la app sino en WildFly (pide la contraseña dos veces y
-  no hace falta reiniciar):
-
-  ```bash
-  $WILDFLY_HOME/bin/add-user.sh -a -u demo.erp -g ERP
-  ```
+- [ ] **A8. Cuenta del ERP.** Desde **Usuarios**: usuario `demo.erp`, tipo
+  `ERP (API REST)`, asociada al comercio de A2. Solo usa la API y solo ve
+  los pedidos de ese comercio; no puede entrar a la web.
 
 ### B. Pedidos del ERP: REST + cola punto a punto
 
 - [ ] **B1. Alta por la API.** Con los IDs de A2 y A4:
 
   ```bash
-  curl -i -u demo.erp:<contraseña> -X POST \
-    http://localhost:8080/Rabbit/api/pedidos-externos \
+  curl -ik -u demo.erp:<contraseña> -X POST \
+    https://localhost:8443/Rabbit/api/v1/pedidos-externos \
     -H "Content-Type: application/json" \
     -d '{"idComercio":<id>,"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":<id>,"cantidad":1}],
          "importe":2500,"medioPago":"PREPAGO","direccionEntrega":"Av. Corrientes 1234, CABA",
@@ -201,7 +197,7 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
 
   Responde `201` con `idPedidoExterno` y `Location`.
 - [ ] **B2. Sincronización por la cola.**
-  `curl -u demo.erp:<contraseña> http://localhost:8080/Rabbit/api/pedidos-externos/<idPedidoExterno>`
+  `curl -k -u demo.erp:<contraseña> https://localhost:8443/Rabbit/api/v1/pedidos-externos/<idPedidoExterno>`
   → pasa de `Pendiente` a `Sincronizado` con el `idPedido`. En el log:
   `[Pedidos][JMS] Pedido externo N sincronizado en tiempo real`.
 - [ ] **B3. Rechazos de la API.** Sin `direccionEntrega` → `400`; con
@@ -210,8 +206,9 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
 - [ ] **B4. Pedido descartado.** Un pedido con más cantidad que el stock
   disponible queda `Descartado`, con el motivo.
 - [ ] **B5. Seguimiento público.**
-  `curl http://localhost:8080/Rabbit/api/seguimiento/<idPedido>` devuelve
-  el estado sin pedir login.
+  `curl -k https://localhost:8443/Rabbit/api/v1/seguimiento/<codigoSeguimiento>`
+  devuelve el estado sin pedir login (el código lo ve el comercio en Mis
+  pedidos).
 - [ ] **B6. Simulación desde la web.** En Pedidos, "Simular un pedido
   del ERP" con origen punto de picking: aparece en la tabla al recargar.
 
@@ -349,7 +346,7 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
   ejemplo, por un borrado a mano en la base), el menú dice "Cuenta sin
   asociar" y "Mis puntos de picking" muestra "Tu cuenta no está asociada a
   un comercio activo" (`SesionBean`, `PuntoPickingBean`).
-- [ ] **S6. URLs viejas y plantilla.** `http://localhost:8080/Rabbit/pedidos.xhtml`
+- [ ] **S6. URLs viejas y plantilla.** `https://localhost:8443/Rabbit/pedidos.xhtml`
   y `.../template.xhtml` → página de error, sin detalles internos.
 - [ ] **S7. Sin sesión.** Cerrar sesión y abrir `personal/pedidos.xhtml`
   → vuelve al login.
