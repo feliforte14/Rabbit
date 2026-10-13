@@ -588,3 +588,31 @@ Propuesta o Reemplazada.
 - **Consecuencias:** un choque de concurrencia en Inventario nunca más
   tira abajo un lote entero del barredor ni hace que el ERP pierda un
   pedido por un conflicto que se resolvía solo un segundo después.
+
+## ADR-027: Consultas de stock en un EJB @Stateless, separado de la reserva
+
+- **Estado:** Aceptada.
+- **Contexto:** `InventarioService` (`@Stateful`) implementaba las dos
+  interfaces del componente. `PedidoService` y `RuteoService` (`@Stateless`
+  de pool) y los beans de la vista se inyectaban `IConsultaStock` como
+  campo, y cada uno quedaba atado a una instancia stateful fija. Cuando esa
+  instancia moría —por el `@StatefulTimeout` de 30 minutos o porque una
+  excepción de sistema (por ejemplo, un corte de la base) hace que el
+  contenedor la descarte— la referencia quedaba colgada y la próxima
+  llamada fallaba con `NoSuchEJBException` (`WFLYEJB0168`). Se vio en la
+  prueba manual: derivar un pedido y abrir "Entregas en curso" fallaban
+  hasta reintentar con otra instancia del pool.
+- **Decisión:** `IConsultaStock` pasa a `ConsultaStockService`
+  (`@Stateless`), con las mismas operaciones, roles y transacciones.
+  `InventarioService` queda solo con `IReservaStock`, que sí es una
+  conversación y se sigue pidiendo por `Instance<IReservaStock>` (Provider).
+- **Alternativas descartadas:**
+  - *Pedir también `IConsultaStock` por `Instance<>` en cada llamada:*
+    crea y destruye una instancia stateful para una consulta que no la
+    necesita, y obliga a cada consumidor a recordar hacerlo.
+  - *Subir o quitar el `@StatefulTimeout`:* no cubre el descarte por
+    excepción de sistema y deja instancias vivas sin límite.
+- **Consecuencias:** las consultas usan el pool stateless como el resto
+  de los componentes y no pueden quedar con una referencia vencida. El
+  componente sigue teniendo su parte stateful (la reserva), que es la que
+  justifica el requisito de la consigna.

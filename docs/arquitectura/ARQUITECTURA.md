@@ -27,7 +27,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Componente | Estado | Interfaces | Tipo de EJB | Por qué ese tipo |
 |---|---|---|---|---|
 | Comercios | Implementado | `IRegistroComercios`, `IConsultaComercios` | `@Stateless` | Cada operación recibe todo lo que necesita; el estado vive en la base |
-| Inventario | Implementado | `IConsultaStock`, `IReservaStock` | `@Stateful` (un solo EJB, `InventarioService`, implementa las dos) | La reserva es una conversación: `reservarStock` y `confirmarReserva` operan sobre la misma instancia |
+| Inventario | Implementado | `IConsultaStock`, `IReservaStock` | `@Stateful` (`InventarioService`, `IReservaStock`) + `@Stateless` (`ConsultaStockService`, `IConsultaStock`) | La reserva es una conversación: `reservarStock` y `confirmarReserva` operan sobre la misma instancia |
 | Pedidos | Implementado | `IGestionPedidos`, `ISeguimientoPedido` | `@Stateless` (Facade) | El estado del pedido vive en la base; ninguna operación depende de una llamada anterior |
 | Seguridad | Implementado | `IRegistroUsuarios`, `IConsultaUsuarios`, `IContextoUsuario` | `@Stateless` | Idem Comercios |
 | Integración banco legado | Implementado | `IBancoClient` | `@Stateless` + `@Singleton` (`CircuitBreakerBanco`) | Cliente SOAP sin estado de conversación; el estado del circuit breaker es uno solo, compartido por todas las llamadas |
@@ -63,9 +63,13 @@ otro componente. Las referencias entre componentes se guardan como IDs
 
 Otros detalles de cada componente:
 
-- **Inventario:** `IReservaStock` mantiene la reserva abierta entre
-  requests con `@StatefulTimeout`; `BarredorDeReservas` (`@Schedule`)
-  libera las reservas vencidas que el usuario no resolvió.
+- **Inventario:** `IReservaStock` (`InventarioService`, `@Stateful`)
+  mantiene la reserva abierta entre requests con `@StatefulTimeout`;
+  `BarredorDeReservas` (`@Schedule`) libera las reservas vencidas que el
+  usuario no resolvió. Las consultas y la carga de stock (`IConsultaStock`)
+  están en `ConsultaStockService` (`@Stateless`): no tienen conversación, y
+  así quien solo consulta no queda atado a una instancia stateful que
+  puede vencer (ADR-027).
 - **Comercios:** eliminar un comercio es físico y solo se permite si ya
   está dado de baja y si nada lo referencia (pedidos, pedidos del ERP,
   stock consignado, cuentas de usuario): cada componente lo verifica al
