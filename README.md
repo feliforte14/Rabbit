@@ -47,7 +47,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 - **Interfaz:** tres temas visuales (normal, claro y oscuro) que se
   cambian en el momento desde el menú o el pie de las páginas públicas, y
   diseño responsive: en celular y tablet el menú se despliega con un botón
-  y las tablas se ven como tarjetas (ver `resources/rabbit/1_8/`).
+  y las tablas se ven como tarjetas (ver `resources/rabbit/1_9/`).
 
 ## Tecnologías
 
@@ -82,7 +82,7 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_8/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+├── resources/rabbit/1_9/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
 │                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas)
 └── WEB-INF/
     ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)
