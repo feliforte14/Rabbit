@@ -31,5 +31,5 @@ rápido en la defensa.
 
 | Requisito | Estado | Dónde |
 |---|---|---|
-| Diseño responsive (obligatorio para una web app) | Cumple | Escritorio, tablet y celular, probado de 360 a 1920 px sin desborde horizontal: hasta 860 px el menú lateral pasa a una barra con botón "Menú" (`menu.js`) y las tablas se ven como tarjetas (`tablas.js`); entre 861 y 1180 px las tablas anchas se desplazan dentro de su recuadro. Objetivos táctiles de 44 px en el menú |
+| Diseño responsive (obligatorio para una web app) | Cumple | Escritorio, tablet y celular, probado en 10 tamaños de 360 a 1920 px **sin ningún scroll horizontal**. A menor pantalla, menos información: cada tabla marca sus columnas secundarias (`col-p3`, detalle, se oculta por debajo de 1366 px; `col-p2`, complementaria, por debajo de 1100 px) y en el celular las tablas se ven como tarjetas con solo lo esencial (`tablas.js`). Hasta 860 px el menú lateral pasa a una barra con botón "Menú" (`menu.js`). Objetivos táctiles de 44 px en el menú |
 | Temas claro, oscuro y normal (opcional, puntos extra) | Cumple | Se cambian en tiempo real, sin recargar, desde el menú lateral o el pie del login, el seguimiento y la página de error (`tema.js`). Cada tema solo redefine las variables de color de `estilos.css`; la elección queda guardada en el navegador y se aplica antes de pintar la página, sin parpadeo |

@@ -31,7 +31,7 @@
             <h:dataTable value="#{depositoBean.depositos}" var="d"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty depositoBean.depositos}">
-                <h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">ID</f:facet>
                     #{d.id}
                 </h:column>
@@ -43,15 +43,15 @@
                     <f:facet name="header">Dirección</f:facet>
                     #{d.direccion}
                 </h:column>
-                <h:column>
+                <h:column styleClass="col-p3" headerClass="col-p3">
                     <f:facet name="header">Provincia</f:facet>
                     #{d.provincia}
                 </h:column>
-                <h:column>
+                <h:column styleClass="col-p3" headerClass="col-p3">
                     <f:facet name="header">Localidad</f:facet>
                     #{d.localidad}
                 </h:column>
-                <h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Código Postal</f:facet>
                     #{d.codigoPostal}
                 </h:column>

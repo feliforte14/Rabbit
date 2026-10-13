@@ -7,11 +7,11 @@
  * No toca Managed Beans, Services ni Repositories: es 100% presentacion.
  *
  * VERSIONADO DE RECURSOS
- * Vive en resources/rabbit/1_9/ y se linkea con:
+ * Vive en resources/rabbit/1_10/ y se linkea con:
  *     <h:outputStylesheet library="rabbit" name="estilos.css" />
- * "rabbit" es la libreria y "1_9" su version. JSF genera una URL que
- * incluye la version (?ln=rabbit&v=1_9), asi que al renombrar la carpeta
- * a 1_9 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
+ * "rabbit" es la libreria y "1_10" su version. JSF genera una URL que
+ * incluye la version (?ln=rabbit&v=1_10), asi que al renombrar la carpeta
+ * a 1_10 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
  * Sin esto, el navegador se queda con el CSS viejo cacheado aunque el
  * WAR ya tenga el nuevo.
  */
@@ -419,7 +419,7 @@ h2 {
    ================================================================== */
 .stat-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     gap: 1rem;
     margin-bottom: 2rem;
 }
@@ -822,22 +822,32 @@ h2 {
     }
 }
 
-/* Si una tabla no entra, se desplaza de costado dentro de su propio
-   recuadro, sin correr la página entera: las que no se vuelven tarjetas,
-   siempre; las que sí, hasta que pasan a tarjetas (860 px), por ejemplo
-   en una tablet horizontal con el menú al costado. */
-@media (max-width: 1180px) {
-    .tabla:not(.tabla-tarjetas) {
-        display: block;
-        overflow-x: auto;
+/* ==================================================================
+   Sin scroll horizontal: a menor pantalla, menos información
+   Cada tabla marca sus columnas secundarias (h:column styleClass y
+   headerClass): col-p3 es detalle, col-p2 es complementaria. Se ocultan
+   a medida que se achica la pantalla; en las tarjetas del celular quedan
+   solo las esenciales. Lo oculto sigue disponible en la pantalla de
+   detalle o en una pantalla más grande.
+   ================================================================== */
+@media (max-width: 1366px) {
+    .tabla th.col-p3,
+    .tabla td.col-p3 {
+        display: none;
     }
 }
 
-@media (min-width: 861px) and (max-width: 1180px) {
-    .tabla.tabla-tarjetas {
-        display: block;
-        overflow-x: auto;
+@media (max-width: 1100px) {
+    .tabla th.col-p2,
+    .tabla td.col-p2 {
+        display: none;
     }
+}
+
+/* Un texto largo sin espacios (una URL, un código) corta línea en vez de
+   estirar la tabla. */
+.tabla td {
+    overflow-wrap: anywhere;
 }
 
 /* ------------------------------------------------------------------
@@ -1075,12 +1085,12 @@ h2 {
 }
 
 /* ==================================================================
-   Tablas anchas: se desplazan de costado dentro del contenido en vez
-   de salirse de la página. Y un dato secundario debajo del principal,
-   para no sumar columnas (por ejemplo, el medio de pago bajo el importe).
+   Tablas con muchas columnas (celdas más angostas, botones apilados). Y
+   un dato secundario debajo del principal, para no sumar columnas (por
+   ejemplo, el medio de pago bajo el importe). Sin scroll horizontal: lo
+   que no entra se oculta por prioridad (ver col-p2 / col-p3).
    ================================================================== */
 .tabla-scroll {
-    overflow-x: auto;
     margin-bottom: 2rem;
 }
 
@@ -1405,9 +1415,6 @@ a.codigo:hover {
         font-size: 1.8rem;
     }
 
-    .tabla-scroll:has(.tabla-tarjetas) {
-        overflow: visible;
-    }
 }
 
 /* ---- Pagina publica de seguimiento ------------------------------- */
