@@ -171,7 +171,7 @@ h2 {
 }
 
 .sidebar {
-    width: 240px;
+    width: 232px;
     flex: none;
     height: 100vh;
     position: sticky;
@@ -182,62 +182,81 @@ h2 {
     color: var(--sidebar-texto);
 }
 
+/* Barra minimalista: sin bloques de color ni bordes; la jerarquía la dan
+   el tamaño, el color y el espacio. */
 .sidebar-logo {
-    padding: 1.75rem 1.25rem 1.25rem;
-    text-align: center;
-    border-bottom: 1px solid var(--sidebar-borde);
+    padding: 1.6rem 1.5rem 1.25rem;
 }
 
 .sidebar-logo .marca {
     font-family: var(--fuente-titulo);
     font-style: italic;
     font-weight: 700;
-    font-size: 1.6rem;
+    font-size: 1.55rem;
+    line-height: 1;
     color: var(--naranja);
     margin: 0;
     letter-spacing: 0.01em;
 }
 
 .sidebar-logo .slogan {
-    margin: 0.3rem 0 0;
-    font-size: 0.72rem;
-    color: var(--sidebar-texto-tenue);
+    display: none;
 }
 
 .sidebar-nav {
     flex: 1;
-    padding: 1rem 0.75rem;
+    padding: 0.5rem 0.75rem 1rem;
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 0.05rem;
     overflow-y: auto;
 }
 
+/* El punto de la opción activa ocupa siempre su lugar (transparente en las
+   demás), así el texto de todas queda alineado. */
 .sidebar-nav a {
-    display: block;
-    padding: 0.65rem 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    padding: 0.45rem 0.75rem;
     border-radius: var(--radio-chico);
     color: var(--sidebar-texto-suave);
     text-decoration: none;
-    font-size: 0.92rem;
+    font-size: 0.9rem;
     font-weight: 500;
-    transition: background-color 0.15s, color 0.15s;
+    transition: color 0.15s;
+}
+
+.sidebar-nav a::before {
+    content: "";
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: transparent;
+    transition: background-color 0.15s;
 }
 
 .sidebar-nav a:hover {
-    background: var(--sidebar-hover);
     color: var(--sidebar-hover-texto);
 }
 
+.sidebar-nav a:focus-visible {
+    outline: 2px solid var(--naranja);
+    outline-offset: -2px;
+}
+
 .sidebar-nav a.activo {
-    background: var(--naranja);
-    color: var(--sobre-acento);
+    color: var(--naranja);
     font-weight: 600;
 }
 
+.sidebar-nav a.activo::before {
+    background: var(--naranja);
+}
+
 .sidebar-foot {
-    padding: 1rem 0.75rem 1.25rem;
-    border-top: 1px solid var(--sidebar-borde);
+    padding: 0.9rem 1.25rem 1.25rem;
 }
 
 .sidebar-foot form {
@@ -245,16 +264,68 @@ h2 {
 }
 
 .sidebar-usuario {
-    padding: 0 0.1rem 0.75rem;
+    margin: 0 0 0.6rem;
     font-size: 0.8rem;
-    color: var(--sidebar-texto-suave);
+    line-height: 1.35;
+    color: var(--sidebar-texto-tenue);
+    overflow-wrap: anywhere;
 }
 
 .sidebar-usuario b {
-    display: block;
     color: var(--sidebar-texto);
     font-weight: 600;
-    font-size: 0.88rem;
+}
+
+.sidebar-acciones {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+/* Texto que solo leen los lectores de pantalla */
+.solo-lector {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Botón de solo ícono (tema y cerrar sesión): el nombre va en
+   aria-label y en el tooltip (title). */
+.icono-boton {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: none;
+    border-radius: var(--radio-chico);
+    background: transparent;
+    color: var(--sidebar-texto-tenue);
+    cursor: pointer;
+    transition: color 0.15s, background-color 0.15s;
+}
+
+.icono-boton svg {
+    width: 1.05rem;
+    height: 1.05rem;
+}
+
+.icono-boton:hover {
+    color: var(--sidebar-hover-texto);
+    background: var(--sidebar-hover);
+}
+
+.icono-boton:focus-visible {
+    outline: 2px solid var(--naranja);
+    outline-offset: 1px;
 }
 
 .app-contenido {
@@ -847,11 +918,9 @@ h2 {
    Menú por tipo de usuario: títulos de sección
    ================================================================== */
 .sidebar-seccion {
-    margin: 0.9rem 0.85rem 0.3rem;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
+    margin: 1.1rem 0.75rem 0.3rem;
+    font-size: 0.72rem;
+    font-weight: 500;
     color: var(--sidebar-texto-tenue);
 }
 
@@ -1508,66 +1577,36 @@ a.codigo:hover {
 }
 
 /* ==================================================================
-   Selector de tema (ver tema.js)
+   Selector de tema (ver tema.js): tres íconos, el activo en naranja
    ================================================================== */
 .tema-selector {
     display: flex;
-    gap: 0.25rem;
-    padding: 0.2rem;
-    margin: 0 0 0.75rem;
-    border: 1px solid var(--sidebar-borde);
-    border-radius: var(--radio-chico);
+    gap: 0.1rem;
 }
 
-.tema-selector button {
-    flex: 1;
-    padding: 0.35rem 0.4rem;
-    border: none;
-    border-radius: 6px;
-    background: transparent;
-    color: var(--sidebar-texto-suave);
-    font: inherit;
-    font-size: 0.78rem;
-    font-weight: 600;
-    cursor: pointer;
+.tema-selector button[aria-pressed="true"],
+.tema-selector button[aria-pressed="true"]:hover {
+    color: var(--naranja);
 }
 
-.tema-selector button:hover {
-    color: var(--sidebar-hover-texto);
-    background: var(--sidebar-hover);
-}
-
-.tema-selector button[aria-pressed="true"] {
-    background: var(--naranja);
-    color: var(--sobre-acento);
-}
-
-.tema-selector button:focus-visible {
-    outline: 2px solid var(--naranja);
-    outline-offset: 1px;
-}
-
-/* En las páginas sin menú (login, seguimiento, error) el selector va al
-   pie, sobre el fondo de la página. */
+/* En las páginas sin menú (login, seguimiento) va al pie, centrado, con
+   los colores de la página en vez de los del menú. */
 .tema-selector.tema-pie {
-    width: max-content;
+    justify-content: center;
     margin: 2.5rem auto 0;
-    border-color: var(--borde);
 }
 
-.tema-selector.tema-pie button {
+.tema-selector.tema-pie .icono-boton {
     color: var(--texto-suave);
-    padding: 0.35rem 0.8rem;
 }
 
-.tema-selector.tema-pie button:hover {
+.tema-selector.tema-pie .icono-boton:hover {
     color: var(--texto);
-    background: var(--fondo);
+    background: var(--borde);
 }
 
 .tema-selector.tema-pie button[aria-pressed="true"] {
-    background: var(--naranja);
-    color: var(--sobre-acento);
+    color: var(--naranja);
 }
 
 /* El selector solo funciona con JavaScript: sin él, no se muestra. */
@@ -1598,6 +1637,10 @@ html[data-tema="claro"] {
 
 html[data-tema="claro"] .sidebar {
     border-right: 1px solid var(--borde);
+}
+
+html[data-tema="claro"] .sidebar-nav a:hover {
+    color: var(--navy);
 }
 
 /* Oscuro */
