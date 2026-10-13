@@ -16,7 +16,7 @@ rápido en la defensa.
 | Transacciones declarativas en 1 flujo crítico de varios pasos | Cumple | `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla. Ver [TRANSACCIONES.md](../arquitectura/TRANSACCIONES.md) |
 | Stack consistente y justificado | Cumple | Jakarta EE 10 sobre WildFly 41 |
 | Repositorio Git con historial incremental | Cumple | Commits desde agosto, de varios integrantes |
-| Tests automatizados (no lo exige la consigna) | Hay | 27 tests unitarios (JUnit 5) en cada build y 12 tests de integración de la API con REST Assured (`mvn verify -Pintegracion`). Ver el README |
+| Tests automatizados (no lo exige la consigna) | Hay | 27 tests unitarios (JUnit 5) en cada build y 10 tests de integración de la API con REST Assured (`mvn verify -Pintegracion`). Ver el README |
 
 ## Desafíos opcionales
 

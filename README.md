@@ -6,16 +6,26 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 
 ## Qué hace
 
-- **Comercios:** alta y gestión de comercios y sus puntos de picking. Rabbit
-  no lleva el catálogo de productos de cada comercio: eso vive en el ERP
-  del comercio, y Rabbit solo conoce lo que tiene que retirar y entregar.
+- **Comercios:** alta y gestión de comercios y sus puntos de picking, con
+  baja lógica en cascada y reactivación. Un comercio dado de baja se puede
+  eliminar si no tiene nada vivo (solo pedidos cancelados, que se borran
+  con él). Rabbit no lleva el catálogo de productos de cada comercio: eso
+  vive en el ERP del comercio, y Rabbit solo conoce lo que tiene que
+  retirar y entregar.
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
-  comercios, y reservas de stock con vencimiento.
+  comercios, y reservas de stock con vencimiento (5 minutos, extensibles):
+  si nadie las confirma ni las libera, se liberan solas.
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio por una
   API REST versionada (`/api/v1`, alta idempotente, consulta y
   cancelación), su sincronización automática con stock y su seguimiento
   (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`), también público por
   código de seguimiento.
+- **Pagos y cobranzas:** un pedido prepago se cobra en el banco legado al
+  confirmarlo (con reversa si la confirmación falla después, y un circuit
+  breaker si el banco no responde); uno contra entrega se acredita cuando
+  se entrega.
+- **Repartidores:** padrón de repartidores propios con su zona; al
+  confirmar un pedido se le asigna uno libre.
 - **Transportistas:** un pedido se puede derivar a una empresa de envíos
   externa (integrada por API REST o por SOAP legado), después de comparar
   sus cotizaciones; Rabbit sigue el estado del envío (consultándolo cada 15 s)
@@ -72,7 +82,8 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_7/     ← CSS y JS versionados (tablas.js: tablas como tarjetas en el celular)
+├── resources/rabbit/1_8/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+│                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas)
 └── WEB-INF/
     ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)
     ├── web.xml, beans.xml, jboss-ejb3.xml
@@ -102,25 +113,49 @@ transportista-moderno/     ← un transportista REST como servicio aparte (Pytho
 
 ## Integraciones
 
-| Integración | Tipo | Estado |
+2 SOAP, 3 REST, 1 cola punto a punto y 1 tópico pub/sub (más el mail, opcional):
+
+| Integración | Tipo | Dirección |
 |---|---|---|
-| Pedidos del ERP → sincronización | Asincrónica, cola JMS | Implementado |
-| Pagos → banco legado (cobro y reversa) | Sincrónica, SOAP | Implementado |
-| ERP del comercio → Rabbit (y seguimiento público) | Sincrónica, REST | Implementado |
-| Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Implementado |
-| Transportistas → transportista moderno / legado (cotizar, derivar, seguir, cancelar) | Sincrónica, REST saliente / SOAP | Implementado |
-| Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Implementado (opcional, por configuración) |
+| Pagos → banco legado (cobro y reversa, con circuit breaker) | Sincrónica, **SOAP** | Saliente |
+| Transportistas → transportista legado (derivar, seguir, cancelar) | Sincrónica, **SOAP** | Saliente |
+| ERP del comercio → Rabbit (`/api/v1/pedidos-externos`: alta idempotente, consulta y cancelación) | Sincrónica, **REST** | Entrante |
+| Cliente final → Rabbit (`/api/v1/seguimiento/{codigo}`, sin login) | Sincrónica, **REST** | Entrante |
+| Transportistas → transportista moderno (cotizar, derivar, seguir, cancelar) | Sincrónica, **REST** | Saliente |
+| Pedido del ERP → pedido real (`cola.pedidos.externos`) | Asincrónica, **cola JMS** | Interna |
+| Cambios de estado del pedido → Pagos y Notificaciones (`topico.pedidos.estado`) | Asincrónica, **tópico JMS** | Interna |
+| Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Saliente (opcional, por configuración) |
+
+El seguimiento de los envíos derivados es por consulta periódica (cada
+15 s) a todos los transportistas, modernos y legados (ADR-029).
 
 ## Documentación técnica
 
 El detalle y la justificación de cada decisión están en
-[`docs/`](docs/README.md):
+[`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (ADRs)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (29 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
-- **Consigna** (`docs/consigna/`): [Checklist](docs/consigna/CHECKLIST.md) de requisitos, [Desafíos opcionales](docs/consigna/DESAFIOS-OPCIONALES.md) y [Uso de IA](docs/consigna/USO-DE-IA.md).
+- **Consigna** (`docs/consigna/`): [Checklist](docs/consigna/CHECKLIST.md) de requisitos (Sección 6 y anexo), [Desafíos opcionales](docs/consigna/DESAFIOS-OPCIONALES.md) y [Uso de IA](docs/consigna/USO-DE-IA.md).
+
+## Cumplimiento de la consigna
+
+| Requisito | Cómo |
+|---|---|
+| Mínimo 6 componentes con interfaz explícita | 10 componentes, cada uno con interfaces `@Local` |
+| 1 componente stateful y 1 stateless | `InventarioService` (`@Stateful`: la reserva de stock es una conversación) y el resto `@Stateless` |
+| Arquitectura en capas | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente |
+| 3 patrones de diseño | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, máquina de estados, transacción compensatoria y Circuit Breaker |
+| SOAP con un sistema legado / REST con un partner moderno | Ver [Integraciones](#integraciones) |
+| Cola punto a punto y tópico pub/sub | `cola.pedidos.externos` y `topico.pedidos.estado` (ActiveMQ Artemis) |
+| Seguridad declarativa | `@RolesAllowed` en las operaciones sensibles, 5 roles, HTTPS obligatorio |
+| Transacciones declarativas | `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla |
+| Desafíos opcionales | Los cuatro: resiliencia, escalabilidad medida, ADRs y heterogeneidad tecnológica (banco en Node.js, transportista en Python) |
+| Anexo: responsive y temas | Responsive de 360 a 1920 px; temas normal, claro y oscuro en tiempo real |
+
+El detalle, requisito por requisito, en el [Checklist](docs/consigna/CHECKLIST.md).
 
 ## Credenciales y cuentas necesarias
 
@@ -176,9 +211,9 @@ moderno tienen autenticación.
 ### Requisitos
 
 - Java 17 o superior (el proyecto compila con `--release 17`; probado con
-  JDK 21).
+  JDK 21 y 24).
 - Maven 3.9+.
-- WildFly 41 (probado con 41.0.1.Final), arrancado con el perfil
+- WildFly 41 (probado con 41.0.0.Final y 41.0.1.Final), arrancado con el perfil
   **`standalone-full.xml`** (lo necesita JMS).
 - Acceso a la base PostgreSQL del proyecto (datasource JNDI
   `java:jboss/datasources/RabbitDS`, ver
@@ -291,10 +326,14 @@ el plugin las toma del `<server>` con id `rabbit-wildfly` de
 ### 4. Desplegar
 
 ```bash
-mvn package wildfly:deploy
+mvn clean package wildfly:deploy
 ```
 
-y abrir https://localhost:8443/Rabbit. Rabbit exige HTTPS: si se entra por
+(`clean` siempre: una compilación incremental ya dejó pasar un import
+faltante). El despliegue queda guardado en WildFly: al reiniciarlo, Rabbit
+vuelve a levantar solo; solo hace falta redesplegar cuando cambia el código.
+
+Abrir https://localhost:8443/Rabbit. Rabbit exige HTTPS: si se entra por
 `http://localhost:8080/Rabbit`, redirige solo. En local WildFly usa un
 certificado autofirmado, así que el navegador muestra una advertencia la
 primera vez (aceptarla) y `curl` necesita `-k`.
@@ -371,7 +410,7 @@ postales y de seguimiento, huella de idempotencia, límite de intentos de
 login, reglas del transportista simulado y validación del cuerpo de la
 API.
 
-Tests de integración de la API REST (REST Assured), contra Rabbit ya
+10 tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:
 
 ```bash
@@ -382,3 +421,15 @@ Prueban alta, idempotencia, errores en Problem Details, pertenencia,
 cancelación y seguimiento público. Los pedidos que crean llevan
 `[TEST]` en la dirección. Conviene correrlos contra una base local, no contra la
 compartida del equipo: los pedidos de prueba quedan guardados.
+
+Para probar a mano, de punta a punta: [FLUJO-DE-PRUEBAS.md](docs/pruebas/FLUJO-DE-PRUEBAS.md)
+(recorrido guiado por pantalla) y [PRUEBAS-Y-COMANDOS.md](docs/pruebas/PRUEBAS-Y-COMANDOS.md)
+(comandos de cada sistema y lista para marcar).
+
+## Apagar todo
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command=":shutdown"   # WildFly (Rabbit, broker y simulados)
+pkill -f "node server.js"                                         # banco en Node, si estaba levantado
+pkill -f transportista-moderno/servidor.py                        # transportista en Python, si estaba levantado
+```
