@@ -616,3 +616,29 @@ Propuesta o Reemplazada.
   de los componentes y no pueden quedar con una referencia vencida. El
   componente sigue teniendo su parte stateful (la reserva), que es la que
   justifica el requisito de la consigna.
+
+## ADR-028: Un comercio con solo pedidos cancelados se puede eliminar
+
+- **Estado:** Aceptada.
+- **Contexto:** la eliminación física de un comercio se bloqueaba ante
+  cualquier pedido o pedido del ERP, aunque estuviera cancelado. Un
+  comercio cargado para probar y cuyo único pedido se canceló no se podía
+  borrar nunca, solo dar de baja.
+- **Decisión:** Pedidos impide la eliminación solo por pedidos que no
+  estén cancelados (en curso o entregados) y por pedidos del ERP que
+  todavía esperan sincronizarse. Si nadie lo impide, `ComercioService`
+  dispara `ComercioEliminado` (sincrónico, en la misma transacción) y cada
+  componente borra lo que guardaba de ese comercio: Pedidos sus pedidos
+  cancelados con sus líneas y sus pedidos del ERP; Pagos los cobros
+  (anulados); Notificaciones los avisos; Transportistas los envíos
+  (cancelados). Son dos eventos porque un componente no puede borrar lo
+  suyo mientras otro todavía puede impedir la eliminación.
+- **Alternativas descartadas:**
+  - *Borrar solo el comercio:* los pedidos cancelados quedarían apuntando
+    a un comercio inexistente.
+  - *Que Comercios borre todo directamente:* tendría que depender de
+    Pedidos, Pagos, Notificaciones y Transportistas, que ya dependen de él.
+- **Consecuencias:** un pedido entregado sigue impidiendo la eliminación
+  (es historial con cobro real). El historial cancelado de un comercio
+  eliminado se pierde: la baja lógica sigue siendo la opción para
+  conservarlo.

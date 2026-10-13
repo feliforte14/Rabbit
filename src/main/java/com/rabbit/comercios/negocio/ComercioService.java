@@ -83,6 +83,11 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     @Inject
     private Event<EliminacionDeComercio> eliminacionDeComercio;
 
+    // Con la eliminación ya decidida, cada componente borra el historial
+    // terminado que guardaba del comercio (ver ComercioEliminado).
+    @Inject
+    private Event<ComercioEliminado> comercioEliminado;
+
     private void exigirComercioPropio(Long idComercio) {
         if (contexto.isCallerInRole("COMERCIO") && !contextoUsuario.idComercioActual().equals(idComercio)) {
             throw new ValidacionException("Solo podés gestionar los puntos de picking de tu comercio");
@@ -344,10 +349,12 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
     // Eliminación física — borra el registro de la BD permanentemente,
     // junto con todos sus puntos de picking (cascade). Para evitar
     // pérdidas de datos accidentales, solo se permite si el comercio ya
-    // fue dado de baja (activo=false) previamente, y si nada lo referencia:
-    // otros componentes guardan su ID (pedidos, stock consignado, cuentas)
-    // y quedarían apuntando a un comercio inexistente. Cada uno responde al
-    // evento EliminacionDeComercio.
+    // fue dado de baja (activo=false) previamente, y si nada vivo lo
+    // referencia: otros componentes guardan su ID (pedidos en curso,
+    // stock consignado, cuentas) y responden al evento
+    // EliminacionDeComercio. El historial terminado (pedidos cancelados y
+    // lo que colgaba de ellos) no impide: se borra junto con el comercio,
+    // en la misma transacción, al disparar ComercioEliminado.
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
@@ -365,6 +372,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
                     + String.join(", ", evento.getImpedimentos())
                     + ". Queda dado de baja, que alcanza para que no opere.");
         }
+        comercioEliminado.fire(new ComercioEliminado(idComercio));
         repository.eliminar(comercio);
     }
 
