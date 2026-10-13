@@ -463,7 +463,8 @@ Propuesta o Reemplazada.
 
 ## ADR-022: Webhook de novedades y transportista moderno como servicio aparte
 
-- **Estado:** Aceptada. Completa ADR-016 (polling).
+- **Estado:** Reemplazada en parte por ADR-029: el webhook se sacó; el
+  transportista moderno como servicio aparte sigue. Completaba ADR-016 (polling).
 - **Contexto:** el seguimiento por polling (cada 15 s) era lo único
   posible con un transportista legado, pero un transportista moderno puede
   avisar. Además, los dos transportistas vivían simulados dentro del WAR,
@@ -642,3 +643,30 @@ Propuesta o Reemplazada.
   (es historial con cobro real). El historial cancelado de un comercio
   eliminado se pierde: la baja lógica sigue siendo la opción para
   conservarlo.
+
+## ADR-029: Seguimiento de envíos solo por polling (sin webhook)
+
+- **Estado:** Aceptada. Reemplaza la parte del webhook de ADR-022.
+- **Contexto:** el seguimiento de envíos tenía dos caminos: el polling
+  (`SeguimientoDeEnvios`, cada 15 s, para todos los transportistas) y un
+  webhook para que los modernos avisaran (`POST
+  /api/v1/transportistas/{id}/novedades`, con una clave Bearer por
+  transportista). El webhook sumaba un endpoint público con su propia
+  autenticación, la generación y el guardado de claves, una pantalla, el
+  caso de conflicto `409` y la coordinación con el polling, para ahorrar
+  como mucho 15 s de demora en ver un cambio de estado.
+- **Decisión:** se saca el webhook (recurso REST, clave del transportista,
+  pantalla y tests). El seguimiento queda solo por polling, igual para
+  modernos y legados. `transportista-moderno/` sigue como servicio aparte
+  en Python (heterogeneidad), sin avisar: Rabbit lo consulta como a los
+  demás.
+- **Alternativas descartadas:**
+  - *Mantener los dos caminos:* más superficie expuesta y más casos de
+    concurrencia para un beneficio chico.
+  - *Solo webhook:* los legados no avisan, y un aviso perdido dejaría el
+    pedido trabado.
+- **Consecuencias:** un pedido derivado a un transportista moderno tarda
+  hasta 15 s más en pasar a En camino o Entregado. Rabbit expone un
+  endpoint menos y no guarda claves de terceros. La columna
+  `transportistas.claveWebhook` queda en la base sin uso (`hbm2ddl=update`
+  no borra columnas).

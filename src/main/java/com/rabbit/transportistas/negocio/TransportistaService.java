@@ -50,10 +50,6 @@ import jakarta.inject.Inject;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
-import java.util.HexFormat;
 import com.rabbit.transportistas.datos.model.TipoIntegracion;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -69,7 +65,6 @@ import java.util.stream.Collectors;
 public class TransportistaService implements IGestionTransportistas, IEnvios, ISeguimientoEnvios {
 
     private static final Logger LOG = Logger.getLogger(TransportistaService.class.getName());
-    private static final SecureRandom AZAR = new SecureRandom();
 
     @Inject
     private TransportistaRepository repository;
@@ -130,23 +125,6 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
         Transportista t = obtenerOFallar(idTransportista);
         t.setActivo(true);
         repository.actualizar(t);
-    }
-
-    @Override
-    @TransactionAttribute(TransactionAttributeType.REQUIRED)
-    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
-    public String generarClaveWebhook(Long idTransportista) {
-        Transportista t = obtenerOFallar(idTransportista);
-        if (t.getTipoIntegracion() != TipoIntegracion.REST) {
-            throw new ValidacionException(t.getNombre() + " es un sistema legado: no avisa novedades, se le consulta");
-        }
-        byte[] azar = new byte[32];
-        AZAR.nextBytes(azar);
-        String clave = HexFormat.of().formatHex(azar);
-        t.setClaveWebhook(clave);
-        repository.actualizar(t);
-        LOG.info("[Transportistas] Nueva clave de webhook para " + t.getNombre());
-        return clave;
     }
 
     @Override
@@ -302,47 +280,7 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
         aplicarNovedad(repository.buscarEnvioPorId(idEnvio), nuevo);
     }
 
-    // Sin @RolesAllowed: lo llama el transportista, no una persona. Lo que
-    // lo protege es la clave (comparada en tiempo constante) y que el envío
-    // sea de ese transportista.
-    @Override
-    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
-    public boolean recibirNovedad(Long idTransportista, String clave, String codigoSeguimiento, String estado) {
-        Transportista t = idTransportista != null ? repository.buscarPorId(idTransportista) : null;
-        if (t == null || t.getClaveWebhook() == null || clave == null
-                || !MessageDigest.isEqual(t.getClaveWebhook().getBytes(StandardCharsets.UTF_8), clave.getBytes(StandardCharsets.UTF_8))) {
-            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.CLAVE_INVALIDA,
-                    "La clave del webhook no corresponde a ese transportista");
-        }
-        EstadoEnvio nuevo = traducirEstadoExterno(estado);
-        if (nuevo == null) {
-            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.ESTADO_DESCONOCIDO,
-                    "Estado desconocido: " + estado + " (se esperaba SOLICITADO, EN_TRANSITO, ENTREGADO o CANCELADO)");
-        }
-        Envio envio = codigoSeguimiento == null ? null : repository.buscarEnvioPorCodigo(idTransportista, codigoSeguimiento);
-        if (envio == null) {
-            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.ENVIO_DESCONOCIDO,
-                    "No hay ningún envío " + codigoSeguimiento + " de " + t.getNombre());
-        }
-        LOG.info("[Transportistas][Webhook] " + t.getNombre() + " avisa: " + codigoSeguimiento + " -> " + estado);
-        return aplicarNovedad(envio, nuevo);
-    }
-
-    private static EstadoEnvio traducirEstadoExterno(String estado) {
-        if (estado == null) {
-            return null;
-        }
-        switch (estado.trim().toUpperCase()) {
-            case "SOLICITADO": return EstadoEnvio.SOLICITADO;
-            case "EN_TRANSITO": return EstadoEnvio.EN_TRANSITO;
-            case "ENTREGADO": return EstadoEnvio.ENTREGADO;
-            case "CANCELADO": return EstadoEnvio.CANCELADO;
-            default: return null;
-        }
-    }
-
-    // Lo mismo para el polling y el webhook. Una cancelación pudo ganarle al
-    // seguimiento: un envío que ya no está activo no se toca.
+    // Una cancelación pudo ganarle al seguimiento: un envío que ya no está activo no se toca.
     //
     // ORDEN DE BLOQUEO: primero el pedido, después el envío. El evento es
     // sincrónico y Pedidos bloquea la fila del pedido al moverlo; recién
@@ -360,11 +298,9 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
 
         // Sincrónico: Pedidos mueve el pedido en esta misma transacción. Si
         // falla (por ejemplo, el personal cambió el pedido justo en ese
-        // momento), se deshace todo: el webhook responde 409 para que el
-        // transportista reintente, y el polling la vuelve a tomar en la
-        // próxima pasada. Se envuelve acá, y no en el recurso REST, porque
-        // Transportistas no conoce las excepciones de Pedidos; el detalle
-        // queda en el log y no se le cuenta al transportista.
+        // momento), se deshace todo y el polling la vuelve a tomar en la
+        // próxima pasada. Se envuelve acá porque Transportistas no conoce
+        // las excepciones de Pedidos; el detalle queda en el log.
         try {
             estadoEnvioCambiado.fire(new EstadoEnvioCambiado(idPedido, anterior, nuevo));
         } catch (EJBException e) {
@@ -377,26 +313,22 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
             // dejó mover el pedido (cambió de estado justo ahora).
             LOG.log(Level.WARNING, "[Transportistas] El pedido " + idPedido + " no se pudo mover a " + nuevo
                     + " con la novedad del envío " + codigo, e);
-            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.PEDIDO_EN_CONFLICTO,
-                    "El pedido del envío " + codigo + " cambió al mismo tiempo y la novedad no se aplicó."
+            throw new NovedadRechazadaException("El pedido del envío " + codigo + " cambió al mismo tiempo y la novedad no se aplicó."
                     + " Reintentá en unos segundos.");
         }
 
         // Ahora sí el envío, bloqueado y releído.
         envio = repository.buscarEnvioParaActualizar(idEnvio);
         if (envio == null) {
-            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.ENVIO_DESCONOCIDO,
-                    "El envío " + codigo + " ya no existe");
+            throw new NovedadRechazadaException("El envío " + codigo + " ya no existe");
         }
         if (envio.getEstado() == nuevo) {
-            // El polling y el webhook trajeron la misma novedad a la vez y
-            // el otro ya la aplicó: no cambió nada que haga falta escribir.
-            // (No se marca rollback-only: con CMT, una transacción REQUIRES_NEW
-            // que termina rollback-only sin que la propia aplicación haya
-            // lanzado una excepción hace que el contenedor le tire
-            // EJBTransactionRolledbackException al llamador — convertiría
-            // este caso, que es el idempotente y debería responder 204, en
-            // un error.)
+            // Otra pasada ya aplicó la misma novedad: no cambió nada que
+            // haga falta escribir. (No se marca rollback-only: con CMT, una
+            // transacción REQUIRES_NEW que termina rollback-only sin que la
+            // propia aplicación haya lanzado una excepción hace que el
+            // contenedor le tire EJBTransactionRolledbackException al
+            // llamador, y este caso es el idempotente.)
             return false;
         }
         if (envio.getEstado() != anterior) {
@@ -404,8 +336,7 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
             // novedad que no corresponde, así que se deshace todo.
             LOG.warning("[Transportistas] El envío " + codigo + " cambió mientras se aplicaba " + nuevo
                     + " (está " + envio.getEstado() + "): no se aplica");
-            throw new NovedadRechazadaException(NovedadRechazadaException.Motivo.PEDIDO_EN_CONFLICTO,
-                    "El envío " + codigo + " cambió al mismo tiempo y la novedad no se aplicó."
+            throw new NovedadRechazadaException("El envío " + codigo + " cambió al mismo tiempo y la novedad no se aplicó."
                     + " Reintentá en unos segundos.");
         }
         envio.setEstado(nuevo);

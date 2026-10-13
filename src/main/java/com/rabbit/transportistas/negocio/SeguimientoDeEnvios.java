@@ -6,7 +6,7 @@ package com.rabbit.transportistas.negocio;
  * Cada 15 segundos le pregunta a cada transportista por sus envíos activos
  * y registra los cambios (ISeguimientoEnvios.registrarNovedad), que Pedidos
  * traduce en EN_CAMINO / ENTREGADO. Polling y no webhook: un transportista
- * legado no avisa, hay que preguntarle (ver ADR-016).
+ * legado no avisa, hay que preguntarle (ver ADR-016 y ADR-029).
  *
  * @Singleton: una sola pasada a la vez, igual que SincronizadorDePedidos.
  * NOT_SUPPORTED: las consultas a los transportistas corren fuera de toda

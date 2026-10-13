@@ -24,7 +24,6 @@
 | `NOT_SUPPORTED` | `PublicadorPedidosExternos` y `PublicadorEstadosPedido` | El envío JMS corre fuera de la transacción: si el broker falla, no deshace lo ya guardado |
 | `NOT_SUPPORTED` | `ReversasBancarias` | La reversa en el banco corre después de que la transacción de Rabbit terminó (se deshizo o se confirmó) |
 | `NOT_SUPPORTED` | `SincronizadorDePedidos.sincronizarPendientes` | La pasada del timer no abre transacción: cada fila se sincroniza en la suya (`REQUIRES_NEW`), así una fila fallida no arrastra a las demás |
-| `REQUIRES_NEW` | `TransportistaService.recibirNovedad` (webhook) | Igual que `registrarNovedad` del polling: el envío y el pedido cambian en una sola transacción; si falla, no queda la novedad a medias y el transportista puede reintentar |
 | `AFTER_SUCCESS` (observer) | `AvisosPorMail` | El mail del aviso sale recién después del commit, y fuera de la transacción: un servidor de correo caído no deshace el aviso |
 | `NOT_SUPPORTED` | `PedidoService.cotizarDerivacion` | Lee el pedido (con sus líneas, en una sola consulta) y le pide precios a los transportistas sin abrir transacción: no retiene una conexión a la base mientras espera hasta 5 s por transportista |
 | `NOT_SUPPORTED` | `TransportistaService.cotizarEnvio` | Solo pregunta precios a los transportistas: no escribe nada y no retiene una transacción mientras espera respuestas de afuera |
@@ -129,9 +128,8 @@ Después, cada novedad que informa el transportista se registra con
 `registrarNovedad` (`REQUIRES_NEW`): primero Pedidos mueve el pedido
 (`EstadoEnvioCambiado`, que bloquea su fila) y recién después se bloquea,
 relee y escribe el envío, en la misma transacción. Si mover el pedido
-falla, o el envío cambió mientras tanto (lo cancelaron), se deshace todo:
-el webhook responde `409` y el seguimiento la reintenta en la próxima
-pasada.
+falla, o el envío cambió mientras tanto (lo cancelaron), se deshace todo
+y el seguimiento la reintenta en la próxima pasada.
 
 Cancelar un pedido derivado (desde CONFIRMADO) cancela también el envío;
 al transportista se le avisa recién cuando la cancelación queda
@@ -163,8 +161,8 @@ con bloqueo, Hibernate 7.4.5 falla sobre un pedido con sus líneas
 cargadas; por eso se lo saca del contexto y se lo vuelve a leer.)
 
 **Orden de bloqueo:** cancelar un pedido derivado bloquea el pedido y
-después el envío; las novedades del transportista (polling y webhook)
-siguen el mismo orden — Pedidos mueve el pedido antes de que se bloquee
+después el envío; las novedades del transportista (polling) siguen
+el mismo orden — Pedidos mueve el pedido antes de que se bloquee
 el envío. Antes el seguimiento bloqueaba al revés y, si coincidían sobre
 el mismo pedido en el mismo instante, PostgreSQL abortaba una de las dos
 por deadlock. Con el mismo orden en los dos caminos, la segunda espera y

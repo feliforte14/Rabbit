@@ -345,28 +345,14 @@ Con WildFly corriendo:
 transportista legado responde `EN_VIAJE` y Rabbit lo muestra como
 "En tránsito" (lo traduce su adaptador).
 
-**Webhook con el transportista moderno aparte:**
-1. Registrar un transportista REST con endpoint `http://localhost:8095`.
-2. En su fila, **Generar clave**: Rabbit muestra la URL y la clave una
-   sola vez.
-3. Levantar `transportista-moderno/servidor.py` con esos datos (ver su
-   README) y `PASO_SEGUNDOS=5`.
-4. Derivarle un pedido: en el log del transportista aparece "avisado a
-   Rabbit: ... -> EN_TRANSITO" y el pedido pasa a **En camino** apenas
-   avisa, sin esperar la consulta cada 15 s; después, **Entregado**.
-5. Apagar el transportista y tocar **Cotizar**: figura "No respondió" y
+**Transportista moderno aparte (Python):**
+1. Levantar `python3 transportista-moderno/servidor.py` (con
+   `PASO_SEGUNDOS=5` avanza más rápido).
+2. Registrar un transportista REST con endpoint `http://localhost:8095`.
+3. Derivarle un pedido: el seguimiento lo consulta cada 15 s y el pedido
+   pasa a **En camino** y después a **Entregado**.
+4. Apagar el transportista y tocar **Cotizar**: figura "No respondió" y
    los demás cotizan igual.
-
-**Novedad que no se pudo aplicar (`409`):** si justo cuando el
-transportista avisa un cambio de estado el personal tocó el mismo pedido
-(lo canceló, por ejemplo), el webhook responde `409`
-(`type: /problemas/pedido-en-conflicto`) en vez de `204`. No es un error
-del transportista: el aviso se reintenta solo (automático en el servidor
-de prueba, o a mano con el mismo `curl` si lo estás probando directo
-contra `POST /api/v1/transportistas/{id}/novedades`) y la segunda vez ya
-no hay conflicto. Difícil de forzar a propósito sin automatizar los dos
-lados a la vez — si lo ves en el log durante una prueba normal, no es un
-bug, es el camino de reintento funcionando.
 
 ## 6c. Ruteo por zona
 
