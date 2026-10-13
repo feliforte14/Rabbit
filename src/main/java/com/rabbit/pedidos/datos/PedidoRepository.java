@@ -142,14 +142,37 @@ public class PedidoRepository {
 
     // Cuántos pedidos y pedidos del ERP referencian a un comercio (para no
     // dejarlos huérfanos al eliminarlo, ver EliminacionDeComercio).
-    public long contarPedidosDeComercio(Long idComercio) {
-        return em.createQuery("SELECT COUNT(p) FROM Pedido p WHERE p.idComercio = :id", Long.class)
+    // Pedidos del comercio que no están cancelados: en curso o entregados.
+    public long contarPedidosNoCanceladosDeComercio(Long idComercio) {
+        return em.createQuery("SELECT COUNT(p) FROM Pedido p WHERE p.idComercio = :id AND p.estado <> :cancelado", Long.class)
+                .setParameter("id", idComercio)
+                .setParameter("cancelado", EstadoPedido.CANCELADO)
+                .getSingleResult();
+    }
+
+    // Pedidos del ERP del comercio que todavía esperan sincronizarse (ni
+    // sincronizados, ni descartados, ni cancelados).
+    public long contarPedidosExternosPendientesDeComercio(Long idComercio) {
+        return em.createQuery("SELECT COUNT(pe) FROM PedidoExterno pe WHERE pe.idComercio = :id"
+                        + " AND pe.sincronizado = false AND (pe.cancelado IS NULL OR pe.cancelado = false)", Long.class)
                 .setParameter("id", idComercio).getSingleResult();
     }
 
-    public long contarPedidosExternosDeComercio(Long idComercio) {
-        return em.createQuery("SELECT COUNT(pe) FROM PedidoExterno pe WHERE pe.idComercio = :id", Long.class)
-                .setParameter("id", idComercio).getSingleResult();
+    /**
+     * Borra los pedidos y los pedidos del ERP de un comercio que se elimina
+     * (ver ComercioEliminado). Uno por uno con remove, no con un DELETE
+     * masivo, para que el cascade borre también sus líneas.
+     *
+     * @return cuántos pedidos y cuántos pedidos del ERP se borraron
+     */
+    public long[] eliminarPedidosDeComercio(Long idComercio) {
+        List<Pedido> pedidos = em.createQuery("SELECT p FROM Pedido p WHERE p.idComercio = :id", Pedido.class)
+                .setParameter("id", idComercio).getResultList();
+        pedidos.forEach(em::remove);
+        List<PedidoExterno> externos = em.createQuery("SELECT pe FROM PedidoExterno pe WHERE pe.idComercio = :id", PedidoExterno.class)
+                .setParameter("id", idComercio).getResultList();
+        externos.forEach(em::remove);
+        return new long[] { pedidos.size(), externos.size() };
     }
 
     /**

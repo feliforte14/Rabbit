@@ -113,4 +113,10 @@ public class TransportistaRepository {
                 .setParameter("estados", List.of(EstadoEnvio.SOLICITADO, EstadoEnvio.EN_TRANSITO))
                 .getSingleResult();
     }
+
+    // Borra los envíos de un comercio que se elimina (ver ComercioEliminado).
+    public int eliminarEnviosDeComercio(Long idComercio) {
+        return em.createQuery("DELETE FROM Envio e WHERE e.idComercio = :id")
+                .setParameter("id", idComercio).executeUpdate();
+    }
 }

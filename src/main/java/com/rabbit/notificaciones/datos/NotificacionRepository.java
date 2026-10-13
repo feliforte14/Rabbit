@@ -44,4 +44,10 @@ public class NotificacionRepository {
                 .setMaxResults(cantidad)
                 .getResultList();
     }
+
+    // Borra los avisos de un comercio que se elimina (ver ComercioEliminado).
+    public int eliminarNotificacionesDeComercio(Long idComercio) {
+        return em.createQuery("DELETE FROM Notificacion n WHERE n.idComercio = :id")
+                .setParameter("id", idComercio).executeUpdate();
+    }
 }

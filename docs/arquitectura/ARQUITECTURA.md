@@ -71,10 +71,13 @@ Otros detalles de cada componente:
   así quien solo consulta no queda atado a una instancia stateful que
   puede vencer (ADR-027).
 - **Comercios:** eliminar un comercio es físico y solo se permite si ya
-  está dado de baja y si nada lo referencia (pedidos, pedidos del ERP,
-  stock consignado, cuentas de usuario): cada componente lo verifica al
-  recibir el evento `EliminacionDeComercio`. Si hay referencias, el
-  comercio queda dado de baja.
+  está dado de baja y si nada vivo lo referencia (pedidos en curso o
+  entregados, pedidos del ERP sin sincronizar, stock consignado, cuentas
+  de usuario): cada componente lo verifica al recibir el evento
+  `EliminacionDeComercio`. Si hay referencias, el comercio queda dado de
+  baja. Los pedidos cancelados no impiden: con la eliminación decidida,
+  `ComercioEliminado` hace que Pedidos, Pagos, Notificaciones y
+  Transportistas borren ese historial en la misma transacción (ADR-028).
 - **Pedidos:** un pedido es multi-línea (`LineaPedido`). Con origen
   `STOCK_CONSIGNADO` cada línea reserva y confirma stock en su propia
   instancia de `IReservaStock`; con `PUNTO_PICKING` solo se valida que el
@@ -149,6 +152,10 @@ flowchart LR
         Comercios -. EliminacionDeComercio .-> Pedidos
         Comercios -. EliminacionDeComercio .-> Inventario
         Comercios -. EliminacionDeComercio .-> Seguridad
+        Comercios -. ComercioEliminado .-> Pedidos
+        Comercios -. ComercioEliminado .-> Pagos
+        Comercios -. ComercioEliminado .-> Notificaciones
+        Comercios -. ComercioEliminado .-> Transportistas
         Pedidos -->|IEnvios| Transportistas
         Ruteo -->|IEnvios| Transportistas
         Transportistas -. EstadoEnvioCambiado .-> Pedidos
@@ -167,7 +174,8 @@ Las flechas punteadas son eventos, no llamadas: el tópico JMS entre
 Pedidos y sus suscriptores, el evento CDI `EstadoEnvioCambiado` (Transportistas avisa
 sin depender de Pedidos) y el evento CDI `EliminacionDeComercio`, con el
 que Comercios pregunta si algo todavía referencia al comercio sin depender
-de los componentes que ya dependen de él.
+de los componentes que ya dependen de él, seguido de `ComercioEliminado`,
+con el que cada uno borra el historial terminado de ese comercio.
 
 ## Vistas por tipo de usuario
 

@@ -108,7 +108,9 @@ siga activa en la tabla. Es el lado seguro (menos acceso, no más).
 
 `eliminarComercio` también es una sola transacción: el evento
 `EliminacionDeComercio` corre adentro (observers sincrónicos) y, si algún
-componente anota un impedimento, no se borra nada.
+componente anota un impedimento, no se borra nada. Si no, `ComercioEliminado`
+borra el historial terminado del comercio en cada componente y después se
+borra el comercio: si cualquier paso falla, se deshace todo.
 
 ## Flujo 6: derivar un pedido a un transportista (implementado)
 

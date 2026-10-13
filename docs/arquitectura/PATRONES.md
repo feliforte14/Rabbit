@@ -87,7 +87,10 @@ qué alternativa se descartó.
   - `EliminacionDeComercio` (sincrónico): antes de eliminar un comercio,
     `ComercioService` pregunta si algo todavía lo referencia. Pedidos,
     Inventario y Seguridad lo observan y anotan un impedimento si tienen
-    pedidos, stock consignado o cuentas de ese comercio. Comercios no
+    pedidos vivos, stock consignado o cuentas de ese comercio. Si nadie
+    lo impide, `ComercioEliminado` (también sincrónico) hace que cada
+    componente borre el historial terminado del comercio (pedidos
+    cancelados, avisos, cobros anulados, envíos cancelados). Comercios no
     depende de ellos (ya dependen de él), y nada queda apuntando a un
     comercio inexistente. Implementado.
   - `EstadoEnvioCambiado` (sincrónico): Transportistas avisa que un

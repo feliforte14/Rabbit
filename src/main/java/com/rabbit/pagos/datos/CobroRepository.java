@@ -57,4 +57,10 @@ public class CobroRepository {
     public Cobro actualizar(Cobro cobro) {
         return em.merge(cobro);
     }
+
+    // Borra los cobros de un comercio que se elimina (ver ComercioEliminado).
+    public int eliminarCobrosDeComercio(Long idComercio) {
+        return em.createQuery("DELETE FROM Cobro c WHERE c.idComercio = :id")
+                .setParameter("id", idComercio).executeUpdate();
+    }
 }
