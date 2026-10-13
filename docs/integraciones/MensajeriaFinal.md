@@ -1,6 +1,6 @@
 # Mensajería en Rabbit: qué se usa en cada integración y por qué
 
-Rabbit se integra con nueve sistemas o consumidores distintos, y no todos
+Rabbit se integra con ocho sistemas o consumidores distintos, y no todos
 con la misma tecnología. Este documento justifica **cada elección** con un
 mismo criterio de decisión, para que se vea que la tecnología sale del
 problema y no al revés.
@@ -80,8 +80,7 @@ solo se justificaría si el consumidor exigiera un contrato WSDL o WS-\*.
 | 5 | Pedir, seguir y cancelar envíos en un transportista moderno | Saliente (Rabbit → transportista) | **Sí** | **No** | **REST** |
 | 6 | Recibir pedidos del ERP de cada comercio | Entrante (ERP → Rabbit) | **Sí** (el ERP necesita saber si se aceptó) | **No** (partner moderno) | **REST** (y adentro, cola) |
 | 7 | Seguimiento público del pedido | Entrante (cliente → Rabbit) | **Sí** (quiere ver el estado ya) | **No** | **REST** |
-| 8 | Novedades de envíos de un transportista moderno | Entrante (transportista → Rabbit) | **Sí** (el transportista necesita saber si Rabbit lo registró) | **No** | **REST** (webhook) |
-| 9 | Avisar al comercio por mail | Saliente (Rabbit → servidor de correo) | **No** (sale después del commit) | — | **SMTP** (Jakarta Mail) |
+| 8 | Avisar al comercio por mail | Saliente (Rabbit → servidor de correo) | **No** (sale después del commit) | — | **SMTP** (Jakarta Mail) |
 
 Un mismo pedido, de punta a punta, pasa por las tres tecnologías (ver la
 sección 4): **no se elige una sola mensajería para todo el sistema; se
@@ -237,16 +236,13 @@ contamine la lógica de negocio, cada uno tiene su **Adapter**
 una interfaz común (`IAdaptadorTransportista`): Pedidos no sabe si del
 otro lado hay SOAP o REST (ADR-016).
 
-**¿Y el seguimiento posterior?** Lo ideal es que el transportista
-**avise** cada cambio (un webhook, que en el fondo es mensajería sobre
-HTTP). Los modernos lo hacen: `POST /api/v1/transportistas/{id}/novedades`
-con una clave propia de cada transportista (ADR-022); el transportista en
-Python de `transportista-moderno/` avisa así. Pero un transportista legado
-no avisa: solo responde si se le pregunta. Por eso, además, hay
-**polling**: `SeguimientoDeEnvios` consulta cada 15 s, en segundo plano,
-para los legados y como respaldo si un aviso se pierde (los dos llevan al
-mismo resultado). Las consultas son sincrónicas, pero **nadie espera** por
-ellas, así que una demora o caída del transportista no frena a Rabbit.
+**¿Y el seguimiento posterior?** Un transportista legado no avisa: solo
+responde si se le pregunta. Por eso el seguimiento es por **polling**:
+`SeguimientoDeEnvios` consulta cada 15 s, en segundo plano, a todos los
+transportistas por igual. Las consultas son sincrónicas, pero **nadie
+espera** por ellas, así que una demora o caída del transportista no frena
+a Rabbit. Un webhook para que los modernos avisen se descartó para
+simplificar: hasta 15 s de demora es aceptable para un envío (ADR-029).
 
 | Situación | Qué hace Rabbit |
 |---|---|
@@ -338,12 +334,8 @@ sequenceDiagram
     R->>T: REST o SOAP: solicitar envío (5 s)
     T-->>R: código de seguimiento
     R-)TP: CONFIRMADO
-    alt transportista moderno
-        T->>R: REST webhook: novedad del envío
-    else legado (o respaldo)
-        loop cada 15 s
-            R->>T: consultar estado
-        end
+    loop cada 15 s
+        R->>T: REST o SOAP: consultar estado
     end
     R-)TP: EN_CAMINO / ENTREGADO
     TP-)R: Notificaciones avisa · Pagos acredita contra entrega
@@ -356,7 +348,7 @@ sequenceDiagram
 | Alta → pedido real | Asincrónico | Cola | Nadie tiene que esperar la reserva; se procesa una sola vez |
 | Rabbit → banco | Sincrónico | SOAP | Sin saber si cobró no se confirma; el banco es legado con WSDL |
 | Rabbit → transportista | Sincrónico | REST o SOAP | Hay que saber si tomó el envío; la tecnología la impone cada transportista |
-| Transportista → Rabbit (novedades) | Sincrónico (webhook) o polling | REST | El moderno avisa apenas cambia; al legado hay que preguntarle |
+| Rabbit → transportista (seguimiento) | Polling, en segundo plano | REST o SOAP | Al legado hay que preguntarle; con el mismo mecanismo para todos, nadie espera |
 | Cambio de estado → interesados | Asincrónico | Tópico | Varios interesados; nadie tiene que esperarlos |
 | Cliente → Rabbit (seguimiento) | Sincrónico | REST | Lectura inmediata desde un navegador |
 
@@ -390,8 +382,7 @@ estén caídos)**.
 | Banco | SOAP | Cola | Hace falta saber en el momento si cobró |
 | Transportista legado | SOAP | REST | No lo ofrece |
 | Transportista moderno | REST | SOAP | No expone WSDL; REST es lo que publica |
-| Seguimiento de envíos (moderno) | Webhook + polling de respaldo | Solo polling | Hasta 15 s de demora y consultas de más |
-| Seguimiento de envíos (legado) | Polling | Webhook (aviso) | Un transportista legado no avisa |
+| Seguimiento de envíos | Polling | Webhook (aviso del transportista) | El legado no avisa; para los modernos, un endpoint más con su propia autenticación no compensa 15 s de demora (ADR-029) |
 | ERP → Rabbit | REST + cola | SOAP | El ERP es moderno y no exige WSDL ni WS-\* |
 | ERP → Rabbit | REST + cola | Solo cola (que el ERP publique en el broker) | Expondría el broker interno a un sistema externo, y el ERP no sabría en el momento si el pedido es válido |
 | Seguimiento público | REST | SOAP | El consumidor es un navegador o un celular |

@@ -8,7 +8,7 @@ cómo se muestran en la defensa.
 | [Resiliencia ante fallas](#1-resiliencia-ante-fallas) | Cumple |
 | [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada) | Cumple: con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido) |
 | [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 24 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md); acá se desarrollan 3 con sus alternativas |
-| [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple: el banco legado también está implementado en Node.js y Rabbit (Java) lo consume por SOAP sin cambiar código; el transportista moderno, en Python, por REST y webhook |
+| [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple: el banco legado también está implementado en Node.js y Rabbit (Java) lo consume por SOAP sin cambiar código; el transportista moderno, en Python, por REST |
 
 ## 1. Resiliencia ante fallas
 
@@ -334,8 +334,7 @@ mismo servidor.
 **Y un segundo sistema en otra tecnología: el transportista moderno.**
 `transportista-moderno/servidor.py` (Python, solo biblioteca estándar) es
 el transportista REST como servicio aparte: mismo contrato que el
-simulado del WAR, y además **le avisa** a Rabbit cada cambio de estado
-por el webhook de novedades (ADR-022). Rabbit lo da de alta como
+simulado del WAR. Rabbit lo da de alta como
 cualquier transportista REST, con su endpoint, y no nota la diferencia.
 
 ### Qué se probó

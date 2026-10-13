@@ -14,35 +14,24 @@ Mismas reglas: rechaza más de 50 bultos; cotiza $2.500 + $350 por bulto
 (+$500 si hay que cobrar al entregar), entrega en 24 h; un envío avanza
 solo con el tiempo (SOLICITADO -> EN_TRANSITO -> ENTREGADO).
 
-Además AVISA cada cambio de estado al webhook de Rabbit (en vez de esperar
-a que Rabbit le pregunte), si se configura:
+Rabbit sigue el estado de cada envío consultándolo (polling cada 15 s).
 
-  RABBIT_WEBHOOK_URL    https://localhost:8443/Rabbit/api/v1/transportistas/<id>/novedades
-  RABBIT_WEBHOOK_CLAVE  la clave que muestra Rabbit al generarla (pantalla Transportistas)
-  RABBIT_WEBHOOK_INSEGURO=1  acepta el certificado autofirmado de un WildFly local
-
-Otras variables: PUERTO (8095), PASO_SEGUNDOS (20, cuánto dura cada estado).
+Variables: PUERTO (8095), PASO_SEGUNDOS (20, cuánto dura cada estado).
 
 Solo biblioteca estándar de Python 3: no hace falta instalar nada.
     python3 transportista-moderno/servidor.py
 """
 import json
 import os
-import ssl
 import threading
 import time
-import urllib.error
-import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PUERTO = int(os.environ.get("PUERTO", "8095"))
 PASO = max(1, int(os.environ.get("PASO_SEGUNDOS", "20")))
 MAX_BULTOS = 50
-WEBHOOK_URL = os.environ.get("RABBIT_WEBHOOK_URL")
-WEBHOOK_CLAVE = os.environ.get("RABBIT_WEBHOOK_CLAVE")
-TLS = ssl._create_unverified_context() if os.environ.get("RABBIT_WEBHOOK_INSEGURO") == "1" else None
 
-envios = {}            # codigo -> {"referencia", "creado", "cancelado", "avisado"}
+envios = {}            # codigo -> {"referencia", "creado", "cancelado"}
 candado = threading.Lock()
 prefijo = "TM-" + format(int(time.time()), "X")[-5:] + "-"
 secuencia = 0
@@ -103,7 +92,7 @@ class Api(BaseHTTPRequestHandler):
                 secuencia += 1
                 codigo = f"{prefijo}{secuencia}"
                 envios[codigo] = {"referencia": pedido.get("referencia", "?"), "creado": time.time(),
-                                  "cancelado": False, "avisado": "SOLICITADO"}
+                                  "cancelado": False}
             log("envío", codigo, "tomado:", pedido.get("referencia"))
             return self.responder(201, {"codigoSeguimiento": codigo})
         self.responder(404, {"error": "Recurso inexistente"})
@@ -131,34 +120,6 @@ class Api(BaseHTTPRequestHandler):
         pass
 
 
-def avisar_cambios():
-    """Cada segundo: los envíos que cambiaron de estado se avisan al webhook."""
-    while True:
-        time.sleep(1)
-        for codigo, envio in list(envios.items()):
-            actual = estado(envio)
-            if actual == envio["avisado"]:
-                continue
-            pedido = urllib.request.Request(
-                WEBHOOK_URL, json.dumps({"codigoSeguimiento": codigo, "estado": actual}).encode(), method="POST",
-                headers={"Content-Type": "application/json", "Authorization": "Bearer " + WEBHOOK_CLAVE})
-            try:
-                urllib.request.urlopen(pedido, timeout=5, context=TLS)
-                envio["avisado"] = actual
-                log("avisado a Rabbit:", codigo, "->", actual)
-            except urllib.error.HTTPError as e:
-                log("Rabbit rechazó el aviso de", codigo, "->", actual, ":", e.code, e.read()[:200])
-                if 400 <= e.code < 500:
-                    envio["avisado"] = actual   # no tiene sentido reintentar un aviso que Rabbit no acepta
-            except OSError as e:
-                log("Rabbit no respondió al aviso de", codigo, "(se reintenta):", e)
-
-
 if __name__ == "__main__":
-    if WEBHOOK_URL and WEBHOOK_CLAVE:
-        threading.Thread(target=avisar_cambios, daemon=True).start()
-        log("avisos a", WEBHOOK_URL)
-    else:
-        log("sin webhook configurado: Rabbit lo seguirá consultando (polling)")
     log(f"escuchando en http://localhost:{PUERTO} (paso de {PASO} s)")
     ThreadingHTTPServer(("0.0.0.0", PUERTO), Api).serve_forever()

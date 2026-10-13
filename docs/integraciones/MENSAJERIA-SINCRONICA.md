@@ -198,23 +198,15 @@ este**. La cotización no escribe nada (`NOT_SUPPORTED`).
 |---|---|---|
 | `POST {endpoint}/cotizaciones` | Igual que `POST /envios` | `200 {"precio", "plazoHoras"}`: $2.500 + $350 por bulto (+$500 si hay que cobrar al entregar), 24 h · `422 {"error"}` si supera los 50 bultos |
 
-**Webhook de novedades (transportistas modernos).** Además del polling,
-un transportista REST puede **avisar** cada cambio de estado:
-`POST /api/v1/transportistas/{id}/novedades` con
-`Authorization: Bearer <clave>` y `{"codigoSeguimiento", "estado"}`
-(`NovedadesTransportistaResource` → `ISeguimientoEnvios.recibirNovedad`).
-La clave la genera el personal en **Transportistas** y se ve una sola vez.
-Respuestas: `204` (aceptado, o ya estaba así), `400`, `401` (clave),
-`404` (envío que no es de ese transportista), `409` (el pedido cambió en
-Rabbit al mismo tiempo y la novedad no se aplicó: reintentar), `422`
-(estado desconocido).
-El polling sigue para los legados (que no avisan) y como respaldo de un
-aviso perdido: los dos llevan al mismo resultado.
+**Seguimiento por polling.** Rabbit consulta cada 15 s el estado de los
+envíos activos de todos los transportistas, modernos y legados, con la
+misma operación (`ISeguimientoEnvios.registrarNovedad`). Hasta 15 s de
+demora en ver un cambio es aceptable para un envío (ADR-029).
 
 **Transportista como servicio aparte.** `transportista-moderno/` es el
 transportista REST como sistema de otra empresa: proceso, puerto y
 tecnología propios (Python, solo biblioteca estándar), mismo contrato que
-el simulado del WAR, y avisa por el webhook. Ver su
+el simulado del WAR. Ver su
 [README](../../transportista-moderno/README.md).
 
 **Despacho por zona con cotización.** Si el transportista de la zona
@@ -288,7 +280,6 @@ Postman.
 | `GET /api/v1/pedidos-externos/{id}` | ERP | Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`, `estadoPedido` y `codigoSeguimiento`), `Descartado` (con `motivo`) o `Cancelado` | `200` · `404` |
 | `POST /api/v1/pedidos-externos/{id}/cancelacion` | ERP | Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE`) | `200` · `404` · `409` |
 | `GET /api/v1/seguimiento/{codigo}` | Público | Estado actual del pedido | `200 {"codigoSeguimiento", "estado"}` · `404` |
-| `POST /api/v1/transportistas/{id}/novedades` | Transportista moderno (`Bearer <clave>`) | Avisa un cambio de estado de uno de sus envíos (webhook) | `204` · `400` · `401` · `404` · `409` · `422` |
 
 Ejemplo de alta desde el ERP:
 

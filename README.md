@@ -18,9 +18,8 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
   código de seguimiento.
 - **Transportistas:** un pedido se puede derivar a una empresa de envíos
   externa (integrada por API REST o por SOAP legado), después de comparar
-  sus cotizaciones; Rabbit sigue el estado del envío (consultándolo o
-  recibiendo los avisos del transportista por un webhook) y mueve el
-  pedido solo.
+  sus cotizaciones; Rabbit sigue el estado del envío (consultándolo cada 15 s)
+  y mueve el pedido solo.
 - **Ruteo y entregas:** zonas de reparto por código postal; los pedidos
   pendientes se agrupan por zona y se despachan solos según quién cubre la
   zona (repartidores propios o un transportista; si el transportista no lo
@@ -106,7 +105,6 @@ transportista-moderno/     ← un transportista REST como servicio aparte (Pytho
 | ERP del comercio → Rabbit (y seguimiento público) | Sincrónica, REST | Implementado |
 | Cambios de estado del pedido → Notificaciones, Pagos | Asincrónica, tópico JMS | Implementado |
 | Transportistas → transportista moderno / legado (cotizar, derivar, seguir, cancelar) | Sincrónica, REST saliente / SOAP | Implementado |
-| Transportista moderno → Rabbit (novedades del envío) | Sincrónica, REST entrante (webhook) | Implementado |
 | Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Implementado (opcional, por configuración) |
 
 ## Documentación técnica
@@ -163,12 +161,11 @@ heterogeneidad tecnológica y los desafíos opcionales.
 | Sistema | Lenguaje | Cómo levantarlo | Reemplaza a |
 |---|---|---|---|
 | Banco legado ([`banco-legado/`](banco-legado/README.md)) | Node.js (SOAP) | `cd banco-legado && npm install && npm start` (puerto `8090`), después apuntar `rabbit.banco.wsdl` y redesplegar Rabbit | El banco simulado en Java dentro de Rabbit (`BancoLegadoServiceImpl`) |
-| Transportista moderno ([`transportista-moderno/`](transportista-moderno/README.md)) | Python (REST), sin dependencias | `python3 transportista-moderno/servidor.py` (puerto `8095`), registrarlo en **Transportistas** y generarle una clave de webhook | El transportista REST simulado dentro de Rabbit (`TransportistaRestSimuladoResource`) — ambos usan el mismo contrato |
+| Transportista moderno ([`transportista-moderno/`](transportista-moderno/README.md)) | Python (REST), sin dependencias | `python3 transportista-moderno/servidor.py` (puerto `8095`), registrarlo en **Transportistas** | El transportista REST simulado dentro de Rabbit (`TransportistaRestSimuladoResource`) — ambos usan el mismo contrato |
 | Transportista SOAP legado | Java, dentro del WAR | No se levanta aparte: ya corre con Rabbit en `TransportistaLegadoService?wsdl` | — (es el único que no tiene versión "externa" en este repo) |
 
-No necesitan credenciales propias: el banco legado no tiene auth, y el
-transportista moderno usa la clave de webhook que genera Rabbit (no al
-revés).
+No necesitan credenciales propias: ni el banco legado ni el transportista
+moderno tienen autenticación.
 
 ## Cómo levantar el sistema
 
@@ -355,7 +352,8 @@ mandar nada.
 ### 8. (Opcional) Transportista moderno aparte
 
 `transportista-moderno/` es un transportista REST que corre fuera de
-Rabbit (Python, sin dependencias) y avisa sus novedades por el webhook.
+Rabbit (Python, sin dependencias); Rabbit lo consulta por polling como a
+los demás.
 Ver su [README](transportista-moderno/README.md).
 
 ## Tests
@@ -374,10 +372,9 @@ desplegado y con una cuenta ERP:
 
 ```bash
 mvn verify -Pintegracion -Drabbit.erp.usuario=<erp> -Drabbit.erp.clave=<clave> -Drabbit.punto=<id punto de picking>
-# opcional, para el webhook: -Drabbit.webhook.transportista=<id> -Drabbit.webhook.clave=<clave>
 ```
 
 Prueban alta, idempotencia, errores en Problem Details, pertenencia,
-cancelación, seguimiento público y webhook. Los pedidos que crean llevan
+cancelación y seguimiento público. Los pedidos que crean llevan
 `[TEST]` en la dirección. Conviene correrlos contra una base local, no contra la
 compartida del equipo: los pedidos de prueba quedan guardados.

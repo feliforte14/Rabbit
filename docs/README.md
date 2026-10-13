@@ -20,14 +20,14 @@ docs/
 | [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md) | Capas, componentes, interfaces entre componentes, stateless vs. stateful, máquina de estados del pedido |
 | [PATRONES.md](arquitectura/PATRONES.md) | Cada patrón de diseño: qué problema resuelve, dónde está, qué alternativa se descartó |
 | [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md) | Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo |
-| [DECISIONES.md](arquitectura/DECISIONES.md) | Registro de decisiones de arquitectura (28 ADR) |
+| [DECISIONES.md](arquitectura/DECISIONES.md) | Registro de decisiones de arquitectura (29 ADR) |
 
 ### [integraciones/](integraciones/)
 
 | Documento | Qué justifica |
 |---|---|
 | [MensajeriaFinal.md](integraciones/MensajeriaFinal.md) | **Por qué** cada integración usa cola, tópico, SOAP o REST: el criterio de decisión aplicado a todas |
-| [MENSAJERIA-SINCRONICA.md](integraciones/MENSAJERIA-SINCRONICA.md) | SOAP con el banco legado (cobro, reversa, timeout, circuit breaker), transportistas SOAP y REST (cotización, derivación, polling y webhook) y API REST (ERP y seguimiento) |
+| [MENSAJERIA-SINCRONICA.md](integraciones/MENSAJERIA-SINCRONICA.md) | SOAP con el banco legado (cobro, reversa, timeout, circuit breaker), transportistas SOAP y REST (cotización, derivación y seguimiento por polling) y API REST (ERP y seguimiento) |
 | [MENSAJERIA-ASINCRONICA.md](integraciones/MENSAJERIA-ASINCRONICA.md) | Cola JMS de pedidos externos, tópico de estados del pedido y avisos por mail |
 | [openapi.yaml](integraciones/openapi.yaml) | Contrato OpenAPI 3.1 de la API REST (se abre en Swagger Editor o se importa en Postman) |
 
@@ -35,7 +35,7 @@ docs/
 
 | Documento | Qué justifica |
 |---|---|
-| [SEGURIDAD.md](seguridad/SEGURIDAD.md) | Autenticación, roles, `@RolesAllowed`, operaciones sensibles, límite de intentos de login, HTTPS y clave del webhook |
+| [SEGURIDAD.md](seguridad/SEGURIDAD.md) | Autenticación, roles, `@RolesAllowed`, operaciones sensibles, límite de intentos de login y HTTPS |
 
 ### [pruebas/](pruebas/)
 

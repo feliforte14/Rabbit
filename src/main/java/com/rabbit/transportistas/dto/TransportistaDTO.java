@@ -10,8 +10,6 @@ public class TransportistaDTO {
     public String tipoIntegracion;
     public String endpoint;
     public boolean activo;
-    // Solo si tiene clave, nunca la clave: se muestra una única vez, al generarla.
-    public boolean tieneClaveWebhook;
 
     public static TransportistaDTO desde(Transportista t) {
         TransportistaDTO dto = new TransportistaDTO();
@@ -20,7 +18,6 @@ public class TransportistaDTO {
         dto.tipoIntegracion = t.getTipoIntegracion() != null ? t.getTipoIntegracion().name() : null;
         dto.endpoint = t.getEndpoint();
         dto.activo = t.isActivo();
-        dto.tieneClaveWebhook = t.getClaveWebhook() != null;
         return dto;
     }
 
@@ -30,5 +27,4 @@ public class TransportistaDTO {
     public String getTipoIntegracion() { return tipoIntegracion; }
     public String getEndpoint() { return endpoint; }
     public boolean isActivo() { return activo; }
-    public boolean isTieneClaveWebhook() { return tieneClaveWebhook; }
 }

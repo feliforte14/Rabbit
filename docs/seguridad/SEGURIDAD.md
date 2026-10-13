@@ -191,12 +191,6 @@ base viven en el datasource de WildFly y las de management (para
 
 ### Operaciones sin autenticación
 
-- `POST /api/v1/transportistas/{id}/novedades` (webhook de novedades): no
-  hay usuario, lo que autoriza es la **clave del transportista**
-  (`Authorization: Bearer`), que genera el personal y se muestra una sola
-  vez. Se compara en tiempo constante, y un transportista solo puede tocar
-  sus propios envíos. Corre con `@RunAs("OPERADOR")`, como el polling.
-
 - `seguimiento.xhtml?codigo=RB-...` (`SeguimientoBean`): la misma consulta
   que la API de abajo, en una página para personas. Muestra solo el estado
   (con una línea de tiempo); el código aleatorio es lo único que la abre.
@@ -217,9 +211,6 @@ Además, el login y la página de error, que tienen que verse sin sesión.
 
 ## Limitaciones conocidas
 
-- La clave del webhook se guarda en claro en la tabla `transportistas`
-  (Rabbit tiene que compararla). Con la base comprometida, alguien podría
-  inventar novedades de envíos; se cambia desde la pantalla.
 - El certificado HTTPS de WildFly es autofirmado (el navegador advierte,
   `curl` necesita `-k`). En producción iría un certificado de una
   autoridad reconocida en el `key-store` de Elytron.

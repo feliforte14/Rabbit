@@ -50,9 +50,9 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Seguridad | `IRegistroUsuarios` | `registrarUsuario`, `darDeBaja`, `reactivarUsuario` | `UsuarioBean` |
 | Seguridad | `IConsultaUsuarios` | `listarTodos`, `obtenerUsuario` | `UsuarioBean` |
 | Seguridad | `IContextoUsuario` | `idComercioActual`, `idRepartidorActual` | Pedidos, Inventario, Comercios, Notificaciones, `SesionBean` |
-| Transportistas | `IGestionTransportistas` | `registrarTransportista`, `darDeBajaTransportista`, `reactivarTransportista`, `generarClaveWebhook`, `listarTodos`, `listarActivos` | `TransportistaBean`, `PedidoBean`, `SeguimientoDeEnvios` |
+| Transportistas | `IGestionTransportistas` | `registrarTransportista`, `darDeBajaTransportista`, `reactivarTransportista`, `listarTodos`, `listarActivos` | `TransportistaBean`, `PedidoBean`, `SeguimientoDeEnvios` |
 | Transportistas | `IEnvios` | `solicitarEnvio`, `cotizarEnvio`, `cancelarEnvioDePedido`, `listarEnvios`, `listarEnviosDelComercioActual` | Pedidos, Ruteo, `PedidoBean`, `TransportistaBean`, `PortalComercioBean` |
-| Transportistas | `ISeguimientoEnvios` | `listarEnviosActivos`, `registrarNovedad`, `recibirNovedad` (webhook) | `SeguimientoDeEnvios` (interna del componente) |
+| Transportistas | `ISeguimientoEnvios` | `listarEnviosActivos`, `registrarNovedad` | `SeguimientoDeEnvios` (interna del componente) |
 | Ruteo | `IRuteo` | `listarEntregasEnCurso`, `entregaActualDelRepartidor`, `historialDelRepartidor`, `listarPendientesPorZona`, `despacharPedido`, `despacharZona` | `EntregasBean`, `MisEntregasBean`, `RuteoBean` |
 | Ruteo | `IZonas` | `registrarZona`, `darDeBajaZona`, `reactivarZona`, `listarTodas`, `zonaDeCodigoPostal` | `RuteoBean`, `RepartidorBean`, `RuteoService` |
 | Pagos | `IRegistroCobros` | `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`) | Pedidos, `SuscriptorPagosEstadoPedido` |
@@ -163,7 +163,6 @@ flowchart LR
     end
     Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
     Transportistas -->|REST/JSON| TransREST[(Transportista REST<br/>simulado o transportista-moderno/)]
-    TransREST -.->|webhook de novedades| Transportistas
     Transportistas -->|SOAP/HTTP| TransSOAP[(Transportista legado<br/>simulado)]
     Notificaciones -->|SMTP, opcional| Correo[(Servidor de correo)]
     ERP[ERP del comercio] -->|REST /api/v1/pedidos-externos| Pedidos
@@ -207,7 +206,6 @@ el repartidor sale siempre de la identidad autenticada
 | Cambio de estado del pedido → Notificaciones, Pagos | Tópico JMS `topico.pedidos.estado` | Implementado | [MENSAJERIA-ASINCRONICA.md](../integraciones/MENSAJERIA-ASINCRONICA.md) |
 | Transportistas → transportista moderno | REST/JSON saliente (cliente JAX-RS) | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
 | Transportistas → transportista legado | SOAP saliente | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
-| Transportista moderno → Rabbit | REST entrante `POST /api/v1/transportistas/{id}/novedades` (webhook) | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
 | Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Implementado (si se configura el servidor) | [MENSAJERIA-ASINCRONICA.md](../integraciones/MENSAJERIA-ASINCRONICA.md) |
 | Pedidos → Comercios, Inventario, Pagos, Repartidores, Transportistas | Llamada local EJB | Implementado | No es integración entre sistemas: mismo proceso |
 

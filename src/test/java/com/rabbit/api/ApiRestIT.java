@@ -19,7 +19,6 @@ import org.junit.jupiter.api.Test;
  *   mvn verify -Pintegracion -Drabbit.erp.usuario=... -Drabbit.erp.clave=... -Drabbit.punto=...
  *
  * rabbit.punto: un punto de picking activo del comercio de ese ERP.
- * Opcional para el webhook: -Drabbit.webhook.transportista=<id> -Drabbit.webhook.clave=<clave>.
  * Los pedidos de prueba llevan "[TEST]" en la dirección, para identificarlos.
  */
 class ApiRestIT {
@@ -141,28 +140,5 @@ class ApiRestIT {
     @Test
     void urlInexistenteEs404EnProblemDetails() {
         given().get("/no-existe").then().statusCode(404).contentType(startsWith(PROBLEMA));
-    }
-
-    @Test
-    void webhookConClaveIncorrectaEs401() {
-        String transportista = System.getProperty("rabbit.webhook.transportista");
-        assumeTrue(transportista != null, "Falta -Drabbit.webhook.transportista");
-        given().header("Authorization", "Bearer clave-falsa").contentType("application/json")
-                .body(Map.of("codigoSeguimiento", "X", "estado", "ENTREGADO"))
-                .post("/transportistas/" + transportista + "/novedades").then()
-                .statusCode(401).body("type", equalTo("/problemas/clave-webhook-invalida"));
-    }
-
-    @Test
-    void webhookConEnvioAjenoEs404YEstadoRaroEs422() {
-        String transportista = System.getProperty("rabbit.webhook.transportista");
-        String claveWebhook = System.getProperty("rabbit.webhook.clave");
-        assumeTrue(transportista != null && claveWebhook != null, "Faltan -Drabbit.webhook.transportista y -Drabbit.webhook.clave");
-        given().header("Authorization", "Bearer " + claveWebhook).contentType("application/json")
-                .body(Map.of("codigoSeguimiento", "NO-EXISTE", "estado", "ENTREGADO"))
-                .post("/transportistas/" + transportista + "/novedades").then().statusCode(404);
-        given().header("Authorization", "Bearer " + claveWebhook).contentType("application/json")
-                .body(Map.of("codigoSeguimiento", "NO-EXISTE", "estado", "PERDIDO"))
-                .post("/transportistas/" + transportista + "/novedades").then().statusCode(422);
     }
 }

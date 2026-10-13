@@ -1,23 +1,13 @@
 package com.rabbit.transportistas.negocio;
 
 /**
- * Un aviso al webhook de novedades que Rabbit no acepta. El motivo define
- * qué responde la API: clave inválida (401), envío desconocido para ese
- * transportista (404), estado que no existe (422) o pedido que no se pudo
- * mover con esa novedad porque cambió al mismo tiempo (409: reintentar).
+ * Una novedad de un envío que no se pudo aplicar porque el pedido o el
+ * envío cambiaron al mismo tiempo (por ejemplo, el personal lo canceló):
+ * se deshace todo y el seguimiento la reintenta en la próxima pasada.
  */
 public class NovedadRechazadaException extends ValidacionException {
 
-    public enum Motivo { CLAVE_INVALIDA, ENVIO_DESCONOCIDO, ESTADO_DESCONOCIDO, PEDIDO_EN_CONFLICTO }
-
-    private final Motivo motivo;
-
-    public NovedadRechazadaException(Motivo motivo, String mensaje) {
+    public NovedadRechazadaException(String mensaje) {
         super(mensaje);
-        this.motivo = motivo;
-    }
-
-    public Motivo getMotivo() {
-        return motivo;
     }
 }
