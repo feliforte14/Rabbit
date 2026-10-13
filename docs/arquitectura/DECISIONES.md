@@ -668,5 +668,7 @@ Propuesta o Reemplazada.
 - **Consecuencias:** un pedido derivado a un transportista moderno tarda
   hasta 15 s más en pasar a En camino o Entregado. Rabbit expone un
   endpoint menos y no guarda claves de terceros. La columna
-  `transportistas.claveWebhook` queda en la base sin uso (`hbm2ddl=update`
-  no borra columnas).
+  `transportistas.claveWebhook` se borró a mano de la base
+  (`ALTER TABLE transportistas DROP COLUMN clavewebhook`):
+  `hbm2ddl=update` agrega columnas pero nunca las borra, así que en otra
+  base que ya la tuviera hay que borrarla igual (o queda sin uso).

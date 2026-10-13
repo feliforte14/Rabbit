@@ -457,6 +457,8 @@ Los pasos de estas demos están en
 | Derivar a un transportista | Confirmado con código de seguimiento; pasa solo a En camino y Entregado |
 | Cancelar un pedido derivado | Se cancela sin cruzarse con una novedad del transportista en curso |
 | Ruteo por zona | Pedidos agrupados por CP; despachar usa el repartidor de la zona, el respaldo o el transportista de la zona |
+| Eliminar un comercio dado de baja | Con pedidos en curso o entregados, stock o cuentas: rechazado. Con solo pedidos cancelados: se borra junto con ese historial, sin dejar nada huérfano |
+| Navegar un rato largo (más de 30 min) y después derivar o abrir Entregas en curso | Funciona: las consultas de stock no dependen de una instancia stateful que vence (ADR-027) |
 | Acceso restringido a personal/usuarios.xhtml | Comercio/repartidor/operador no puede entrar |
 | REST sin credenciales | 401 |
 | REST con rol incorrecto | 403 |

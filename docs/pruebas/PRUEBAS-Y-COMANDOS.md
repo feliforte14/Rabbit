@@ -350,8 +350,11 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
   y `.../template.xhtml` → página de error, sin detalles internos.
 - [ ] **S7. Sin sesión.** Cerrar sesión y abrir `personal/pedidos.xhtml`
   → vuelve al login.
-- [ ] **S8. Eliminar comercio.** Eliminar un comercio con pedidos o
-  cuentas → se rechaza; darlo de baja primero es obligatorio.
+- [ ] **S8. Eliminar comercio.** Darlo de baja primero es obligatorio.
+  Con un pedido en curso o entregado, stock consignado o cuentas → se
+  rechaza y queda dado de baja. Con solo pedidos cancelados → se elimina
+  junto con ese historial (en el log, `[Pedidos] Comercio N eliminado: se
+  borraron ...`, y lo mismo de Pagos, Notificaciones y Transportistas).
 - [ ] **S9. Reactivar una cuenta.** Usuarios → dar de baja `demo.repartidor`
   → ya no puede entrar. "Reactivar una cuenta" con una contraseña nueva →
   entra con la nueva y no con la vieja. Dar de baja el comercio de
