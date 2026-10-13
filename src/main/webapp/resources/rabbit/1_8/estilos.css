@@ -7,11 +7,11 @@
  * No toca Managed Beans, Services ni Repositories: es 100% presentacion.
  *
  * VERSIONADO DE RECURSOS
- * Vive en resources/rabbit/1_7/ y se linkea con:
+ * Vive en resources/rabbit/1_8/ y se linkea con:
  *     <h:outputStylesheet library="rabbit" name="estilos.css" />
- * "rabbit" es la libreria y "1_7" su version. JSF genera una URL que
- * incluye la version (?ln=rabbit&v=1_7), asi que al renombrar la carpeta
- * a 1_7 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
+ * "rabbit" es la libreria y "1_8" su version. JSF genera una URL que
+ * incluye la version (?ln=rabbit&v=1_8), asi que al renombrar la carpeta
+ * a 1_8 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
  * Sin esto, el navegador se queda con el CSS viejo cacheado aunque el
  * WAR ya tenga el nuevo.
  */
@@ -46,6 +46,38 @@
     --radio-chico: 8px;
     --sombra: 0 1px 2px rgba(15, 27, 61, 0.06), 0 1px 3px rgba(15, 27, 61, 0.08);
     --sombra-media: 0 4px 12px rgba(15, 27, 61, 0.08), 0 2px 4px rgba(15, 27, 61, 0.06);
+
+    /* Roles: lo que cambia de un tema a otro. El azul marino de la marca
+       se separa en dos roles (fondo del menú y color de los títulos),
+       porque en el tema oscuro van en direcciones opuestas. */
+    --titulo: var(--navy);
+    --sobre-acento: #fff;
+    --sidebar-fondo: var(--navy);
+    --sidebar-texto: #fff;
+    --sidebar-texto-suave: rgba(255, 255, 255, 0.55);
+    --sidebar-texto-tenue: rgba(255, 255, 255, 0.45);
+    --sidebar-hover: rgba(255, 255, 255, 0.08);
+    --sidebar-hover-texto: rgba(255, 255, 255, 0.85);
+    --sidebar-borde: rgba(255, 255, 255, 0.08);
+    --anillo-foco: rgba(249, 115, 22, 0.15);
+    --anillo-error: rgba(220, 38, 38, 0.15);
+    --error-texto: #7f1d1d;
+    --exito-texto: #14532d;
+    --fila-impar: #fbfbfd;
+    --naranja-borde: #fed7aa;
+    --aviso-fondo: #fef3c7;
+    --aviso-texto: #92400e;
+    --peligro-fondo: #fee2e2;
+    --badge-verde-texto: #166534;
+    --badge-gris-fondo: #f1f5f9;
+    --badge-gris-texto: #475569;
+    --badge-azul-fondo: #e0f2fe;
+    --badge-azul-texto: #075985;
+    --estado-vigente-fondo: #e3f0ff;     --estado-vigente-texto: #1a4f9c;
+    --estado-confirmada-fondo: #e2f5e8;  --estado-confirmada-texto: #1c6b3a;
+    --estado-liberada-fondo: #eeeeee;    --estado-liberada-texto: #555555;
+    --estado-expirada-fondo: #fdeaea;    --estado-expirada-texto: #97302c;
+    --estado-devuelta-fondo: #fdf0dc;    --estado-devuelta-texto: #8a5a12;
 
     --fuente-titulo: "Barlow Condensed", "Arial Narrow", sans-serif;
     --fuente-base: "Inter", "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
@@ -101,7 +133,7 @@ h1 {
     font-weight: 700;
     font-size: 2.1rem;
     letter-spacing: -0.01em;
-    color: var(--navy);
+    color: var(--titulo);
     margin: 0 0 1.5rem;
     padding-bottom: 0;
     border-bottom: none;
@@ -113,7 +145,7 @@ h2 {
     font-weight: 700;
     font-size: 1.4rem;
     letter-spacing: -0.005em;
-    color: var(--navy);
+    color: var(--titulo);
     margin: 2.75rem 0 1rem;
 }
 
@@ -144,16 +176,16 @@ h2 {
     height: 100vh;
     position: sticky;
     top: 0;
-    background: var(--navy);
+    background: var(--sidebar-fondo);
     display: flex;
     flex-direction: column;
-    color: #fff;
+    color: var(--sidebar-texto);
 }
 
 .sidebar-logo {
     padding: 1.75rem 1.25rem 1.25rem;
     text-align: center;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid var(--sidebar-borde);
 }
 
 .sidebar-logo .marca {
@@ -169,7 +201,7 @@ h2 {
 .sidebar-logo .slogan {
     margin: 0.3rem 0 0;
     font-size: 0.72rem;
-    color: rgba(255, 255, 255, 0.45);
+    color: var(--sidebar-texto-tenue);
 }
 
 .sidebar-nav {
@@ -185,7 +217,7 @@ h2 {
     display: block;
     padding: 0.65rem 0.85rem;
     border-radius: var(--radio-chico);
-    color: rgba(255, 255, 255, 0.55);
+    color: var(--sidebar-texto-suave);
     text-decoration: none;
     font-size: 0.92rem;
     font-weight: 500;
@@ -193,19 +225,19 @@ h2 {
 }
 
 .sidebar-nav a:hover {
-    background: rgba(255, 255, 255, 0.08);
-    color: rgba(255, 255, 255, 0.85);
+    background: var(--sidebar-hover);
+    color: var(--sidebar-hover-texto);
 }
 
 .sidebar-nav a.activo {
     background: var(--naranja);
-    color: #fff;
+    color: var(--sobre-acento);
     font-weight: 600;
 }
 
 .sidebar-foot {
     padding: 1rem 0.75rem 1.25rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    border-top: 1px solid var(--sidebar-borde);
 }
 
 .sidebar-foot form {
@@ -215,12 +247,12 @@ h2 {
 .sidebar-usuario {
     padding: 0 0.1rem 0.75rem;
     font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
+    color: var(--sidebar-texto-suave);
 }
 
 .sidebar-usuario b {
     display: block;
-    color: #fff;
+    color: var(--sidebar-texto);
     font-weight: 600;
     font-size: 0.88rem;
 }
@@ -286,11 +318,11 @@ h2 {
     font-weight: 700;
     line-height: 1.2rem;
     text-align: center;
-    color: #fff;
+    color: var(--sobre-acento);
 }
 
 .mensaje-error {
-    color: #7f1d1d;
+    color: var(--error-texto);
     background: var(--rojo-suave);
     border-color: var(--rojo-borde);
 }
@@ -301,7 +333,7 @@ h2 {
 }
 
 .mensaje-info {
-    color: #14532d;
+    color: var(--exito-texto);
     background: var(--verde-suave);
     border-color: var(--verde-borde);
 }
@@ -341,7 +373,7 @@ h2 {
     font-style: italic;
     font-weight: 700;
     font-size: 2.2rem;
-    color: var(--navy);
+    color: var(--titulo);
     line-height: 1;
     margin: 0;
 }
@@ -392,7 +424,7 @@ h2 {
 }
 
 .fila-par   { background: var(--superficie); }
-.fila-impar { background: #fbfbfd; }
+.fila-impar { background: var(--fila-impar); }
 
 .tabla tbody tr:hover td {
     background: var(--naranja-suave);
@@ -466,7 +498,7 @@ h2 {
 .formulario .tabla td select:focus {
     outline: none;
     border-color: var(--naranja);
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    box-shadow: 0 0 0 3px var(--anillo-foco);
 }
 
 .formulario .tabla .col-cantidad {
@@ -513,7 +545,7 @@ h2 {
     outline: none;
     border-color: var(--naranja);
     background: var(--superficie);
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    box-shadow: 0 0 0 3px var(--anillo-foco);
 }
 
 /* Mensaje de error de UN campo puntual (h:message for="...").
@@ -542,7 +574,7 @@ h2 {
 }
 
 .campo:has(.error-campo) > input[type="text"]:focus {
-    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+    box-shadow: 0 0 0 3px var(--anillo-error);
 }
 
 /* Los <select> (h:selectOneMenu) comparten el look de los inputs */
@@ -563,7 +595,7 @@ h2 {
     outline: none;
     border-color: var(--naranja);
     background: var(--superficie);
-    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    box-shadow: 0 0 0 3px var(--anillo-foco);
 }
 
 .campo:has(.error-campo) > select {
@@ -587,7 +619,7 @@ h2 {
    ================================================================== */
 .reserva-activa {
     background: var(--naranja-suave);
-    border: 1px solid #fed7aa;
+    border: 1px solid var(--naranja-borde);
     border-left: 4px solid var(--naranja);
     border-radius: var(--radio);
     padding: 1.25rem 1.5rem;
@@ -658,7 +690,7 @@ h2 {
 
 .btn-primary {
     background: var(--naranja);
-    color: #fff;
+    color: var(--sobre-acento);
 }
 
 .btn-primary:hover {
@@ -678,7 +710,7 @@ h2 {
 
 .btn-danger {
     background: var(--rojo);
-    color: #fff;
+    color: var(--sobre-acento);
 }
 
 .btn-danger:hover {
@@ -700,11 +732,11 @@ h2 {
     white-space: nowrap;
 }
 
-.badge-naranja  { background: #fef3c7; color: #92400e; }
-.badge-verde    { background: var(--verde-suave); color: #166534; }
-.badge-gris     { background: #f1f5f9; color: #475569; }
+.badge-naranja  { background: var(--aviso-fondo); color: var(--aviso-texto); }
+.badge-verde    { background: var(--verde-suave); color: var(--badge-verde-texto); }
+.badge-gris     { background: var(--badge-gris-fondo); color: var(--badge-gris-texto); }
 .badge-rojo     { background: var(--rojo-suave); color: var(--rojo-oscuro); }
-.badge-azul     { background: #e0f2fe; color: #075985; }
+.badge-azul     { background: var(--badge-azul-fondo); color: var(--badge-azul-texto); }
 
 /* ==================================================================
    Responsive
@@ -717,8 +749,21 @@ h2 {
     .formulario {
         padding: 1.25rem;
     }
+}
 
-    .tabla {
+/* Si una tabla no entra, se desplaza de costado dentro de su propio
+   recuadro, sin correr la página entera: las que no se vuelven tarjetas,
+   siempre; las que sí, hasta que pasan a tarjetas (860 px), por ejemplo
+   en una tablet horizontal con el menú al costado. */
+@media (max-width: 1180px) {
+    .tabla:not(.tabla-tarjetas) {
+        display: block;
+        overflow-x: auto;
+    }
+}
+
+@media (min-width: 861px) and (max-width: 1180px) {
+    .tabla.tabla-tarjetas {
         display: block;
         overflow-x: auto;
     }
@@ -735,8 +780,8 @@ h2 {
     margin-left: 0.5rem;
     padding: 0.1rem 0.5rem;
     border-radius: var(--radio-chico);
-    background: #fef3c7;
-    color: #92400e;
+    background: var(--aviso-fondo);
+    color: var(--aviso-texto);
     font-variant-numeric: tabular-nums;  /* evita que el ancho salte al cambiar de digito */
     font-weight: 700;
     font-size: 0.88rem;
@@ -745,14 +790,14 @@ h2 {
 
 /* Ultimo minuto */
 .cuenta-regresiva.urgente {
-    background: #fee2e2;
+    background: var(--peligro-fondo);
     color: var(--rojo-oscuro);
     animation: latido 1s ease-in-out infinite;
 }
 
 .cuenta-regresiva.vencida {
     background: var(--rojo);
-    color: #fff;
+    color: var(--sobre-acento);
     animation: none;
 }
 
@@ -792,11 +837,11 @@ h2 {
     font-weight: 600;
     letter-spacing: 0.02em;
 }
-.estado-vigente    { background: #e3f0ff; color: #1a4f9c; }
-.estado-confirmada { background: #e2f5e8; color: #1c6b3a; }
-.estado-liberada   { background: #eeeeee; color: #555555; }
-.estado-expirada   { background: #fdeaea; color: #97302c; }
-.estado-devuelta   { background: #fdf0dc; color: #8a5a12; }
+.estado-vigente    { background: var(--estado-vigente-fondo); color: var(--estado-vigente-texto); }
+.estado-confirmada { background: var(--estado-confirmada-fondo); color: var(--estado-confirmada-texto); }
+.estado-liberada   { background: var(--estado-liberada-fondo); color: var(--estado-liberada-texto); }
+.estado-expirada   { background: var(--estado-expirada-fondo); color: var(--estado-expirada-texto); }
+.estado-devuelta   { background: var(--estado-devuelta-fondo); color: var(--estado-devuelta-texto); }
 
 /* ==================================================================
    Menú por tipo de usuario: títulos de sección
@@ -807,7 +852,7 @@ h2 {
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: rgba(255, 255, 255, 0.35);
+    color: var(--sidebar-texto-tenue);
 }
 
 .sidebar-seccion:first-child {
@@ -844,7 +889,7 @@ h2 {
     font-style: italic;
     font-weight: 700;
     font-size: 1.35rem;
-    color: var(--navy);
+    color: var(--titulo);
 }
 
 .paradas {
@@ -867,7 +912,7 @@ h2 {
     width: 0.6rem;
     height: 0.6rem;
     border-radius: 50%;
-    background: var(--navy);
+    background: var(--titulo);
 }
 
 .parada:not(:last-child)::after {
@@ -935,49 +980,6 @@ h2 {
     margin-bottom: 2rem;
 }
 
-/* ==================================================================
-   Celular: el menú pasa a una fila que se desplaza de costado, en vez
-   de ocupar media pantalla arriba del contenido.
-   ================================================================== */
-@media (max-width: 860px) {
-    .sidebar-logo {
-        padding: 0.9rem 1.25rem;
-        text-align: left;
-    }
-
-    .sidebar-logo .slogan,
-    .sidebar-seccion {
-        display: none;
-    }
-
-    .sidebar-nav {
-        flex-direction: row;
-        overflow-x: auto;
-        padding: 0.5rem 0.75rem;
-        gap: 0.35rem;
-    }
-
-    .sidebar-nav a {
-        white-space: nowrap;
-        flex: none;
-    }
-
-    .sidebar-foot {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.75rem;
-        padding: 0.6rem 0.75rem;
-    }
-
-    .sidebar-usuario {
-        padding: 0;
-    }
-
-    .hoja-ruta .form-acciones .btn {
-        width: 100%;
-    }
-}
 
 /* ==================================================================
    Marca en el login (misma tipografía que el menú)
@@ -1088,7 +1090,7 @@ a.btn {
     font-weight: 600;
     letter-spacing: 0.02em;
     white-space: nowrap;
-    color: var(--navy);
+    color: var(--titulo);
 }
 
 .nowrap {
@@ -1122,53 +1124,125 @@ a.codigo:hover {
     font-style: italic;
 }
 
-/* ---- Encabezado compacto en pantallas chicas --------------------- */
-/* En el celular el menu va arriba: logo, menu y usuario ocupaban media
-   pantalla. Ahora el usuario y "Cerrar sesion" van en una sola fila. */
+/* ---- Encabezado compacto y menú desplegable (celular y tablet) --- */
+/* Arriba queda una sola fila: el logo y el botón "Menú". El menú (y el
+   usuario con "Cerrar sesión" y el tema) se despliega debajo al tocarlo
+   (ver menu.js). Sin JavaScript (sin la clase "js" en <html>) el menú se
+   ve siempre, como lista vertical: nunca queda inaccesible. */
+.menu-boton {
+    display: none;
+}
+
 @media (max-width: 860px) {
+    .sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        box-shadow: var(--sombra);
+    }
+
     .sidebar-logo {
-        padding: 0.9rem 1.25rem 0.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.7rem 1rem;
         text-align: left;
-        border-bottom: none;
     }
 
     .sidebar-logo .slogan {
         display: none;
     }
 
-    .sidebar-nav {
-        flex-direction: row;
-        overflow-x: auto;
-        padding: 0.25rem 0.75rem 0.6rem;
-        gap: 0.35rem;
+    .menu-boton {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.45rem 0.8rem;
+        border: 1px solid var(--sidebar-borde);
+        border-radius: var(--radio-chico);
+        background: transparent;
+        color: var(--sidebar-texto);
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
     }
 
-    .sidebar-nav a {
-        white-space: nowrap;
-        padding: 0.5rem 0.8rem;
+    .menu-boton:focus-visible {
+        outline: 2px solid var(--naranja);
+        outline-offset: 2px;
     }
 
-    .sidebar-seccion {
+    /* Tres rayas dibujadas con CSS, sin imágenes */
+    .menu-icono,
+    .menu-icono::before,
+    .menu-icono::after {
+        display: block;
+        width: 1.05rem;
+        height: 2px;
+        border-radius: 2px;
+        background: currentColor;
+        transition: transform 0.2s, opacity 0.2s;
+    }
+
+    .menu-icono {
+        position: relative;
+    }
+
+    .menu-icono::before,
+    .menu-icono::after {
+        content: "";
+        position: absolute;
+        left: 0;
+    }
+
+    .menu-icono::before { top: -6px; }
+    .menu-icono::after  { top: 6px; }
+
+    .sidebar.menu-abierto .menu-icono { background: transparent; }
+    .sidebar.menu-abierto .menu-icono::before { transform: translateY(6px) rotate(45deg); }
+    .sidebar.menu-abierto .menu-icono::after  { transform: translateY(-6px) rotate(-45deg); }
+
+    .js .sidebar-nav,
+    .js .sidebar-foot {
         display: none;
     }
 
-    .sidebar-foot {
+    .js .sidebar.menu-abierto .sidebar-nav,
+    .js .sidebar.menu-abierto .sidebar-foot {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+    }
+
+    .sidebar.menu-abierto {
+        max-height: 100vh;
+        overflow-y: auto;
+    }
+
+    .sidebar-nav {
+        flex-direction: column;
+        padding: 0.25rem 0.75rem 0.75rem;
+        gap: 0.15rem;
+    }
+
+    .sidebar-nav a {
+        padding: 0.75rem 0.85rem;   /* objetivo táctil de 44 px */
+    }
+
+    .sidebar-seccion {
+        display: block;
+    }
+
+    .sidebar-foot {
+        flex-direction: column;
+        align-items: stretch;
         gap: 0.75rem;
-        padding: 0.6rem 1rem;
+        padding: 0.85rem 1rem 1rem;
     }
 
     .sidebar-usuario {
         padding: 0;
-        line-height: 1.3;
-    }
-
-    .sidebar-foot .btn {
-        width: auto !important;
-        padding: 0.4rem 0.8rem;
-        font-size: 0.8rem;
+        line-height: 1.35;
     }
 }
 
@@ -1176,8 +1250,8 @@ a.codigo:hover {
 /* Para las pantallas que se usan desde el telefono (comercio y
    repartidor): cada fila pasa a ser una tarjeta, con el nombre de cada
    dato al lado (data-label), en vez de una tabla que hay que correr de
-   costado. */
-@media (max-width: 640px) {
+   costado. Desde 860 px: en una tablet vertical la tabla ya no entra. */
+@media (max-width: 860px) {
     .tabla.tabla-tarjetas {
         display: block;
         border: none;
@@ -1327,7 +1401,7 @@ a.codigo:hover {
 .seguimiento-codigo code {
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-weight: 600;
-    color: var(--navy);
+    color: var(--titulo);
 }
 
 .seguimiento-titular {
@@ -1337,7 +1411,7 @@ a.codigo:hover {
     font-weight: 700;
     font-size: 1.75rem;
     line-height: 1.15;
-    color: var(--navy);
+    color: var(--titulo);
 }
 
 .seguimiento-detalle {
@@ -1410,7 +1484,7 @@ a.codigo:hover {
 
 .linea-tiempo li.hecho .linea-tiempo-texto,
 .linea-tiempo li.actual .linea-tiempo-texto {
-    color: var(--navy);
+    color: var(--titulo);
 }
 
 .linea-tiempo li.actual .linea-tiempo-texto {
@@ -1431,4 +1505,163 @@ a.codigo:hover {
 /* Claves y URLs largas dentro de un recuadro de datos: que corten. */
 .reserva-datos code {
     word-break: break-all;
+}
+
+/* ==================================================================
+   Selector de tema (ver tema.js)
+   ================================================================== */
+.tema-selector {
+    display: flex;
+    gap: 0.25rem;
+    padding: 0.2rem;
+    margin: 0 0 0.75rem;
+    border: 1px solid var(--sidebar-borde);
+    border-radius: var(--radio-chico);
+}
+
+.tema-selector button {
+    flex: 1;
+    padding: 0.35rem 0.4rem;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--sidebar-texto-suave);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.tema-selector button:hover {
+    color: var(--sidebar-hover-texto);
+    background: var(--sidebar-hover);
+}
+
+.tema-selector button[aria-pressed="true"] {
+    background: var(--naranja);
+    color: var(--sobre-acento);
+}
+
+.tema-selector button:focus-visible {
+    outline: 2px solid var(--naranja);
+    outline-offset: 1px;
+}
+
+/* En las páginas sin menú (login, seguimiento, error) el selector va al
+   pie, sobre el fondo de la página. */
+.tema-selector.tema-pie {
+    width: max-content;
+    margin: 2.5rem auto 0;
+    border-color: var(--borde);
+}
+
+.tema-selector.tema-pie button {
+    color: var(--texto-suave);
+    padding: 0.35rem 0.8rem;
+}
+
+.tema-selector.tema-pie button:hover {
+    color: var(--texto);
+    background: var(--fondo);
+}
+
+.tema-selector.tema-pie button[aria-pressed="true"] {
+    background: var(--naranja);
+    color: var(--sobre-acento);
+}
+
+/* El selector solo funciona con JavaScript: sin él, no se muestra. */
+html:not(.js) .tema-selector {
+    display: none;
+}
+
+/* ==================================================================
+   Temas: "normal" (el de la marca, el de por defecto), "claro" y
+   "oscuro". Cada tema solo redefine tokens; ninguna regla de arriba
+   cambia. tema.js pone data-tema en <html> antes de pintar la página.
+   ================================================================== */
+
+/* Claro: todo blanco, el menú también; el naranja queda como acento. */
+html[data-tema="claro"] {
+    --fondo: #ffffff;
+    --superficie: #ffffff;
+    --borde: #e5e7eb;
+    --fila-impar: #f9fafb;
+    --sidebar-fondo: #f8fafc;
+    --sidebar-texto: var(--navy);
+    --sidebar-texto-suave: #4b5563;
+    --sidebar-texto-tenue: #6b7280;
+    --sidebar-hover: #eef2f7;
+    --sidebar-hover-texto: var(--navy);
+    --sidebar-borde: #e5e7eb;
+}
+
+html[data-tema="claro"] .sidebar {
+    border-right: 1px solid var(--borde);
+}
+
+/* Oscuro */
+html[data-tema="oscuro"] {
+    color-scheme: dark;   /* selects, barras de scroll y autocompletado nativos en oscuro */
+    --fondo: #0b1220;
+    --superficie: #131c2e;
+    --texto: #e5e7eb;
+    --texto-suave: #9ca3af;
+    --borde: #27324a;
+    --titulo: #f3f4f6;
+    --fila-impar: #162036;
+    --sidebar-fondo: #070d1a;
+    --sidebar-borde: rgba(255, 255, 255, 0.07);
+
+    --naranja: #fb923c;
+    --naranja-oscuro: #fdba74;
+    --naranja-suave: rgba(251, 146, 60, 0.12);
+    --naranja-borde: rgba(251, 146, 60, 0.35);
+    --azul: #60a5fa;
+    --azul-oscuro: #93c5fd;
+    --rojo: #ef4444;
+    --rojo-oscuro: #fca5a5;
+    --rojo-suave: rgba(239, 68, 68, 0.14);
+    --rojo-borde: rgba(239, 68, 68, 0.4);
+    --verde: #22c55e;
+    --verde-suave: rgba(34, 197, 94, 0.14);
+    --verde-borde: rgba(34, 197, 94, 0.4);
+    --sobre-acento: #0b1220;
+    --anillo-foco: rgba(251, 146, 60, 0.3);
+    --anillo-error: rgba(239, 68, 68, 0.3);
+
+    --error-texto: #fecaca;
+    --exito-texto: #bbf7d0;
+    --aviso-fondo: rgba(245, 158, 11, 0.16);
+    --aviso-texto: #fcd34d;
+    --peligro-fondo: rgba(239, 68, 68, 0.18);
+    --badge-verde-texto: #86efac;
+    --badge-gris-fondo: rgba(148, 163, 184, 0.16);
+    --badge-gris-texto: #cbd5e1;
+    --badge-azul-fondo: rgba(56, 189, 248, 0.16);
+    --badge-azul-texto: #7dd3fc;
+    --estado-vigente-fondo: rgba(96, 165, 250, 0.16);    --estado-vigente-texto: #93c5fd;
+    --estado-confirmada-fondo: rgba(34, 197, 94, 0.16);  --estado-confirmada-texto: #86efac;
+    --estado-liberada-fondo: rgba(148, 163, 184, 0.16);  --estado-liberada-texto: #cbd5e1;
+    --estado-expirada-fondo: rgba(239, 68, 68, 0.16);    --estado-expirada-texto: #fca5a5;
+    --estado-devuelta-fondo: rgba(245, 158, 11, 0.16);   --estado-devuelta-texto: #fcd34d;
+
+    --sombra: 0 1px 2px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
+    --sombra-media: 0 4px 12px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Los campos de formulario toman los colores del tema (el navegador, si
+   no, los deja blancos con texto negro). */
+/* Los botones de JSF también son <input> (type="submit"): se excluyen,
+   cada uno ya tiene sus colores (.btn-primary, .btn-danger...). */
+input:not([type="submit"]):not([type="button"]):not([type="reset"]),
+select, textarea {
+    color: var(--texto);
+}
+
+html[data-tema="oscuro"] input:not([type="submit"]):not([type="button"]):not([type="reset"]):not([type="checkbox"]):not([type="radio"]),
+html[data-tema="oscuro"] select,
+html[data-tema="oscuro"] textarea {
+    background-color: var(--superficie);
+    border-color: var(--borde);
 }

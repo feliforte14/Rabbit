@@ -19,6 +19,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <h:outputStylesheet library="rabbit" name="estilos.css" />
+    <!-- Antes de pintar: aplica el tema elegido (ver tema.js). -->
+    <h:outputScript library="rabbit" name="tema.js" />
 </h:head>
 <h:body styleClass="pagina-sola">
     <div class="container">
@@ -61,6 +63,12 @@
         <p class="enlace-seguimiento">
             ¿Compraste en una tienda y querés saber dónde está tu pedido?&#160;<h:link outcome="/seguimiento" value="Seguí tu pedido" />
         </p>
+        <!-- Tema visual: se cambia en el momento (ver tema.js). -->
+        <div class="tema-selector tema-pie" role="group" aria-label="Tema visual">
+            <button type="button" data-tema="normal" aria-pressed="false">Normal</button>
+            <button type="button" data-tema="claro" aria-pressed="false">Claro</button>
+            <button type="button" data-tema="oscuro" aria-pressed="false">Oscuro</button>
+        </div>
     </div>
 </h:body>
 </html>

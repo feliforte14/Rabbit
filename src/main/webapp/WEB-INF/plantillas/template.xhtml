@@ -27,16 +27,27 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <h:outputStylesheet library="rabbit" name="estilos.css" />
+    <!-- Antes de pintar: aplica el tema elegido (ver tema.js). -->
+    <h:outputScript library="rabbit" name="tema.js" />
+    <!-- En el celular, el menú se despliega con un botón (ver menu.js). -->
+    <h:outputScript library="rabbit" name="menu.js" />
     <!-- En el celular, las tablas se ven como tarjetas (ver tablas.js). -->
     <h:outputScript library="rabbit" name="tablas.js" />
     <ui:insert name="cabecera" />
 </h:head>
 <h:body>
     <div class="app-layout">
-        <aside class="sidebar">
+        <aside class="sidebar" id="menu-principal">
             <div class="sidebar-logo">
-                <p class="marca">rabbit</p>
-                <p class="slogan">Plataforma de entregas urbanas</p>
+                <div>
+                    <p class="marca">rabbit</p>
+                    <p class="slogan">Plataforma de entregas urbanas</p>
+                </div>
+                <!-- Solo en celular y tablet (ver menu.js) -->
+                <button type="button" class="menu-boton" aria-expanded="false" aria-controls="menu-principal">
+                    <span class="menu-icono" aria-hidden="true"></span>
+                    Menú
+                </button>
             </div>
 
             <!--
@@ -86,6 +97,12 @@
             </h:panelGroup>
 
             <div class="sidebar-foot">
+                <!-- Tema visual: se cambia en el momento (ver tema.js). -->
+                <div class="tema-selector" role="group" aria-label="Tema visual">
+                    <button type="button" data-tema="normal" aria-pressed="false">Normal</button>
+                    <button type="button" data-tema="claro" aria-pressed="false">Claro</button>
+                    <button type="button" data-tema="oscuro" aria-pressed="false">Oscuro</button>
+                </div>
                 <p class="sidebar-usuario">
                     Conectado como<br />
                     <b>#{sesionBean.usuarioActual}</b>

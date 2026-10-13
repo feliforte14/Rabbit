@@ -34,6 +34,10 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
   Todo por HTTPS, con límite de intentos en el login.
 - **Notificaciones:** cada cambio de estado le llega al comercio en su
   portal y, si hay un servidor de correo configurado, por mail.
+- **Interfaz:** tres temas visuales (normal, claro y oscuro) que se
+  cambian en el momento desde el menú o el pie de las páginas públicas, y
+  diseño responsive: en celular y tablet el menú se despliega con un botón
+  y las tablas se ven como tarjetas (ver `resources/rabbit/1_8/`).
 
 ## Tecnologías
 
