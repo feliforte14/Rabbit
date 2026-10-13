@@ -16,7 +16,8 @@ package com.rabbit.inventario.negocio;
  * @Local: los consumidores viven en el mismo contenedor, la invocacion es
  * una llamada Java directa.
  *
- * Implementada por {@link InventarioService}.
+ * Implementada por {@link ConsultaStockService} (@Stateless): no tiene
+ * conversación, así que no comparte el EJB @Stateful de la reserva.
  */
 
 import com.rabbit.inventario.dto.DatosDepositoDTO;
