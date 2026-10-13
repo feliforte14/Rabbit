@@ -29,7 +29,7 @@
             <h:dataTable value="#{repartidorBean.repartidores}" var="r"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty repartidorBean.repartidores}">
-                <h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">ID</f:facet>
                     #{r.id}
                 </h:column>
@@ -37,7 +37,7 @@
                     <f:facet name="header">Nombre</f:facet>
                     #{r.nombre}
                 </h:column>
-                <h:column>
+                <h:column styleClass="col-p3" headerClass="col-p3">
                     <f:facet name="header">Teléfono</f:facet>
                     #{empty r.telefono ? '—' : r.telefono}
                 </h:column>
@@ -50,7 +50,7 @@
                     <h:outputText value="#{etiquetas.estadoRepartidor(r.estado)}"
                                   styleClass="#{etiquetas.claseEstadoRepartidor(r.estado)}" />
                 </h:column>
-                <h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Pedido a cargo</f:facet>
                     <h:outputText value="Pedido #{r.idPedidoActual}" rendered="#{not empty r.idPedidoActual}" />
                     <h:outputText value="—" rendered="#{empty r.idPedidoActual}" />

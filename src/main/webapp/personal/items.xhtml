@@ -47,7 +47,7 @@
             <h:dataTable value="#{itemInventarioBean.items}" var="i"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty itemInventarioBean.items}">
-                <h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">ID</f:facet>
                     #{i.id}
                 </h:column>
@@ -55,7 +55,7 @@
                     <f:facet name="header">Producto</f:facet>
                     #{i.producto}
                 </h:column>
-                <h:column>
+                <h:column styleClass="col-p3" headerClass="col-p3">
                     <f:facet name="header">Comercio</f:facet>
                     #{itemInventarioBean.nombreComercio(i.idComercio)}
                 </h:column>
@@ -63,7 +63,7 @@
                     <f:facet name="header">Disponible</f:facet>
                     #{i.cantidadDisponible}
                 </h:column>
-                <h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Reservada</f:facet>
                     #{i.cantidadReservada}
                 </h:column>

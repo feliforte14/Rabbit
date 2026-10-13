@@ -42,7 +42,7 @@
             <h:dataTable value="#{puntoPickingBean.puntosPicking}" var="p"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty puntoPickingBean.puntosPicking}">
-                <h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">ID</f:facet>
                     #{p.id}
                 </h:column>

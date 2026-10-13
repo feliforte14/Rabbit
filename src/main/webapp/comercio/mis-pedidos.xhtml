@@ -65,7 +65,7 @@
                 GET /api/v1/seguimiento desde un sistema).
                 Los pedidos anteriores a ese cambio no tienen codigo.
             -->
-            <h:column>
+            <h:column styleClass="col-p2" headerClass="col-p2">
                 <f:facet name="header">Seguimiento para el cliente</f:facet>
                 <h:panelGroup rendered="#{not empty p.codigoSeguimiento}">
                     <span class="codigo">#{p.codigoSeguimiento}</span>
@@ -78,7 +78,7 @@
                 <f:facet name="header">Productos</f:facet>
                 #{p.productos}
             </h:column>
-            <h:column>
+            <h:column styleClass="col-p2" headerClass="col-p2">
                 <f:facet name="header">Entrega en</f:facet>
                 #{empty p.direccionEntrega ? '—' : p.direccionEntrega}
             </h:column>
@@ -95,13 +95,13 @@
                 <h:outputText value="#{etiquetas.estadoPedido(p.estado)}"
                               styleClass="#{etiquetas.claseEstadoPedido(p.estado)}" />
             </h:column>
-            <h:column>
+            <h:column styleClass="col-p3" headerClass="col-p3">
                 <f:facet name="header">Cobro</f:facet>
                 <ui:param name="cobro" value="#{portalComercioBean.estadoCobro(p.id)}" />
                 <h:outputText value="#{etiquetas.estadoCobro(cobro)}"
                               styleClass="#{etiquetas.claseEstadoCobro(cobro)}" />
             </h:column>
-            <h:column>
+            <h:column styleClass="col-p3" headerClass="col-p3">
                 <f:facet name="header">Quién lo lleva</f:facet>
                 <h:panelGroup rendered="#{empty portalComercioBean.envio(p.id)}">
                     #{empty p.idRepartidor ? '—' : portalComercioBean.nombreRepartidor(p.idRepartidor)}
@@ -111,7 +111,7 @@
                     <span class="dato-secundario">Seguimiento #{portalComercioBean.envio(p.id).codigoSeguimiento}</span>
                 </h:panelGroup>
             </h:column>
-            <h:column>
+            <h:column styleClass="col-p3" headerClass="col-p3">
                 <f:facet name="header">Recibido</f:facet>
                 #{p.fechaCreacion}
             </h:column>
@@ -125,7 +125,7 @@
         <h:dataTable value="#{portalComercioBean.avisos}" var="a"
                      styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                      rendered="#{not empty portalComercioBean.avisos}">
-            <h:column>
+            <h:column styleClass="col-p2" headerClass="col-p2">
                 <f:facet name="header">Hora</f:facet>
                 #{a.fechaAviso}
             </h:column>
