@@ -22,7 +22,14 @@ rápido en la defensa.
 
 | Desafío | Estado |
 |---|---|
-| Al menos 2 ADR | Cumple: 24 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md) |
+| Al menos 2 ADR | Cumple: 29 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md) |
 | Resiliencia ante fallas | Cumple ([DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)): Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
 | Heterogeneidad tecnológica | Cumple: el banco legado está implementado también en Node.js (`banco-legado/`) y Rabbit lo consume por el mismo WSDL; el transportista moderno, en Python (`transportista-moderno/`), por REST. Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) |
 | Prueba de escalabilidad | Cumple: el consumidor de la cola escala con `rabbit.cola.consumidores`; con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido). Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) |
+
+## Anexo de la consigna (interfaz)
+
+| Requisito | Estado | Dónde |
+|---|---|---|
+| Diseño responsive (obligatorio para una web app) | Cumple | Escritorio, tablet y celular, probado de 360 a 1920 px sin desborde horizontal: hasta 860 px el menú lateral pasa a una barra con botón "Menú" (`menu.js`) y las tablas se ven como tarjetas (`tablas.js`); entre 861 y 1180 px las tablas anchas se desplazan dentro de su recuadro. Objetivos táctiles de 44 px en el menú |
+| Temas claro, oscuro y normal (opcional, puntos extra) | Cumple | Se cambian en tiempo real, sin recargar, desde el menú lateral o el pie del login, el seguimiento y la página de error (`tema.js`). Cada tema solo redefine las variables de color de `estilos.css`; la elección queda guardada en el navegador y se aplica antes de pintar la página, sin parpadeo |
