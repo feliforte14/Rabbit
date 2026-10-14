@@ -49,7 +49,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
   columnas secundarias de cada tabla, en celular las tablas se ven como
   tarjetas con lo esencial y el menú se despliega con un botón (ver
-  `resources/rabbit/1_10/`).
+  `resources/rabbit/1_11/`).
 
 ## Tecnologías
 
@@ -84,7 +84,7 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_10/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+├── resources/rabbit/1_11/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
 │                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas)
 └── WEB-INF/
     ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)

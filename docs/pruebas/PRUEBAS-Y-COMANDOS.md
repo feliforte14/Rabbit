@@ -201,7 +201,7 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
   → pasa de `Pendiente` a `Sincronizado` con el `idPedido`. En el log:
   `[Pedidos][JMS] Pedido externo N sincronizado en tiempo real`.
 - [ ] **B3. Rechazos de la API.** Sin `direccionEntrega` → `400`; con
-  `"codigoPostalEntrega":"12"` → `400`; sin credenciales → `401`; con
+  `"codigoPostalEntrega":"12"` → `422` (regla de negocio); sin credenciales → `401`; con
   `claude-cb-admin` (no es ERP) → `403`.
 - [ ] **B4. Pedido descartado.** Un pedido con más cantidad que el stock
   disponible queda `Descartado`, con el motivo.
