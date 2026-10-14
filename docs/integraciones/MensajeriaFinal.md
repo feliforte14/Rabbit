@@ -183,8 +183,8 @@ para dinero: el tipo de cada campo y cada error posible están definidos.
 **Por qué no REST:** el banco no lo ofrece. **Por qué no una cola:**
 Rabbit necesita la respuesta en el momento.
 
-**Que sea SOAP no depende del lenguaje del banco:** el mismo banco está
-implementado también en Node.js (`banco-legado/`) detrás del **mismo
+**Que sea SOAP no depende del lenguaje del banco:** en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad) el
+mismo banco está implementado también en Node.js detrás del **mismo
 WSDL**, y Rabbit lo consume sin cambiar una línea (ADR-015). Lo que
 define la tecnología es el contrato que expone el otro sistema.
 

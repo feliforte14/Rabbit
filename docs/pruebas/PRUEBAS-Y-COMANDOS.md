@@ -26,8 +26,6 @@ cli() { "$WILDFLY_HOME/bin/jboss-cli.sh" --connect "$@"; }
 |---|---|---|---|
 | WildFly 41 (Rabbit + broker JMS + banco y transportistas simulados) | Local | 8443 (app, HTTPS), 8080 (simuladores), 9990 (management) | Todo |
 | Base PostgreSQL | Supabase (remota, siempre prendida) | 5432 (Session Pooler) | Todo |
-| Banco legado en Node.js | Local, opcional | 8090 | Solo la demo de heterogeneidad |
-| Transportista moderno en Python | Local, opcional | 8095 | Solo la demo de heterogeneidad (REST) |
 
 El broker (ActiveMQ Artemis), el banco en Java y los dos transportistas
 simulados viven dentro de WildFly: se prenden y se apagan con él.
@@ -91,41 +89,10 @@ Para dejar la base vacía después de ensayar:
 `Rabbit-limpieza-datos-de-prueba.sql` (fuera del repo, pedíselo al equipo),
 en el SQL Editor de Supabase.
 
-### Banco legado en Node.js (opcional)
-
-| Qué | Comando |
-|---|---|
-| Prender | `cd banco-legado && npm install && npm start` (escucha en el 8090) |
-| Apagar | Ctrl+C en su terminal, o `kill $(lsof -ti :8090)` |
-| Conectar Rabbit a este banco | `cli --command="/system-property=rabbit.banco.wsdl:add(value=http://localhost:8090/BancoLegadoService?wsdl)"` y redesplegar |
-| Volver al banco en Java | `cli --command="/system-property=rabbit.banco.wsdl:remove"` y redesplegar |
-| Simular la caída | `curl -X POST "http://localhost:8090/admin/caida?activa=true"` |
-| Terminar la caída | `curl -X POST "http://localhost:8090/admin/caida?activa=false"` |
-
-Si Rabbit apunta al banco en Node y el banco está apagado, los pedidos
-prepago no se pueden confirmar (el resto funciona). Antes de apagarlo,
-volvé al banco en Java.
-
-Cambiar de banco con pedidos PREPAGO ya cobrados tiene una trampa: si
-después se cancela uno, la reversa va al banco configurado en ese
-momento, no al que lo autorizó (ver Limitaciones en
-[DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md)).
-
-### Transportista moderno en Python (opcional)
-
-| Qué | Comando |
-|---|---|
-| Prender | `python3 transportista-moderno/servidor.py` **desde la raíz de este repo** (escucha en el 8095) |
-| Apagar | Ctrl+C en su terminal, o `pkill -f transportista-moderno/servidor.py` |
-| Conectar Rabbit | En la web, **Transportistas → Registrar**: tipo API REST, endpoint `http://localhost:8095` |
-
-Si al arrancar dice "sin webhook configurado", es una copia vieja del
-repo: la versión actual ya no tiene webhook (ADR-029).
-
 ### Colección de Postman
 
 [`Rabbit.postman_collection.json`](Rabbit.postman_collection.json):
-**Import → File** en Postman. Trae 52 requests ordenados por prueba (los
+**Import → File** en Postman. Trae 41 requests ordenados por prueba (los
 códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 
 | Carpeta | Qué prueba |
@@ -134,8 +101,8 @@ códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 | 2 · Validaciones y seguridad | 400, 422, 401, 403, 404, 404 y 302 |
 | 3 · Seguimiento público | 200 y 404, sin login |
 | 4 · Pedidos de apoyo | Pedidos para seguir probando en la web (banco que rechaza, ruteo por zona) |
-| 5 · Transportistas | REST dentro de Rabbit, REST en Python y SOAP legado, llamados directo |
-| 6 · Banco legado | Java y Node, llamados directo, más la caída simulada de Node |
+| 5 · Transportistas | REST y SOAP legado, llamados directo |
+| 6 · Banco legado | Llamado directo: autorizar, rechazo y reversa |
 
 Antes de usarla: en **Settings**, apagar *SSL certificate verification*
 (el certificado es autofirmado), y en las variables de la colección
@@ -151,7 +118,7 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 | Propiedad | Por defecto | Qué hace | ¿Hay que redesplegar? |
 |---|---|---|---|
 | `rabbit.banco.simular.caida` | sin definir | `true`: el banco en Java tarda 10 s y no responde a tiempo | No |
-| `rabbit.banco.wsdl` | el banco en Java | Apunta Rabbit a otro banco (por ejemplo, el de Node) | Sí |
+| `rabbit.banco.wsdl` | el banco en Java | Apunta Rabbit a otro banco con el mismo WSDL | Sí |
 | `rabbit.banco.cb.umbral` | `3` | Fallas seguidas que abren el circuito | Sí |
 | `rabbit.banco.cb.espera.ms` | `30000` | Cuánto espera el circuito abierto antes de probar | Sí |
 | `rabbit.transportista.simulador.segundos` | `20` | Cada cuántos segundos avanza un envío simulado. Menos de 15 hace que el pedido salte de Confirmado a Entregado | No |
@@ -171,16 +138,12 @@ nohup $WILDFLY_HOME/bin/standalone.sh -c standalone-full.xml > ~/wildfly-consola
 cli --command=":read-attribute(name=server-state)"
 cli --command="/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"
 mvn -q clean package wildfly:deploy
-# opcional: banco en Node, en otra terminal
-cd banco-legado && npm start
 ```
 
 **Apagar todo:**
 
 ```bash
-cli --command="/system-property=rabbit.banco.wsdl:remove"          # si apuntaba al banco en Node
 cli --command="/system-property=rabbit.banco.simular.caida:remove"  # si quedó una caída simulada
-kill $(lsof -ti :8090)                                               # banco en Node, si estaba prendido
 cli --command=":shutdown"
 ```
 
@@ -315,10 +278,6 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
   el envío se cancela en el transportista.
 - [ ] **E6. Lo ve el comercio.** En Mis pedidos, el derivado muestra el
   transportista y su código de seguimiento.
-- [ ] **E7. Transportista en Python.** Prenderlo, registrarlo
-  (`http://localhost:8095`) y derivarle un pedido confirmado: llega solo a
-  Entregado por polling, el tópico acredita el cobro contra entrega y la
-  consola de Python muestra `envío TM-... tomado`.
 
 ### F. Ruteo por zona
 
@@ -362,12 +321,11 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
   menos de un minuto (ADR-001). Perder un mensaje a propósito exige tocar
   el broker, así que se explica con el código.
 
-### I. Heterogeneidad y escalabilidad (desafíos opcionales)
+### I. Escalabilidad (desafío opcional)
 
-- [ ] **I1. Banco en Node.** Prenderlo, apuntar `rabbit.banco.wsdl`,
-  redesplegar y confirmar un prepago: la autorización aparece en la
-  consola de Node. Probar también su caída simulada con el circuit
-  breaker. Al terminar, volver al banco en Java.
+La heterogeneidad tecnológica (banco en Node.js, transportista en Python)
+se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad).
+
 - [ ] **I2. Escalabilidad.** Con un comercio y un punto de picking activos:
 
   ```bash
