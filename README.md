@@ -2,7 +2,7 @@
 
 Plataforma de logística de última milla que conecta comercios con una red
 de depósitos y repartidores. Trabajo práctico integrador de Desarrollo de
-Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
+Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 
 ## Qué hace
 
