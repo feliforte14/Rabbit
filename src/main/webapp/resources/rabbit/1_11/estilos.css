@@ -7,11 +7,11 @@
  * No toca Managed Beans, Services ni Repositories: es 100% presentacion.
  *
  * VERSIONADO DE RECURSOS
- * Vive en resources/rabbit/1_10/ y se linkea con:
+ * Vive en resources/rabbit/1_11/ y se linkea con:
  *     <h:outputStylesheet library="rabbit" name="estilos.css" />
- * "rabbit" es la libreria y "1_10" su version. JSF genera una URL que
- * incluye la version (?ln=rabbit&v=1_10), asi que al renombrar la carpeta
- * a 1_10 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
+ * "rabbit" es la libreria y "1_11" su version. JSF genera una URL que
+ * incluye la version (?ln=rabbit&v=1_11), asi que al renombrar la carpeta
+ * a 1_12 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
  * Sin esto, el navegador se queda con el CSS viejo cacheado aunque el
  * WAR ya tenga el nuevo.
  */
@@ -820,6 +820,19 @@ h2 {
     .formulario {
         padding: 1.25rem;
     }
+
+    /* En el celular, los botones de acción ocupan todo el ancho y miden
+       al menos 44 px de alto: el mínimo cómodo para tocar con el dedo
+       (el repartidor los usa en la calle, con una mano). */
+    .form-acciones {
+        flex-direction: column;
+    }
+
+    .form-acciones .btn {
+        width: 100%;
+        min-height: 44px;
+        text-align: center;
+    }
 }
 
 /* ==================================================================
@@ -1374,6 +1387,17 @@ a.codigo:hover {
         border-top: none;
     }
 
+    /* La regla de la tabla común que le saca el borde a la primera fila
+       (.tabla tbody tr:first-child td) pesa más: sin esto, la primera
+       tarjeta queda sin separadores. */
+    .tabla.tabla-tarjetas tbody tr:first-child td {
+        border-top: 1px solid var(--borde);
+    }
+
+    .tabla.tabla-tarjetas tbody tr td:first-child {
+        border-top: none;
+    }
+
     .tabla-tarjetas td::before {
         content: attr(data-label);
         float: left;
@@ -1394,11 +1418,26 @@ a.codigo:hover {
         width: 100%;
         margin: 0.35rem 0 0;
         padding: 0.55rem 0.8rem;
+        min-height: 44px;
         font-size: 0.86rem;
     }
 
     .tabla-tarjetas td.acciones::before {
         display: none;
+    }
+
+    /* En tablet (641 a 860 px) entran dos tarjetas por fila. */
+    @media (min-width: 641px) {
+        .tabla-tarjetas tbody {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.75rem;
+            align-items: start;
+        }
+
+        .tabla-tarjetas tr {
+            margin-bottom: 0;
+        }
     }
 
     /* Los contadores, de a dos por fila en vez de uno debajo del otro. */
@@ -1640,6 +1679,13 @@ html[data-tema="claro"] {
     --sidebar-hover: #eef2f7;
     --sidebar-hover-texto: var(--navy);
     --sidebar-borde: #e5e7eb;
+
+    /* Sobre blanco, el naranja de la marca (#f97316) da 2,8:1: no llega
+       al 4,5:1 que pide WCAG AA para texto. Uno más oscuro de la misma
+       familia sí (5,2:1), y también vale para el texto blanco de los
+       botones. */
+    --naranja: #c2410c;
+    --naranja-oscuro: #9a3412;
 }
 
 html[data-tema="claro"] .sidebar {
