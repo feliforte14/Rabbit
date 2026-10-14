@@ -53,6 +53,12 @@ docs/
 | [DESAFIOS-OPCIONALES.md](consigna/DESAFIOS-OPCIONALES.md) | Desafíos opcionales: resiliencia, escalabilidad y ADRs desarrollados con sus alternativas (la heterogeneidad tecnológica está en la rama `desafio-heterogeneidad`) |
 | [USO-DE-IA.md](consigna/USO-DE-IA.md) | Declaración de uso de IA generativa (obligatoria por consigna) |
 
+### Otros
+
+| Documento | Qué justifica |
+|---|---|
+| [PROXIMOS-PASOS.md](PROXIMOS-PASOS.md) | Checklist de equipo: qué revisar en el código y qué tareas suman participación de cada integrante (no exigido por la consigna, ya completa) |
+
 Cómo levantar el sistema y el resumen funcional siguen en el
 [README principal](../README.md).
 
