@@ -8,7 +8,7 @@ cómo se muestran en la defensa.
 | [Resiliencia ante fallas](#1-resiliencia-ante-fallas) | Cumple |
 | [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada) | Cumple: con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido) |
 | [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 30 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md); acá se desarrollan 3 con sus alternativas |
-| [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple, en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad): el banco legado también en Node.js y el transportista moderno en Python |
+| [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple: el banco legado también está implementado en Node.js y Rabbit (Java) lo consume por SOAP sin cambiar código; el transportista moderno, en Python, por REST |
 
 ## 1. Resiliencia ante fallas
 
@@ -293,20 +293,103 @@ haya vuelto. Cada servidor tiene su propio circuito.
 
 ## 4. Heterogeneidad tecnológica
 
-Está en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad), no en `main` (ADR-030). `main` es el sistema de Rabbit
-solo, con el banco y los transportistas simulados dentro del mismo WAR,
-para que cualquiera del equipo lo levante sin instalar Node ni Python.
+**Qué se pide:** que el sistema integre componentes construidos con
+tecnologías distintas.
 
-La rama suma, como servicios aparte y con el mismo contrato que los
-simulados:
+### Qué se hizo
 
-- **Banco legado en Node.js** (`banco-legado/`, SOAP, puerto 8090):
-  Rabbit lo usa con la system property `rabbit.banco.wsdl`, sin cambiar
-  código, circuit breaker incluido.
-- **Transportista moderno en Python** (`transportista-moderno/`, REST,
-  puerto 8095): se registra en **Transportistas** y Rabbit lo sigue por
-  polling como a los demás.
+El banco legado, el sistema externo con el que Rabbit cobra los pedidos
+prepago, está implementado también en **Node.js** ([`banco-legado/`](../../banco-legado/README.md)),
+con la librería `soap`. Publica exactamente el mismo contrato WSDL que el
+banco simulado en Java que vive dentro de Rabbit: las mismas dos
+operaciones (`autorizarPago`, `reversarPago`) y el mismo fault tipado
+(`PagoRechazado`) para los rechazos.
 
-El detalle (qué se hizo, qué se probó, cómo mostrarlo y sus límites) está
-en este mismo documento, en esa rama. Para la demo:
-`git switch desafio-heterogeneidad` y redesplegar.
+| | Rabbit | Banco legado |
+|---|---|---|
+| Lenguaje y plataforma | Java 17, Jakarta EE 10 sobre WildFly 41 | JavaScript sobre Node.js |
+| Librería SOAP | Apache CXF (JAX-WS de WildFly) | `soap` (node-soap) |
+| Proceso | WAR desplegado en el servidor de aplicaciones | Proceso independiente, puerto 8090 |
+| Contrato | Cliente del WSDL | Servidor construido a partir del mismo WSDL |
+
+Rabbit no cambia una línea para usarlo: `BancoClient` arma su cliente a
+partir del WSDL que indica la system property `rabbit.banco.wsdl`. Lo que
+acopla a los dos sistemas es el contrato, no la tecnología.
+
+```mermaid
+flowchart LR
+    subgraph WildFly["WildFly 41 (Java / Jakarta EE)"]
+        Pagos[PagoService] --> Cliente[BancoClient<br/>JAX-WS / CXF]
+    end
+    subgraph Node["Node.js"]
+        Banco[banco-legado/server.js<br/>node-soap]
+    end
+    Cliente -- "SOAP 1.1 sobre HTTP<br/>banco.wsdl" --> Banco
+```
+
+Además, el banco queda fuera del WAR de Rabbit, como sería un banco real:
+resuelve la limitación de tener el sistema "externo" desplegado dentro del
+mismo servidor.
+
+**Y un segundo sistema en otra tecnología: el transportista moderno.**
+`transportista-moderno/servidor.py` (Python, solo biblioteca estándar) es
+el transportista REST como servicio aparte: mismo contrato que el
+simulado del WAR. Rabbit lo da de alta como
+cualquier transportista REST, con su endpoint, y no nota la diferencia.
+
+### Qué se probó
+
+1. **El contrato:** las mismas peticiones SOAP al banco en Java y al banco
+   en Node dan respuestas equivalentes (cambia solo el prefijo del
+   namespace, que en XML es el mismo nombre). El fault de rechazo trae el
+   mismo detalle tipado.
+2. **Un cliente Java JAX-WS fuera de WildFly** (la implementación de
+   referencia, Metro), con la misma interfaz `BancoLegadoService` de
+   Rabbit: autoriza, recibe el rechazo como `PagoRechazadoException` con su
+   motivo y reversa.
+3. **Rabbit en WildFly** apuntando al banco en Node, confirmando pedidos
+   prepago desde la pantalla de Pedidos:
+
+| Caso | Rabbit (Java) | Banco en Node |
+|---|---|---|
+| Pedido de $1.500 sin repartidor libre | Confirmación deshecha, pide la reversa | `Autorizado AUT-3` y, 160 ms después, `Reversado AUT-3` |
+| Pedido de $600.000 | "Pago rechazado por el banco: El importe supera el límite de $500000" | `Rechazado el pago de PEDIDO-703` |
+| Banco en Node caído, 4 intentos seguidos | 5,2 s, 5,2 s, 5,2 s y **0,3 s** (circuito abierto) | Recibe solo 3 llamadas: la cuarta Rabbit ni la hace |
+
+El último caso muestra que la resiliencia (sección 1) funciona igual con
+el banco en otra tecnología.
+
+### Cómo mostrarlo en la defensa
+
+```bash
+# 1. Levantar el banco en Node
+cd banco-legado && npm install && npm start
+# 2. Apuntar Rabbit a ese banco y redesplegar
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.banco.wsdl:add(value=http://localhost:8090/BancoLegadoService?wsdl)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/deployment=Rabbit.war:redeploy"
+# 3. Confirmar un pedido prepago en Pedidos: la autorización aparece en la consola de Node
+# 4. (Opcional) Circuit breaker con el banco en Node caído
+curl -X POST "http://localhost:8090/admin/caida?activa=true"
+```
+
+Para volver al banco en Java: `/system-property=rabbit.banco.wsdl:remove`
+y redesplegar.
+
+### Limitaciones
+
+- El banco en Node guarda sus movimientos en memoria, igual que el de
+  Java: se pierden al reiniciarlo.
+- El puerto está fijo en el WSDL (`soap:address`, 8090): para otro puerto
+  hay que cambiar los dos.
+- Rabbit lee `rabbit.banco.wsdl` al desplegar: cambiar de banco requiere
+  redesplegar.
+- El banco en Node no tiene autenticación, igual que el de Java.
+- Rabbit no guarda qué banco autorizó cada cobro: la reversa va al banco
+  configurado **ahora**. Si se cambia de banco con pedidos PREPAGO
+  confirmados y después se cancela uno, la reversa le llega al banco
+  nuevo, que no conoce ese código (lo ignora sin error, porque
+  `reversarPago` es idempotente) y el viejo nunca la recibe. Pasó en la
+  prueba del 14/10: el AUT-1 del banco Java se le pidió reversar al de
+  Node. Con bancos simulados no hay plata en juego; en uno real habría
+  que guardar el banco en el `Cobro` o no cambiar de banco con cobros
+  vivos.
