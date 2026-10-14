@@ -21,6 +21,7 @@ errores de negocio tipados (`soap:Fault`).
 |---|---|
 | `BancoLegadoService` | Contrato (SEI): `autorizarPago`, `reversarPago` |
 | `BancoLegadoServiceImpl` | Banco simulado, publicado en el mismo WAR (el de por defecto) |
+| `banco-legado/server.js` | El mismo banco en Node.js, como servicio aparte (heterogeneidad tecnológica, ver [DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica)) |
 | `PagoRechazadoException` + `PagoRechazadoFaultInfo` | Fault de negocio con el motivo del rechazo |
 | `IBancoClient` | Lo único que conoce `PagoService` |
 | `BancoClient` | Adapter: cliente JAX-WS (proxy dinámico con `Service.getPort`, sin wsimport), timeout de 5 s |
@@ -29,8 +30,8 @@ errores de negocio tipados (`soap:Fault`).
 
 Endpoint: `http://localhost:8080/Rabbit/BancoLegadoService` (WSDL en
 `?wsdl`). Aunque está en el mismo servidor, se consume siempre por
-SOAP/HTTP. Se puede apuntar a otro banco con el mismo WSDL con la system
-property `rabbit.banco.wsdl` (la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad) lo usa para el banco en Node.js).
+SOAP/HTTP. Se puede apuntar a otro banco con la system property
+`rabbit.banco.wsdl`.
 
 Regla del banco simulado: un pago de más de **$500.000** se rechaza
 (supera el límite); cualquier otro se autoriza con un código `AUT-n`.
@@ -139,6 +140,11 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.banc
 
 En el log se ven las transiciones con el prefijo `[Pagos][Circuito]`.
 
+Con el banco en Node.js (`banco-legado/`), la caída se prende con
+`curl -X POST "http://localhost:8090/admin/caida?activa=true"` y el
+circuito se comporta igual (probado: 5,2 s tres veces y 0,3 s la cuarta).
+Ver [DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica).
+
 ### Limitaciones conocidas
 
 - Si el banco cobró pero la respuesta se perdió por timeout, ese cobro
@@ -196,6 +202,12 @@ este**. La cotización no escribe nada (`NOT_SUPPORTED`).
 envíos activos de todos los transportistas, modernos y legados, con la
 misma operación (`ISeguimientoEnvios.registrarNovedad`). Hasta 15 s de
 demora en ver un cambio es aceptable para un envío (ADR-029).
+
+**Transportista como servicio aparte.** `transportista-moderno/` es el
+transportista REST como sistema de otra empresa: proceso, puerto y
+tecnología propios (Python, solo biblioteca estándar), mismo contrato que
+el simulado del WAR. Ver su
+[README](../../transportista-moderno/README.md).
 
 **Despacho por zona con cotización.** Si el transportista de la zona
 rechaza el envío o no responde, el Ruteo cotiza con los demás y deriva al

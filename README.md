@@ -58,11 +58,16 @@ Facelets, EJB, JPA/Hibernate, PostgreSQL (Supabase), JMS (ActiveMQ
 Artemis embebido), JAX-WS (SOAP), JAX-RS (REST), Jakarta Security,
 Jakarta Mail, Maven (WAR), JUnit 5 y REST Assured.
 
-Esta rama (`main`) es el sistema de Rabbit solo: el banco y los
-transportistas con los que se integra están simulados dentro del mismo
-WAR. La rama [`desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad) suma el desafío de heterogeneidad tecnológica: el
-mismo banco legado en Node.js y el transportista moderno en Python, como
-servicios aparte con el mismo contrato.
+**Esta es la rama `desafio-heterogeneidad`:** `main` más el desafío de
+heterogeneidad tecnológica (ADR-030). `main` tiene el sistema de Rabbit
+solo; esta rama le suma los dos servicios en otros lenguajes. Para
+traerla al día: `git merge main`.
+
+El banco legado
+también está implementado en Node.js
+([`banco-legado/`](banco-legado/README.md)), como servicio aparte con el
+mismo contrato SOAP, y el transportista moderno en Python
+([`transportista-moderno/`](transportista-moderno/README.md)).
 
 ## Estructura
 
@@ -98,7 +103,8 @@ Fuera de la aplicación:
 ```
 src/test/java/             ← tests unitarios (*Test) y de integración de la API (*IT)
 docs/                      ← documentación técnica por tema (ver docs/README.md)
-scripts/                   ← prueba de escalabilidad y limpieza de datos de prueba
+banco-legado/              ← el banco legado como servicio aparte (Node.js, SOAP)
+transportista-moderno/     ← un transportista REST como servicio aparte (Python)
 ```
 
 | Componente | Paquete | Estado |
@@ -155,7 +161,7 @@ El detalle y la justificación de cada decisión están en
 | Cola punto a punto y tópico pub/sub | `cola.pedidos.externos` y `topico.pedidos.estado` (ActiveMQ Artemis) |
 | Seguridad declarativa | `@RolesAllowed` en las operaciones sensibles, 5 roles, HTTPS obligatorio |
 | Transacciones declarativas | `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla |
-| Desafíos opcionales | Resiliencia, escalabilidad medida y ADRs. La heterogeneidad tecnológica (banco en Node.js, transportista en Python) está en la rama [`desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad) |
+| Desafíos opcionales | Los cuatro: resiliencia, escalabilidad medida, ADRs y heterogeneidad tecnológica (banco en Node.js, transportista en Python) |
 | Anexo: responsive y temas | Responsive de 360 a 1920 px; temas normal, claro y oscuro en tiempo real |
 
 El detalle, requisito por requisito, en el [Checklist](docs/consigna/CHECKLIST.md).
@@ -194,22 +200,20 @@ responde "cuenta sin asociar" (web) o `403` (API). El flujo completo para
 probar los cinco tipos de cuenta está en
 [FLUJO-DE-PRUEBAS.md](docs/pruebas/FLUJO-DE-PRUEBAS.md).
 
-### Sistemas legados y modernos
+### Sistemas legados y modernos (aparte de Rabbit)
 
-Rabbit no necesita levantar nada aparte: el banco legado (SOAP), el
-transportista legado (SOAP) y el transportista moderno (REST) están
-simulados dentro del mismo WAR y se llaman por la red igual que si fueran
-externos:
+No hace falta levantar ninguno de estos para que Rabbit funcione (cada uno
+tiene un equivalente simulado adentro del WAR); son para probar la
+heterogeneidad tecnológica y los desafíos opcionales.
 
-| Sistema | Protocolo | Dónde |
-|---|---|---|
-| Banco legado | SOAP | `http://localhost:8080/Rabbit/BancoLegadoService?wsdl` |
-| Transportista legado | SOAP | `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl` |
-| Transportista moderno | REST | `http://localhost:8080/Rabbit/api/simulador/transportista-rest` |
+| Sistema | Lenguaje | Cómo levantarlo | Reemplaza a |
+|---|---|---|---|
+| Banco legado ([`banco-legado/`](banco-legado/README.md)) | Node.js (SOAP) | `cd banco-legado && npm install && npm start` (puerto `8090`), después apuntar `rabbit.banco.wsdl` y redesplegar Rabbit | El banco simulado en Java dentro de Rabbit (`BancoLegadoServiceImpl`) |
+| Transportista moderno ([`transportista-moderno/`](transportista-moderno/README.md)) | Python (REST), sin dependencias | `python3 transportista-moderno/servidor.py` (puerto `8095`), registrarlo en **Transportistas** | El transportista REST simulado dentro de Rabbit (`TransportistaRestSimuladoResource`) — ambos usan el mismo contrato |
+| Transportista SOAP legado | Java, dentro del WAR | No se levanta aparte: ya corre con Rabbit en `TransportistaLegadoService?wsdl` | — (es el único que no tiene versión "externa" en este repo) |
 
-Ninguno tiene autenticación. Las versiones en otros lenguajes (banco en
-Node.js, transportista en Python) están en la rama
-[`desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad).
+No necesitan credenciales propias: ni el banco legado ni el transportista
+moderno tienen autenticación.
 
 ## Cómo levantar el sistema
 
@@ -397,6 +401,13 @@ y `rabbit.mail.smtp.host=localhost`, `rabbit.mail.smtp.port=2525`: cada
 mail se imprime en esa consola. Sin servidor configurado no se intenta
 mandar nada.
 
+### 8. (Opcional) Transportista moderno aparte
+
+`transportista-moderno/` es un transportista REST que corre fuera de
+Rabbit (Python, sin dependencias); Rabbit lo consulta por polling como a
+los demás.
+Ver su [README](transportista-moderno/README.md).
+
 ## Tests
 
 ```bash
@@ -430,4 +441,6 @@ sistemas externos hay una colección de Postman lista para importar:
 
 ```bash
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command=":shutdown"   # WildFly (Rabbit, broker y simulados)
+pkill -f "node server.js"                                         # banco en Node, si estaba levantado
+pkill -f transportista-moderno/servidor.py                        # transportista en Python, si estaba levantado
 ```

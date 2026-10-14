@@ -353,6 +353,15 @@ Con WildFly corriendo:
 transportista legado responde `EN_VIAJE` y Rabbit lo muestra como
 "En tránsito" (lo traduce su adaptador).
 
+**Transportista moderno aparte (Python):**
+1. Levantar `python3 transportista-moderno/servidor.py` (con
+   `PASO_SEGUNDOS=5` avanza más rápido).
+2. Registrar un transportista REST con endpoint `http://localhost:8095`.
+3. Derivarle un pedido: el seguimiento lo consulta cada 15 s y el pedido
+   pasa a **En camino** y después a **Entregado**.
+4. Apagar el transportista y tocar **Cotizar**: figura "No respondió" y
+   los demás cotizan igual.
+
 ## 6c. Ruteo por zona
 
 Necesita los dos transportistas de la sección 6b.
@@ -437,8 +446,15 @@ Los pasos de estas demos están en
   por la API v1 y mide cuánto tarda la cola con 1, 4 y 8 consumidores.
   Necesita un usuario `ERP` creado desde la app (2.5) y un punto de
   picking activo de su comercio.
-- **Heterogeneidad:** está en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad) (banco en Node.js y
-  transportista en Python), con sus pasos en esa misma guía.
+- **Heterogeneidad:** levantar el banco en Node.js (`banco-legado/`,
+  `npm install && npm start`), apuntar `rabbit.banco.wsdl` y redesplegar;
+  las confirmaciones prepago del paso 5 quedan registradas en la consola
+  de Node. Al terminar, volver al banco en Java **antes** de cancelar
+  pedidos prepago cobrados por Node (la reversa va al banco configurado).
+- **Transportista en Python:** `python3 transportista-moderno/servidor.py`
+  desde la raíz de este repo, registrarlo en Transportistas
+  (`http://localhost:8095`) y derivarle un pedido confirmado: pasa solo a
+  En camino y Entregado por polling, y se acredita el cobro.
 
 ---
 
@@ -464,6 +480,8 @@ Los pasos de estas demos están en
 | REST con rol incorrecto | 403 (HTML de WildFly) |
 | REST con código postal inválido | 422 (regla de negocio) |
 | Pedido del ERP sin stock o de un comercio dado de baja | 201 y después Descartado, con el motivo |
+| Transportista en Python | Un pedido derivado llega solo a Entregado y se acredita el cobro |
+| Banco en Node | El cobro de una confirmación prepago aparece en la consola de Node |
 | Celular (comercio y repartidor), con los 3 temas | Menú desplegable, tablas como tarjetas, botones de 44 px, nada desborda |
 | Cancelar pedido externo tarde | 409 `cancelacion-no-permitida` (definitivo) o `stock-en-conflicto` (reintentar) |
 | Cuenta sin comercio asociado | Mensaje amigable, no el interno |
