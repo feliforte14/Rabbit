@@ -45,9 +45,8 @@ public class BancoClient implements IBancoClient {
 
     // Por defecto, el banco simulado en Java del mismo WildFly; se llama
     // igual por SOAP/HTTP que si fuera externo. Con la system property
-    // rabbit.banco.wsdl se apunta a otro banco con el mismo contrato, por
-    // ejemplo el banco en Node.js de banco-legado/ (heterogeneidad
-    // tecnológica, ver docs/consigna/DESAFIOS-OPCIONALES.md). Se lee al desplegar.
+    // rabbit.banco.wsdl se apunta a otro banco con el mismo contrato (en la
+    // rama desafio-heterogeneidad, el banco en Node.js). Se lee al desplegar.
     private static final String WSDL_LOCATION = System.getProperty(
             "rabbit.banco.wsdl",
             "http://localhost:8080/Rabbit/BancoLegadoService?wsdl");

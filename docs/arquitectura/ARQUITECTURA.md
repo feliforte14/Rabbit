@@ -162,7 +162,7 @@ flowchart LR
         Transportistas -->|IContextoUsuario| Seguridad
     end
     Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
-    Transportistas -->|REST/JSON| TransREST[(Transportista REST<br/>simulado o transportista-moderno/)]
+    Transportistas -->|REST/JSON| TransREST[(Transportista REST<br/>simulado)]
     Transportistas -->|SOAP/HTTP| TransSOAP[(Transportista legado<br/>simulado)]
     Notificaciones -->|SMTP, opcional| Correo[(Servidor de correo)]
     ERP[ERP del comercio] -->|REST /api/v1/pedidos-externos| Pedidos
