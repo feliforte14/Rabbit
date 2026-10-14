@@ -207,7 +207,8 @@ base viven en el datasource de WildFly y las de management (para
   autenticación (ver Limitaciones conocidas).
 - Los transportistas simulados (`/api/simulador/transportista-rest` y
   `TransportistaLegadoService`): como el banco, son sistemas de otras
-  empresas simulados en el mismo WAR, sin autenticación.
+  empresas simulados en el mismo WAR, sin autenticación. El banco en Node.js
+  (`banco-legado/`) tampoco tiene autenticación.
 
 Además, el login y la página de error, que tienen que verse sin sesión.
 
@@ -225,8 +226,8 @@ Además, el login y la página de error, que tienen que verse sin sesión.
   reiniciar y, con varios nodos, cada uno cuenta por su lado. La API del
   ERP (HTTP Basic, autenticada por WildFly) no tiene ese freno.
 - El banco simulado (`BancoLegadoService`) se publica sin autenticación.
-  En producción no viviría dentro de Rabbit: Rabbit lo puede reemplazar
-  por otro con el mismo WSDL apuntando `rabbit.banco.wsdl` (en la
-  rama `desafio-heterogeneidad`, un banco en Node.js, también sin autenticación).
+  En producción no viviría dentro de Rabbit: por eso existe también como
+  servicio aparte en Node.js (`banco-legado/`), que Rabbit usa apuntando
+  `rabbit.banco.wsdl`. Tampoco tiene autenticación.
 - Los pedidos creados antes del código de seguimiento no tienen código:
   no se pueden seguir por la API pública.

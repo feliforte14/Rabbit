@@ -230,8 +230,7 @@ Propuesta o Reemplazada.
 
 ## ADR-015: Banco legado en Node.js, detrás del mismo WSDL
 
-- **Estado:** Aceptada. Desde ADR-030, el banco en Node.js vive en la
-  rama `desafio-heterogeneidad`.
+- **Estado:** Aceptada.
 - **Contexto:** el banco legado es un sistema externo, pero estaba
   implementado en Java dentro del mismo WAR que Rabbit. El desafío de
   heterogeneidad pide integrar componentes de tecnologías distintas.
@@ -465,8 +464,7 @@ Propuesta o Reemplazada.
 ## ADR-022: Webhook de novedades y transportista moderno como servicio aparte
 
 - **Estado:** Reemplazada en parte por ADR-029: el webhook se sacó; el
-  transportista moderno como servicio aparte sigue, en la rama
-  `desafio-heterogeneidad` (ADR-030). Completaba ADR-016 (polling).
+  transportista moderno como servicio aparte sigue. Completaba ADR-016 (polling).
 - **Contexto:** el seguimiento por polling (cada 15 s) era lo único
   posible con un transportista legado, pero un transportista moderno puede
   avisar. Además, los dos transportistas vivían simulados dentro del WAR,
@@ -660,7 +658,7 @@ Propuesta o Reemplazada.
 - **Decisión:** se saca el webhook (recurso REST, clave del transportista,
   pantalla y tests). El seguimiento queda solo por polling, igual para
   modernos y legados. `transportista-moderno/` sigue como servicio aparte
-  en Python (heterogeneidad, hoy en la rama `desafio-heterogeneidad`), sin avisar: Rabbit lo consulta como a los
+  en Python (heterogeneidad), sin avisar: Rabbit lo consulta como a los
   demás.
 - **Alternativas descartadas:**
   - *Mantener los dos caminos:* más superficie expuesta y más casos de

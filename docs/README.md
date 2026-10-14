@@ -43,14 +43,14 @@ docs/
 |---|---|
 | [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md) | Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo. Los tests automatizados están en `src/test` (ver el README principal) |
 | [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md) | Comandos para prender y apagar cada sistema, perillas de las demos y la lista completa de pruebas para marcar |
-| [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json) | Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos (41 requests) |
+| [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json) | Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos (52 requests) |
 
 ### [consigna/](consigna/)
 
 | Documento | Qué justifica |
 |---|---|
 | [CHECKLIST.md](consigna/CHECKLIST.md) | Dónde se cumple cada requisito obligatorio de la consigna (Sección 6) |
-| [DESAFIOS-OPCIONALES.md](consigna/DESAFIOS-OPCIONALES.md) | Desafíos opcionales: resiliencia, escalabilidad y ADRs desarrollados con sus alternativas (la heterogeneidad tecnológica está en la rama `desafio-heterogeneidad`) |
+| [DESAFIOS-OPCIONALES.md](consigna/DESAFIOS-OPCIONALES.md) | Desafíos opcionales: resiliencia, escalabilidad, ADRs desarrollados con sus alternativas y heterogeneidad tecnológica |
 | [USO-DE-IA.md](consigna/USO-DE-IA.md) | Declaración de uso de IA generativa (obligatoria por consigna) |
 
 Cómo levantar el sistema y el resumen funcional siguen en el

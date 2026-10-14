@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Rabbit",
-    "description": "Pruebas de las integraciones de Rabbit (TP DA2 · Grupo 9). Los códigos (A1, A4, J1…) son los de docs/pruebas/FLUJO-DE-PRUEBAS.md.\n\nANTES DE EMPEZAR\n1. Settings → General → apagar \"SSL certificate verification\" (el certificado de WildFly es autofirmado).\n2. Colección → Variables: completar erpClave y adminClave en \"Current value\" (no se exportan).\n3. Revisar idItem e idPuntoPicking, y que el ítem tenga stock (las carpetas 1 y 4 usan unas 9 unidades).\n\nCARPETAS\n1 · API del ERP — la integración REST de la consigna. En orden.\n2 · Validaciones y seguridad — errores 400/401/403/404/302.\n3 · Seguimiento público — sin login.\n4 · Pedidos de apoyo — para pruebas que siguen en la web (banco rechaza, ruteo por zona).\n5 · Transportistas — REST y SOAP legado, llamados directo.\n6 · Banco legado SOAP — autorizar, rechazo y reversa.\n\nSe puede correr una carpeta entera con \"Run folder\" (salvo los pasos marcados ANTES/DESPUÉS, que piden hacer algo en la web).",
+    "description": "Pruebas de las integraciones de Rabbit (TP DA2 · Grupo 9). Los códigos (A1, A4, J1…) son los de docs/pruebas/FLUJO-DE-PRUEBAS.md.\n\nANTES DE EMPEZAR\n1. Settings → General → apagar \"SSL certificate verification\" (el certificado de WildFly es autofirmado).\n2. Colección → Variables: completar erpClave y adminClave en \"Current value\" (no se exportan).\n3. Revisar idItem e idPuntoPicking, y que el ítem tenga stock (las carpetas 1 y 4 usan unas 9 unidades).\n\nCARPETAS\n1 · API del ERP — la integración REST de la consigna. En orden.\n2 · Validaciones y seguridad — errores 400/401/403/404/302.\n3 · Seguimiento público — sin login.\n4 · Pedidos de apoyo — para pruebas que siguen en la web (banco rechaza, ruteo por zona).\n5 · Transportistas — REST (dentro de Rabbit y en Python) y SOAP legado.\n6 · Banco legado SOAP — en Java (dentro de Rabbit) y en Node.js.\n\nSe puede correr una carpeta entera con \"Run folder\" (salvo los pasos marcados ANTES/DESPUÉS, que piden hacer algo en la web).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -38,6 +38,14 @@
       "value": "1"
     },
     {
+      "key": "bancoNodeUrl",
+      "value": "http://localhost:8090"
+    },
+    {
+      "key": "transportistaPythonUrl",
+      "value": "http://localhost:8095"
+    },
+    {
       "key": "idempotencyKey",
       "value": ""
     },
@@ -71,6 +79,10 @@
     },
     {
       "key": "codigoEnvioSimulado",
+      "value": ""
+    },
+    {
+      "key": "codigoEnvioPython",
       "value": ""
     },
     {
@@ -1140,11 +1152,11 @@
     },
     {
       "name": "5 · Transportistas externos (llamados directos)",
-      "description": "Se les habla directo, sin pasar por Rabbit, para ver el contrato de cada uno. Las versiones en Python y Node.js están en la rama desafio-heterogeneidad.",
+      "description": "Se les habla directo, sin pasar por Rabbit, para ver el contrato de cada uno.",
       "item": [
         {
           "name": "5.1 · REST · Transportista moderno (dentro de Rabbit)",
-          "description": "El transportista moderno simulado dentro del WAR.",
+          "description": "El simulador que vive dentro del WAR. Mismo contrato que el de Python.",
           "item": [
             {
               "name": "1. Cotizar → 200",
@@ -1292,7 +1304,156 @@
           }
         },
         {
-          "name": "5.2 · SOAP · Transportista legado (dentro de Rabbit)",
+          "name": "5.2 · REST · Transportista moderno en Python (servicio aparte, D6)",
+          "description": "ANTES: python3 transportista-moderno/servidor.py (puerto 8095).\nPara D6 completo: registrarlo en la web (Transportistas → API REST → http://localhost:8095) y derivarle un pedido; avanza solo por polling hasta Entregado.",
+          "item": [
+            {
+              "name": "1. Cotizar → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{transportistaPythonUrl}}/cotizaciones",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bultos\": 2,\n  \"cobrarAlEntregar\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "2. Solicitar envío → 201",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set(\"codigoEnvioPython\", pm.response.json().codigoSeguimiento);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{transportistaPythonUrl}}/envios",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"referencia\": \"PEDIDO-PRUEBA\",\n  \"direccionRetiro\": \"Av. Rivadavia 5000, CABA\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"bultos\": 2\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "3. Consultar envío → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{transportistaPythonUrl}}/envios/{{codigoEnvioPython}}",
+                "description": "Avanza solo con el tiempo: SOLICITADO → EN_TRANSITO → ENTREGADO."
+              }
+            },
+            {
+              "name": "4. Cancelar envío → 204",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{transportistaPythonUrl}}/envios/{{codigoEnvioPython}}",
+                "description": "204; 409 si ya se entregó."
+              }
+            },
+            {
+              "name": "5. Más de 50 bultos → 422",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{transportistaPythonUrl}}/envios",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"referencia\": \"PEDIDO-GRANDE\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"bultos\": 51\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "auth": {
+            "type": "noauth"
+          }
+        },
+        {
+          "name": "5.3 · SOAP · Transportista legado (dentro de Rabbit)",
           "description": "Estados del legado: RECIBIDO, EN_VIAJE, ENTREGADO, ANULADO (Rabbit los traduce en su adaptador).",
           "item": [
             {
@@ -1477,8 +1638,8 @@
       "description": "Autoriza y reversa cobros PREPAGO. Rechaza importes mayores a $500.000.",
       "item": [
         {
-          "name": "6.1 · Banco legado (dentro de Rabbit)",
-          "description": "El banco legado simulado dentro del WAR, el que usa Rabbit.",
+          "name": "6.1 · Banco legado en Java (dentro de Rabbit)",
+          "description": "El que usa Rabbit por defecto.",
           "item": [
             {
               "name": "1. WSDL → 200",
@@ -1612,6 +1773,188 @@
                     }
                   }
                 }
+              }
+            }
+          ],
+          "auth": {
+            "type": "noauth"
+          }
+        },
+        {
+          "name": "6.2 · Banco legado en Node.js (servicio aparte, J2)",
+          "description": "ANTES: cd banco-legado && npm start (puerto 8090).\nPara que Rabbit lo use: agregar la propiedad rabbit.banco.wsdl=http://localhost:8090/BancoLegadoService?wsdl y redesplegar.",
+          "item": [
+            {
+              "name": "1. WSDL → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{bancoNodeUrl}}/BancoLegadoService?wsdl"
+              }
+            },
+            {
+              "name": "2. autorizarPago (aprobado) → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const m = pm.response.text().match(/<codigoAutorizacion>([^<]+)</);",
+                      "if (m) pm.collectionVariables.set(\"codigoAutorizacion\", m[1]);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{bancoNodeUrl}}/BancoLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/banco\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:autorizarPago>\n      <referencia>PEDIDO-PRUEBA</referencia>\n      <importe>2500</importe>\n    </x:autorizarPago>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Devuelve un codigoAutorizacion (se guarda para la reversa)."
+              }
+            },
+            {
+              "name": "3. autorizarPago mayor a $500.000 → soap:Fault (500)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 500\", () => pm.response.to.have.status(500));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{bancoNodeUrl}}/BancoLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/banco\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:autorizarPago>\n      <referencia>PEDIDO-CARO</referencia>\n      <importe>600000</importe>\n    </x:autorizarPago>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Un soap:Fault viaja con HTTP 500: PagoRechazado."
+              }
+            },
+            {
+              "name": "4. reversarPago → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{bancoNodeUrl}}/BancoLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/banco\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:reversarPago>\n      <codigoAutorizacion>{{codigoAutorizacion}}</codigoAutorizacion>\n    </x:reversarPago>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "5. Simular caída del banco (circuit breaker)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{bancoNodeUrl}}/admin/caida?activa=true",
+                "description": "Con la caída prendida, confirmar 3 pedidos PREPAGO en la web: el circuito se abre 30 s."
+              }
+            },
+            {
+              "name": "6. Volver a levantar el banco",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{bancoNodeUrl}}/admin/caida?activa=false"
               }
             }
           ],
