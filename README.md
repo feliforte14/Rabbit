@@ -426,7 +426,9 @@ compartida del equipo: los pedidos de prueba quedan guardados.
 
 Para probar a mano, de punta a punta: [FLUJO-DE-PRUEBAS.md](docs/pruebas/FLUJO-DE-PRUEBAS.md)
 (recorrido guiado por pantalla) y [PRUEBAS-Y-COMANDOS.md](docs/pruebas/PRUEBAS-Y-COMANDOS.md)
-(comandos de cada sistema y lista para marcar).
+(comandos de cada sistema y lista para marcar). Para la API y los
+sistemas externos hay una colección de Postman lista para importar:
+[`Rabbit.postman_collection.json`](docs/pruebas/Rabbit.postman_collection.json).
 
 ## Apagar todo
 

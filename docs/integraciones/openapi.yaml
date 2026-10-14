@@ -85,8 +85,8 @@ paths:
                 idPedidoExterno: 42
                 resultado: Pendiente
                 _links:
-                  self: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42 }
-                  cancelar: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion, method: POST }
+                  self: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42" }
+                  cancelar: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion", method: POST }
         '400':
           description: Falta el cuerpo o el header `Idempotency-Key`, el JSON es inválido o hay campos con formato inválido.
           content:
@@ -146,9 +146,9 @@ paths:
                 estadoPedido: PENDIENTE
                 codigoSeguimiento: RB-7KQ2M9XHTA
                 _links:
-                  self: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42 }
-                  cancelar: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion, method: POST }
-                  seguimiento: { href: https://localhost:8443/Rabbit/api/v1/seguimiento/RB-7KQ2M9XHTA }
+                  self: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42" }
+                  cancelar: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion", method: POST }
+                  seguimiento: { href: "https://localhost:8443/Rabbit/api/v1/seguimiento/RB-7KQ2M9XHTA" }
         '401': { $ref: '#/components/responses/NoAutenticado' }
         '403': { $ref: '#/components/responses/SinPermiso' }
         '404': { $ref: '#/components/responses/PedidoExternoInexistente' }
@@ -181,7 +181,7 @@ paths:
                 resultado: Cancelado
                 motivo: Cancelado por el comercio
                 _links:
-                  self: { href: https://localhost:8443/Rabbit/api/v1/pedidos-externos/42 }
+                  self: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42" }
         '401': { $ref: '#/components/responses/NoAutenticado' }
         '403': { $ref: '#/components/responses/SinPermiso' }
         '404': { $ref: '#/components/responses/PedidoExternoInexistente' }
@@ -261,9 +261,13 @@ components:
 
   responses:
     NoAutenticado:
-      description: Faltan las credenciales o son incorrectas (desafío HTTP Basic del servidor).
+      description: Faltan las credenciales o son incorrectas (desafío HTTP Basic del servidor). Lo responde WildFly en HTML, no en Problem Details.
     SinPermiso:
-      description: El usuario no es de tipo ERP, o es un ERP sin comercio asociado.
+      description: |
+        El usuario no es de tipo ERP, o es un ERP sin comercio asociado.
+        Si no es ERP, lo rechaza el propio WildFly (seguridad declarativa) con
+        su página de error en HTML, antes de llegar al código de Rabbit; el
+        ERP sin comercio sí lo responde Rabbit en Problem Details.
       content:
         application/problem+json:
           schema:
@@ -323,7 +327,7 @@ components:
         codigoPostalEntrega:
           type: string
           maxLength: 8
-          description: 4 dígitos o CPA (C1414ABC). Si no viene, se busca en la dirección.
+          description: 4 dígitos o CPA (C1414ABC). Si no viene, se busca en la dirección. Con otro formato ("12") responde 422 (regla de negocio, no de formato).
     LineaPedido:
       type: object
       required: [cantidad]

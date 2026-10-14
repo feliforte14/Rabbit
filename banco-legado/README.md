@@ -30,6 +30,11 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/deployment=Rabbit.war:redep
 Para volver al banco en Java: `/system-property=rabbit.banco.wsdl:remove` y
 redesplegar.
 
+Ojo al cambiar de banco con pedidos PREPAGO ya cobrados: si después se
+cancela uno, la reversa le llega al banco configurado en ese momento, no
+al que lo autorizó (ver Limitaciones en
+[DESAFIOS-OPCIONALES.md](../docs/consigna/DESAFIOS-OPCIONALES.md)).
+
 ## Reglas
 
 - `autorizarPago`: más de $500.000 se rechaza con un `soap:Fault`

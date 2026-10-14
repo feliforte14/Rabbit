@@ -204,6 +204,8 @@ curl -ik -u demo.erp:<contraseña> \
   `errores` indicando el campo.
 - `codigoPostalEntrega` es opcional (4 dígitos o CPA); si falta, se toma
   de la dirección cuando la trae. Lo usa el Ruteo por zona (sección 6c).
+  Con otro formato (`"12"`) responde `422`: el JSON está bien, pero no es
+  un código postal argentino (regla de negocio, no de formato).
 - Debería responder `201 Created` con `idPedidoExterno`, `Location` y
   `_links`.
 
@@ -214,7 +216,8 @@ curl -k -u demo.erp:<contraseña> \
 ```
 Estados posibles: `Pendiente` → `Sincronizado` (con `idPedido`,
 `estadoPedido` y `codigoSeguimiento`), `Descartado` (con motivo) o
-`Cancelado`. La conversión es asincrónica (cola JMS), así que puede tardar
+`Cancelado` (solo si se canceló antes de salir de la cola; si ya era un
+pedido, queda `Sincronizado` con `estadoPedido: CANCELADO`). La conversión es asincrónica (cola JMS), así que puede tardar
 un instante en pasar de Pendiente a Sincronizado.
 
 ### 4.1 Lo que tiene que mostrar la API
@@ -226,10 +229,12 @@ un instante en pasar de Pendiente a Sincronizado.
 | Clave reutilizada | Misma clave, otro `importe` | `422`, `type: /problemas/clave-idempotencia-reutilizada` |
 | Sin clave | Sacar el header `Idempotency-Key` | `400`, `type: /problemas/clave-idempotencia-invalida` |
 | Formato inválido | `"importe": 0` y sin `direccionEntrega` | `400` con `errores` (un mensaje por campo) |
-| Regla de negocio | `"origen": "PUNTO_PICKING"` sin `idPuntoPicking` | `422`, `type: /problemas/datos-invalidos` |
+| Regla de negocio | `"origen": "PUNTO_PICKING"` sin `idPuntoPicking`, o `"codigoPostalEntrega": "12"` | `422`, `type: /problemas/datos-invalidos` |
+| Sin stock | `"cantidad": 9999` | `201`, y al consultarlo `Descartado` con el motivo ("se pidieron 9999 y hay N libres"); no se crea pedido ni se toca el stock |
+| Comercio dado de baja | Dar de baja el comercio y mandar un pedido | `201`, y al consultarlo `Descartado` ("El comercio N no existe o está dado de baja"). Reactivarlo después |
 | JSON roto | `-d '{"importe":'` | `400`, `type: /problemas/cuerpo-invalido` |
 | Pedido de otro comercio | `GET` de un `idPedidoExterno` de otro comercio | `404` (no se revela que existe) |
-| Cancelar | `curl -i -X POST -u demo.erp:<contraseña> .../v1/pedidos-externos/<id>/cancelacion` | `200`; repetirlo da `200` igual |
+| Cancelar | `curl -i -X POST -u demo.erp:<contraseña> .../v1/pedidos-externos/<id>/cancelacion` | `200` (`Sincronizado` con `estadoPedido: CANCELADO`, sin link `cancelar`); repetirlo da `200` igual |
 | Cancelar tarde | Lo mismo con el pedido ya `CONFIRMADO` | `409`, `type: /problemas/cancelacion-no-permitida` |
 | Seguimiento público | `curl -ik https://localhost:8443/Rabbit/api/v1/seguimiento/<codigoSeguimiento>` | `200 {"codigoSeguimiento", "estado"}`, sin login |
 | URL vieja | `curl -i .../Rabbit/api/pedidos-externos/1` | `404` en `application/problem+json` (la API es `/v1`) |
@@ -241,8 +246,11 @@ chocó con otra sesión tocando el mismo ítem al mismo tiempo — ahí sí vale
 la pena reintentar la cancelación, el conflicto es pasajero).
 
 El contrato está en [openapi.yaml](../integraciones/openapi.yaml): pegalo en
-[Swagger Editor](https://editor.swagger.io) o importalo en Postman
-(**Import → File**) para tener la colección armada.
+[Swagger Editor](https://editor.swagger.io). Para probar con Postman está
+la colección armada
+[`Rabbit.postman_collection.json`](Rabbit.postman_collection.json), con
+todos estos casos en orden (ver
+[PRUEBAS-Y-COMANDOS.md](PRUEBAS-Y-COMANDOS.md#colección-de-postman)).
 
 **Qué mirar:** en el log de WildFly deberían verse las trazas de
 `PedidoExternoListener` procesando el mensaje de la cola
@@ -400,8 +408,11 @@ curl -ik -u claude-cb-admin:<contraseña> https://localhost:8443/Rabbit/api/v1/p
 curl -i http://localhost:8080/Rabbit/api/v1/seguimiento/X                                     # por HTTP
 ```
 Debería responder `401` sin credenciales y `403` con un usuario válido que
-no tiene el rol `ERP`. Por HTTP responde `302` a la misma URL en HTTPS
-(puerto 8443). La cookie de sesión del login sale con `Secure` y `HttpOnly`.
+no tiene el rol `ERP`. Esos dos vienen en HTML (`<body>Unauthorized</body>`)
+y no en Problem Details: los responde WildFly antes de que el pedido
+llegue al código de Rabbit (seguridad declarativa). Por HTTP responde
+`302` a la misma URL en HTTPS (puerto 8443; en Postman hay que apagar
+*Automatically follow redirects* para verlo). La cookie de sesión del login sale con `Secure` y `HttpOnly`.
 
 ---
 
@@ -438,7 +449,12 @@ Los pasos de estas demos están en
 - **Heterogeneidad:** levantar el banco en Node.js (`banco-legado/`,
   `npm install && npm start`), apuntar `rabbit.banco.wsdl` y redesplegar;
   las confirmaciones prepago del paso 5 quedan registradas en la consola
-  de Node.
+  de Node. Al terminar, volver al banco en Java **antes** de cancelar
+  pedidos prepago cobrados por Node (la reversa va al banco configurado).
+- **Transportista en Python:** `python3 transportista-moderno/servidor.py`
+  desde la raíz de este repo, registrarlo en Transportistas
+  (`http://localhost:8095`) y derivarle un pedido confirmado: pasa solo a
+  En camino y Entregado por polling, y se acredita el cobro.
 
 ---
 
@@ -460,7 +476,12 @@ Los pasos de estas demos están en
 | Eliminar un comercio dado de baja | Con pedidos en curso o entregados, stock o cuentas: rechazado. Con solo pedidos cancelados: se borra junto con ese historial, sin dejar nada huérfano |
 | Navegar un rato largo (más de 30 min) y después derivar o abrir Entregas en curso | Funciona: las consultas de stock no dependen de una instancia stateful que vence (ADR-027) |
 | Acceso restringido a personal/usuarios.xhtml | Comercio/repartidor/operador no puede entrar |
-| REST sin credenciales | 401 |
-| REST con rol incorrecto | 403 |
+| REST sin credenciales | 401 (HTML de WildFly) |
+| REST con rol incorrecto | 403 (HTML de WildFly) |
+| REST con código postal inválido | 422 (regla de negocio) |
+| Pedido del ERP sin stock o de un comercio dado de baja | 201 y después Descartado, con el motivo |
+| Transportista en Python | Un pedido derivado llega solo a Entregado y se acredita el cobro |
+| Banco en Node | El cobro de una confirmación prepago aparece en la consola de Node |
+| Celular (comercio y repartidor), con los 3 temas | Menú desplegable, tablas como tarjetas, botones de 44 px, nada desborda |
 | Cancelar pedido externo tarde | 409 `cancelacion-no-permitida` (definitivo) o `stock-en-conflicto` (reintentar) |
 | Cuenta sin comercio asociado | Mensaje amigable, no el interno |

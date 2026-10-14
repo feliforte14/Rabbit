@@ -70,7 +70,7 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |
 | `UsuarioService.reactivarUsuario` | Le devuelve el acceso a una cuenta dada de baja, con una contraseña nueva: la baja la sacó del realm, que es el único lugar donde vive la contraseña, así que no hay de dónde recuperar la anterior. Revalida que su comercio siga activo o que su repartidor no tenga otra cuenta activa |
 | `PagoService.anularCobro` | Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR` |
-| `PedidosExternosResource` (`/api/v1/pedidos-externos`) | Un sistema externo carga pedidos en Rabbit: solo el rol `ERP`. Sin credenciales responde `401`; con un usuario de otro rol, o un ERP sin comercio asociado, `403` |
+| `PedidosExternosResource` (`/api/v1/pedidos-externos`) | Un sistema externo carga pedidos en Rabbit: solo el rol `ERP`. Sin credenciales responde `401`; con un usuario de otro rol, o un ERP sin comercio asociado, `403`. El `401` y el `403` por rol los responde WildFly en HTML, antes de llegar al código: es la seguridad declarativa en acción |
 
 El suscriptor de Pagos al tópico (`SuscriptorPagosEstadoPedido`) corre
 sin usuario: por eso `registrarCobroContraEntrega` no lleva restricción de
@@ -158,7 +158,10 @@ un error el usuario ve `error.html`, una página genérica sin stack trace
 ni detalles internos; el detalle queda solo en el log del servidor. Una
 vista vencida (sesión expirada) vuelve al login. La API REST no usa esas
 páginas: sus errores salen en Problem Details (`application/problem+json`,
-ver `ProblemaMapper`), también sin stack traces ni errores de la base.
+ver `ProblemaMapper`), también sin stack traces ni errores de la base. Los
+únicos que no salen así son el `401` y el `403` por rol: el contenedor
+corta el pedido antes de que llegue a Rabbit y responde con su página
+mínima (`<body>Unauthorized</body>`), que tampoco revela nada.
 
 ### HTTPS obligatorio
 

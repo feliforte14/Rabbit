@@ -384,3 +384,12 @@ y redesplegar.
 - Rabbit lee `rabbit.banco.wsdl` al desplegar: cambiar de banco requiere
   redesplegar.
 - El banco en Node no tiene autenticación, igual que el de Java.
+- Rabbit no guarda qué banco autorizó cada cobro: la reversa va al banco
+  configurado **ahora**. Si se cambia de banco con pedidos PREPAGO
+  confirmados y después se cancela uno, la reversa le llega al banco
+  nuevo, que no conoce ese código (lo ignora sin error, porque
+  `reversarPago` es idempotente) y el viejo nunca la recibe. Pasó en la
+  prueba del 14/10: el AUT-1 del banco Java se le pidió reversar al de
+  Node. Con bancos simulados no hay plata en juego; en uno real habría
+  que guardar el banco en el `Cobro` o no cambiar de banco con cobros
+  vivos.
