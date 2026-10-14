@@ -29,7 +29,7 @@ docs/
 | [MensajeriaFinal.md](integraciones/MensajeriaFinal.md) | **Por qué** cada integración usa cola, tópico, SOAP o REST: el criterio de decisión aplicado a todas |
 | [MENSAJERIA-SINCRONICA.md](integraciones/MENSAJERIA-SINCRONICA.md) | SOAP con el banco legado (cobro, reversa, timeout, circuit breaker), transportistas SOAP y REST (cotización, derivación y seguimiento por polling) y API REST (ERP y seguimiento) |
 | [MENSAJERIA-ASINCRONICA.md](integraciones/MENSAJERIA-ASINCRONICA.md) | Cola JMS de pedidos externos, tópico de estados del pedido y avisos por mail |
-| [openapi.yaml](integraciones/openapi.yaml) | Contrato OpenAPI 3.1 de la API REST (se abre en Swagger Editor o se importa en Postman) |
+| [openapi.yaml](integraciones/openapi.yaml) | Contrato OpenAPI 3.1 de la API REST (se abre en Swagger Editor; para Postman está la colección de `pruebas/`) |
 
 ### [seguridad/](seguridad/)
 
@@ -43,6 +43,7 @@ docs/
 |---|---|
 | [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md) | Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo. Los tests automatizados están en `src/test` (ver el README principal) |
 | [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md) | Comandos para prender y apagar cada sistema, perillas de las demos y la lista completa de pruebas para marcar |
+| [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json) | Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos (52 requests) |
 
 ### [consigna/](consigna/)
 

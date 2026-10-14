@@ -330,19 +330,27 @@ Ruteo ubica el pedido en su zona (ADR-017).
 - **Cancelación como sub-recurso (`POST .../cancelacion`) y no `DELETE`:**
   cancelar no borra nada (en logística el pedido queda, cancelado). Es
   idempotente: cancelar algo ya cancelado devuelve `200` con el mismo
-  estado. El ERP puede cancelar mientras el pedido está pendiente; desde
+  estado. Si llega antes de que la cola lo convierta en pedido (casi
+  nunca: tarda milisegundos), responde `resultado: Cancelado`; lo normal
+  es que ya se haya convertido, y entonces responde `resultado:
+  Sincronizado` con `estadoPedido: CANCELADO` (y sin el link `cancelar`).
+  El ERP puede cancelar mientras el pedido está pendiente; desde
   `CONFIRMADO` ya tiene cobro y repartidor, y responde `409`: lo cancela
   el personal de Rabbit (anular un cobro exige `ADMINISTRADOR`). Un `409`
   también puede salir si devolver el stock de una línea choca con otra
   sesión tocando el mismo ítem al mismo tiempo (`stock-en-conflicto`):
   a diferencia del anterior, este es pasajero — reintentar alcanza.
-- **Errores con Problem Details (RFC 9457):** todas las respuestas de
-  error son `application/problem+json` con `type`, `title`, `status` y
+- **Errores con Problem Details (RFC 9457):** las respuestas de error de
+  Rabbit son `application/problem+json` con `type`, `title`, `status` y
   `detail` (el equivalente REST del SOAP Fault). `400` es formato (falta
   el cuerpo o la clave, JSON inválido, un campo fuera de rango; trae
   `errores` con un mensaje por campo), `422` es una regla de negocio
-  (`PedidoService`), `404` no existe o es de otro comercio, `409` es un
-  conflicto con el estado. `ProblemaMapper` atrapa lo que se escape (URL
+  (`PedidoService`; por ejemplo un código postal `"12"`: el JSON está
+  bien formado, pero no es un código postal argentino), `404` no existe o
+  es de otro comercio, `409` es un conflicto con el estado. La excepción
+  son el `401` y el `403` por rol: los responde WildFly (seguridad
+  declarativa, ver SEGURIDAD.md) con su página de error en HTML, porque
+  cortan el pedido antes de que llegue al código de Rabbit. `ProblemaMapper` atrapa lo que se escape (URL
   inexistente, método no admitido, error inesperado) para que nunca
   salga la página `error.html` ni un stack trace.
 - **Bean Validation en el borde:** `PedidoExternoRequest` (el contrato de

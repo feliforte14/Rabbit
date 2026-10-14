@@ -1,0 +1,1968 @@
+{
+  "info": {
+    "name": "Rabbit",
+    "description": "Pruebas de las integraciones de Rabbit (TP DA2 · Grupo 9). Los códigos (A1, A4, J1…) son los de docs/pruebas/FLUJO-DE-PRUEBAS.md.\n\nANTES DE EMPEZAR\n1. Settings → General → apagar \"SSL certificate verification\" (el certificado de WildFly es autofirmado).\n2. Colección → Variables: completar erpClave y adminClave en \"Current value\" (no se exportan).\n3. Revisar idItem e idPuntoPicking, y que el ítem tenga stock (las carpetas 1 y 4 usan unas 9 unidades).\n\nCARPETAS\n1 · API del ERP — la integración REST de la consigna. En orden.\n2 · Validaciones y seguridad — errores 400/401/403/404/302.\n3 · Seguimiento público — sin login.\n4 · Pedidos de apoyo — para pruebas que siguen en la web (banco rechaza, ruteo por zona).\n5 · Transportistas — REST (dentro de Rabbit y en Python) y SOAP legado.\n6 · Banco legado SOAP — en Java (dentro de Rabbit) y en Node.js.\n\nSe puede correr una carpeta entera con \"Run folder\" (salvo los pasos marcados ANTES/DESPUÉS, que piden hacer algo en la web).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://localhost:8443/Rabbit"
+    },
+    {
+      "key": "httpUrl",
+      "value": "http://localhost:8080/Rabbit"
+    },
+    {
+      "key": "erpUsuario",
+      "value": "Almacen_Demo1erp"
+    },
+    {
+      "key": "erpClave",
+      "value": ""
+    },
+    {
+      "key": "adminUsuario",
+      "value": "admin"
+    },
+    {
+      "key": "adminClave",
+      "value": ""
+    },
+    {
+      "key": "idItem",
+      "value": "1"
+    },
+    {
+      "key": "idPuntoPicking",
+      "value": "1"
+    },
+    {
+      "key": "bancoNodeUrl",
+      "value": "http://localhost:8090"
+    },
+    {
+      "key": "transportistaPythonUrl",
+      "value": "http://localhost:8095"
+    },
+    {
+      "key": "idempotencyKey",
+      "value": ""
+    },
+    {
+      "key": "idExternoStock",
+      "value": ""
+    },
+    {
+      "key": "idExternoPicking",
+      "value": ""
+    },
+    {
+      "key": "idExternoSinStock",
+      "value": ""
+    },
+    {
+      "key": "idExternoCancelar",
+      "value": ""
+    },
+    {
+      "key": "idExternoBaja",
+      "value": ""
+    },
+    {
+      "key": "idPedidoExterno",
+      "value": ""
+    },
+    {
+      "key": "codigoSeguimiento",
+      "value": ""
+    },
+    {
+      "key": "codigoEnvioSimulado",
+      "value": ""
+    },
+    {
+      "key": "codigoEnvioPython",
+      "value": ""
+    },
+    {
+      "key": "codigoEnvioLegado",
+      "value": ""
+    },
+    {
+      "key": "codigoAutorizacion",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1 · API del ERP (pedidos externos)",
+      "description": "La integración REST que pide la consigna. Autenticación Basic con la cuenta ERP del comercio (erpUsuario / erpClave).\n\nCorrer en orden, de arriba a abajo. Cada \"Registrar\" guarda su propio id, y el \"Consultar\" de al lado lo usa.\nEntre registrar y consultar esperá 1 o 2 segundos: la cola JMS lo sincroniza un instante después.",
+      "item": [
+        {
+          "name": "A1 · Alta con stock consignado",
+          "description": "Pedido PREPAGO que reserva stock del depósito.",
+          "item": [
+            {
+              "name": "1. Registrar pedido · stock consignado · PREPAGO → 201",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idExternoStock\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Esperado: 201 Created, con Location y idPedidoExterno."
+              }
+            },
+            {
+              "name": "2. Consultar → Sincronizado",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const r = pm.response.json();",
+                      "if (r.codigoSeguimiento) pm.collectionVariables.set(\"codigoSeguimiento\", r.codigoSeguimiento);",
+                      "pm.test(\"Resultado: Sincronizado\", () => pm.expect(r.resultado).to.eql(\"Sincronizado\"));",
+                      "pm.test(\"Trae idPedido y codigoSeguimiento\", () => { pm.expect(r.idPedido).to.be.a(\"number\"); pm.expect(r.codigoSeguimiento).to.be.a(\"string\"); });"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoStock}}",
+                "description": "Esperado: Sincronizado, con idPedido, estadoPedido = PENDIENTE y codigoSeguimiento (se guarda para la carpeta 3)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "A4 · Idempotencia",
+          "description": "Mismo pedido, misma Idempotency-Key: no se duplica.",
+          "item": [
+            {
+              "name": "1. Repetir el alta A1 con la MISMA Idempotency-Key → mismo id",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "pm.test(\"Mismo idPedidoExterno que A1\", () => pm.expect(pm.response.json().idPedidoExterno).to.eql(Number(pm.collectionVariables.get(\"idExternoStock\"))));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Correr inmediatamente después de A1 (no genera clave nueva). Esperado: 201 con el MISMO idPedidoExterno. En la web, Pedidos muestra uno solo."
+              }
+            }
+          ]
+        },
+        {
+          "name": "A2 · Alta desde punto de picking",
+          "description": "No reserva stock: valida que el punto de picking sea del comercio y esté activo.",
+          "item": [
+            {
+              "name": "1. Registrar pedido · punto de picking · CONTRA_ENTREGA → 201",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idExternoPicking\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"Caja de zapatillas\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 18000,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 2000, CABA\",\n  \"codigoPostalEntrega\": \"1428\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Esperado: 201. El stock del depósito no cambia."
+              }
+            },
+            {
+              "name": "2. Consultar → Sincronizado",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const r = pm.response.json();",
+                      "if (r.codigoSeguimiento) pm.collectionVariables.set(\"codigoSeguimiento\", r.codigoSeguimiento);",
+                      "pm.test(\"Resultado: Sincronizado\", () => pm.expect(r.resultado).to.eql(\"Sincronizado\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoPicking}}"
+              }
+            }
+          ]
+        },
+        {
+          "name": "A5 · Sin stock suficiente",
+          "description": "La API lo acepta, pero al sincronizar se descarta.",
+          "item": [
+            {
+              "name": "1. Registrar pedido con cantidad 9999 → 201",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idExternoSinStock\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 9999\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "La validación de stock no es de la API: es de la sincronización (cola JMS)."
+              }
+            },
+            {
+              "name": "2. Consultar → Descartado (con motivo)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const r = pm.response.json();",
+                      "if (r.codigoSeguimiento) pm.collectionVariables.set(\"codigoSeguimiento\", r.codigoSeguimiento);",
+                      "pm.test(\"Resultado: Descartado\", () => pm.expect(r.resultado).to.eql(\"Descartado\"));",
+                      "pm.test(\"Trae motivo\", () => pm.expect(r.motivo).to.be.a(\"string\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoSinStock}}",
+                "description": "Esperado: Descartado, con el motivo (stock insuficiente)."
+              }
+            }
+          ]
+        },
+        {
+          "name": "A7 · Cancelación desde el ERP",
+          "description": "Se puede cancelar mientras esté Pendiente, o Sincronizado con el pedido PENDIENTE.",
+          "item": [
+            {
+              "name": "1. Registrar pedido para cancelar → 201",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idExternoCancelar\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "2. Cancelar → 200 (Cancelado)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const r = pm.response.json();",
+                      "pm.test(\"Quedó cancelado\", () => pm.expect(r.resultado === \"Cancelado\" || r.estadoPedido === \"CANCELADO\").to.be.true);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoCancelar}}/cancelacion",
+                "description": "Libera el stock reservado. Si todavía no se había sincronizado: resultado = Cancelado. Si ya se había sincronizado (lo normal, tarda un instante): resultado = Sincronizado con estadoPedido = CANCELADO."
+              }
+            },
+            {
+              "name": "3. Cancelar otra vez → 200 (idempotente)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoCancelar}}/cancelacion"
+              }
+            },
+            {
+              "name": "4. Cancelar el pedido de A1 ya confirmado → 409",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 409\", () => pm.response.to.have.status(409));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoStock}}/cancelacion",
+                "description": "ANTES: confirmar en la web (Pedidos → Confirmar) el pedido que creó A1. Como ya avanzó, la API no deja cancelarlo: 409 cancelacion-no-permitida."
+              }
+            }
+          ]
+        },
+        {
+          "name": "H4 · Comercio dado de baja",
+          "description": "Un ERP de un comercio dado de baja no puede meter pedidos.",
+          "item": [
+            {
+              "name": "1. Registrar pedido con el comercio dado de baja → 201",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idExternoBaja\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "ANTES: en la web, Comercios → dar de baja \"Almacen Demo\". La API lo recibe, pero al sincronizar se descarta."
+              }
+            },
+            {
+              "name": "2. Consultar → Descartado",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const r = pm.response.json();",
+                      "if (r.codigoSeguimiento) pm.collectionVariables.set(\"codigoSeguimiento\", r.codigoSeguimiento);",
+                      "pm.test(\"Resultado: Descartado\", () => pm.expect(r.resultado).to.eql(\"Descartado\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoBaja}}",
+                "description": "DESPUÉS: reactivar el comercio en la web para seguir con las demás pruebas."
+              }
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "type": "basic",
+        "basic": [
+          {
+            "key": "username",
+            "value": "{{erpUsuario}}",
+            "type": "string"
+          },
+          {
+            "key": "password",
+            "value": "{{erpClave}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "2 · Validaciones y seguridad de la API (A6)",
+      "description": "Casos que la API tiene que rechazar. Los errores vienen en application/problem+json.",
+      "item": [
+        {
+          "name": "1. Sin direccionEntrega → 400",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "2. Código postal inválido → 422",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"12\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "422 y no 400: el JSON está bien formado, pero no cumple una regla de negocio (el CP tiene que tener 4 dígitos o ser un CPA). La valida la capa de negocio (CodigosPostales)."
+          }
+        },
+        {
+          "name": "3. Sin credenciales → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 401\", () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos/1",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "4. Usuario sin rol ERP → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos/1",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{adminUsuario}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{adminClave}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Usa adminUsuario / adminClave: es un usuario válido pero no tiene rol ERP."
+          }
+        },
+        {
+          "name": "5. Pedido inexistente o de otro comercio → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos/999999"
+          }
+        },
+        {
+          "name": "6. URL vieja sin /v1 → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/pedidos-externos/1"
+          }
+        },
+        {
+          "name": "7. Por HTTP (sin TLS) → 302 a HTTPS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 302\", () => pm.response.to.have.status(302));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{httpUrl}}/api/v1/seguimiento/X",
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Este request ya trae apagado \"Automatically follow redirects\" (pestaña Settings). Si estuviera prendido, Postman sigue la redirección a HTTPS y muestra 404 (el código X no existe). Ver el header Location de la respuesta."
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        }
+      ],
+      "auth": {
+        "type": "basic",
+        "basic": [
+          {
+            "key": "username",
+            "value": "{{erpUsuario}}",
+            "type": "string"
+          },
+          {
+            "key": "password",
+            "value": "{{erpClave}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "3 · Seguimiento público (J1)",
+      "description": "Sin login. Lo que ve el destinatario del paquete.",
+      "item": [
+        {
+          "name": "1. Estado por código de seguimiento → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/seguimiento/{{codigoSeguimiento}}",
+            "description": "Usa el codigoSeguimiento que guardó la consulta de A1. Solo devuelve el estado: nada de importes ni datos del comercio. También se puede ver en {{baseUrl}}/seguimiento.xhtml."
+          }
+        },
+        {
+          "name": "2. Código inexistente → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/seguimiento/NO-EXISTE"
+          }
+        }
+      ],
+      "auth": {
+        "type": "noauth"
+      }
+    },
+    {
+      "name": "4 · Pedidos de apoyo para pruebas web",
+      "description": "Crean pedidos para después probar algo desde la web. No hace falta correrlos en orden.",
+      "item": [
+        {
+          "name": "Banco rechaza · PREPAGO $600.000",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "const r = pm.response.json();",
+                  "pm.collectionVariables.set(\"idPedidoExterno\", r.idPedidoExterno);",
+                  "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 600000,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Se registra bien (201). Al Confirmar desde la web, el banco lo rechaza (más de $500.000) y el pedido sigue PENDIENTE."
+          }
+        },
+        {
+          "name": "Ruteo por zona",
+          "description": "Zonas: Norte 1400–1499 (flota propia), Sur 1800–1899 (transportista). Después: web → Ruteo.",
+          "item": [
+            {
+              "name": "Zona Norte · CP 1414",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idPedidoExterno\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Thames 1500, Palermo\",\n  \"codigoPostalEntrega\": \"1414\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Zona Norte · CP 1426",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idPedidoExterno\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 1000, Belgrano\",\n  \"codigoPostalEntrega\": \"1426\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Zona Sur · CP tomado de la dirección (1846)",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idPedidoExterno\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Calle 12 1846, Adrogué (1846)\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "Sin zona · sin código postal",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idPedidoExterno\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Ruta 3 km 50\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "auth": {
+        "type": "basic",
+        "basic": [
+          {
+            "key": "username",
+            "value": "{{erpUsuario}}",
+            "type": "string"
+          },
+          {
+            "key": "password",
+            "value": "{{erpClave}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "5 · Transportistas externos (llamados directos)",
+      "description": "Se les habla directo, sin pasar por Rabbit, para ver el contrato de cada uno.",
+      "item": [
+        {
+          "name": "5.1 · REST · Transportista moderno (dentro de Rabbit)",
+          "description": "El simulador que vive dentro del WAR. Mismo contrato que el de Python.",
+          "item": [
+            {
+              "name": "1. Cotizar → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{httpUrl}}/api/simulador/transportista-rest/cotizaciones",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bultos\": 2,\n  \"cobrarAlEntregar\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "2. Solicitar envío → 201",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set(\"codigoEnvioSimulado\", pm.response.json().codigoSeguimiento);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{httpUrl}}/api/simulador/transportista-rest/envios",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"referencia\": \"PEDIDO-PRUEBA\",\n  \"direccionRetiro\": \"Av. Rivadavia 5000, CABA\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"bultos\": 2\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "3. Consultar envío → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{httpUrl}}/api/simulador/transportista-rest/envios/{{codigoEnvioSimulado}}",
+                "description": "Avanza solo con el tiempo: SOLICITADO → EN_TRANSITO → ENTREGADO."
+              }
+            },
+            {
+              "name": "4. Cancelar envío → 204",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{httpUrl}}/api/simulador/transportista-rest/envios/{{codigoEnvioSimulado}}",
+                "description": "204; 409 si ya se entregó."
+              }
+            },
+            {
+              "name": "5. Más de 50 bultos → 422",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{httpUrl}}/api/simulador/transportista-rest/envios",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"referencia\": \"PEDIDO-GRANDE\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"bultos\": 51\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "auth": {
+            "type": "noauth"
+          }
+        },
+        {
+          "name": "5.2 · REST · Transportista moderno en Python (servicio aparte, D6)",
+          "description": "ANTES: python3 transportista-moderno/servidor.py (puerto 8095).\nPara D6 completo: registrarlo en la web (Transportistas → API REST → http://localhost:8095) y derivarle un pedido; avanza solo por polling hasta Entregado.",
+          "item": [
+            {
+              "name": "1. Cotizar → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{transportistaPythonUrl}}/cotizaciones",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"bultos\": 2,\n  \"cobrarAlEntregar\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "2. Solicitar envío → 201",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "pm.collectionVariables.set(\"codigoEnvioPython\", pm.response.json().codigoSeguimiento);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{transportistaPythonUrl}}/envios",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"referencia\": \"PEDIDO-PRUEBA\",\n  \"direccionRetiro\": \"Av. Rivadavia 5000, CABA\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"bultos\": 2\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "3. Consultar envío → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{transportistaPythonUrl}}/envios/{{codigoEnvioPython}}",
+                "description": "Avanza solo con el tiempo: SOLICITADO → EN_TRANSITO → ENTREGADO."
+              }
+            },
+            {
+              "name": "4. Cancelar envío → 204",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 204\", () => pm.response.to.have.status(204));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": "{{transportistaPythonUrl}}/envios/{{codigoEnvioPython}}",
+                "description": "204; 409 si ya se entregó."
+              }
+            },
+            {
+              "name": "5. Más de 50 bultos → 422",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": "{{transportistaPythonUrl}}/envios",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"referencia\": \"PEDIDO-GRANDE\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"bultos\": 51\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "auth": {
+            "type": "noauth"
+          }
+        },
+        {
+          "name": "5.3 · SOAP · Transportista legado (dentro de Rabbit)",
+          "description": "Estados del legado: RECIBIDO, EN_VIAJE, ENTREGADO, ANULADO (Rabbit los traduce en su adaptador).",
+          "item": [
+            {
+              "name": "1. WSDL → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{httpUrl}}/TransportistaLegadoService?wsdl"
+              }
+            },
+            {
+              "name": "2. registrarEnvio → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const m = pm.response.text().match(/<codigoSeguimiento>([^<]+)</);",
+                      "if (m) pm.collectionVariables.set(\"codigoEnvioLegado\", m[1]);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{httpUrl}}/TransportistaLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/transportista\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:registrarEnvio>\n      <referencia>PEDIDO-PRUEBA</referencia>\n      <direccionRetiro>Av. Rivadavia 5000, CABA</direccionRetiro>\n      <direccionEntrega>Av. Corrientes 1234, CABA</direccionEntrega>\n      <bultos>2</bultos>\n    </x:registrarEnvio>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "3. consultarEnvio → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{httpUrl}}/TransportistaLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/transportista\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:consultarEnvio>\n      <codigoSeguimiento>{{codigoEnvioLegado}}</codigoSeguimiento>\n    </x:consultarEnvio>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "4. anularEnvio → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{httpUrl}}/TransportistaLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/transportista\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:anularEnvio>\n      <codigoSeguimiento>{{codigoEnvioLegado}}</codigoSeguimiento>\n    </x:anularEnvio>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "5. registrarEnvio con más de 50 bultos → soap:Fault (500)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 500\", () => pm.response.to.have.status(500));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{httpUrl}}/TransportistaLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/transportista\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:registrarEnvio>\n      <referencia>PEDIDO-GRANDE</referencia>\n      <direccionRetiro>Av. Rivadavia 5000, CABA</direccionRetiro>\n      <direccionEntrega>Av. Corrientes 1234, CABA</direccionEntrega>\n      <bultos>51</bultos>\n    </x:registrarEnvio>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Un soap:Fault viaja con HTTP 500: EnvioRechazado."
+              }
+            }
+          ],
+          "auth": {
+            "type": "noauth"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6 · Banco legado SOAP (llamados directos)",
+      "description": "Autoriza y reversa cobros PREPAGO. Rechaza importes mayores a $500.000.",
+      "item": [
+        {
+          "name": "6.1 · Banco legado en Java (dentro de Rabbit)",
+          "description": "El que usa Rabbit por defecto.",
+          "item": [
+            {
+              "name": "1. WSDL → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{httpUrl}}/BancoLegadoService?wsdl"
+              }
+            },
+            {
+              "name": "2. autorizarPago (aprobado) → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const m = pm.response.text().match(/<codigoAutorizacion>([^<]+)</);",
+                      "if (m) pm.collectionVariables.set(\"codigoAutorizacion\", m[1]);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{httpUrl}}/BancoLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/banco\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:autorizarPago>\n      <referencia>PEDIDO-PRUEBA</referencia>\n      <importe>2500</importe>\n    </x:autorizarPago>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Devuelve un codigoAutorizacion (se guarda para la reversa)."
+              }
+            },
+            {
+              "name": "3. autorizarPago mayor a $500.000 → soap:Fault (500)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 500\", () => pm.response.to.have.status(500));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{httpUrl}}/BancoLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/banco\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:autorizarPago>\n      <referencia>PEDIDO-CARO</referencia>\n      <importe>600000</importe>\n    </x:autorizarPago>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Un soap:Fault viaja con HTTP 500: PagoRechazado."
+              }
+            },
+            {
+              "name": "4. reversarPago → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{httpUrl}}/BancoLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/banco\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:reversarPago>\n      <codigoAutorizacion>{{codigoAutorizacion}}</codigoAutorizacion>\n    </x:reversarPago>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                }
+              }
+            }
+          ],
+          "auth": {
+            "type": "noauth"
+          }
+        },
+        {
+          "name": "6.2 · Banco legado en Node.js (servicio aparte, J2)",
+          "description": "ANTES: cd banco-legado && npm start (puerto 8090).\nPara que Rabbit lo use: agregar la propiedad rabbit.banco.wsdl=http://localhost:8090/BancoLegadoService?wsdl y redesplegar.",
+          "item": [
+            {
+              "name": "1. WSDL → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{bancoNodeUrl}}/BancoLegadoService?wsdl"
+              }
+            },
+            {
+              "name": "2. autorizarPago (aprobado) → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const m = pm.response.text().match(/<codigoAutorizacion>([^<]+)</);",
+                      "if (m) pm.collectionVariables.set(\"codigoAutorizacion\", m[1]);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{bancoNodeUrl}}/BancoLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/banco\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:autorizarPago>\n      <referencia>PEDIDO-PRUEBA</referencia>\n      <importe>2500</importe>\n    </x:autorizarPago>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Devuelve un codigoAutorizacion (se guarda para la reversa)."
+              }
+            },
+            {
+              "name": "3. autorizarPago mayor a $500.000 → soap:Fault (500)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 500\", () => pm.response.to.have.status(500));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{bancoNodeUrl}}/BancoLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/banco\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:autorizarPago>\n      <referencia>PEDIDO-CARO</referencia>\n      <importe>600000</importe>\n    </x:autorizarPago>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                },
+                "description": "Un soap:Fault viaja con HTTP 500: PagoRechazado."
+              }
+            },
+            {
+              "name": "4. reversarPago → 200",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "text/xml; charset=utf-8"
+                  },
+                  {
+                    "key": "SOAPAction",
+                    "value": "\"\""
+                  }
+                ],
+                "url": "{{bancoNodeUrl}}/BancoLegadoService",
+                "body": {
+                  "mode": "raw",
+                  "raw": "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\" xmlns:x=\"http://rabbit.example/legado/banco\">\n  <soapenv:Header/>\n  <soapenv:Body>\n    <x:reversarPago>\n      <codigoAutorizacion>{{codigoAutorizacion}}</codigoAutorizacion>\n    </x:reversarPago>\n  </soapenv:Body>\n</soapenv:Envelope>",
+                  "options": {
+                    "raw": {
+                      "language": "xml"
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "name": "5. Simular caída del banco (circuit breaker)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{bancoNodeUrl}}/admin/caida?activa=true",
+                "description": "Con la caída prendida, confirmar 3 pedidos PREPAGO en la web: el circuito se abre 30 s."
+              }
+            },
+            {
+              "name": "6. Volver a levantar el banco",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{bancoNodeUrl}}/admin/caida?activa=false"
+              }
+            }
+          ],
+          "auth": {
+            "type": "noauth"
+          }
+        }
+      ]
+    }
+  ]
+}

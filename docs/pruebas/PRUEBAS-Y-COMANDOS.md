@@ -27,6 +27,7 @@ cli() { "$WILDFLY_HOME/bin/jboss-cli.sh" --connect "$@"; }
 | WildFly 41 (Rabbit + broker JMS + banco y transportistas simulados) | Local | 8443 (app, HTTPS), 8080 (simuladores), 9990 (management) | Todo |
 | Base PostgreSQL | Supabase (remota, siempre prendida) | 5432 (Session Pooler) | Todo |
 | Banco legado en Node.js | Local, opcional | 8090 | Solo la demo de heterogeneidad |
+| Transportista moderno en Python | Local, opcional | 8095 | Solo la demo de heterogeneidad (REST) |
 
 El broker (ActiveMQ Artemis), el banco en Java y los dos transportistas
 simulados viven dentro de WildFly: se prenden y se apagan con él.
@@ -104,6 +105,43 @@ en el SQL Editor de Supabase.
 Si Rabbit apunta al banco en Node y el banco está apagado, los pedidos
 prepago no se pueden confirmar (el resto funciona). Antes de apagarlo,
 volvé al banco en Java.
+
+Cambiar de banco con pedidos PREPAGO ya cobrados tiene una trampa: si
+después se cancela uno, la reversa va al banco configurado en ese
+momento, no al que lo autorizó (ver Limitaciones en
+[DESAFIOS-OPCIONALES.md](../consigna/DESAFIOS-OPCIONALES.md)).
+
+### Transportista moderno en Python (opcional)
+
+| Qué | Comando |
+|---|---|
+| Prender | `python3 transportista-moderno/servidor.py` **desde la raíz de este repo** (escucha en el 8095) |
+| Apagar | Ctrl+C en su terminal, o `pkill -f transportista-moderno/servidor.py` |
+| Conectar Rabbit | En la web, **Transportistas → Registrar**: tipo API REST, endpoint `http://localhost:8095` |
+
+Si al arrancar dice "sin webhook configurado", es una copia vieja del
+repo: la versión actual ya no tiene webhook (ADR-029).
+
+### Colección de Postman
+
+[`Rabbit.postman_collection.json`](Rabbit.postman_collection.json):
+**Import → File** en Postman. Trae 52 requests ordenados por prueba (los
+códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
+
+| Carpeta | Qué prueba |
+|---|---|
+| 1 · API del ERP | Alta, idempotencia, punto de picking, sin stock, cancelación y comercio dado de baja. En orden: cada alta guarda su id y la consulta de al lado lo usa |
+| 2 · Validaciones y seguridad | 400, 422, 401, 403, 404, 404 y 302 |
+| 3 · Seguimiento público | 200 y 404, sin login |
+| 4 · Pedidos de apoyo | Pedidos para seguir probando en la web (banco que rechaza, ruteo por zona) |
+| 5 · Transportistas | REST dentro de Rabbit, REST en Python y SOAP legado, llamados directo |
+| 6 · Banco legado | Java y Node, llamados directo, más la caída simulada de Node |
+
+Antes de usarla: en **Settings**, apagar *SSL certificate verification*
+(el certificado es autofirmado), y en las variables de la colección
+completar `erpClave` y `adminClave` en *Current value* (no se exportan).
+Los pasos que piden hacer algo en la web lo dicen en la descripción
+(ANTES / DESPUÉS).
 
 ### Perillas para las demos (system properties)
 
@@ -184,13 +222,14 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
 
 ### B. Pedidos del ERP: REST + cola punto a punto
 
-- [ ] **B1. Alta por la API.** Con los IDs de A2 y A4:
+- [ ] **B1. Alta por la API.** Con el ID del ítem de A4 (el comercio es
+  el de la cuenta ERP, no va en el cuerpo):
 
   ```bash
   curl -ik -u demo.erp:<contraseña> -X POST \
     https://localhost:8443/Rabbit/api/v1/pedidos-externos \
-    -H "Content-Type: application/json" \
-    -d '{"idComercio":<id>,"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":<id>,"cantidad":1}],
+    -H "Content-Type: application/json" -H "Idempotency-Key: $(uuidgen)" \
+    -d '{"origen":"STOCK_CONSIGNADO","lineas":[{"idItem":<id>,"cantidad":1}],
          "importe":2500,"medioPago":"PREPAGO","direccionEntrega":"Av. Corrientes 1234, CABA",
          "codigoPostalEntrega":"1043"}'
   ```
@@ -211,6 +250,16 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
   pedidos).
 - [ ] **B6. Simulación desde la web.** En Pedidos, "Simular un pedido
   del ERP" con origen punto de picking: aparece en la tabla al recargar.
+- [ ] **B7. Idempotencia.** Repetir B1 con la **misma** `Idempotency-Key`
+  → `201` con el mismo `idPedidoExterno`; en Pedidos hay uno solo.
+- [ ] **B8. Cancelación desde el ERP.** `POST .../pedidos-externos/<id>/cancelacion`
+  → `200` (`Sincronizado` con `estadoPedido: CANCELADO`, o `Cancelado` si
+  todavía no había salido de la cola); repetirlo da `200` igual; con el
+  pedido ya `CONFIRMADO` → `409 cancelacion-no-permitida`.
+- [ ] **B9. Comercio dado de baja.** Darlo de baja y mandar un pedido →
+  `201`, pero queda `Descartado` ("El comercio 1 no existe o está dado de
+  baja"). **Reactivarlo después**: si queda de baja, todo lo que mande el
+  ERP se descarta.
 
 ### C. Confirmación: transacción + SOAP + tópico pub/sub
 
@@ -266,6 +315,10 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
   el envío se cancela en el transportista.
 - [ ] **E6. Lo ve el comercio.** En Mis pedidos, el derivado muestra el
   transportista y su código de seguimiento.
+- [ ] **E7. Transportista en Python.** Prenderlo, registrarlo
+  (`http://localhost:8095`) y derivarle un pedido confirmado: llega solo a
+  Entregado por polling, el tópico acredita el cobro contra entrega y la
+  consola de Python muestra `envío TM-... tomado`.
 
 ### F. Ruteo por zona
 
