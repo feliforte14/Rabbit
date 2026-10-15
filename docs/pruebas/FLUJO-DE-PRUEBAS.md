@@ -9,10 +9,10 @@ la demo.
 
 | Rol | Qué puede hacer | Dónde se prueba |
 |---|---|---|
-| `ADMINISTRADOR` | Todo lo del personal, **más** dar de alta/baja usuarios, eliminar (no solo dar de baja) un comercio, y anular el cobro de un pedido ya `CONFIRMADO` en adelante | 1, 2, 5, 6, 6b, 6c, 7b, 9 |
-| `OPERADOR` | Todo lo del personal **salvo** esas tres operaciones — las rechaza con `EJBAccessException` | 1b |
-| `COMERCIO` | Solo lo suyo: sus pedidos, su stock (solo lectura), sus puntos de picking | 3, 7 |
-| `REPARTIDOR` | Solo su hoja de ruta: retirar y entregar | 5 (paso 3) |
+| `ADMINISTRADOR` | Todo lo del personal, **más** dar de alta/baja usuarios, eliminar (no solo dar de baja) comercios, usuarios, repartidores y zonas, liquidar el mes, registrar una entrega con remito como contingencia y anular el cobro de un pedido ya `CONFIRMADO` en adelante | 1, 2, 5, 6, 6b, 6c, 7b, 9, 10 |
+| `OPERADOR` | Todo lo del personal **salvo** esas operaciones — no ve los botones y el EJB las rechaza con `EJBAccessException` | 1b, 10 |
+| `COMERCIO` | Solo lo suyo: sus pedidos (con el remito de cada entrega), su stock (solo lectura), sus puntos de picking y sus liquidaciones | 3, 7, 10 |
+| `REPARTIDOR` | Solo su hoja de ruta: retirar, entregar con foto del remito y compartir su ubicación | 5 (paso 3), 10 |
 | `ERP` | Solo la API REST, solo los pedidos de su comercio | 4 |
 
 Requisitos previos:
@@ -445,19 +445,25 @@ Los pasos de estas demos están en
 
 ## 10. Mejoras del tablero: peso, capacidad, remito, mapa y liquidación
 
-Probado de punta a punta el 15/10/2026 (ADR-031 a 035). Con pedidos
+Probado de punta a punta el 15/10/2026 (ADR-031 a 036). Con pedidos
 `[TEST]`, así la opción A de `scripts/Rabbit-limpieza-datos-de-prueba.sql`
 los borra después.
 
-1. **Peso:** en Depósitos y stock → un depósito, "Corregir peso" de un
-   producto (por ejemplo 1 kg). Un pedido de stock consignado muestra su
-   peso en Pedidos ("· N kg"). Por la API, un pedido de punto de picking
-   con `"pesoKg": 30` guarda 30 kg; con stock consignado y `pesoKg`
-   responde 422.
+1. **Peso:** en Depósitos y stock → un depósito; "Cargar stock" pide el
+   peso por unidad (obligatorio) y "Corregir peso" lo cambia. La tabla lo
+   muestra como "1 kg" / "0,9 kg". Un pedido de stock consignado (por
+   ejemplo con "Simular un pedido del ERP") se sincroniza solo y muestra
+   su peso en Pedidos ("· 3 kg"); en "Recibidos del ERP" aparece con el
+   nombre del producto. Por la API, un pedido de punto de picking con
+   `"pesoKg": 30` guarda 30 kg; con stock consignado y `pesoKg` responde
+   422.
 2. **Capacidad:** en Repartidores → "Capacidad del vehículo": 60 kg y 20
    bultos. Confirmar dos pedidos de 30 y 25 kg: los dos quedan con el
    mismo repartidor ("Lleva: 2 pedidos (55 kg, 5 bultos)"). Uno de 10 kg
    más: "No hay repartidores con lugar…".
+   Al entregar uno, se libera su lugar: un pedido que antes no entraba
+   ahora se le asigna (probado con 10 kg: 3 + 5 entran, 4 se rechaza y
+   entra después de entregar el de 3).
 3. **Remito:** como el repartidor, en Mis entregas: "Ya retiré el pedido"
    y después "Registrar una entrega". Sin foto → "Sacale una foto al
    remito…"; con un archivo que no es imagen → "tiene que ser una imagen
@@ -471,10 +477,20 @@ los borra después.
    `GET /api/v1/seguimiento/{codigo}` trae `ubicacionRepartidor`.
 5. **Liquidación:** en "Liquidaciones mensuales", el mes en curso es una
    vista previa (abono + envíos + kilos). Un mes cerrado: "Liquidar y
-   cobrar este mes" → COBRADA con código de autorización del banco. El
-   comercio la ve en "Mis liquidaciones". (Para no dejar una liquidación
-   de prueba en la base compartida, borrarla después:
+   cobrar este mes" → COBRADA con código de autorización del banco (el
+   botón solo aparece en meses cerrados). El comercio ve en "Mis
+   liquidaciones" la vista previa del mes en curso (solo lo suyo) y los
+   meses ya liquidados. (Para no dejar una liquidación de prueba en la
+   base compartida, borrarla después:
    `DELETE FROM liquidaciones WHERE periodo = 'AAAA-MM'`.)
+6. **Eliminar (solo administrador, ADR-036):** el botón "Eliminar" está en
+   Usuarios, Repartidores y Ruteo por zona (zonas); un OPERADOR no lo ve.
+   - Usuario: se borra y no se puede reactivar. La propia cuenta no se
+     puede eliminar, ni el último administrador activo.
+   - Repartidor: con cuenta de usuario → "tiene una cuenta de usuario
+     (eliminala primero desde Usuarios)"; con entregas en curso, también
+     se rechaza. Uno recién creado se elimina.
+   - Zona: se elimina y sus repartidores quedan "Sin zona fija".
 
 ## Checklist rápido
 
@@ -492,6 +508,8 @@ los borra después.
 | Cancelar un pedido derivado | Se cancela sin cruzarse con una novedad del transportista en curso |
 | Ruteo por zona | Pedidos agrupados por CP; despachar usa el repartidor de la zona, el respaldo o el transportista de la zona |
 | Eliminar un comercio dado de baja | Con pedidos en curso o entregados, stock o cuentas: rechazado. Con solo pedidos cancelados: se borra junto con ese historial, sin dejar nada huérfano |
+| Eliminar usuario / repartidor / zona (admin) | Se borra; un repartidor con cuenta o entregas en curso se rechaza; el operador no ve el botón |
+| Capacidad del repartidor | El pedido que no entra se rechaza y queda Pendiente; entra cuando el repartidor entrega otro |
 | Navegar un rato largo (más de 30 min) y después derivar o abrir Entregas en curso | Funciona: las consultas de stock no dependen de una instancia stateful que vence (ADR-027) |
 | Acceso restringido a personal/usuarios.xhtml | Comercio/repartidor/operador no puede entrar |
 | REST sin credenciales | 401 (HTML de WildFly) |

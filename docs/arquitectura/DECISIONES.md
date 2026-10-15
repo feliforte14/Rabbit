@@ -768,7 +768,11 @@ Propuesta o Reemplazada.
     en las altas, con "Corregir peso" para lo ya cargado). Un pedido de
     stock consignado calcula su peso al sincronizarse: peso por unidad ×
     cantidad. Si algún ítem no tiene peso, el del pedido queda
-    desconocido (null): contarlo como 0 lo haría pasar por liviano.
+    desconocido (null): contarlo como 0 lo haría pasar por liviano. La
+    sincronización corre sin usuario (JMS y timer), así que el peso se
+    pide con `IConsultaStock.pesosPorItem`, sin rol y que solo devuelve el
+    peso de cada ítem; el listado completo del stock sigue siendo del
+    personal.
   - **Punto de picking:** Rabbit no conoce esa mercadería; el ERP puede
     informar `pesoKg` (opcional). Con stock consignado no se acepta (422):
     lo calcula Rabbit. La huella de idempotencia solo incluye el peso si
@@ -798,7 +802,9 @@ Propuesta o Reemplazada.
     liberación falla o se repite; una fila por pedido se puede recalcular.
 - **Consecuencias:** la hoja de ruta del repartidor muestra todas sus
   entregas en curso. No se ordenan las paradas (no hay geocodificación de
-  las direcciones).
+  las direcciones). Cada unidad cuenta como un bulto (3 yerbas son 3
+  bultos). En pantalla los kilos se muestran como "1 kg" o "0,95 kg"
+  (`infraestructura/Formatos`), no con la escala de la columna ("1.000").
 
 ## ADR-033: La entrega se registra con la foto del remito, y solo quien estuvo ahí
 
@@ -867,7 +873,9 @@ Propuesta o Reemplazada.
   - Pantalla "Liquidaciones mensuales" (personal): lo cobrado por mes, el
     botón para liquidar un mes cerrado (administrador) y una **vista
     previa del mes en curso**, que calcula sin guardar ni cobrar. El
-    comercio ve las suyas en "Mis liquidaciones".
+    comercio ve las suyas en "Mis liquidaciones", también con la vista
+    previa del mes en curso, calculada solo con sus entregas (el
+    resumen de entregas de todos los comercios es solo del personal).
 - **Alternativas descartadas:**
   - *Descontarlo de lo que se cobra contra entrega:* mezcla la plata del
     comercio con la de Rabbit y obliga a hacer rendiciones.
@@ -910,3 +918,34 @@ Propuesta o Reemplazada.
   hay que aceptar la advertencia. Sin coordenadas de las direcciones de
   entrega no se calcula cuánto falta.
 
+## ADR-036: El administrador puede eliminar usuarios, repartidores y zonas
+
+- **Estado:** Aceptada (15/10/2026). Pedido del equipo durante las
+  pruebas.
+- **Contexto:** usuarios, repartidores y zonas solo se podían dar de baja.
+  Las cuentas y zonas de prueba se acumulaban en el padrón compartido y
+  un repartidor cargado por error no se podía sacar.
+- **Decisión:** baja física, **solo `ADMINISTRADOR`** (`@RolesAllowed` en
+  el EJB; el botón "Eliminar" solo se le muestra a él). Mismo patrón que
+  la eliminación de comercios (ADR-028): cada componente que guarda una
+  referencia puede impedirlo o la suelta, en la misma transacción, por
+  eventos CDI, así el componente dueño no depende de los demás.
+  - **Usuario** (`eliminarUsuario`): nada apunta a una cuenta (quién
+    entregó cada pedido queda como texto, ADR-033). No se puede eliminar
+    la propia cuenta ni al último administrador activo. También se borra
+    su línea del realm de archivos de esa máquina, si tenía.
+  - **Repartidor** (`eliminarRepartidor`): no se puede con entregas en
+    curso ni con una cuenta de usuario asociada, activa o dada de baja
+    (`EliminacionDeRepartidor`; hay que eliminar la cuenta primero). Sus
+    pedidos ya terminados quedan sin repartidor asignado
+    (`RepartidorEliminado`).
+  - **Zona** (`eliminarZona`): los pedidos no guardan su zona (se calcula
+    por el código postal), así que no hay nada que impedir. Los
+    repartidores de esa zona quedan sin zona fija (`ZonaEliminada`).
+- **Alternativas descartadas:**
+  - *Borrar también la cuenta del repartidor:* una cuenta es acceso al
+    sistema; que desaparezca sin que nadie la elimine a propósito es
+    peligroso.
+  - *Solo baja lógica:* no resolvía el padrón lleno de pruebas.
+- **Consecuencias:** eliminar no se deshace. Para que alguien deje de
+  operar sin perder nada, sigue estando la baja.
