@@ -175,10 +175,12 @@ es el checklist de qué necesita cada quien y dónde se consigue o se crea
 | Usuario/contraseña de management de WildFly | `wildfly-maven-plugin` para desplegar (paso 3), puerto `9990` | Se crea una sola vez con `add-user.sh -u ... -p ...` (sin `-a`, no es un usuario de la app) y se guarda en `~/.m2/settings.xml`, nunca en `pom.xml` |
 | Servidor SMTP (host, puerto, remitente) | Avisos por mail al comercio (paso 7, opcional) | El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal |
 
-### Cuentas de la aplicación (realm de WildFly)
+### Cuentas de la aplicación
 
 Estas **no** se precargan: las crea cada administrador desde la pantalla
-**Usuarios**, salvo la primera, que arranca el sistema.
+**Usuarios**, salvo la primera, que arranca el sistema. Se guardan en la
+base compartida (con la contraseña en bcrypt), así que una cuenta creada
+desde cualquier máquina entra en el WildFly de todos (paso 5, ADR-031).
 
 | Tipo de cuenta | Cómo se crea | Qué usa/ve |
 |---|---|---|
@@ -343,22 +345,39 @@ Abrir https://localhost:8443/Rabbit. Rabbit exige HTTPS: si se entra por
 certificado autofirmado, así que el navegador muestra una advertencia la
 primera vez (aceptarla) y `curl` necesita `-k`.
 
-### 5. Primer acceso
+### 5. Cuentas compartidas y primer acceso (una sola vez)
 
-El login valida contra el `ApplicationRealm` de WildFly, así que un
-WildFly recién instalado no reconoce usuarios creados en otra instalación
-aunque estén en la base. No hay alta pública de cuentas: el primer
-administrador se crea en WildFly:
+Las cuentas viven en la tabla `usuarios` de la base compartida y WildFly
+las valida leyendo esa tabla (ADR-031). Para eso, **después del primer
+despliegue** (que agrega la columna de contraseñas), cada integrante
+configura su WildFly una vez:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --file=scripts/configurar-realm-compartido.cli
+```
+
+Tiene que terminar con `"outcome" => "success"` y recargar WildFly. Desde
+ahí, cualquier cuenta creada desde la app de cualquier integrante entra en
+todas las máquinas, y una baja corta el acceso en todas. Para volver
+atrás: `scripts/revertir-realm-compartido.cli`.
+
+Si la base ya tiene administradores, entrá con uno de ellos. Si es una
+base vacía, no hay alta pública de cuentas: el primer administrador se
+crea en tu WildFly y entra solo en tu máquina:
 
 ```bash
 $WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s
 ```
 
 Desde ahí, ese administrador crea los demás usuarios en "Usuarios"
-(`personal/usuarios.xhtml`).
+(`personal/usuarios.xhtml`), ya en la base.
 
-Los usuarios que crea un administrador desde la app se sincronizan solos
-contra el realm (ver `ApplicationRealmSync`). Hay cinco tipos de cuenta:
+**Cuentas creadas antes de ADR-031:** no tienen contraseña en la base y
+solo entran en la máquina donde se crearon; la pantalla Usuarios las
+marca "Solo en una máquina". Un administrador les pone una contraseña
+nueva en "Restablecer contraseña" y desde ahí entran en todas.
+
+Hay cinco tipos de cuenta:
 `ADMINISTRADOR` y `OPERADOR` (personal de Rabbit), `COMERCIO` (se asocia a
 un comercio), `REPARTIDOR` (se asocia a un repartidor) y `ERP` (se asocia
 a un comercio; solo usa la API REST, ver paso 6). Cada uno de los cuatro
@@ -373,8 +392,8 @@ administrador desde `personal/usuarios.xhtml`, eligiendo el tipo "ERP
 (API REST)" y el comercio. No puede entrar a la web.
 
 Un usuario ERP creado a mano con `add-user.sh` (como se hacía antes) no
-tiene comercio y la API le responde `403`: hay que borrarlo del realm y
-crearlo desde la app.
+tiene comercio y la API le responde `403`: hay que borrarlo de los
+archivos del realm de esa máquina y crearlo desde la app.
 
 Contrato en [docs/integraciones/openapi.yaml](docs/integraciones/openapi.yaml) y ejemplos en
 [MENSAJERIA-SINCRONICA.md](docs/integraciones/MENSAJERIA-SINCRONICA.md).

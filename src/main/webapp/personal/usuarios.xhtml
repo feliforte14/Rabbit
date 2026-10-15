@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    Alta, listado y baja de usuarios. Se bindea a usuarioBean
+    Alta, listado, baja, reactivacion y cambio de contrasena de usuarios. Se bindea a usuarioBean
     (UsuarioBean.java). Solo ADMINISTRADOR: no hay alta publica de cuentas.
 
     Cada cuenta es de un tipo (rol): personal de Rabbit (Administrador u
@@ -49,6 +49,9 @@
                     <f:facet name="header">Estado</f:facet>
                     <h:outputText value="#{u.activo ? 'Activo' : 'Dado de baja'}"
                                   styleClass="badge #{u.activo ? 'badge-verde' : 'badge-gris'}" />
+                    <h:outputText value="Solo en una máquina" styleClass="badge badge-naranja"
+                                  rendered="#{u.activo and not u.claveCompartida}"
+                                  title="Creada antes de que las cuentas pasaran a la base: restablecé su contraseña para que entre desde cualquier máquina" />
                 </h:column>
                 <h:column styleClass="acciones">
                     <f:facet name="header">Acciones</f:facet>
@@ -61,6 +64,37 @@
         </h:form>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty usuarioBean.usuarios}">
             Todavía no hay usuarios creados desde la aplicación.
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{not empty usuarioBean.activos}">
+            <h2>Restablecer contraseña</h2>
+            <h:form id="formRestablecer" styleClass="formulario">
+                <p class="ayuda">
+                    La cuenta pasa a entrar con la contraseña nueva desde la máquina de cualquier
+                    integrante del equipo.
+                    <h:outputText rendered="#{usuarioBean.pendientesDeMigrar gt 0}"
+                                  value="Las marcadas «Solo en una máquina» se crearon antes de que las cuentas pasaran a la base: hasta que les cambies la contraseña acá, solo entran en la máquina donde se crearon." />
+                </p>
+                <div class="campo">
+                    <h:outputLabel for="cuentaRestablecer" value="Cuenta" />
+                    <h:selectOneMenu id="cuentaRestablecer" value="#{usuarioBean.idARestablecer}" required="true"
+                                     label="Cuenta" requiredMessage="Elegí la cuenta">
+                        <f:selectItem itemLabel="— Elegí una cuenta —" itemValue="#{null}" />
+                        <f:selectItems value="#{usuarioBean.activos}" var="u" itemValue="#{u.id}"
+                                       itemLabel="#{u.username} (#{etiquetas.rol(u.rol)})#{u.claveCompartida ? '' : ' · solo en una máquina'}" />
+                    </h:selectOneMenu>
+                    <h:message for="cuentaRestablecer" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel for="passwordRestablecida" value="Contraseña nueva" />
+                    <h:inputSecret id="passwordRestablecida" value="#{usuarioBean.passwordRestablecida}" required="true"
+                                   label="Contraseña nueva" requiredMessage="Ingresá la contraseña nueva" />
+                    <h:message for="passwordRestablecida" styleClass="error-campo" />
+                </div>
+                <div class="form-acciones">
+                    <h:commandButton value="Cambiar contraseña" styleClass="btn btn-primary" action="#{usuarioBean.restablecer}" />
+                </div>
+            </h:form>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{not empty usuarioBean.dadosDeBaja}">

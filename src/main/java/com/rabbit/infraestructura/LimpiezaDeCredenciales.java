@@ -4,9 +4,10 @@ package com.rabbit.infraestructura;
  * Al desplegar, borra de la base la columna usuarios.passwordhash.
  *
  * La tabla "usuarios" guardaba un hash SHA-256 sin salt de cada contraseña
- * que nadie usaba para autenticar (lo hace el ApplicationRealm de WildFly).
- * Una credencial redundante y débil solo suma riesgo si la base se
- * filtra, así que la entidad dejó de mapearla. hbm2ddl "update" nunca
+ * que nadie usaba para autenticar. Una credencial débil solo suma riesgo
+ * si la base se filtra, así que la entidad dejó de mapearla (ADR-023).
+ * Desde ADR-031 la contraseña vuelve a la tabla, pero en otra columna
+ * (hash_clave, bcrypt) que sí usa el login: esta clase no la toca. hbm2ddl "update" nunca
  * borra columnas: sin esto, los hashes viejos quedarían guardados para
  * siempre. Es idempotente (IF EXISTS): después del primer despliegue no
  * hace nada.
@@ -47,7 +48,7 @@ public class LimpiezaDeCredenciales {
             em.joinTransaction();
             em.createNativeQuery("ALTER TABLE IF EXISTS usuarios DROP COLUMN IF EXISTS passwordhash").executeUpdate();
             tx.commit();
-            LOG.info("[Esquema] usuarios sin columna de contraseñas (las valida solo el realm)");
+            LOG.info("[Esquema] usuarios sin la columna vieja passwordhash");
         } catch (Exception e) {
             LOG.log(Level.WARNING, "[Esquema] No se pudo quitar usuarios.passwordhash", e);
             try {

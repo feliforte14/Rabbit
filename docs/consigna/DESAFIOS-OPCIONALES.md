@@ -210,8 +210,8 @@ más conexiones.
 - La prueba escala instancias dentro de un servidor. En varios servidores
   el mecanismo es el mismo, pero no se probó: el broker embebido es de
   cada WildFly y habría que compartir uno.
-- En un cluster, los usuarios (archivos del realm) y el estado del
-  circuit breaker son de cada servidor.
+- En un cluster, el estado del circuit breaker es de cada servidor. Los
+  usuarios no: están en la base compartida (ADR-031).
 - La latencia hasta Supabase domina el tiempo de cada pedido: los números
   dependen de la red desde donde se corra.
 
