@@ -13,6 +13,7 @@ import com.rabbit.repartidores.negocio.ValidacionException;
 import com.rabbit.ruteo.dto.ZonaDTO;
 import com.rabbit.ruteo.negocio.IZonas;
 import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJBAccessException;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -121,6 +122,20 @@ public class RepartidorBean implements Serializable {
             cargar();
         } catch (ValidacionException e) {
             Mensajes.error(e.getMessage());
+        }
+    }
+
+    // Solo administrador: el botón solo se le muestra a él y el EJB lo
+    // exige con @RolesAllowed.
+    public void eliminar(Long idRepartidor) {
+        try {
+            service.eliminarRepartidor(idRepartidor);
+            Mensajes.info("Repartidor eliminado");
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        } catch (EJBAccessException e) {
+            Mensajes.error("Solo un administrador puede eliminar repartidores.");
         }
     }
 

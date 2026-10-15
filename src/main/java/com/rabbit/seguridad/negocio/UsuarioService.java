@@ -187,21 +187,41 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
     @RolesAllowed("ADMINISTRADOR")
     public void darDeBaja(Long id) {
         Usuario usuario = obtenerOFallar(id);
-        if (usuario.getUsername().equals(contexto.getCallerPrincipal().getName())) {
-            throw new ValidacionException("No podés darte de baja a vos mismo");
-        }
-        // Sin administradores activos nadie podría volver a dar de alta
-        // usuarios desde la aplicación.
-        if (usuario.getRol() == Rol.ADMINISTRADOR && usuario.isActivo()
-                && repository.contarAdministradoresActivos() <= 1) {
-            throw new ValidacionException("No se puede dar de baja al último administrador activo");
-        }
+        exigirQueSePuedaSacar(usuario, "dar de baja");
         usuario.setActivo(false);
         repository.actualizar(usuario);
         // Una cuenta vieja (sin hash en la base) puede tener además una
         // línea en el realm de archivos de esta máquina: se borra. En las
         // otras máquinas la bloquea el realm JDBC (ADR-031).
         ApplicationRealmSync.bajaUsuario(usuario.getUsername());
+    }
+
+    /**
+     * Baja física: borra la fila de "usuarios". Mismas protecciones que la
+     * baja lógica; además se borra la línea que pudiera tener en el realm de
+     * archivos de esta máquina (cuentas anteriores a ADR-031).
+     */
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
+    public void eliminarUsuario(Long id) {
+        Usuario usuario = obtenerOFallar(id);
+        exigirQueSePuedaSacar(usuario, "eliminar");
+        repository.eliminar(usuario);
+        ApplicationRealmSync.bajaUsuario(usuario.getUsername());
+    }
+
+    // Ni la propia cuenta ni el último administrador activo: sin
+    // administradores nadie podría volver a dar de alta usuarios desde la
+    // aplicación.
+    private void exigirQueSePuedaSacar(Usuario usuario, String accion) {
+        if (usuario.getUsername().equals(contexto.getCallerPrincipal().getName())) {
+            throw new ValidacionException("No podés " + accion + " tu propia cuenta");
+        }
+        if (usuario.getRol() == Rol.ADMINISTRADOR && usuario.isActivo()
+                && repository.contarAdministradoresActivos() <= 1) {
+            throw new ValidacionException("No se puede " + accion + " al último administrador activo");
+        }
     }
 
     // Una cuenta COMERCIO o ERP representa a un comercio existente y activo;

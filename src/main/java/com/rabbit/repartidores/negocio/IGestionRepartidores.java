@@ -24,6 +24,16 @@ public interface IGestionRepartidores {
     /** @return el repartidor, o null si no existe */
     RepartidorDTO obtenerRepartidor(Long idRepartidor);
 
+    /**
+     * Borra el repartidor definitivamente. Solo ADMINISTRADOR. No se puede
+     * si tiene entregas en curso o una cuenta de usuario (ver
+     * EliminacionDeRepartidor); sus pedidos ya terminados quedan sin
+     * repartidor asignado.
+     *
+     * @throws ValidacionException si no existe o algo lo impide
+     */
+    void eliminarRepartidor(Long idRepartidor);
+
     /** Cambia la zona donde reparte (null: sin zona fija). */
     void asignarZona(Long idRepartidor, Long idZona);
 

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    Alta, listado, baja, reactivacion y cambio de contrasena de usuarios. Se bindea a usuarioBean
+    Alta, listado, baja, eliminacion, reactivacion y cambio de contrasena de usuarios. Se bindea a usuarioBean
     (UsuarioBean.java). Solo ADMINISTRADOR: no hay alta publica de cuentas.
 
     Cada cuenta es de un tipo (rol): personal de Rabbit (Administrador u
@@ -59,6 +59,10 @@
                                      action="#{usuarioBean.darDeBaja(u.id)}"
                                      rendered="#{u.activo and u.username != sesionBean.usuarioActual}"
                                      onclick="return confirm('¿Dar de baja este usuario? Deja de poder entrar.');" />
+                    <h:commandButton value="Eliminar" styleClass="btn btn-danger"
+                                     action="#{usuarioBean.eliminar(u.id)}"
+                                     rendered="#{u.username != sesionBean.usuarioActual}"
+                                     onclick="return confirm('¿Eliminar la cuenta #{u.username}? Se borra para siempre y no se puede reactivar.');" />
                 </h:column>
             </h:dataTable>
         </h:form>

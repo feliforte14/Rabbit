@@ -30,6 +30,18 @@ public interface IRegistroUsuarios {
     void darDeBaja(Long id);
 
     /**
+     * Borra la cuenta definitivamente: desaparece del padrón y no se puede
+     * reactivar. Solo ADMINISTRADOR. Nada del resto del sistema apunta a
+     * una cuenta (los pedidos guardan el nombre de quien entregó como
+     * texto), así que no deja referencias colgadas.
+     *
+     * @param id ID del usuario a eliminar
+     * @throws ValidacionException si no existe, es la propia cuenta o es el
+     *         último administrador activo
+     */
+    void eliminarUsuario(Long id);
+
+    /**
      * Vuelve a habilitar una cuenta dada de baja, con una contraseña nueva
      * (la anterior no se puede recuperar del hash). Solo ADMINISTRADOR.
      *

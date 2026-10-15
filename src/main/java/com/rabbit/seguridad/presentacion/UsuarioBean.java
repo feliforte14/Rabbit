@@ -6,7 +6,7 @@ package com.rabbit.seguridad.presentacion;
  *
  * ALCANCE DE LA PANTALLA: usuarios.xhtml es solo para ADMINISTRADOR
  * (SesionBean.exigirAdministrador): padrón, alta con elección de rol,
- * baja, reactivación y cambio de contraseña. No hay alta pública; el primer administrador se crea con
+ * baja, eliminación, reactivación y cambio de contraseña. No hay alta pública; el primer administrador se crea con
  * add-user.sh. La restricción real la impone UsuarioService con
  * @RolesAllowed; el guardián de la página solo evita mostrarla.
  */
@@ -101,6 +101,21 @@ public class UsuarioBean implements Serializable {
         } catch (EJBAccessException e) {
             // @RolesAllowed("ADMINISTRADOR") en UsuarioService.darDeBaja.
             Mensajes.error("No tenés permisos para dar de baja usuarios. Iniciá sesión como administrador.");
+        }
+    }
+
+    // Baja física: la cuenta desaparece del padrón (ver
+    // IRegistroUsuarios.eliminarUsuario).
+    public void eliminar(Long id) {
+        try {
+            registro.eliminarUsuario(id);
+            Mensajes.info("Usuario eliminado");
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        } catch (EJBAccessException e) {
+            // @RolesAllowed("ADMINISTRADOR") en UsuarioService.eliminarUsuario.
+            Mensajes.error("Solo un administrador puede eliminar usuarios.");
         }
     }
 
