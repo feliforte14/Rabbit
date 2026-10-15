@@ -23,12 +23,38 @@
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
         <p class="ayuda">
-            Lo que Rabbit te cobra cada mes por el servicio:
-            <h:outputText value="#{misLiquidacionesBean.tarifa.abono()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText> de abono,
-            <h:outputText value="#{misLiquidacionesBean.tarifa.porEnvio()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText> por pedido entregado y
-            <h:outputText value="#{misLiquidacionesBean.tarifa.porKilo()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText> por kilo.
+            Lo que Rabbit te cobra cada mes por el servicio: #{etiquetas.pesos(misLiquidacionesBean.tarifa.abono())} de abono,
+            #{etiquetas.pesos(misLiquidacionesBean.tarifa.porEnvio())} por pedido entregado y
+            #{etiquetas.pesos(misLiquidacionesBean.tarifa.porKilo())} por kilo.
             Se liquida a principio de cada mes por el mes anterior. Es aparte del cobro de cada pedido.
         </p>
+
+        <h:panelGroup rendered="#{not empty misLiquidacionesBean.mesEnCurso}">
+            <h2>#{misLiquidacionesBean.nombreMes(misLiquidacionesBean.mesEnCurso.periodo)} (en curso)</h2>
+            <p class="ayuda">Lo que se te cobraría si el mes terminara hoy. Se liquida a principio del mes que viene.</p>
+            <div class="stat-grid">
+                <div class="stat-card">
+                    <p class="stat-label">Entregados</p>
+                    <p class="stat-valor">#{misLiquidacionesBean.mesEnCurso.cantidadEnvios}</p>
+                    <p class="stat-nota">#{etiquetas.kilos(misLiquidacionesBean.mesEnCurso.kilos)}</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Abono</p>
+                    <p class="stat-valor">#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.abono)}</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Envíos y kilos</p>
+                    <p class="stat-valor">#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.cargoEnvios.add(misLiquidacionesBean.mesEnCurso.cargoKilos))}</p>
+                    <p class="stat-nota">#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.cargoEnvios)} + #{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.cargoKilos)}</p>
+                </div>
+                <div class="stat-card">
+                    <p class="stat-label">Total a hoy</p>
+                    <p class="stat-valor">#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.total)}</p>
+                </div>
+            </div>
+        </h:panelGroup>
+
+        <h2>Meses liquidados</h2>
 
         <h:dataTable value="#{misLiquidacionesBean.filas}" var="l"
                      styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
@@ -40,7 +66,7 @@
             <h:column>
                 <f:facet name="header">Entregas</f:facet>
                 #{l.cantidadEnvios}
-                <span class="dato-secundario"><h:outputText value="#{l.kilos}"><f:convertNumber maxFractionDigits="3" /></h:outputText> kg</span>
+                <span class="dato-secundario">#{etiquetas.kilos(l.kilos)}</span>
             </h:column>
             <h:column>
                 <f:facet name="header">Total</f:facet>
@@ -56,7 +82,7 @@
             </h:column>
         </h:dataTable>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty misLiquidacionesBean.filas}">
-            Todavía no tenés liquidaciones. La primera llega a principio del mes que viene.
+            Todavía no se liquidó ningún mes. El primero se liquida a principio del mes que viene.
         </h:panelGroup>
     </ui:define>
 </ui:composition>

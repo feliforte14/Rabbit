@@ -158,6 +158,13 @@ public class ConsultaStockService implements IConsultaStock {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    public java.util.Map<Long, BigDecimal> pesosPorItem(Collection<Long> idsItems) {
+        java.util.Map<Long, BigDecimal> pesos = new java.util.HashMap<>();
+        repository.listarItemsPorIds(idsItems).forEach(item -> pesos.put(item.getId(), item.getPesoKg()));
+        return pesos;
+    }
+
     // Stock consignado del comercio que representa el usuario que llama.
     @Override
     @RolesAllowed("COMERCIO")

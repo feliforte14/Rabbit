@@ -170,6 +170,27 @@ public class LiquidacionService implements ILiquidaciones {
                 .map(LiquidacionDTO::desde).collect(Collectors.toList());
     }
 
+    @Override
+    @TransactionAttribute(TransactionAttributeType.SUPPORTS)
+    @RolesAllowed("COMERCIO")
+    public LiquidacionDTO previsualizarMesEnCursoDelComercioActual() {
+        YearMonth periodo = YearMonth.now();
+        TarifaMensual tarifa = TarifaMensual.vigente();
+        ResumenEntregasDTO resumen = pedidos.resumenEntregasDelComercioActual(
+                periodo.atDay(1).atStartOfDay(), periodo.plusMonths(1).atDay(1).atStartOfDay());
+        LiquidacionDTO dto = new LiquidacionDTO();
+        dto.idComercio = resumen.idComercio();
+        dto.periodo = periodo.toString();
+        dto.cantidadEnvios = resumen.cantidad();
+        dto.kilos = resumen.kilos();
+        dto.abono = tarifa.abonoMensual();
+        dto.cargoEnvios = tarifa.cargoEnvios(resumen.cantidad());
+        dto.cargoKilos = tarifa.cargoKilos(resumen.kilos());
+        dto.total = tarifa.total(resumen.cantidad(), resumen.kilos());
+        dto.estado = "VISTA_PREVIA";
+        return dto;
+    }
+
     // Sin rol: la tarifa la ve el personal y cada comercio. Este WildFly
     // rechaza todo método sin permiso declarado.
     @Override

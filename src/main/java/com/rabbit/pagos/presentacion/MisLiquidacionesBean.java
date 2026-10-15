@@ -2,8 +2,9 @@ package com.rabbit.pagos.presentacion;
 
 /**
  * CAPA DE PRESENTACIÓN (Managed Bean - JSF) — mis-liquidaciones.xhtml: lo
- * que Rabbit le cobró al comercio cada mes (ADR-034). El comercio sale de
- * la identidad autenticada (ILiquidaciones.listarDelComercioActual).
+ * que Rabbit le cobró al comercio cada mes (ADR-034) y lo que lleva
+ * acumulado en el mes en curso. El comercio sale de la identidad
+ * autenticada (ILiquidaciones.listarDelComercioActual).
  */
 
 import com.rabbit.infraestructura.Mensajes;
@@ -27,6 +28,7 @@ public class MisLiquidacionesBean {
     private ILiquidaciones liquidaciones;
 
     private List<LiquidacionDTO> filas;
+    private LiquidacionDTO mesEnCurso;
     private TarifaMensual tarifa;
 
     @PostConstruct
@@ -34,6 +36,7 @@ public class MisLiquidacionesBean {
         tarifa = liquidaciones.tarifaVigente();
         try {
             filas = liquidaciones.listarDelComercioActual();
+            mesEnCurso = liquidaciones.previsualizarMesEnCursoDelComercioActual();
         } catch (com.rabbit.seguridad.negocio.ValidacionException e) {
             // Cuenta COMERCIO sin comercio asociado.
             filas = List.of();
@@ -47,5 +50,6 @@ public class MisLiquidacionesBean {
     }
 
     public List<LiquidacionDTO> getFilas() { return filas; }
+    public LiquidacionDTO getMesEnCurso() { return mesEnCurso; }
     public TarifaMensual getTarifa() { return tarifa; }
 }

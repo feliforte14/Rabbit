@@ -67,6 +67,12 @@ public interface ISeguimientoPedido {
      */
     List<ResumenEntregasDTO> resumenEntregas(java.time.LocalDateTime desde, java.time.LocalDateTime hasta);
 
+    /**
+     * Lo mismo, solo del comercio que representa el usuario que llama (la
+     * vista previa de su liquidación). Solo COMERCIO: no ve lo de otros.
+     */
+    ResumenEntregasDTO resumenEntregasDelComercioActual(java.time.LocalDateTime desde, java.time.LocalDateTime hasta);
+
     /** Pedidos CONFIRMADO o EN_CAMINO: los que tienen que salir o están en viaje. */
     List<PedidoDTO> listarEntregasEnCurso();
 

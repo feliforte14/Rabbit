@@ -72,8 +72,8 @@
                     #{i.cantidadLibre}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Peso (kg/u)</f:facet>
-                    <h:outputText value="#{i.pesoKg}" rendered="#{not empty i.pesoKg}" />
+                    <f:facet name="header">Peso por unidad</f:facet>
+                    <h:outputText value="#{etiquetas.kilos(i.pesoKg)}" rendered="#{not empty i.pesoKg}" />
                     <h:outputText value="Sin cargar" styleClass="badge badge-naranja" rendered="#{empty i.pesoKg}" />
                 </h:column>
             </h:dataTable>

@@ -79,6 +79,13 @@ public class RepartidorRepository {
         return em.merge(repartidor);
     }
 
+    /** Deja sin zona fija a los repartidores de esa zona. Devuelve cuántos cambió. */
+    public int quitarZona(Long idZona) {
+        return em.createQuery("UPDATE Repartidor r SET r.idZona = NULL WHERE r.idZona = :id")
+                .setParameter("id", idZona)
+                .executeUpdate();
+    }
+
     /** Borra el repartidor de la BD (baja física). */
     public void eliminar(Repartidor repartidor) {
         em.remove(em.contains(repartidor) ? repartidor : em.merge(repartidor));

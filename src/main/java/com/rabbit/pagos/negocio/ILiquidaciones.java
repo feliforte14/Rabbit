@@ -43,6 +43,12 @@ public interface ILiquidaciones {
     /** Las del comercio que representa el usuario que llama. Solo COMERCIO. */
     List<LiquidacionDTO> listarDelComercioActual();
 
+    /**
+     * Lo que lleva acumulado en el mes en curso el comercio que llama, sin
+     * guardar nada: para que sepa cuánto se le va a cobrar. Solo COMERCIO.
+     */
+    LiquidacionDTO previsualizarMesEnCursoDelComercioActual();
+
     /** La tarifa vigente, para mostrarla. */
     TarifaMensual tarifaVigente();
 }

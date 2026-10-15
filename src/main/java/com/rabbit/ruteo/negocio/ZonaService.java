@@ -22,6 +22,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +40,10 @@ public class ZonaService implements IZonas {
 
     @Inject
     private IGestionTransportistas transportistas;
+
+    // Avisa a Repartidores antes de borrar una zona (ver eliminarZona).
+    @Inject
+    private Event<ZonaEliminada> zonaEliminada;
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
@@ -89,6 +94,15 @@ public class ZonaService implements IZonas {
         exigirSinSuperposicion(zona.getCodigoPostalDesde(), zona.getCodigoPostalHasta(), zona.getId());
         zona.setActiva(true);
         repository.actualizar(zona);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
+    public void eliminarZona(Long idZona) {
+        Zona zona = obtenerOFallar(idZona);
+        zonaEliminada.fire(new ZonaEliminada(idZona));
+        repository.eliminar(zona);
     }
 
     @Override

@@ -69,7 +69,7 @@
                 </ol>
 
                 <p class="hoja-ruta-datos">
-                    <span>Llevás: <b>#{e.productos}</b> (#{e.cantidadTotal} u.#{empty e.pesoKg ? '' : ', ' += e.pesoKg += ' kg'})</span>
+                    <span>Llevás: <b>#{e.productos}</b> (#{e.cantidadTotal} u.#{empty e.pesoKg ? '' : ', ' += etiquetas.kilos(e.pesoKg)})</span>
                     <h:panelGroup rendered="#{not empty e.codigoCliente}">
                         <span>Código del cliente: <span class="codigo">#{e.codigoCliente}</span></span>
                     </h:panelGroup>

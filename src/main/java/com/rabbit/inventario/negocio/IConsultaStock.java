@@ -106,6 +106,15 @@ public interface IConsultaStock {
     /** Varios ítems por ID en una sola consulta (lo usa Ruteo). */
     List<ItemInventarioDTO> listarItemsPorIds(Collection<Long> idsItems);
 
+    /**
+     * El peso por unidad de cada ítem (ADR-032), para calcular el peso de
+     * un pedido. Un ítem sin peso cargado queda con valor null; uno que no
+     * existe no aparece. Sin restricción de rol: la usa la sincronización
+     * de pedidos del ERP, que corre sin usuario (JMS y timer), y no expone
+     * nada más que el peso.
+     */
+    java.util.Map<Long, java.math.BigDecimal> pesosPorItem(Collection<Long> idsItems);
+
     /** Stock consignado del comercio que representa el usuario que llama (rol COMERCIO). */
     List<ItemInventarioDTO> listarStockDelComercioActual();
 

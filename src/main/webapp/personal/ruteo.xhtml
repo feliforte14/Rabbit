@@ -154,6 +154,9 @@
                                      action="#{ruteoBean.darDeBajaZona(z.id)}" rendered="#{z.activa}" />
                     <h:commandButton value="Reactivar" styleClass="btn btn-secondary"
                                      action="#{ruteoBean.reactivarZona(z.id)}" rendered="#{not z.activa}" />
+                    <h:commandButton value="Eliminar" styleClass="btn btn-danger"
+                                     action="#{ruteoBean.eliminarZona(z.id)}" rendered="#{sesionBean.admin}"
+                                     onclick="return confirm('¿Eliminar definitivamente la zona #{z.nombre}? Sus repartidores quedan sin zona fija. No se puede deshacer.');" />
                 </h:column>
             </h:dataTable>
         </h:form>
