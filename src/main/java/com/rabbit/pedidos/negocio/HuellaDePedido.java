@@ -29,6 +29,11 @@ final class HuellaDePedido {
                 .append(datos.medioPago).append('|')
                 .append(datos.direccionEntrega.trim()).append('|')
                 .append(CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega));
+        // Solo si vino: un pedido sin peso da la misma huella que antes de
+        // que existiera el campo.
+        if (datos.pesoKg != null) {
+            texto.append("|peso:").append(datos.pesoKg.stripTrailingZeros().toPlainString());
+        }
         for (DatosLineaPedidoDTO linea : datos.lineas) {
             texto.append('|').append(linea.idItem).append(':')
                     .append(linea.producto != null ? linea.producto.trim() : null).append(':')

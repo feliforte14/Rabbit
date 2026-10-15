@@ -17,6 +17,7 @@ package com.rabbit.pedidos.presentacion;
  * rechaza al sincronizar.
  */
 
+import com.rabbit.infraestructura.ArchivosSubidos;
 import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.dto.PuntoPickingDTO;
@@ -101,6 +102,10 @@ public class PedidoBean implements Serializable {
     private Map<Long, EnvioDTO> enviosPorPedido;
     private List<TransportistaDTO> listaTransportistas;
     private Long idPedidoADerivar;
+
+    // Formulario "Registrar una entrega" (contingencia del ADMINISTRADOR).
+    private Long idPedidoAEntregar;
+    private transient jakarta.servlet.http.Part fotoRemito;
     private Long idTransportistaElegido;
     // Cotizaciones del último pedido cotizado. Se guarda cuál fue, así
     // "Derivar con este" deriva ESE pedido aunque después se haya elegido
@@ -371,11 +376,26 @@ public class PedidoBean implements Serializable {
         }
     }
 
-    // El repartidor entregó el pedido: EN_CAMINO → ENTREGADO.
-    public void entregar(Long idPedido) {
+    // Contingencia del ADMINISTRADOR (el repartidor no pudo registrarla):
+    // EN_CAMINO → ENTREGADO, también con la foto del remito (ADR-033).
+    public void entregar() {
+        byte[] foto;
         try {
-            gestion.registrarEntrega(idPedido);
-            Mensajes.info("Pedido entregado");
+            foto = ArchivosSubidos.leer(fotoRemito, 5 * 1024 * 1024);
+        } catch (java.io.IOException e) {
+            Mensajes.error("No se pudo leer la foto del remito. Probá de nuevo.");
+            return;
+        } finally {
+            fotoRemito = null;
+        }
+        if (foto == null) {
+            Mensajes.error("La foto del remito no puede superar los 5 MB");
+            return;
+        }
+        try {
+            gestion.registrarEntrega(idPedidoAEntregar, foto);
+            Mensajes.info("Entrega del pedido " + idPedidoAEntregar + " registrada");
+            idPedidoAEntregar = null;
             cargar();
         } catch (ValidacionException e) {
             Mensajes.error(e.getMessage());
@@ -426,4 +446,16 @@ public class PedidoBean implements Serializable {
     public void setIdDepositoSeleccionado(Long idDepositoSeleccionado) { this.idDepositoSeleccionado = idDepositoSeleccionado; }
     public DatosPedidoExternoDTO getNuevoPedido() { return nuevoPedido; }
     public void setNuevoPedido(DatosPedidoExternoDTO nuevoPedido) { this.nuevoPedido = nuevoPedido; }
+
+    // Pedidos EN_CAMINO con repartidor propio: los que se pueden entregar con remito.
+    public List<PedidoDTO> getEnCaminoConRepartidor() {
+        return pedidos.stream()
+                .filter(p -> "EN_CAMINO".equals(p.getEstado()) && p.getIdRepartidor() != null)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    public Long getIdPedidoAEntregar() { return idPedidoAEntregar; }
+    public void setIdPedidoAEntregar(Long idPedidoAEntregar) { this.idPedidoAEntregar = idPedidoAEntregar; }
+    public jakarta.servlet.http.Part getFotoRemito() { return fotoRemito; }
+    public void setFotoRemito(jakarta.servlet.http.Part fotoRemito) { this.fotoRemito = fotoRemito; }
 }

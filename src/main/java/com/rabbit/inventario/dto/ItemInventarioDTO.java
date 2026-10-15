@@ -5,6 +5,8 @@ package com.rabbit.inventario.dto;
  * vista JSF. Nunca se persiste en la BD (ver ItemInventario para la entidad).
  */
 
+import java.math.BigDecimal;
+
 import com.rabbit.inventario.datos.model.ItemInventario;
 
 public class ItemInventarioDTO {
@@ -16,6 +18,7 @@ public class ItemInventarioDTO {
     public int cantidadLibre;
     public Long idDeposito;
     public Long idComercio;
+    public BigDecimal pesoKg;
 
     // Convierte una entidad ItemInventario en un DTO listo para la vista,
     // calculando cantidadLibre = disponible - reservada de una vez.
@@ -28,6 +31,7 @@ public class ItemInventarioDTO {
         dto.cantidadLibre = i.getCantidadDisponible() - i.getCantidadReservada();
         dto.idDeposito = i.getDeposito() != null ? i.getDeposito().getId() : null;
         dto.idComercio = i.getIdComercio();
+        dto.pesoKg = i.getPesoKg();
         return dto;
     }
 
@@ -39,4 +43,5 @@ public class ItemInventarioDTO {
     public int getCantidadLibre() { return cantidadLibre; }
     public Long getIdDeposito() { return idDeposito; }
     public Long getIdComercio() { return idComercio; }
+    public BigDecimal getPesoKg() { return pesoKg; }
 }

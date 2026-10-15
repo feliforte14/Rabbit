@@ -11,6 +11,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
                  template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
@@ -73,7 +74,7 @@
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Productos</f:facet>
                     #{p.productos} (#{p.cantidadTotal} u.)
-                    <span class="dato-secundario">#{etiquetas.origen(p.origen)}</span>
+                    <span class="dato-secundario">#{etiquetas.origen(p.origen)}#{empty p.pesoKg ? '' : ' · ' += p.pesoKg += ' kg'}</span>
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Entrega en</f:facet>
@@ -94,6 +95,11 @@
                     <f:facet name="header">Estado</f:facet>
                     <h:outputText value="#{etiquetas.estadoPedido(p.estado)}"
                                   styleClass="#{etiquetas.claseEstadoPedido(p.estado)}" />
+                    <h:panelGroup rendered="#{p.conRemito}">
+                        <span class="dato-secundario">
+                            <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>
+                        </span>
+                    </h:panelGroup>
                 </h:column>
                 <h:column styleClass="col-p3" headerClass="col-p3">
                     <!-- Estado del cobro en ServicioDePagosYCobranzas (ver EstadoCobro). -->
@@ -119,9 +125,8 @@
                     <h:commandButton value="Despachar" styleClass="btn btn-secondary"
                                      action="#{pedidoBean.despachar(p.id)}"
                                      rendered="#{p.estado == 'CONFIRMADO' and empty pedidoBean.envio(p.id)}" />
-                    <h:commandButton value="Entregar" styleClass="btn btn-secondary"
-                                     action="#{pedidoBean.entregar(p.id)}"
-                                     rendered="#{p.estado == 'EN_CAMINO' and empty pedidoBean.envio(p.id)}" />
+                    <!-- La entrega la registra el repartidor con la foto del remito
+                         (ADR-033); un administrador puede hacerlo abajo, con foto. -->
                     <h:commandButton value="Cancelar" styleClass="btn btn-danger"
                                      action="#{pedidoBean.cancelar(p.id)}"
                                      rendered="#{p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO'}"
@@ -131,6 +136,38 @@
         </h:form>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.pedidos}">
             Todavía no hay pedidos. Llegan desde el ERP de cada comercio (o simulalos abajo).
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{sesionBean.admin and not empty pedidoBean.enCaminoConRepartidor}">
+            <h2>Registrar una entrega</h2>
+            <h:form id="formEntrega" styleClass="formulario" enctype="multipart/form-data">
+                <p class="ayuda">
+                    La entrega la marca el repartidor desde su celular, con la foto del remito firmado.
+                    Si no pudo hacerlo (se quedó sin batería, por ejemplo), un administrador la registra
+                    acá, también con la foto. Con pago contra entrega, registrar la entrega cobra el pedido.
+                </p>
+                <div class="campo">
+                    <h:outputLabel for="pedidoEntrega" value="Pedido en camino" />
+                    <h:selectOneMenu id="pedidoEntrega" value="#{pedidoBean.idPedidoAEntregar}" required="true"
+                                     label="Pedido" requiredMessage="Elegí el pedido">
+                        <f:selectItem itemLabel="— Elegí un pedido —" itemValue="#{null}" />
+                        <f:selectItems value="#{pedidoBean.enCaminoConRepartidor}" var="pe" itemValue="#{pe.id}"
+                                       itemLabel="#{pe.id} · #{pedidoBean.nombreComercio(pe.idComercio)} · #{pedidoBean.nombreRepartidor(pe.idRepartidor)}" />
+                    </h:selectOneMenu>
+                    <h:message for="pedidoEntrega" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel for="fotoRemitoAdmin" value="Foto del remito firmado" />
+                    <h:inputFile id="fotoRemitoAdmin" value="#{pedidoBean.fotoRemito}" styleClass="foto-remito"
+                                 pt:accept="image/jpeg,image/png,image/webp" />
+                    <h:message for="fotoRemitoAdmin" styleClass="error-campo" />
+                </div>
+                <div class="form-acciones">
+                    <h:commandButton value="Registrar entrega" styleClass="btn btn-primary" action="#{pedidoBean.entregar}"
+                                     onclick="return confirm('¿Registrar la entrega? Si es contra entrega, se cobra el pedido.');" />
+                </div>
+            </h:form>
+            <h:outputScript library="rabbit" name="remito.js" />
         </h:panelGroup>
 
         <h2>Derivar a un transportista</h2>
@@ -373,6 +410,13 @@
                         </h:selectOneMenu>
                         <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.listaPuntosPicking}"
                                       value="Elegí un comercio arriba para ver sus puntos de picking activos." />
+                    </div>
+                    <div class="campo">
+                        <h:outputLabel for="pesoPedido" value="Peso total en kg (opcional)" />
+                        <h:inputText id="pesoPedido" value="#{pedidoBean.nuevoPedido.pesoKg}" label="Peso total"
+                                     converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 12.5)" />
+                        <h:message for="pesoPedido" styleClass="error-campo" />
+                        <p class="ayuda">Rabbit no conoce lo que hay en el punto de picking: sin el peso, el límite del repartidor solo cuenta los bultos.</p>
                     </div>
                 </h:panelGroup>
 

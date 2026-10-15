@@ -7,10 +7,10 @@
  * No toca Managed Beans, Services ni Repositories: es 100% presentacion.
  *
  * VERSIONADO DE RECURSOS
- * Vive en resources/rabbit/1_11/ y se linkea con:
+ * Vive en resources/rabbit/1_12/ y se linkea con:
  *     <h:outputStylesheet library="rabbit" name="estilos.css" />
- * "rabbit" es la libreria y "1_11" su version. JSF genera una URL que
- * incluye la version (?ln=rabbit&v=1_11), asi que al renombrar la carpeta
+ * "rabbit" es la libreria y "1_12" su version. JSF genera una URL que
+ * incluye la version (?ln=rabbit&v=1_12), asi que al renombrar la carpeta
  * a 1_12 cambia la URL y TODOS los navegadores bajan el archivo nuevo.
  * Sin esto, el navegador se queda con el CSS viejo cacheado aunque el
  * WAR ya tenga el nuevo.
@@ -1760,4 +1760,58 @@ html[data-tema="oscuro"] select,
 html[data-tema="oscuro"] textarea {
     background-color: var(--superficie);
     border-color: var(--borde);
+}
+
+/* =====================================================================
+   Mapas (ADR-035): el de repartidores del personal y el del seguimiento
+   del cliente (ver mapa.js). Leaflet trae su propio CSS desde cdnjs.
+   ===================================================================== */
+.mapa {
+    width: 100%;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    overflow: hidden;
+    background: var(--superficie);
+    /* Leaflet usa z-index altos: que no tape el menu del celular. */
+    position: relative;
+    z-index: 0;
+}
+
+.mapa-grande {
+    height: min(65vh, 600px);
+    min-height: 320px;
+}
+
+.mapa-seguimiento {
+    height: 280px;
+    margin-top: 0.75rem;
+}
+
+/* =====================================================================
+   Entrega con foto del remito (ADR-033)
+   ===================================================================== */
+.formulario-entrega {
+    margin-top: 0.5rem;
+}
+
+.formulario-entrega .campo label,
+.formulario .campo .foto-remito {
+    display: block;
+}
+
+.foto-remito {
+    width: 100%;
+    max-width: 28rem;
+    margin-top: 0.35rem;
+    padding: 0.6rem;
+    min-height: 44px;
+    border: 1px dashed var(--borde);
+    border-radius: var(--radio-chico);
+    background: var(--superficie);
+    color: inherit;
+    font: inherit;
+}
+
+.ubicacion-estado {
+    margin-bottom: 1rem;
 }

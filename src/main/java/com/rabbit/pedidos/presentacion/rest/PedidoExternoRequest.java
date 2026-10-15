@@ -55,6 +55,12 @@ public class PedidoExternoRequest {
     @Size(max = 8, message = "El código postal tiene 4 dígitos o es un CPA de 8 caracteres")
     public String codigoPostalEntrega;
 
+    // Solo PUNTO_PICKING, opcional: kilos totales del pedido. Con stock
+    // consignado lo calcula Rabbit con el peso de los ítems.
+    @DecimalMin(value = "0.001", message = "El peso del pedido debe ser mayor a cero")
+    @Digits(integer = 7, fraction = 3, message = "El peso admite hasta 7 enteros y 3 decimales")
+    public BigDecimal pesoKg;
+
     public static class Linea {
         // STOCK_CONSIGNADO: el ítem consignado en Rabbit.
         public Long idItem;
@@ -75,6 +81,7 @@ public class PedidoExternoRequest {
         datos.medioPago = medioPago;
         datos.direccionEntrega = direccionEntrega;
         datos.codigoPostalEntrega = codigoPostalEntrega;
+        datos.pesoKg = pesoKg;
         for (Linea linea : lineas) {
             DatosLineaPedidoDTO dato = new DatosLineaPedidoDTO();
             dato.idItem = linea.idItem;

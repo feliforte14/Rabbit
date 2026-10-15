@@ -11,6 +11,10 @@ import org.junit.jupiter.api.Test;
 
 class HuellaDePedidoTest {
 
+    // Huella del pedido de prueba calculada con el código anterior al peso
+    // (ADR-032): una clave de idempotencia de entonces tiene que seguir valiendo.
+    private static final String HUELLA_SIN_PESO = "e8fb328acbb123b0bc08642da62c6ea56cf698fe2d11e9fb94bbe3233a7d0f97";
+
     private static DatosPedidoExternoDTO pedido(String importe, String direccion, String cp) {
         DatosPedidoExternoDTO d = new DatosPedidoExternoDTO();
         d.origen = OrigenPedido.STOCK_CONSIGNADO;
@@ -45,6 +49,18 @@ class HuellaDePedidoTest {
         DatosPedidoExternoDTO otraCantidad = pedido("1500", "Av. Corrientes 1234", "1043");
         otraCantidad.lineas.get(0).cantidad = 3;
         assertNotEquals(base, huella(otraCantidad));
+    }
+
+    @Test
+    void sinPesoLaHuellaEsLaDeAntesYConPesoCambia() {
+        DatosPedidoExternoDTO sinPeso = pedido("1500", "Av. Corrientes 1234", "1043");
+        DatosPedidoExternoDTO conPeso = pedido("1500", "Av. Corrientes 1234", "1043");
+        conPeso.pesoKg = new BigDecimal("12.5");
+        DatosPedidoExternoDTO mismoPeso = pedido("1500", "Av. Corrientes 1234", "1043");
+        mismoPeso.pesoKg = new BigDecimal("12.500");
+        assertEquals(HUELLA_SIN_PESO, huella(sinPeso));
+        assertNotEquals(huella(sinPeso), huella(conPeso));
+        assertEquals(huella(conPeso), huella(mismoPeso));
     }
 
     @Test

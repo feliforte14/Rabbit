@@ -20,8 +20,12 @@ public interface IRuteo {
     /** Tablero del personal de Rabbit: pedidos CONFIRMADO o EN_CAMINO con su hoja de ruta. */
     List<HojaDeRutaDTO> listarEntregasEnCurso();
 
-    /** La entrega que tiene a cargo el repartidor que llama, o null si no tiene ninguna. */
-    HojaDeRutaDTO entregaActualDelRepartidor();
+    /**
+     * Las entregas que tiene a cargo el repartidor que llama (CONFIRMADO o
+     * EN_CAMINO), en el orden en que se le asignaron. Con capacidad en el
+     * vehículo pueden ser varias (ADR-032); vacía si no tiene ninguna.
+     */
+    List<HojaDeRutaDTO> entregasEnCursoDelRepartidor();
 
     /** Entregas terminadas (ENTREGADO o CANCELADO) del repartidor que llama. */
     List<HojaDeRutaDTO> historialDelRepartidor();

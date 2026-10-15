@@ -15,6 +15,7 @@ package com.rabbit.pedidos.negocio;
 
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
+import com.rabbit.pedidos.dto.RemitoDTO;
 import com.rabbit.transportistas.dto.CotizacionDTO;
 import java.util.List;
 import jakarta.ejb.Local;
@@ -142,7 +143,9 @@ public interface IGestionPedidos {
 
     /**
      * El repartidor retiró el pedido: CONFIRMADO → EN_CAMINO. Desde acá ya
-     * no se puede cancelar (ver EstadoPedido).
+     * no se puede cancelar (ver EstadoPedido). Lo puede marcar el
+     * repartidor asignado o el personal (por ejemplo, al despachar desde el
+     * depósito): no mueve plata, así que no pide prueba (ADR-033).
      *
      * @param idPedido ID del pedido a despachar
      * @throws ValidacionException si el pedido no existe o no está CONFIRMADO
@@ -150,14 +153,39 @@ public interface IGestionPedidos {
     void despacharPedido(Long idPedido);
 
     /**
-     * El repartidor entregó el pedido: EN_CAMINO → ENTREGADO, y queda libre
-     * para otro pedido. Con pago CONTRA_ENTREGA, este cambio es el que
-     * dispara el cobro (vía el tópico de estados, suscriptor de Pagos).
+     * El repartidor entregó el pedido: EN_CAMINO → ENTREGADO, con la foto
+     * del remito firmado como prueba (ADR-033), y deja de llevarlo. Con pago
+     * CONTRA_ENTREGA, este cambio es el que dispara el cobro (vía el tópico
+     * de estados, suscriptor de Pagos).
+     *
+     * Solo el REPARTIDOR asignado, o un ADMINISTRADOR como contingencia
+     * (por ejemplo, el repartidor se quedó sin batería): un OPERADOR no.
      *
      * @param idPedido ID del pedido entregado
-     * @throws ValidacionException si el pedido no existe o no está EN_CAMINO
+     * @param imagen foto del remito: JPEG, PNG o WEBP, hasta 5 MB
+     * @throws ValidacionException si el pedido no existe, no está EN_CAMINO,
+     *         no es del repartidor, o falta la foto o no es una imagen válida
      */
-    void registrarEntrega(Long idPedido);
+    void registrarEntrega(Long idPedido, byte[] imagen);
+
+    /**
+     * ENTREGADO informado por el transportista externo de un pedido
+     * derivado (ver ActualizacionDePedidosPorEnvio): la prueba de entrega
+     * es la del transportista, no hay remito de Rabbit. Solo para pedidos
+     * sin repartidor propio.
+     *
+     * @throws ValidacionException si el pedido tiene repartidor de Rabbit o no está EN_CAMINO
+     */
+    void registrarEntregaDeTransportista(Long idPedido);
+
+    /**
+     * La foto del remito de un pedido. El personal ve cualquiera; un
+     * COMERCIO, las de sus pedidos; un REPARTIDOR, las de los suyos.
+     *
+     * @throws PedidoNoEncontradoException si no existe, no tiene remito o
+     *         quien llama no lo puede ver (no se distingue: no revela nada)
+     */
+    RemitoDTO obtenerRemito(Long idPedido);
 
     /**
      * Cancela el pedido y DEVUELVE el stock que había comprometido: por

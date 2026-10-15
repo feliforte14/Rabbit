@@ -39,6 +39,11 @@ public class RepartidorBean implements Serializable {
     private Long idRepartidorACambiar;
     private Long idZonaNueva;
 
+    // Formulario "Capacidad del vehículo" (ADR-032).
+    private Long idRepartidorCapacidad;
+    private java.math.BigDecimal capacidadKgNueva;
+    private Integer capacidadBultosNueva;
+
     @PostConstruct
     public void cargar() {
         repartidores = service.listarTodos();
@@ -66,6 +71,48 @@ public class RepartidorBean implements Serializable {
         }
     }
 
+    public void cambiarCapacidad() {
+        try {
+            service.actualizarCapacidad(idRepartidorCapacidad, capacidadKgNueva, capacidadBultosNueva);
+            Mensajes.info(capacidadKgNueva == null && capacidadBultosNueva == null
+                    ? "Sin capacidad cargada: va a llevar un pedido a la vez"
+                    : "Capacidad actualizada");
+            idRepartidorCapacidad = null;
+            capacidadKgNueva = null;
+            capacidadBultosNueva = null;
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        }
+    }
+
+    // "120 kg · 40 bultos", o "Un pedido a la vez" si no tiene capacidad cargada.
+    public String capacidad(RepartidorDTO r) {
+        if (!r.isConCapacidad()) {
+            return "Un pedido a la vez";
+        }
+        StringBuilder texto = new StringBuilder();
+        if (r.getCapacidadKg() != null) {
+            texto.append(r.getCapacidadKg().stripTrailingZeros().toPlainString()).append(" kg");
+        }
+        if (r.getCapacidadBultos() != null) {
+            texto.append(texto.length() > 0 ? " · " : "").append(r.getCapacidadBultos()).append(" bultos");
+        }
+        return texto.toString();
+    }
+
+    // Lo que lleva ahora: "2 pedidos (35 kg, 12 bultos)".
+    public String carga(RepartidorDTO r) {
+        int pedidos = r.getPedidosEnCurso();
+        if (pedidos == 0) {
+            return "—";
+        }
+        return pedidos + (pedidos == 1 ? " pedido" : " pedidos") + " ("
+                + (r.getCargaKg().signum() > 0 ? r.getCargaKg().stripTrailingZeros().toPlainString() + " kg, " : "")
+                + r.getCargaBultos() + " bultos): "
+                + r.getPedidosEnCursoTexto();
+    }
+
     public void registrar() {
         try {
             service.registrarRepartidor(nuevoRepartidor);
@@ -83,6 +130,12 @@ public class RepartidorBean implements Serializable {
     public void setIdRepartidorACambiar(Long idRepartidorACambiar) { this.idRepartidorACambiar = idRepartidorACambiar; }
     public Long getIdZonaNueva() { return idZonaNueva; }
     public void setIdZonaNueva(Long idZonaNueva) { this.idZonaNueva = idZonaNueva; }
+    public Long getIdRepartidorCapacidad() { return idRepartidorCapacidad; }
+    public void setIdRepartidorCapacidad(Long idRepartidorCapacidad) { this.idRepartidorCapacidad = idRepartidorCapacidad; }
+    public java.math.BigDecimal getCapacidadKgNueva() { return capacidadKgNueva; }
+    public void setCapacidadKgNueva(java.math.BigDecimal capacidadKgNueva) { this.capacidadKgNueva = capacidadKgNueva; }
+    public Integer getCapacidadBultosNueva() { return capacidadBultosNueva; }
+    public void setCapacidadBultosNueva(Integer capacidadBultosNueva) { this.capacidadBultosNueva = capacidadBultosNueva; }
     public DatosRepartidorDTO getNuevoRepartidor() { return nuevoRepartidor; }
     public void setNuevoRepartidor(DatosRepartidorDTO nuevoRepartidor) { this.nuevoRepartidor = nuevoRepartidor; }
 }

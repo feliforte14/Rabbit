@@ -14,6 +14,7 @@ package com.rabbit.inventario.datos.model;
  * sale del depósito al confirmar (baja cantidadDisponible).
  */
 
+import java.math.BigDecimal;
 import jakarta.persistence.*;
 
 @Entity
@@ -27,6 +28,12 @@ public class ItemInventario {
     private String producto;
     private int cantidadDisponible;
     private int cantidadReservada;
+
+    // Peso de UNA unidad, en kilos. Con él se calcula el peso de cada
+    // pedido de stock consignado, que limita cuánto lleva un repartidor
+    // (ADR-032). Null en los ítems cargados antes de este cambio.
+    @Column(precision = 8, scale = 3)
+    private BigDecimal pesoKg;
 
     // Comercio dueño de esta mercadería consignada. El depósito es de
     // Rabbit (ver Deposito), pero lo que hay adentro sigue siendo del
@@ -79,6 +86,8 @@ public class ItemInventario {
     public void setCantidadDisponible(int cantidadDisponible) { this.cantidadDisponible = cantidadDisponible; }
     public int getCantidadReservada() { return cantidadReservada; }
     public void setCantidadReservada(int cantidadReservada) { this.cantidadReservada = cantidadReservada; }
+    public BigDecimal getPesoKg() { return pesoKg; }
+    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
     /** Lo administra Hibernate; no tiene setter a proposito. */
