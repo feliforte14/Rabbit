@@ -39,7 +39,8 @@ reseteala vos mismo — es una cuenta de prueba, no de un usuario real:
 ```
 El resto de las cuentas (operador, comercio, repartidor, ERP) se crean
 desde la propia app en los pasos 1b y 2.4/2.5 — no hace falta `add-user.sh`
-para esas.
+para esas, y como quedan en la base compartida, entran también en el
+WildFly de los demás (ADR-031).
 
 **Cuentas ERP viejas:** las creadas a mano con `add-user.sh -g ERP` (por
 ejemplo `claude-cb-erp`) no tienen comercio: la API les responde `403`
@@ -140,8 +141,8 @@ excepción cruda `EJBAccessException` ni una pantalla de error genérica.
 
 **Por qué una cuenta nueva y no reusar una vieja sin asociar:** una cuenta
 cuyo comercio o repartidor se borró queda "sin asociar" (la app no permite
-reasociarla). Dar de alta desde acá crea la cuenta en el realm de WildFly
-*y* la asociación en la base al mismo tiempo — sin eso, cualquier pantalla
+reasociarla). Dar de alta desde acá crea la cuenta (con su contraseña) y
+la asociación en la base al mismo tiempo — sin eso, cualquier pantalla
 del comercio o repartidor muestra "cuenta no asociada" (ver sección 8).
 
 ### 2.5 Cuenta del ERP (para la API REST)

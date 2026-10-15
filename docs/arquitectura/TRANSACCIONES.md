@@ -88,22 +88,25 @@ Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
 | `registrarEntrega` | Estado ENTREGADO + libera al repartidor. El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
 | `cancelarPedido` (desde CONFIRMADO) | Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si era PREPAGO, después del commit se pide la reversa al banco. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada |
 
-## Flujo 5: alta de usuario, en la base y en el realm (implementado)
+## Flujo 5: alta de usuario (implementado)
 
-`UsuarioService.registrarUsuario`, `REQUIRED`. El usuario vive en dos
-lugares: la tabla `usuarios` (dentro de la transacción) y los archivos del
-realm de WildFly (fuera de ella: un archivo no participa de JTA).
+`UsuarioService.registrarUsuario`, `REQUIRED`. Desde ADR-031 la cuenta
+vive solo en la tabla `usuarios` (perfil y hash bcrypt de la contraseña),
+que es lo que lee WildFly al loguear: todo queda dentro de una
+transacción.
 
 | Paso | Si falla… |
 |---|---|
 | 1. Validar username, contraseña y a quién representa la cuenta | No cambia nada |
-| 2. Guardar la fila en `usuarios` | Rollback |
-| 3. Escribir los dos archivos del realm (`ApplicationRealmSync`) | Si falla la escritura, la excepción deshace también el paso 2. Los dos archivos se reemplazan como una unidad: si falla el segundo, el primero vuelve a su contenido original |
-| 4. Commit | Si la transacción se deshace después de escribir el realm, una `Synchronization` (`afterCompletion`) quita al usuario del realm: compensación, igual que la reversa del banco |
+| 2. Guardar la fila en `usuarios`, con el hash | Rollback: la cuenta no existe en ningún lado |
 
-`darDeBaja` hace el camino inverso sin compensación: si se deshace después
-de quitar al usuario del realm, la cuenta queda sin poder entrar aunque
-siga activa en la tabla. Es el lado seguro (menos acceso, no más).
+Antes de ADR-031 la contraseña iba a los archivos del realm de WildFly,
+fuera de la transacción, y hacía falta una `Synchronization` que la
+quitara si la transacción se deshacía. Ya no: `darDeBaja`,
+`reactivarUsuario` y `restablecerClave` también son una sola escritura en
+la base. La baja además borra la línea vieja de los archivos de esa
+máquina, si la había; si eso falla, la transacción se deshace y la cuenta
+sigue activa.
 
 `eliminarComercio` también es una sola transacción: el evento
 `EliminacionDeComercio` corre adentro (observers sincrónicos) y, si algún

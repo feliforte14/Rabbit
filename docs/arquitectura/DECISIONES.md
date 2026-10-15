@@ -498,7 +498,9 @@ Propuesta o Reemplazada.
 
 ## ADR-023: Las contraseñas, solo en el realm; límite de intentos en el login
 
-- **Estado:** Aceptada. Reemplaza el SHA-256 sin salt de la tabla `usuarios`.
+- **Estado:** Aceptada. Reemplaza el SHA-256 sin salt de la tabla
+  `usuarios`. Desde ADR-031, las contraseñas vuelven a la base (con bcrypt
+  y usadas por el login); el límite de intentos sigue igual.
 - **Contexto:** la tabla `usuarios` guardaba un SHA-256 sin salt de cada
   contraseña, pero quien autentica es el ApplicationRealm de WildFly
   (`request.login`): ese hash no se usaba para nada. Tampoco había freno a
@@ -700,3 +702,55 @@ Propuesta o Reemplazada.
     configuración genérica; quedan en `main`.
 - **Consecuencias:** para mostrar la heterogeneidad hay que cambiar de
   rama y redesplegar. La rama hay que mantenerla al día con `main`.
+
+## ADR-031: Las cuentas, en la base compartida (realm JDBC con bcrypt)
+
+- **Estado:** Aceptada (15/10/2026). Reemplaza la parte de ADR-023 que
+  dejaba las contraseñas solo en el realm de archivos.
+- **Contexto:** cada integrante levanta su propio WildFly contra la misma
+  base de Supabase. Las contraseñas vivían en los archivos de add-user.sh
+  de cada WildFly, así que una cuenta creada desde la app de una máquina
+  aparecía en la base de todos pero solo entraba en esa máquina. Para
+  probar entre todos había que repetir cada cuenta con `add-user.sh` en
+  cada WildFly.
+- **Decisión:**
+  - La tabla `usuarios` guarda el hash bcrypt de la contraseña
+    (`hash_clave`, costo 10, generado con jBCrypt; clase `Claves`).
+  - WildFly valida el login con un `jdbc-realm` de Elytron
+    (`RabbitRealmBase`) que lee esa tabla por el mismo `RabbitDS`. Una
+    consulta trae el hash solo de cuentas activas; otra trae el rol. Una
+    cuenta dada de baja devuelve rol sin contraseña: existe, así que no
+    se sigue buscando, y no puede entrar.
+  - Un `distributed-realm` (`RabbitRealmCompartido`) busca primero en la
+    base y, si la cuenta no está, en los archivos de add-user.sh. Así
+    siguen entrando el administrador inicial de cada instalación y las
+    cuentas viejas mientras se migran.
+  - `ApplicationDomain` (el dominio que ya usaba Rabbit) pasa a usar ese
+    realm: la app no cambia su configuración de seguridad (`web.xml`,
+    `@RolesAllowed`).
+  - La configuración la deja `scripts/configurar-realm-compartido.cli`,
+    que cada integrante corre una vez. No lleva contraseñas.
+  - La pantalla Usuarios suma "Restablecer contraseña": pasa a la base las
+    cuentas viejas y sirve para quien olvidó la suya.
+- **Alternativas descartadas:**
+  - *Copiar los archivos del realm entre máquinas:* hay que repetirlo con
+    cada cuenta, y subirlos al repositorio (público) expone los hashes.
+  - *Que Rabbit escriba los archivos del realm desde la base al
+    desplegar:* casi el mismo trabajo, y una cuenta nueva no llega a las
+    otras máquinas hasta su próximo despliegue.
+  - *Un dominio de seguridad propio para Rabbit (`jboss-web.xml`,
+    `jboss-ejb3.xml`):* más archivos para el mismo resultado; si alguien
+    no corrió el script, el despliegue fallaría en vez de seguir
+    funcionando con las cuentas locales.
+  - *PBKDF2 (está en el JDK, sin dependencia nueva):* Elytron lo lee solo
+    como SCRAM, con tres columnas (hash, sal, iteraciones); bcrypt entra
+    en una sola y es el formato más conocido.
+- **Consecuencias:** una cuenta creada, dada de baja o con contraseña
+  nueva vale en el WildFly de todos al mismo tiempo. Las altas ya no
+  escriben archivos fuera de la transacción, así que desaparece la
+  compensación del Flujo 5 de TRANSACCIONES.md. Si la base no responde,
+  nadie con cuenta en la base puede entrar (tampoco funcionaría el resto
+  del sistema). El formato de los archivos (MD5) no se puede pasar a
+  bcrypt: las cuentas viejas necesitan una contraseña nueva una vez. Una
+  cuenta de la base con el mismo nombre que una de add-user.sh de alguna
+  máquina le gana a esa.
