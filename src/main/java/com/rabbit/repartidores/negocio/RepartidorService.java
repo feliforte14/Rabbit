@@ -32,6 +32,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -41,7 +42,8 @@ import java.util.stream.Collectors;
 
 // SEGURIDAD: @PermitAll de clase porque asignar y liberar corren dentro de
 // transacciones de Pedidos que también dispara un REPARTIDOR; dar de alta
-// repartidores es solo del personal de Rabbit.
+// repartidores es solo del personal de Rabbit, y eliminarlos, solo del
+// administrador.
 @Stateless
 @DeclareRoles({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
 @PermitAll
@@ -63,6 +65,14 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
     // Quién es el repartidor que llama (registrarUbicacion).
     @Inject
     private IContextoUsuario contextoUsuario;
+
+    // Antes de eliminar, pregunta si algo todavía necesita al repartidor y
+    // después avisa que se elimina (ver eliminarRepartidor).
+    @Inject
+    private Event<EliminacionDeRepartidor> eliminacionDeRepartidor;
+
+    @Inject
+    private Event<RepartidorEliminado> repartidorEliminado;
 
     // ===============================================================
     // IAsignacionRepartidores
@@ -254,6 +264,32 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
         if (capacidadBultos != null && (capacidadBultos <= 0 || capacidadBultos > CAPACIDAD_MAXIMA_BULTOS)) {
             throw new ValidacionException("La capacidad en bultos tiene que ser de 1 a " + CAPACIDAD_MAXIMA_BULTOS);
         }
+    }
+
+    // Mismo esquema que ComercioService.eliminarComercio: cada componente
+    // puede impedirlo y, si nadie lo impide, suelta lo suyo antes del
+    // borrado, en la misma transacción.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
+    public void eliminarRepartidor(Long idRepartidor) {
+        Repartidor repartidor = idRepartidor != null ? repository.buscarParaActualizar(idRepartidor) : null;
+        if (repartidor == null) {
+            throw new ValidacionException("Repartidor no encontrado: " + idRepartidor);
+        }
+        if (repartidor.getEstado() == EstadoRepartidor.OCUPADO || !repository.listarCargasDe(idRepartidor).isEmpty()) {
+            throw new ValidacionException("No se puede eliminar a " + repartidor.getNombre()
+                    + ": tiene entregas en curso. Esperá a que las termine.");
+        }
+        EliminacionDeRepartidor evento = new EliminacionDeRepartidor(idRepartidor);
+        eliminacionDeRepartidor.fire(evento);
+        if (!evento.getImpedimentos().isEmpty()) {
+            throw new ValidacionException("No se puede eliminar a " + repartidor.getNombre() + ": tiene "
+                    + String.join(", ", evento.getImpedimentos()) + ".");
+        }
+        repartidorEliminado.fire(new RepartidorEliminado(idRepartidor));
+        repository.eliminar(repartidor);
+        LOG.info("[Repartidores] Repartidor " + idRepartidor + " eliminado");
     }
 
     @Override

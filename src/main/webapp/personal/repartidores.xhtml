@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    Listado y alta de repartidores. Se bindea a repartidorBean
+    Listado, alta y eliminacion (solo administrador) de repartidores. Se bindea a repartidorBean
     (RepartidorBean.java). La asignacion a pedidos no se hace desde aca:
     la hace PedidoService al confirmar un pedido (ver
     IAsignacionRepartidores).
@@ -57,6 +57,12 @@
                 <h:column>
                     <f:facet name="header">Lleva</f:facet>
                     #{repartidorBean.carga(r)}
+                </h:column>
+                <h:column styleClass="acciones" rendered="#{sesionBean.admin}">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Eliminar" styleClass="btn btn-danger"
+                                     action="#{repartidorBean.eliminar(r.id)}"
+                                     onclick="return confirm('¿Eliminar definitivamente a #{r.nombre}? Esta acción no se puede deshacer.');" />
                 </h:column>
             </h:dataTable>
         </h:form>

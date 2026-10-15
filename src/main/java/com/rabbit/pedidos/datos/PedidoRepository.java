@@ -145,6 +145,22 @@ public class PedidoRepository {
     // Cuántos pedidos y pedidos del ERP referencian a un comercio (para no
     // dejarlos huérfanos al eliminarlo, ver EliminacionDeComercio).
     // Pedidos del comercio que no están cancelados: en curso o entregados.
+    // Pedidos que el repartidor todavía tiene que llevar (ver
+    // EliminacionDeRepartidor).
+    public long contarPedidosEnCursoDeRepartidor(Long idRepartidor) {
+        return em.createQuery("SELECT COUNT(p) FROM Pedido p WHERE p.idRepartidor = :id AND p.estado IN :enCurso", Long.class)
+                .setParameter("id", idRepartidor)
+                .setParameter("enCurso", List.of(EstadoPedido.CONFIRMADO, EstadoPedido.EN_CAMINO))
+                .getSingleResult();
+    }
+
+    /** Les quita el repartidor a sus pedidos (al eliminarlo). Devuelve cuántos cambió. */
+    public int desvincularRepartidor(Long idRepartidor) {
+        return em.createQuery("UPDATE Pedido p SET p.idRepartidor = NULL WHERE p.idRepartidor = :id")
+                .setParameter("id", idRepartidor)
+                .executeUpdate();
+    }
+
     public long contarPedidosNoCanceladosDeComercio(Long idComercio) {
         return em.createQuery("SELECT COUNT(p) FROM Pedido p WHERE p.idComercio = :id AND p.estado <> :cancelado", Long.class)
                 .setParameter("id", idComercio)

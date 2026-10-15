@@ -78,4 +78,9 @@ public class RepartidorRepository {
     public Repartidor actualizar(Repartidor repartidor) {
         return em.merge(repartidor);
     }
+
+    /** Borra el repartidor de la BD (baja física). */
+    public void eliminar(Repartidor repartidor) {
+        em.remove(em.contains(repartidor) ? repartidor : em.merge(repartidor));
+    }
 }
