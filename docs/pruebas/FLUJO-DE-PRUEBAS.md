@@ -443,6 +443,39 @@ Los pasos de estas demos están en
 
 ---
 
+## 10. Mejoras del tablero: peso, capacidad, remito, mapa y liquidación
+
+Probado de punta a punta el 15/10/2026 (ADR-031 a 035). Con pedidos
+`[TEST]`, así la opción A de `scripts/Rabbit-limpieza-datos-de-prueba.sql`
+los borra después.
+
+1. **Peso:** en Depósitos y stock → un depósito, "Corregir peso" de un
+   producto (por ejemplo 1 kg). Un pedido de stock consignado muestra su
+   peso en Pedidos ("· N kg"). Por la API, un pedido de punto de picking
+   con `"pesoKg": 30` guarda 30 kg; con stock consignado y `pesoKg`
+   responde 422.
+2. **Capacidad:** en Repartidores → "Capacidad del vehículo": 60 kg y 20
+   bultos. Confirmar dos pedidos de 30 y 25 kg: los dos quedan con el
+   mismo repartidor ("Lleva: 2 pedidos (55 kg, 5 bultos)"). Uno de 10 kg
+   más: "No hay repartidores con lugar…".
+3. **Remito:** como el repartidor, en Mis entregas: "Ya retiré el pedido"
+   y después "Registrar una entrega". Sin foto → "Sacale una foto al
+   remito…"; con un archivo que no es imagen → "tiene que ser una imagen
+   JPG, PNG o WEBP"; con la foto → entregado. "Ver remito" aparece en
+   Pedidos (personal), Mis pedidos (comercio) y el historial del
+   repartidor. Un OPERADOR ya no puede marcar entregado; un ADMINISTRADOR
+   sí, con foto, en "Registrar una entrega" de Pedidos.
+4. **Mapa:** con el pedido EN_CAMINO y Mis entregas abierta en el celular
+   (permitir la ubicación), el personal ve al repartidor en "Mapa de
+   repartidores", el cliente en `seguimiento.xhtml?codigo=RB-...` y la API
+   `GET /api/v1/seguimiento/{codigo}` trae `ubicacionRepartidor`.
+5. **Liquidación:** en "Liquidaciones mensuales", el mes en curso es una
+   vista previa (abono + envíos + kilos). Un mes cerrado: "Liquidar y
+   cobrar este mes" → COBRADA con código de autorización del banco. El
+   comercio la ve en "Mis liquidaciones". (Para no dejar una liquidación
+   de prueba en la base compartida, borrarla después:
+   `DELETE FROM liquidaciones WHERE periodo = 'AAAA-MM'`.)
+
 ## Checklist rápido
 
 | Ítem | Resultado esperado |

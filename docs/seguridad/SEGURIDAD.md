@@ -62,7 +62,11 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | `ComercioService.eliminarComercio` | Borra físicamente el comercio y sus puntos de picking en cascada, y su historial cancelado (pedidos, avisos, cobros anulados, envíos; ADR-028) |
 | `UsuarioService.registrarUsuario` | Crea cuentas con acceso al sistema. Si fuera público, cualquiera se daría un `OPERADOR` |
 | Alta y cambios de comercios, depósitos, stock y repartidores; `confirmarPedido` y `cancelarPedido` | Solo el personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) |
-| `despacharPedido`, `registrarEntrega` | Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido |
+| `despacharPedido` (EN_CAMINO) | Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido |
+| `registrarEntrega` (ENTREGADO) | Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR`, y siempre con la foto del remito (ADR-033): dispara el cobro contra entrega. La foto se valida por sus primeros bytes (JPEG, PNG o WEBP) y hasta 5 MB |
+| `obtenerRemito` (`/remito?pedido=ID`) | El personal, el `COMERCIO` dueño del pedido y su `REPARTIDOR`. Cualquier otro caso responde 404, sin distinguir si existe |
+| `registrarUbicacion` | Solo el `REPARTIDOR`, para sí mismo y mientras tiene entregas en curso (ADR-035). El seguimiento público muestra la ubicación solo si el repartidor lleva ESE pedido |
+| `liquidarMes`, `reintentarCobro` | Solo `ADMINISTRADOR` (o el timer mensual con `@RunAs`): cobran por el banco (ADR-034) |
 | `registrarPedidoExterno` | Personal de Rabbit (simulación) o el `ERP`, que solo carga pedidos de su comercio (el comercio sale de su cuenta, no del cuerpo del pedido) |
 | `cancelarPedidoExterno` | Solo el `ERP`, y solo pedidos de su comercio que todavía estén pendientes |
 | Puntos de picking (alta, baja, reactivación) | Personal de Rabbit o el `COMERCIO` dueño |
@@ -96,7 +100,8 @@ repartidor del cliente:
 
 - las consultas del portal del comercio filtran por su comercio;
 - `despacharPedido` y `registrarEntrega` rechazan a un `REPARTIDOR` que no
-  tiene asignado ese pedido;
+  tiene asignado ese pedido, y el remito solo lo ve el comercio dueño o
+  ese repartidor;
 - `ComercioService` rechaza que un `COMERCIO` toque puntos de picking de
   otro comercio (y `comercio/puntos-picking.xhtml` ignora el `idComercio` de la URL
   para un comercio).

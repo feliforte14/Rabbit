@@ -13,8 +13,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   vive en el ERP del comercio, y Rabbit solo conoce lo que tiene que
   retirar y entregar.
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
-  comercios, y reservas de stock con vencimiento (5 minutos, extensibles):
-  si nadie las confirma ni las libera, se liberan solas.
+  comercios (con el peso de cada unidad), y reservas de stock con
+  vencimiento (5 minutos, extensibles): si nadie las confirma ni las
+  libera, se liberan solas.
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio por una
   API REST versionada (`/api/v1`, alta idempotente, consulta y
   cancelación), su sincronización automática con stock y su seguimiento
@@ -23,9 +24,13 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 - **Pagos y cobranzas:** un pedido prepago se cobra en el banco legado al
   confirmarlo (con reversa si la confirmación falla después, y un circuit
   breaker si el banco no responde); uno contra entrega se acredita cuando
-  se entrega.
-- **Repartidores:** padrón de repartidores propios con su zona; al
-  confirmar un pedido se le asigna uno libre.
+  se entrega. Además, cada mes se le liquida y cobra a cada comercio el
+  servicio de Rabbit: abono + cargo por envío + cargo por kilo (ADR-034).
+- **Repartidores:** padrón de repartidores propios con su zona y la
+  capacidad de su vehículo (kilos y bultos): al confirmar un pedido se le
+  asigna al primero al que le entra, que puede llevar varios a la vez
+  (ADR-032). Mientras reparte, su celular comparte la ubicación: el
+  personal lo ve en un mapa y el cliente, en el seguimiento (ADR-035).
 - **Transportistas:** un pedido se puede derivar a una empresa de envíos
   externa (integrada por API REST o por SOAP legado), después de comparar
   sus cotizaciones; Rabbit sigue el estado del envío (consultándolo cada 15 s)
@@ -39,7 +44,8 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
   (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
   pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
-  ruta y marca retiro y entrega desde el celular; un `ERP` (el sistema del
+  ruta y marca retiro y entrega (con la foto del remito firmado,
+  ADR-033) desde el celular; un `ERP` (el sistema del
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
   Todo por HTTPS, con límite de intentos en el login.
 - **Notificaciones:** cada cambio de estado le llega al comercio en su
@@ -87,7 +93,8 @@ src/main/webapp/
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
 ├── resources/rabbit/1_12/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
-│                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas)
+│                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas),
+│                               remito.js (achica la foto del remito), ubicacion.js y mapa.js (mapas)
 └── WEB-INF/
     ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)
     ├── web.xml, beans.xml, jboss-ejb3.xml
@@ -398,7 +405,18 @@ archivos del realm de esa máquina y crearlo desde la app.
 Contrato en [docs/integraciones/openapi.yaml](docs/integraciones/openapi.yaml) y ejemplos en
 [MENSAJERIA-SINCRONICA.md](docs/integraciones/MENSAJERIA-SINCRONICA.md).
 
-### 7. (Opcional) Avisos por mail
+### 7. (Opcional) Tarifa de la liquidación mensual
+
+Por defecto: $15.000 de abono, $1.200 por pedido entregado y $80 por kilo
+(ADR-034). Para cambiarla, sin redesplegar:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.abono:add(value=20000)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-envio:add(value=1500)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-kilo:add(value=100)"
+```
+
+### 8. (Opcional) Avisos por mail
 
 Los avisos a los comercios siempre quedan en su portal. Para que además
 salgan por mail (al email que cargó el comercio), configurar un servidor
@@ -419,13 +437,14 @@ mandar nada.
 ## Tests
 
 ```bash
-mvn test                       # 27 tests unitarios (JUnit 5), sin servidor
+mvn test                       # 43 tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos
 postales y de seguimiento, huella de idempotencia, límite de intentos de
-login, reglas del transportista simulado y validación del cuerpo de la
-API.
+login, reglas del transportista simulado, validación del cuerpo de la
+API, hash de contraseñas, capacidad de los repartidores, validación de la
+foto del remito y tarifa mensual.
 
 10 tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:

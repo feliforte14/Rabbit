@@ -181,6 +181,25 @@ public class EtiquetasBean {
         }
     }
 
+    public String estadoLiquidacion(Object estado) {
+        switch (texto(estado)) {
+            case "PENDIENTE": return "Cobro pendiente";
+            case "COBRADA": return "Cobrada";
+            case "RECHAZADA": return "Rechazada por el banco";
+            case "VISTA_PREVIA": return "Vista previa";
+            default: return "—";
+        }
+    }
+
+    public String claseEstadoLiquidacion(Object estado) {
+        switch (texto(estado)) {
+            case "PENDIENTE": return "badge badge-naranja";
+            case "COBRADA": return "badge badge-verde";
+            case "RECHAZADA": return "badge badge-rojo";
+            default: return "badge badge-gris";
+        }
+    }
+
     public String estadoRepartidor(Object estado) {
         switch (texto(estado)) {
             case "DISPONIBLE": return "Disponible";

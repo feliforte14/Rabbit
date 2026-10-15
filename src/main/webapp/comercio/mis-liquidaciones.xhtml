@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Portal del comercio: lo que Rabbit le cobro cada mes por el servicio
+    (ADR-034). Se bindea a misLiquidacionesBean (MisLiquidacionesBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirComercio}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Mis liquidaciones</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Mis liquidaciones</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <p class="ayuda">
+            Lo que Rabbit te cobra cada mes por el servicio:
+            <h:outputText value="#{misLiquidacionesBean.tarifa.abono()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText> de abono,
+            <h:outputText value="#{misLiquidacionesBean.tarifa.porEnvio()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText> por pedido entregado y
+            <h:outputText value="#{misLiquidacionesBean.tarifa.porKilo()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText> por kilo.
+            Se liquida a principio de cada mes por el mes anterior. Es aparte del cobro de cada pedido.
+        </p>
+
+        <h:dataTable value="#{misLiquidacionesBean.filas}" var="l"
+                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                     rendered="#{not empty misLiquidacionesBean.filas}">
+            <h:column>
+                <f:facet name="header">Mes</f:facet>
+                #{misLiquidacionesBean.nombreMes(l.periodo)}
+            </h:column>
+            <h:column>
+                <f:facet name="header">Entregas</f:facet>
+                #{l.cantidadEnvios}
+                <span class="dato-secundario"><h:outputText value="#{l.kilos}"><f:convertNumber maxFractionDigits="3" /></h:outputText> kg</span>
+            </h:column>
+            <h:column>
+                <f:facet name="header">Total</f:facet>
+                <b><h:outputText value="#{l.total}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
+            </h:column>
+            <h:column>
+                <f:facet name="header">Estado</f:facet>
+                <h:outputText value="#{etiquetas.estadoLiquidacion(l.estado)}"
+                              styleClass="#{etiquetas.claseEstadoLiquidacion(l.estado)}" />
+                <h:panelGroup rendered="#{not empty l.fechaCobro}">
+                    <span class="dato-secundario">Cobrada el #{l.fechaCobro}</span>
+                </h:panelGroup>
+            </h:column>
+        </h:dataTable>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty misLiquidacionesBean.filas}">
+            Todavía no tenés liquidaciones. La primera llega a principio del mes que viene.
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>

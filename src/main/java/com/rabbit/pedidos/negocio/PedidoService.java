@@ -97,6 +97,7 @@ import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import com.rabbit.pedidos.dto.RemitoDTO;
+import com.rabbit.pedidos.dto.ResumenEntregasDTO;
 
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
@@ -850,6 +851,15 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     public List<PedidoDTO> listarPedidosDeComercio(Long idComercio) {
         return repository.listarPedidosDeComercio(idComercio).stream()
                 .map(PedidoDTO::desde)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public List<ResumenEntregasDTO> resumenEntregas(LocalDateTime desde, LocalDateTime hasta) {
+        return repository.resumenEntregas(desde, hasta).stream()
+                .map(fila -> new ResumenEntregasDTO((Long) fila[0], ((Number) fila[1]).intValue(),
+                        fila[2] != null ? (BigDecimal) fila[2] : BigDecimal.ZERO))
                 .collect(Collectors.toList());
     }
 

@@ -96,27 +96,55 @@
                     </div>
                 </h:form>
 
-                <!-- Entregar exige la foto del remito firmado (ADR-033). -->
-                <h:form rendered="#{e.estado == 'EN_CAMINO'}" enctype="multipart/form-data" styleClass="formulario-entrega">
-                    <div class="campo">
-                        <label>Foto del remito firmado
-                            <h:inputFile value="#{misEntregasBean.fotoRemito}" styleClass="foto-remito"
-                                         pt:accept="image/*" pt:capture="environment" />
-                        </label>
-                        <p class="ayuda">Sacale una foto al remito con la firma de quien recibe. Es la prueba de la entrega.</p>
-                    </div>
-                    <div class="form-acciones">
-                        <h:outputLink value="#{e.urlMapa}" target="_blank" rel="noopener noreferrer"
-                                      styleClass="btn btn-secondary" rendered="#{not empty e.urlMapa}">
-                            Ver recorrido en el mapa
-                        </h:outputLink>
-                        <h:commandButton value="Entregué el pedido" styleClass="btn btn-primary"
-                                         action="#{misEntregasBean.entregar(e.idPedido)}"
-                                         onclick="return confirm('¿Confirmás que entregaste el pedido #{e.idPedido}?');" />
-                    </div>
-                </h:form>
+                <h:panelGroup layout="block" styleClass="form-acciones" rendered="#{e.estado == 'EN_CAMINO'}">
+                    <h:outputLink value="#{e.urlMapa}" target="_blank" rel="noopener noreferrer"
+                                  styleClass="btn btn-secondary" rendered="#{not empty e.urlMapa}">
+                        Ver recorrido en el mapa
+                    </h:outputLink>
+                    <a href="#registrar-entrega" class="btn btn-primary" data-entregar="#{e.idPedido}">Entregué este pedido</a>
+                </h:panelGroup>
             </div>
         </ui:repeat>
+
+        <!-- Entregar exige la foto del remito firmado (ADR-033). Un solo
+             formulario para todas: h:inputFile no funciona dentro de ui:repeat. -->
+        <h:panelGroup rendered="#{not empty misEntregasBean.enCamino}">
+            <h2 id="registrar-entrega">Registrar una entrega</h2>
+            <h:form id="formEntrega" enctype="multipart/form-data" styleClass="formulario">
+                <div class="campo">
+                    <h:outputLabel for="pedido" value="Pedido entregado" />
+                    <h:selectOneMenu id="pedido" value="#{misEntregasBean.idPedidoAEntregar}" required="true"
+                                     label="Pedido" requiredMessage="Elegí qué pedido entregaste">
+                        <f:selectItem itemLabel="— Elegí el pedido —" itemValue="#{null}" />
+                        <f:selectItems value="#{misEntregasBean.enCamino}" var="ec" itemValue="#{ec.idPedido}"
+                                       itemLabel="Pedido #{ec.idPedido} · #{ec.direccionEntrega}" />
+                    </h:selectOneMenu>
+                    <h:message for="pedido" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel for="foto" value="Foto del remito firmado" />
+                    <h:inputFile id="foto" value="#{misEntregasBean.fotoRemito}" styleClass="foto-remito"
+                                 pt:accept="image/*" pt:capture="environment" />
+                    <p class="ayuda">Sacale una foto al remito con la firma de quien recibe. Es la prueba de la entrega.</p>
+                </div>
+                <div class="form-acciones">
+                    <h:commandButton value="Registrar entrega" styleClass="btn btn-primary"
+                                     action="#{misEntregasBean.entregar}"
+                                     onclick="return confirm('¿Confirmás que entregaste el pedido?');" />
+                </div>
+            </h:form>
+            <script>
+                // "Entregué este pedido" en una tarjeta: elige ese pedido en el formulario.
+                document.querySelectorAll('[data-entregar]').forEach(function (enlace) {
+                    enlace.addEventListener('click', function () {
+                        var pedido = document.getElementById('formEntrega:pedido');
+                        if (pedido) {
+                            pedido.value = enlace.getAttribute('data-entregar');
+                        }
+                    });
+                });
+            </script>
+        </h:panelGroup>
 
         <h2>Historial</h2>
         <h:dataTable value="#{misEntregasBean.historial}" var="h"

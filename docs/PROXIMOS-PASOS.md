@@ -7,6 +7,20 @@ pensadas para que cada uno pueda tomar una sin pisar el trabajo de otro.
 Tachá o movelo a "Hecho" cuando lo termines (y avisá en el grupo, para que
 no lo tome otro en paralelo).
 
+## Hecho: mejoras del tablero (15/10/2026)
+
+Implementadas en la rama `feature/mejoras-trello` (sobre
+`feature/cuentas-compartidas`), probadas de punta a punta (ver la
+sección 10 de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
+
+- [x] Contraseñas centralizadas en la base (ADR-031).
+- [x] Peso de los bultos y límite por repartidor en kilos y bultos (ADR-032).
+- [x] Quién marca la entrega y foto del remito obligatoria (ADR-033).
+- [x] Liquidación mensual a comercios (ADR-034). **A definir por el
+      equipo:** los valores de la tarifa (hoy $15.000 + $1.200 por envío +
+      $80 por kilo, configurables).
+- [x] Ubicación del repartidor en vivo, mapa del personal y del cliente (ADR-035).
+
 ## 1. Revisar en el código
 
 ### Limitaciones ya documentadas (pendientes de resolver)

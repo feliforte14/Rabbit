@@ -103,7 +103,7 @@ sequenceDiagram
     participant T as topico.pedidos.estado
     participant Pag as SuscriptorPagos
     participant Not as SuscriptorNotificaciones
-    U->>PS: registrarEntrega(id)
+    U->>PS: registrarEntrega(id, foto del remito)
     PS->>PS: UPDATE estado = ENTREGADO
     PS-)Pub: evento EstadoPedidoCambiado
     Note over PS,Pub: commit, recién después corre el observer (AFTER_SUCCESS)
