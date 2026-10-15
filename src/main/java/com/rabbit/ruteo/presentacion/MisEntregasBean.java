@@ -50,7 +50,9 @@ public class MisEntregasBean implements Serializable {
     private List<HojaDeRutaDTO> entregas;
     private List<HojaDeRutaDTO> historial;
 
-    // Foto del remito del formulario que se envió (cada entrega tiene el suyo).
+    // Formulario "Registrar una entrega": uno solo para todas las entregas
+    // en camino (h:inputFile no funciona dentro de ui:repeat).
+    private Long idPedidoAEntregar;
     private transient Part fotoRemito;
 
     // Los manda ubicacion.js por ajax (ver compartirUbicacion).
@@ -76,7 +78,8 @@ public class MisEntregasBean implements Serializable {
     }
 
     // Lo entregó: EN_CAMINO → ENTREGADO, con la foto del remito firmado.
-    public void entregar(Long idPedido) {
+    public void entregar() {
+        Long idPedido = idPedidoAEntregar;
         byte[] foto;
         try {
             foto = ArchivosSubidos.leer(fotoRemito, TAMANO_MAXIMO_FOTO);
@@ -91,6 +94,12 @@ public class MisEntregasBean implements Serializable {
             return;
         }
         ejecutar(() -> gestion.registrarEntrega(idPedido, foto), "Entrega del pedido " + idPedido + " registrada");
+        idPedidoAEntregar = null;
+    }
+
+    /** Las que ya retiró: las que se pueden entregar. */
+    public List<HojaDeRutaDTO> getEnCamino() {
+        return entregas.stream().filter(e -> "EN_CAMINO".equals(e.getEstado())).collect(java.util.stream.Collectors.toList());
     }
 
     private void ejecutar(Runnable accion, String exito) {
@@ -126,6 +135,8 @@ public class MisEntregasBean implements Serializable {
 
     public List<HojaDeRutaDTO> getEntregas() { return entregas; }
     public List<HojaDeRutaDTO> getHistorial() { return historial; }
+    public Long getIdPedidoAEntregar() { return idPedidoAEntregar; }
+    public void setIdPedidoAEntregar(Long idPedidoAEntregar) { this.idPedidoAEntregar = idPedidoAEntregar; }
     public Part getFotoRemito() { return fotoRemito; }
     public void setFotoRemito(Part fotoRemito) { this.fotoRemito = fotoRemito; }
     public Double getLatitud() { return latitud; }

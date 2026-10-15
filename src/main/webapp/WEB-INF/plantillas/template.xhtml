@@ -77,6 +77,9 @@
                         styleClass="#{view.viewId == '/personal/depositos.xhtml' or view.viewId == '/personal/items.xhtml' or view.viewId == '/personal/reservas.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/personal/historial" value="Historial de reservas"
                         styleClass="#{view.viewId == '/personal/historial.xhtml' ? 'activo' : ''}" />
+                <p class="sidebar-seccion">Cobranza</p>
+                <h:link outcome="/personal/liquidaciones" value="Liquidaciones mensuales"
+                        styleClass="#{view.viewId == '/personal/liquidaciones.xhtml' ? 'activo' : ''}" />
                 <h:panelGroup rendered="#{sesionBean.admin}">
                     <p class="sidebar-seccion">Administración</p>
                     <h:link outcome="/personal/usuarios" value="Usuarios"
@@ -91,6 +94,8 @@
                         styleClass="#{view.viewId == '/comercio/mi-stock.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/comercio/puntos-picking" value="Mis puntos de picking"
                         styleClass="#{view.viewId == '/comercio/puntos-picking.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/comercio/mis-liquidaciones" value="Mis liquidaciones"
+                        styleClass="#{view.viewId == '/comercio/mis-liquidaciones.xhtml' ? 'activo' : ''}" />
             </h:panelGroup>
 
             <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.repartidor}">

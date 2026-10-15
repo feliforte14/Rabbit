@@ -85,7 +85,7 @@ Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
 
 | Operación | Qué hace, en la misma transacción |
 |---|---|
-| `registrarEntrega` | Estado ENTREGADO + libera al repartidor. El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
+| `registrarEntrega` | Guarda la foto del remito (ADR-033), estado ENTREGADO + le saca el pedido al repartidor (borra su `CargaAsignada`; si era el último, queda DISPONIBLE). El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
 | `cancelarPedido` (desde CONFIRMADO) | Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si era PREPAGO, después del commit se pide la reversa al banco. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada |
 
 ## Flujo 5: alta de usuario (implementado)
@@ -178,4 +178,18 @@ o expirar) la lee con `PESSIMISTIC_WRITE`, y cada escritura del item hace
 del método y traducirla a un mensaje ("otro usuario modificó el stock,
 volvé a intentar"). El barredor expira cada reserva vencida en su propia
 transacción: un choque sobre un item no deshace la pasada entera.
+
+## Flujo 6: liquidación mensual (implementado, ADR-034)
+
+`LiquidacionService.liquidarMes`, `NOT_SUPPORTED`: no abre una
+transacción propia y recorre los comercios activos. Por cada uno:
+
+| Paso | Transacción | Si falla… |
+|---|---|---|
+| 1. Calcular entregas y kilos del mes (Pedidos) | Sin transacción | No se crea nada |
+| 2. `CobroDeLiquidaciones.crear`: la liquidación, PENDIENTE | `REQUIRES_NEW` | Rollback de ese comercio; los demás siguen |
+| 3. `CobroDeLiquidaciones.cobrar`: banco (SOAP) y resultado | `REQUIRES_NEW`, con la fila bloqueada | El banco no se deshace: por eso la liquidación ya existe (paso 2) antes de llamarlo. Si no responde, queda PENDIENTE y el timer la reintenta |
+
+Correrlo dos veces no duplica: `crear` no hace nada si el comercio ya
+tiene la de ese mes (y hay una restricción única por comercio y período).
 

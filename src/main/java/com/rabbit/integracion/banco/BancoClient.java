@@ -62,13 +62,18 @@ public class BancoClient implements IBancoClient {
 
     @Override
     public ResultadoAutorizacion autorizar(Long idPedido, BigDecimal importe) {
+        return autorizarReferencia("PEDIDO-" + idPedido, importe);
+    }
+
+    @Override
+    public ResultadoAutorizacion autorizarReferencia(String referencia, BigDecimal importe) {
         long ticket = circuito.intentarLlamada();
         if (ticket == CircuitBreakerBanco.SIN_PERMISO) {
-            LOG.info("[Pagos][SOAP] Circuito abierto: no se llama al banco para el pedido " + idPedido);
+            LOG.info("[Pagos][SOAP] Circuito abierto: no se llama al banco para " + referencia);
             return ResultadoAutorizacion.noDisponible();
         }
         try {
-            String codigo = puerto().autorizarPago("PEDIDO-" + idPedido, importe);
+            String codigo = puerto().autorizarPago(referencia, importe);
             circuito.registrarExito(ticket);
             return ResultadoAutorizacion.aprobado(codigo);
         } catch (PagoRechazadoException e) {
@@ -77,7 +82,7 @@ public class BancoClient implements IBancoClient {
             return ResultadoAutorizacion.rechazado(e.getFaultInfo() != null ? e.getFaultInfo().getMotivo() : e.getMessage());
         } catch (WebServiceException | MalformedURLException e) {
             circuito.registrarFalla(ticket);
-            LOG.log(Level.WARNING, "[Pagos][SOAP] El banco no respondió al autorizar el pedido " + idPedido, e);
+            LOG.log(Level.WARNING, "[Pagos][SOAP] El banco no respondió al autorizar " + referencia, e);
             return ResultadoAutorizacion.noDisponible();
         }
     }

@@ -315,8 +315,9 @@ Propuesta o Reemplazada.
   - *Zona derivada de la localidad (texto libre):* las direcciones vienen
     escritas de mil formas; un rango numérico se valida y no es ambiguo.
   - *Viajes con varias paradas y orden óptimo del recorrido:* cambia el
-    modelo del repartidor (hoy lleva un pedido por viaje) y ordenar por
-    distancia necesita coordenadas. Queda fuera del alcance.
+    modelo del repartidor y ordenar por distancia necesita coordenadas.
+    Desde ADR-032 un repartidor con capacidad lleva varios pedidos; el
+    orden de las paradas sigue fuera del alcance.
   - *Despachar la zona en una sola transacción:* un pedido que falla (por
     ejemplo, el cobro) desharía los demás. Cada pedido va en su propia
     transacción y el resultado se informa pedido por pedido.
@@ -754,3 +755,158 @@ Propuesta o Reemplazada.
   bcrypt: las cuentas viejas necesitan una contraseña nueva una vez. Una
   cuenta de la base con el mismo nombre que una de add-user.sh de alguna
   máquina le gana a esa.
+
+## ADR-032: Peso de los bultos y capacidad del vehículo del repartidor
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero del equipo
+  ("límite de pedidos por repartidor" y "peso de los bultos").
+- **Contexto:** un repartidor llevaba un solo pedido a la vez, sin
+  importar si era un sobre o una heladera. Rabbit no conocía el peso de
+  nada.
+- **Decisión:**
+  - **Peso por unidad en el stock** (`ItemInventario.pesoKg`, obligatorio
+    en las altas, con "Corregir peso" para lo ya cargado). Un pedido de
+    stock consignado calcula su peso al sincronizarse: peso por unidad ×
+    cantidad. Si algún ítem no tiene peso, el del pedido queda
+    desconocido (null): contarlo como 0 lo haría pasar por liviano.
+  - **Punto de picking:** Rabbit no conoce esa mercadería; el ERP puede
+    informar `pesoKg` (opcional). Con stock consignado no se acepta (422):
+    lo calcula Rabbit. La huella de idempotencia solo incluye el peso si
+    vino, así las claves de antes siguen valiendo.
+  - **Capacidad del vehículo** (`Repartidor.capacidadKg` y
+    `capacidadBultos`, opcionales). Se mide por las dos cosas: el peso
+    (lo que soporta) y los bultos (el espacio). La regla vive en
+    `CapacidadRepartidor`:
+    - con capacidad cargada, lleva varios pedidos mientras la suma no pase
+      ninguno de los límites que tenga;
+    - sin capacidad, un pedido a la vez, como antes (los repartidores que
+      ya existían no cambian);
+    - un pedido de peso desconocido solo se controla por bultos.
+  - **Qué lleva cada uno:** una fila por pedido asignado
+    (`CargaAsignada`, tabla `repartidores_cargas`), con el peso y los
+    bultos del momento. Se borra al entregar o cancelar. Asignar bloquea
+    a los candidatos (`SELECT ... FOR UPDATE`): dos confirmaciones a la
+    vez no cargan de más al mismo repartidor.
+  - El despacho por zona pregunta "¿a quién de la zona le entra este
+    pedido?" en lugar de "¿quién está libre?", y si a nadie, usa el
+    transportista de respaldo como antes.
+- **Alternativas descartadas:**
+  - *Solo cantidad de pedidos:* una moto y un camión tendrían el mismo
+    límite.
+  - *Solo kilos:* veinte cajas livianas no entran en una moto.
+  - *Contadores en el repartidor (carga actual):* se desincronizan si una
+    liberación falla o se repite; una fila por pedido se puede recalcular.
+- **Consecuencias:** la hoja de ruta del repartidor muestra todas sus
+  entregas en curso. No se ordenan las paradas (no hay geocodificación de
+  las direcciones).
+
+## ADR-033: La entrega se registra con la foto del remito, y solo quien estuvo ahí
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero ("cambio de estado
+  en camino / entregado").
+- **Contexto:** cualquiera del personal podía marcar un pedido como
+  entregado con un clic, sin prueba. ENTREGADO dispara el cobro contra
+  entrega: es el cambio de estado que mueve plata.
+- **Decisión:**
+  - **ENTREGADO:** solo el `REPARTIDOR` que lleva el pedido, o un
+    `ADMINISTRADOR` como contingencia (por ejemplo, el repartidor se quedó
+    sin batería). Un `OPERADOR` ya no. Los dos tienen que subir la **foto
+    del remito firmado**. Se guarda quién y cuándo (`entregadoPor`,
+    `fechaEntrega`).
+  - **EN_CAMINO:** lo sigue pudiendo marcar el repartidor o el personal
+    (por ejemplo, al despachar desde el depósito): no mueve plata.
+  - **Pedidos derivados a un transportista externo:** entran por otra
+    operación (`registrarEntregaDeTransportista`), sin remito de Rabbit:
+    la prueba es del transportista. Esa operación rechaza los pedidos con
+    repartidor propio, así no sirve para saltear el remito.
+  - **La foto:** JPEG, PNG o WEBP, reconocida por sus primeros bytes (no
+    por el nombre ni por lo que dice el navegador), hasta 5 MB. El celular
+    la achica antes de subirla (`remito.js`, ~300 KB). Se guarda en la
+    base compartida, en su propia tabla (`remitos_entrega`), y se ve en
+    `/remito?pedido=ID`: el personal, el comercio dueño y su repartidor;
+    a cualquier otro le responde 404.
+- **Alternativas descartadas:**
+  - *Guardarla en el disco del WildFly:* cada integrante levanta el suyo;
+    la foto solo la vería quien registró la entrega (el mismo problema que
+    ADR-031 con las contraseñas).
+  - *Supabase Storage:* sería lo prolijo en producción, pero suma claves
+    de API y otro servicio que configurar en cada máquina. Para el volumen
+    del TP, la base alcanza.
+  - *Firma en pantalla en lugar de foto:* el remito en papel ya lo firma
+    el cliente; la foto prueba también qué se entregó.
+- **Consecuencias:** el aviso al comercio de ENTREGADO menciona el
+  remito, y el comercio lo ve en "Mis pedidos". La base crece unos 300 KB
+  por entrega.
+
+## ADR-034: Liquidación mensual a comercios
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero ("cálculo de
+  cobranzas a comercios"). La tarifa es una propuesta para que el equipo
+  la ajuste.
+- **Contexto:** Rabbit cobraba cada pedido (la venta del comercio a su
+  cliente), pero no cobraba su propio servicio al comercio.
+- **Decisión:**
+  - Una vez por mes, a cada comercio activo: **abono fijo + un cargo por
+    pedido entregado + un cargo por kilo entregado**. Tarifa por defecto:
+    $15.000 de abono, $1.200 por envío y $80 por kilo. Se cambia con
+    system properties (`rabbit.tarifa.abono`, `rabbit.tarifa.por-envio`,
+    `rabbit.tarifa.por-kilo`) sin tocar el código (`TarifaMensual`).
+  - Se liquida **solo un mes cerrado**. Los pedidos del mes se cuentan
+    por su fecha de entrega. Cada liquidación queda guardada con los
+    importes del momento (`liquidaciones`, una por comercio y mes) y se
+    cobra por el **banco legado** (SOAP, referencia `LIQ-<id>`), con el
+    mismo circuit breaker que los pedidos.
+  - **Timer diario a las 6** (`LiquidacionMensual`): el día 1 liquida el
+    mes anterior; los demás días solo completa lo que falte (si WildFly
+    estaba apagado el 1) y reintenta los cobros PENDIENTE (el banco no
+    respondió). Un rechazo del banco queda RECHAZADA y un administrador lo
+    reintenta a mano.
+  - Cada comercio va en sus propias transacciones (crear, después cobrar):
+    el banco no se deshace con un rollback, así que la liquidación existe
+    antes de llamarlo.
+  - Pantalla "Liquidaciones mensuales" (personal): lo cobrado por mes, el
+    botón para liquidar un mes cerrado (administrador) y una **vista
+    previa del mes en curso**, que calcula sin guardar ni cobrar. El
+    comercio ve las suyas en "Mis liquidaciones".
+- **Alternativas descartadas:**
+  - *Descontarlo de lo que se cobra contra entrega:* mezcla la plata del
+    comercio con la de Rabbit y obliga a hacer rendiciones.
+  - *Cobrar por pedido al confirmar:* más llamadas al banco y más
+    reversas cuando un pedido se cancela.
+- **Consecuencias:** un comercio sin entregas paga solo el abono. Si un
+  pedido se entrega pero se informa después del cierre, entra en el mes
+  de su fecha de entrega solo si ese mes todavía no se liquidó.
+
+## ADR-035: Ubicación del repartidor en vivo y mapa
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero ("mapa para
+  repartidores internos").
+- **Decisión:**
+  - Mientras el repartidor tiene entregas en curso y la pantalla "Mis
+    entregas" abierta, su celular manda la ubicación cada 30 segundos
+    (`ubicacion.js`, geolocalización del navegador, por el mismo
+    formulario JSF). Se guarda **solo la última** (`Repartidor.latitud`,
+    `longitud`, `fechaUbicacion`), no el recorrido. Sin entregas en curso
+    no se acepta: es para seguir entregas, no a la persona.
+  - **Personal:** "Mapa de repartidores" con los que repartieron en los
+    últimos 15 minutos; se actualiza solo por ajax.
+  - **Cliente:** la página pública de seguimiento muestra el mapa mientras
+    el pedido está EN_CAMINO con un repartidor de Rabbit, y la API de
+    seguimiento devuelve `ubicacionRepartidor`. Solo si ese repartidor
+    tiene **ese** pedido en curso: el código de un pedido viejo no sirve
+    para seguirlo en otro reparto.
+  - **Aviso:** el de EN_CAMINO al comercio incluye el código para que su
+    cliente lo siga en vivo.
+  - Mapas con Leaflet (cdnjs, con hash de integridad) y teselas de
+    OpenStreetMap, gratis y sin claves.
+- **Alternativas descartadas:**
+  - *Google Maps:* pide clave de API y facturación.
+  - *WebSockets para tiempo real:* para posiciones cada 30 segundos, una
+    consulta periódica alcanza y no suma infraestructura.
+  - *Guardar el recorrido completo:* más datos personales de los que
+    hacen falta.
+- **Consecuencias:** el navegador solo da la ubicación por HTTPS y con
+  permiso del repartidor; en el celular, con el certificado autofirmado
+  hay que aceptar la advertencia. Sin coordenadas de las direcciones de
+  entrega no se calcula cuánto falta.
+

@@ -256,14 +256,14 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"Caja de zapatillas\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 18000,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 2000, CABA\",\n  \"codigoPostalEntrega\": \"1428\"\n}",
+                  "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"Caja de zapatillas\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 18000,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 2000, CABA\",\n  \"codigoPostalEntrega\": \"1428\",\n  \"pesoKg\": 1.2\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
                   }
                 },
-                "description": "Esperado: 201. El stock del depósito no cambia."
+                "description": "Esperado: 201. El stock del depósito no cambia.\n\npesoKg (opcional, solo punto de picking): los kilos del pedido, para el límite de carga del repartidor (ADR-032)."
               }
             },
             {
@@ -799,6 +799,53 @@
           "protocolProfileBehavior": {
             "followRedirects": false
           }
+        },
+        {
+          "name": "8. Peso en stock consignado → 422",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"pesoKg\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Con stock consignado el peso lo calcula Rabbit con el peso de cada ítem (ADR-032): informarlo es una regla de negocio violada, 422."
+          }
         }
       ],
       "auth": {
@@ -838,7 +885,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/seguimiento/{{codigoSeguimiento}}",
-            "description": "Usa el codigoSeguimiento que guardó la consulta de A1. Solo devuelve el estado: nada de importes ni datos del comercio. También se puede ver en {{baseUrl}}/seguimiento.xhtml."
+            "description": "Usa el codigoSeguimiento que guardó la consulta de A1. Solo devuelve el estado: nada de importes ni datos del comercio. También se puede ver en {{baseUrl}}/seguimiento.xhtml.\n\nMientras el pedido está EN_CAMINO con un repartidor de Rabbit que comparte su ubicación, la respuesta trae ubicacionRepartidor {latitud, longitud, actualizada} (ADR-035)."
           }
         },
         {

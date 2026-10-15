@@ -1790,16 +1790,8 @@ html[data-tema="oscuro"] textarea {
 /* =====================================================================
    Entrega con foto del remito (ADR-033)
    ===================================================================== */
-.formulario-entrega {
-    margin-top: 0.5rem;
-}
-
-.formulario-entrega .campo label,
-.formulario .campo .foto-remito {
-    display: block;
-}
-
 .foto-remito {
+    display: block;
     width: 100%;
     max-width: 28rem;
     margin-top: 0.35rem;
