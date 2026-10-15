@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    La pantalla del repartidor: su entrega actual con la hoja de ruta (de
-    donde retira, adonde entrega y cuanto cobrar), los botones para marcar
-    el retiro y la entrega, y su historial. Pensada para el celular.
+    La pantalla del repartidor: sus entregas en curso con la hoja de ruta
+    (de donde retira, adonde entrega y cuanto cobrar), los botones para
+    marcar el retiro y la entrega con la foto del remito (ADR-033), y su
+    historial. Pensada para el celular. Mientras tiene entregas en curso,
+    manda su ubicacion a Rabbit (ubicacion.js, ADR-035).
     Se bindea a misEntregasBean (MisEntregasBean.java).
 -->
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
                  template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirRepartidor}" />
@@ -24,66 +27,96 @@
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
-        <h2>Entrega actual</h2>
+        <!-- Ubicacion: solo con entregas en curso. ubicacion.js completa los
+             campos y aprieta el boton oculto cada tanto (ajax, sin recargar). -->
+        <h:form id="formUbicacion" rendered="#{misEntregasBean.compartirUbicacion}">
+            <h:inputHidden id="latitud" value="#{misEntregasBean.latitud}" />
+            <h:inputHidden id="longitud" value="#{misEntregasBean.longitud}" />
+            <h:commandButton id="enviar" style="display: none" tabindex="-1" pt:aria-hidden="true"
+                             action="#{misEntregasBean.compartirUbicacion}">
+                <f:ajax execute="@form" render="@none" />
+            </h:commandButton>
+            <p class="ayuda ubicacion-estado" id="ubicacionEstado" aria-live="polite">
+                Mientras tengas entregas en curso, Rabbit ve tu ubicación en el mapa y el cliente la ve en el seguimiento de su pedido.
+            </p>
+        </h:form>
 
-        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty misEntregasBean.entregaActual}">
+        <h2>Entregas en curso</h2>
+
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty misEntregasBean.entregas}">
             No tenés ninguna entrega asignada. Cuando Rabbit confirme un pedido con vos, aparece acá.
         </h:panelGroup>
 
-        <h:panelGroup layout="block" styleClass="hoja-ruta" rendered="#{not empty misEntregasBean.entregaActual}">
-            <ui:param name="e" value="#{misEntregasBean.entregaActual}" />
-            <div class="hoja-ruta-encabezado">
-                <h3 class="hoja-ruta-titulo">Pedido #{e.idPedido} · #{e.comercio}</h3>
-                <h:outputText value="#{etiquetas.estadoPedido(e.estado)}"
-                              styleClass="#{etiquetas.claseEstadoPedido(e.estado)}" />
-            </div>
-
-            <ol class="paradas">
-                <ui:repeat value="#{e.retiros}" var="retiro">
-                    <li class="parada">
-                        <span class="parada-tipo">1 · Retirá en</span>
-                        <span class="parada-lugar">#{retiro}</span>
-                    </li>
-                </ui:repeat>
-                <li class="parada parada-entrega">
-                    <span class="parada-tipo">2 · Entregá en</span>
-                    <span class="parada-lugar">#{empty e.direccionEntrega ? 'Sin dirección cargada: consultá con Rabbit' : e.direccionEntrega}</span>
-                </li>
-            </ol>
-
-            <p class="hoja-ruta-datos">
-                <span>Llevás: <b>#{e.productos}</b> (#{e.cantidadTotal} u.)</span>
-                <h:panelGroup rendered="#{not empty e.codigoCliente}">
-                    <span>Código del cliente: <span class="codigo">#{e.codigoCliente}</span></span>
-                </h:panelGroup>
-                <h:panelGroup rendered="#{not empty e.cobrarAlEntregar}">
-                    <span class="cobrar">Cobrar al entregar:&#160;
-                        <h:outputText value="#{e.cobrarAlEntregar}">
-                            <f:convertNumber type="currency" currencySymbol="$" />
-                        </h:outputText>
-                    </span>
-                </h:panelGroup>
-                <h:panelGroup rendered="#{empty e.cobrarAlEntregar}">
-                    <span>Ya está pagado: no cobres nada</span>
-                </h:panelGroup>
-            </p>
-
-            <h:form id="formEntrega">
-                <div class="form-acciones">
-                    <h:outputLink value="#{e.urlMapa}" target="_blank" rel="noopener noreferrer"
-                                  styleClass="btn btn-secondary" rendered="#{not empty e.urlMapa}">
-                        Ver recorrido en el mapa
-                    </h:outputLink>
-                    <h:commandButton value="Ya retiré el pedido" styleClass="btn btn-primary"
-                                     action="#{misEntregasBean.retirar}"
-                                     rendered="#{e.estado == 'CONFIRMADO'}" />
-                    <h:commandButton value="Entregué el pedido" styleClass="btn btn-primary"
-                                     action="#{misEntregasBean.entregar}"
-                                     rendered="#{e.estado == 'EN_CAMINO'}"
-                                     onclick="return confirm('¿Confirmás que entregaste el pedido?');" />
+        <ui:repeat value="#{misEntregasBean.entregas}" var="e">
+            <div class="hoja-ruta">
+                <div class="hoja-ruta-encabezado">
+                    <h3 class="hoja-ruta-titulo">Pedido #{e.idPedido} · #{e.comercio}</h3>
+                    <h:outputText value="#{etiquetas.estadoPedido(e.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoPedido(e.estado)}" />
                 </div>
-            </h:form>
-        </h:panelGroup>
+
+                <ol class="paradas">
+                    <ui:repeat value="#{e.retiros}" var="retiro">
+                        <li class="parada">
+                            <span class="parada-tipo">1 · Retirá en</span>
+                            <span class="parada-lugar">#{retiro}</span>
+                        </li>
+                    </ui:repeat>
+                    <li class="parada parada-entrega">
+                        <span class="parada-tipo">2 · Entregá en</span>
+                        <span class="parada-lugar">#{empty e.direccionEntrega ? 'Sin dirección cargada: consultá con Rabbit' : e.direccionEntrega}</span>
+                    </li>
+                </ol>
+
+                <p class="hoja-ruta-datos">
+                    <span>Llevás: <b>#{e.productos}</b> (#{e.cantidadTotal} u.#{empty e.pesoKg ? '' : ', ' += e.pesoKg += ' kg'})</span>
+                    <h:panelGroup rendered="#{not empty e.codigoCliente}">
+                        <span>Código del cliente: <span class="codigo">#{e.codigoCliente}</span></span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty e.cobrarAlEntregar}">
+                        <span class="cobrar">Cobrar al entregar:&#160;
+                            <h:outputText value="#{e.cobrarAlEntregar}">
+                                <f:convertNumber type="currency" currencySymbol="$" />
+                            </h:outputText>
+                        </span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{empty e.cobrarAlEntregar}">
+                        <span>Ya está pagado: no cobres nada</span>
+                    </h:panelGroup>
+                </p>
+
+                <h:form rendered="#{e.estado == 'CONFIRMADO'}">
+                    <div class="form-acciones">
+                        <h:outputLink value="#{e.urlMapa}" target="_blank" rel="noopener noreferrer"
+                                      styleClass="btn btn-secondary" rendered="#{not empty e.urlMapa}">
+                            Ver recorrido en el mapa
+                        </h:outputLink>
+                        <h:commandButton value="Ya retiré el pedido" styleClass="btn btn-primary"
+                                         action="#{misEntregasBean.retirar(e.idPedido)}" />
+                    </div>
+                </h:form>
+
+                <!-- Entregar exige la foto del remito firmado (ADR-033). -->
+                <h:form rendered="#{e.estado == 'EN_CAMINO'}" enctype="multipart/form-data" styleClass="formulario-entrega">
+                    <div class="campo">
+                        <label>Foto del remito firmado
+                            <h:inputFile value="#{misEntregasBean.fotoRemito}" styleClass="foto-remito"
+                                         pt:accept="image/*" pt:capture="environment" />
+                        </label>
+                        <p class="ayuda">Sacale una foto al remito con la firma de quien recibe. Es la prueba de la entrega.</p>
+                    </div>
+                    <div class="form-acciones">
+                        <h:outputLink value="#{e.urlMapa}" target="_blank" rel="noopener noreferrer"
+                                      styleClass="btn btn-secondary" rendered="#{not empty e.urlMapa}">
+                            Ver recorrido en el mapa
+                        </h:outputLink>
+                        <h:commandButton value="Entregué el pedido" styleClass="btn btn-primary"
+                                         action="#{misEntregasBean.entregar(e.idPedido)}"
+                                         onclick="return confirm('¿Confirmás que entregaste el pedido #{e.idPedido}?');" />
+                    </div>
+                </h:form>
+            </div>
+        </ui:repeat>
 
         <h2>Historial</h2>
         <h:dataTable value="#{misEntregasBean.historial}" var="h"
@@ -105,6 +138,11 @@
                 <f:facet name="header">Estado</f:facet>
                 <h:outputText value="#{etiquetas.estadoPedido(h.estado)}"
                               styleClass="#{etiquetas.claseEstadoPedido(h.estado)}" />
+                <h:panelGroup rendered="#{h.conRemito}">
+                    <span class="dato-secundario">
+                        <a href="#{request.contextPath}/remito?pedido=#{h.idPedido}" target="_blank" rel="noopener noreferrer">Ver remito</a>
+                    </span>
+                </h:panelGroup>
             </h:column>
             <h:column styleClass="col-p3" headerClass="col-p3">
                 <f:facet name="header">Fecha</f:facet>
@@ -113,5 +151,8 @@
         </h:dataTable>
         <h:outputText styleClass="ayuda" rendered="#{empty misEntregasBean.historial}"
                       value="Todavía no terminaste ninguna entrega." />
+
+        <h:outputScript library="rabbit" name="remito.js" />
+        <h:outputScript library="rabbit" name="ubicacion.js" rendered="#{misEntregasBean.compartirUbicacion}" />
     </ui:define>
 </ui:composition>

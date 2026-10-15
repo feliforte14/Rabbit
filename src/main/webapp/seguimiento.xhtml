@@ -3,7 +3,8 @@
     VISTA (Facelet) - Capa de Presentacion.
     Seguimiento publico de un pedido, para el cliente final: sin login, con
     el codigo que le paso la tienda (seguimiento.xhtml?codigo=RB-...). Muestra
-    solo el estado, con una linea de tiempo. Se bindea a seguimientoBean
+    solo el estado, con una linea de tiempo, y mientras va en camino con un
+    repartidor de Rabbit, donde esta (ADR-035). Se bindea a seguimientoBean
     (SeguimientoBean.java). Es la version para personas de
     GET /api/v1/seguimiento/{codigo}.
 -->
@@ -25,6 +26,18 @@
     <h:outputStylesheet library="rabbit" name="estilos.css" />
     <!-- Antes de pintar: aplica el tema elegido (ver tema.js). -->
     <h:outputScript library="rabbit" name="tema.js" />
+    <ui:fragment rendered="#{not empty seguimientoBean.puntosJson}">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+              integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb"
+              crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+                integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO"
+                crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    </ui:fragment>
+    <!-- En camino: se recarga cada minuto para mostrar donde va. -->
+    <ui:fragment rendered="#{seguimientoBean.enCamino}">
+        <meta http-equiv="refresh" content="60" />
+    </ui:fragment>
 </h:head>
 <h:body styleClass="pagina-sola">
     <div class="container seguimiento">
@@ -75,6 +88,12 @@
                         </li>
                     </ui:repeat>
                 </ol>
+            </h:panelGroup>
+            <h:panelGroup rendered="#{not empty seguimientoBean.puntosJson}">
+                <p class="seguimiento-detalle">Así va tu pedido (ubicación de las #{seguimientoBean.ubicacion.hora}):</p>
+                <div class="mapa mapa-seguimiento" data-puntos="#{seguimientoBean.puntosJson}"
+                     role="region" aria-label="Ubicación de tu pedido"></div>
+                <h:outputScript library="rabbit" name="mapa.js" />
             </h:panelGroup>
         </h:panelGroup>
         <!-- Tema visual: se cambia en el momento (ver tema.js). -->

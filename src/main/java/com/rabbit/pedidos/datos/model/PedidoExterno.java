@@ -64,6 +64,12 @@ public class PedidoExterno {
     @Enumerated(EnumType.STRING)
     private MedioPago medioPago;
 
+    // Kilos totales que informa el comercio para un pedido de PUNTO_PICKING
+    // (Rabbit no conoce esa mercadería). Opcional. Con STOCK_CONSIGNADO
+    // queda null: el peso sale de los ítems del depósito (ADR-032).
+    @Column(precision = 10, scale = 3)
+    private BigDecimal pesoKg;
+
     // Adónde se entrega (la manda el ERP con el pedido). Es el destino de
     // la hoja de ruta del repartidor (ver RuteoService). Nullable: los
     // pedidos anteriores a este cambio no la tienen.
@@ -123,6 +129,8 @@ public class PedidoExterno {
     public void setLineas(List<LineaPedidoExterno> lineas) { this.lineas = lineas; }
     public LocalDateTime getFechaPedido() { return fechaPedido; }
     public void setFechaPedido(LocalDateTime fechaPedido) { this.fechaPedido = fechaPedido; }
+    public BigDecimal getPesoKg() { return pesoKg; }
+    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
     public BigDecimal getImporte() { return importe; }
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public MedioPago getMedioPago() { return medioPago; }

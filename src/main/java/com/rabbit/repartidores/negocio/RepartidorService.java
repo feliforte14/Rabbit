@@ -9,16 +9,23 @@ package com.rabbit.repartidores.negocio;
  *   - IGestionRepartidores: alta y listado para repartidores.xhtml.
  *
  * Todas las escrituras corren con REQUIRED: se suman a la transacción de
- * quien llama. Por eso, si en PedidoService.confirmarPedido el cobro se
- * rechaza DESPUÉS de asignar el repartidor, el rollback lo devuelve solo a
- * DISPONIBLE — nadie tiene que "desasignarlo" a mano.
+ * quien llama. Por eso, si en PedidoService.confirmarPedido algo falla
+ * DESPUÉS de asignar el repartidor, el rollback deshace la asignación
+ * (estado y CargaAsignada) — nadie tiene que "desasignarlo" a mano.
+ *
+ * Capacidad (ADR-032): un repartidor con capacidad cargada lleva varios
+ * pedidos mientras le entren; sin capacidad, uno a la vez (ver
+ * CapacidadRepartidor).
  */
 
 import com.rabbit.repartidores.datos.RepartidorRepository;
+import com.rabbit.repartidores.datos.model.CargaAsignada;
 import com.rabbit.repartidores.datos.model.EstadoRepartidor;
 import com.rabbit.repartidores.datos.model.Repartidor;
 import com.rabbit.repartidores.dto.DatosRepartidorDTO;
 import com.rabbit.repartidores.dto.RepartidorDTO;
+import com.rabbit.repartidores.dto.UbicacionDTO;
+import com.rabbit.seguridad.negocio.IContextoUsuario;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -26,6 +33,8 @@ import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
 import jakarta.inject.Inject;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -34,58 +43,94 @@ import java.util.stream.Collectors;
 // transacciones de Pedidos que también dispara un REPARTIDOR; dar de alta
 // repartidores es solo del personal de Rabbit.
 @Stateless
-@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})
+@DeclareRoles({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
 @PermitAll
 public class RepartidorService implements IAsignacionRepartidores, IGestionRepartidores {
 
     private static final Logger LOG = Logger.getLogger(RepartidorService.class.getName());
 
+    // Un camión mediano de reparto urbano.
+    private static final BigDecimal CAPACIDAD_MAXIMA_KG = new BigDecimal("10000");
+    private static final int CAPACIDAD_MAXIMA_BULTOS = 1000;
+
+    // Una ubicación más vieja que esto ya no se muestra: el celular dejó de
+    // mandarla (pantalla cerrada, sin señal).
+    private static final int MINUTOS_UBICACION_VIGENTE = 15;
+
     @Inject
     private RepartidorRepository repository;
+
+    // Quién es el repartidor que llama (registrarUbicacion).
+    @Inject
+    private IContextoUsuario contextoUsuario;
 
     // ===============================================================
     // IAsignacionRepartidores
     // ===============================================================
 
+    // Recorre los repartidores (los de la zona del pedido primero) y se lo
+    // da al primero al que le entra (ADR-032). Los candidatos quedan
+    // bloqueados hasta el fin de la transacción: dos confirmaciones a la vez
+    // no pueden cargar de más al mismo repartidor.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
-    public Long asignarRepartidor(Long idPedido) {
-        return asignarRepartidor(idPedido, null);
-    }
-
-    // Prefiere un repartidor de la zona del pedido (ver RuteoService); si no
-    // hay ninguno libre ahí, toma cualquiera.
-    @Override
-    @TransactionAttribute(TransactionAttributeType.REQUIRED)
-    public Long asignarRepartidor(Long idPedido, Long idZonaPreferida) {
-        Repartidor repartidor = repository.tomarPrimeroDisponible(idZonaPreferida);
-        if (repartidor == null) {
-            throw new ValidacionException("No hay repartidores disponibles para el pedido " + idPedido);
+    public Long asignarRepartidor(Long idPedido, Long idZonaPreferida, BigDecimal pesoKg, int bultos) {
+        List<Repartidor> candidatos = repository.bloquearCandidatos(idZonaPreferida);
+        List<CargaAsignada> cargas = repository.listarCargas();
+        for (Repartidor repartidor : candidatos) {
+            if (!RepartidorDTO.desde(repartidor, cargas).entra(pesoKg, bultos)) {
+                continue;
+            }
+            CargaAsignada carga = new CargaAsignada();
+            carga.setIdRepartidor(repartidor.getId());
+            carga.setIdPedido(idPedido);
+            carga.setPesoKg(pesoKg);
+            carga.setBultos(bultos);
+            carga.setFechaAsignacion(LocalDateTime.now());
+            repository.guardarCarga(carga);
+            repartidor.setEstado(EstadoRepartidor.OCUPADO);
+            repartidor.setIdPedidoActual(idPedido);
+            repository.actualizar(repartidor);
+            LOG.info("[Repartidores] Repartidor " + repartidor.getId() + " asignado al pedido " + idPedido
+                    + " (" + (pesoKg != null ? pesoKg + " kg, " : "") + bultos + " bulto(s))");
+            return repartidor.getId();
         }
-        repartidor.setEstado(EstadoRepartidor.OCUPADO);
-        repartidor.setIdPedidoActual(idPedido);
-        repository.actualizar(repartidor);
-        LOG.info("[Repartidores] Repartidor " + repartidor.getId() + " asignado al pedido " + idPedido);
-        return repartidor.getId();
+        if (candidatos.isEmpty()) {
+            throw new ValidacionException("No hay repartidores cargados para el pedido " + idPedido);
+        }
+        throw new ValidacionException("No hay repartidores con lugar para el pedido " + idPedido + " ("
+                + (pesoKg != null ? pesoKg.stripTrailingZeros().toPlainString() + " kg, " : "")
+                + bultos + " bulto(s)): están todos ocupados o les excede la capacidad");
     }
 
-    // Idempotente: liberar a alguien que ya está DISPONIBLE no hace nada.
-    // Un idRepartidor null (pedido confirmado antes de existir este
+    // Idempotente: liberar un pedido que ya no lleva no hace nada. Un
+    // idRepartidor null (pedido confirmado antes de existir este
     // componente) también se ignora.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
-    public void liberarRepartidor(Long idRepartidor) {
+    public void liberarRepartidor(Long idRepartidor, Long idPedido) {
         if (idRepartidor == null) {
             return;
         }
         Repartidor repartidor = repository.buscarParaActualizar(idRepartidor);
-        if (repartidor == null || repartidor.getEstado() == EstadoRepartidor.DISPONIBLE) {
+        if (repartidor == null) {
             return;
         }
-        repartidor.setEstado(EstadoRepartidor.DISPONIBLE);
-        repartidor.setIdPedidoActual(null);
+        boolean teniaCarga = repository.borrarCargaDePedido(idPedido);
+        boolean asignadoAntesDeLasCargas = !teniaCarga && idPedido.equals(repartidor.getIdPedidoActual());
+        if (!teniaCarga && !asignadoAntesDeLasCargas) {
+            return;
+        }
+        List<CargaAsignada> quedan = repository.listarCargasDe(idRepartidor);
+        if (quedan.isEmpty()) {
+            repartidor.setEstado(EstadoRepartidor.DISPONIBLE);
+            repartidor.setIdPedidoActual(null);
+        } else {
+            repartidor.setIdPedidoActual(quedan.get(quedan.size() - 1).getIdPedido());
+        }
         repository.actualizar(repartidor);
-        LOG.info("[Repartidores] Repartidor " + idRepartidor + " liberado");
+        LOG.info("[Repartidores] Repartidor " + idRepartidor + " deja el pedido " + idPedido
+                + (quedan.isEmpty() ? ": queda libre" : ": le quedan " + quedan.size()));
     }
 
     // ===============================================================
@@ -103,13 +148,112 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
         repartidor.setNombre(datos.nombre.trim());
         repartidor.setTelefono(datos.telefono);
         repartidor.setIdZona(datos.idZona);
+        validarCapacidad(datos.capacidadKg, datos.capacidadBultos);
+        repartidor.setCapacidadKg(datos.capacidadKg);
+        repartidor.setCapacidadBultos(datos.capacidadBultos);
         repartidor.setEstado(EstadoRepartidor.DISPONIBLE);
         return repository.guardar(repartidor).getId();
     }
 
+    // Con lo que lleva cada uno: el tablero y el despacho por zona lo usan
+    // para saber a quién le queda lugar.
     @Override
     public List<RepartidorDTO> listarTodos() {
-        return repository.listarTodos().stream().map(RepartidorDTO::desde).collect(Collectors.toList());
+        List<CargaAsignada> cargas = repository.listarCargas();
+        return repository.listarTodos().stream()
+                .map(r -> RepartidorDTO.desde(r, cargas))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void actualizarCapacidad(Long idRepartidor, BigDecimal capacidadKg, Integer capacidadBultos) {
+        Repartidor repartidor = idRepartidor != null ? repository.buscarPorId(idRepartidor) : null;
+        if (repartidor == null) {
+            throw new ValidacionException("Repartidor no encontrado: " + idRepartidor);
+        }
+        validarCapacidad(capacidadKg, capacidadBultos);
+        repartidor.setCapacidadKg(capacidadKg);
+        repartidor.setCapacidadBultos(capacidadBultos);
+        repository.actualizar(repartidor);
+    }
+
+    // ===============================================================
+    // Ubicación (ADR-035)
+    // ===============================================================
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("REPARTIDOR")
+    public void registrarUbicacion(double latitud, double longitud) {
+        if (!Double.isFinite(latitud) || !Double.isFinite(longitud)
+                || latitud < -90 || latitud > 90 || longitud < -180 || longitud > 180) {
+            throw new ValidacionException("Ubicación inválida");
+        }
+        Long idRepartidor = contextoUsuario.idRepartidorActual();
+        Repartidor repartidor = repository.buscarPorId(idRepartidor);
+        // Fuera de servicio no se registra: la ubicación es para seguir
+        // entregas, no a la persona.
+        if (repartidor == null || repartidor.getEstado() != EstadoRepartidor.OCUPADO) {
+            throw new ValidacionException("La ubicación solo se comparte mientras tenés entregas en curso");
+        }
+        repartidor.setLatitud(latitud);
+        repartidor.setLongitud(longitud);
+        repartidor.setFechaUbicacion(LocalDateTime.now());
+        repository.actualizar(repartidor);
+    }
+
+    @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public List<UbicacionDTO> listarUbicacionesRecientes() {
+        List<CargaAsignada> cargas = repository.listarCargas();
+        return repository.listarTodos().stream()
+                .filter(r -> r.getEstado() == EstadoRepartidor.OCUPADO && esReciente(r))
+                .map(r -> ubicacion(r, RepartidorDTO.desde(r, cargas).getPedidosEnCurso()))
+                .collect(Collectors.toList());
+    }
+
+    // Sin rol: la usa la página pública de seguimiento. Solo devuelve algo
+    // si ese repartidor tiene ESE pedido en curso, así el código de un
+    // pedido viejo no sirve para seguir al repartidor en otro reparto.
+    @Override
+    public UbicacionDTO ubicacionParaPedido(Long idRepartidor, Long idPedido) {
+        Repartidor repartidor = idRepartidor != null ? repository.buscarPorId(idRepartidor) : null;
+        if (repartidor == null || !esReciente(repartidor)) {
+            return null;
+        }
+        boolean loLleva = repository.listarCargasDe(idRepartidor).stream()
+                .anyMatch(c -> c.getIdPedido().equals(idPedido))
+                || idPedido.equals(repartidor.getIdPedidoActual());
+        return loLleva ? ubicacion(repartidor, 0) : null;
+    }
+
+    private static boolean esReciente(Repartidor r) {
+        return r.getLatitud() != null && r.getFechaUbicacion() != null
+                && r.getFechaUbicacion().isAfter(LocalDateTime.now().minusMinutes(MINUTOS_UBICACION_VIGENTE));
+    }
+
+    private static UbicacionDTO ubicacion(Repartidor r, int pedidosEnCurso) {
+        UbicacionDTO dto = new UbicacionDTO();
+        dto.idRepartidor = r.getId();
+        dto.nombre = r.getNombre();
+        dto.latitud = r.getLatitud();
+        dto.longitud = r.getLongitud();
+        dto.fecha = r.getFechaUbicacion();
+        dto.pedidosEnCurso = pedidosEnCurso;
+        return dto;
+    }
+
+    // Opcionales; si vienen, positivos y razonables para un vehículo de reparto.
+    private void validarCapacidad(BigDecimal capacidadKg, Integer capacidadBultos) {
+        if (capacidadKg != null && (capacidadKg.signum() <= 0 || capacidadKg.compareTo(CAPACIDAD_MAXIMA_KG) > 0)) {
+            throw new ValidacionException("La capacidad en kilos tiene que ser mayor a 0 y de hasta "
+                    + CAPACIDAD_MAXIMA_KG + " kg");
+        }
+        if (capacidadBultos != null && (capacidadBultos <= 0 || capacidadBultos > CAPACIDAD_MAXIMA_BULTOS)) {
+            throw new ValidacionException("La capacidad en bultos tiene que ser de 1 a " + CAPACIDAD_MAXIMA_BULTOS);
+        }
     }
 
     @Override
@@ -127,6 +271,6 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
     @Override
     public RepartidorDTO obtenerRepartidor(Long idRepartidor) {
         Repartidor repartidor = idRepartidor != null ? repository.buscarPorId(idRepartidor) : null;
-        return repartidor != null ? RepartidorDTO.desde(repartidor) : null;
+        return repartidor != null ? RepartidorDTO.desde(repartidor, repository.listarCargasDe(idRepartidor)) : null;
     }
 }

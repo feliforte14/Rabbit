@@ -2,17 +2,22 @@ package com.rabbit.ruteo.presentacion;
 
 /**
  * CAPA DE PRESENTACIÓN (Managed Bean - JSF) — la pantalla del repartidor
- * (mis-entregas.xhtml): su entrega actual con la hoja de ruta, los botones
- * para marcar el retiro y la entrega, y su historial.
+ * (mis-entregas.xhtml): sus entregas en curso con la hoja de ruta (pueden
+ * ser varias si su vehículo tiene capacidad, ADR-032), los botones para
+ * marcar el retiro y la entrega con la foto del remito (ADR-033), la
+ * ubicación que manda su celular mientras reparte (ADR-035) y su
+ * historial.
  *
- * No recibe el ID del repartidor: IRuteo e IGestionPedidos lo sacan de la
- * identidad autenticada, así que un repartidor no puede ver ni mover los
- * pedidos de otro.
+ * No recibe el ID del repartidor: IRuteo, IGestionPedidos e
+ * IGestionRepartidores lo sacan de la identidad autenticada, así que un
+ * repartidor no puede ver ni mover los pedidos de otro.
  */
 
+import com.rabbit.infraestructura.ArchivosSubidos;
 import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
 import com.rabbit.pedidos.negocio.ValidacionException;
+import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.ruteo.dto.HojaDeRutaDTO;
 import com.rabbit.ruteo.negocio.IRuteo;
 import jakarta.annotation.PostConstruct;
@@ -20,6 +25,8 @@ import jakarta.ejb.EJBException;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import jakarta.servlet.http.Part;
+import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 
@@ -27,42 +34,66 @@ import java.util.List;
 @ViewScoped
 public class MisEntregasBean implements Serializable {
 
+    // Tope de lo que se lee del archivo subido. El celular achica la foto
+    // antes de mandarla (remito.js); la validación real está en Pedidos.
+    private static final int TAMANO_MAXIMO_FOTO = 5 * 1024 * 1024;
+
     @Inject
     private IRuteo ruteo;
 
     @Inject
     private IGestionPedidos gestion;
 
-    private HojaDeRutaDTO entregaActual;
+    @Inject
+    private IGestionRepartidores repartidores;
+
+    private List<HojaDeRutaDTO> entregas;
     private List<HojaDeRutaDTO> historial;
+
+    // Foto del remito del formulario que se envió (cada entrega tiene el suyo).
+    private transient Part fotoRemito;
+
+    // Los manda ubicacion.js por ajax (ver compartirUbicacion).
+    private Double latitud;
+    private Double longitud;
 
     @PostConstruct
     public void cargar() {
         try {
-            entregaActual = ruteo.entregaActualDelRepartidor();
+            entregas = ruteo.entregasEnCursoDelRepartidor();
             historial = ruteo.historialDelRepartidor();
         } catch (com.rabbit.seguridad.negocio.ValidacionException e) {
             // Cuenta REPARTIDOR sin repartidor asociado.
-            entregaActual = null;
+            entregas = List.of();
             historial = List.of();
             Mensajes.error(e.getMessage());
         }
     }
 
     // Retiró el pedido: CONFIRMADO → EN_CAMINO.
-    public void retirar() {
-        ejecutar(() -> gestion.despacharPedido(entregaActual.getIdPedido()), "Pedido retirado: ya está en camino");
+    public void retirar(Long idPedido) {
+        ejecutar(() -> gestion.despacharPedido(idPedido), "Pedido " + idPedido + " retirado: ya está en camino");
     }
 
-    // Lo entregó: EN_CAMINO → ENTREGADO (y el repartidor queda libre).
-    public void entregar() {
-        ejecutar(() -> gestion.registrarEntrega(entregaActual.getIdPedido()), "Entrega registrada");
+    // Lo entregó: EN_CAMINO → ENTREGADO, con la foto del remito firmado.
+    public void entregar(Long idPedido) {
+        byte[] foto;
+        try {
+            foto = ArchivosSubidos.leer(fotoRemito, TAMANO_MAXIMO_FOTO);
+        } catch (IOException e) {
+            Mensajes.error("No se pudo leer la foto. Probá sacarla de nuevo.");
+            return;
+        } finally {
+            fotoRemito = null;
+        }
+        if (foto == null) {
+            Mensajes.error("La foto del remito no puede superar los 5 MB");
+            return;
+        }
+        ejecutar(() -> gestion.registrarEntrega(idPedido, foto), "Entrega del pedido " + idPedido + " registrada");
     }
 
     private void ejecutar(Runnable accion, String exito) {
-        if (entregaActual == null) {
-            return;
-        }
         try {
             accion.run();
             Mensajes.info(exito);
@@ -74,6 +105,31 @@ public class MisEntregasBean implements Serializable {
         }
     }
 
-    public HojaDeRutaDTO getEntregaActual() { return entregaActual; }
+    // Lo llama ubicacion.js cada tanto mientras la pantalla está abierta y
+    // hay entregas en curso. Si falla (por ejemplo, ya no tiene entregas),
+    // no se avisa: es un dato de fondo, no una acción del repartidor.
+    public void compartirUbicacion() {
+        if (latitud == null || longitud == null) {
+            return;
+        }
+        try {
+            repartidores.registrarUbicacion(latitud, longitud);
+        } catch (com.rabbit.repartidores.negocio.ValidacionException | EJBException e) {
+            // Se reintenta en el próximo envío.
+        }
+    }
+
+    /** Si hay que mandar la ubicación: solo con alguna entrega ya retirada o por retirar. */
+    public boolean isCompartirUbicacion() {
+        return entregas != null && !entregas.isEmpty();
+    }
+
+    public List<HojaDeRutaDTO> getEntregas() { return entregas; }
     public List<HojaDeRutaDTO> getHistorial() { return historial; }
+    public Part getFotoRemito() { return fotoRemito; }
+    public void setFotoRemito(Part fotoRemito) { this.fotoRemito = fotoRemito; }
+    public Double getLatitud() { return latitud; }
+    public void setLatitud(Double latitud) { this.latitud = latitud; }
+    public Double getLongitud() { return longitud; }
+    public void setLongitud(Double longitud) { this.longitud = longitud; }
 }

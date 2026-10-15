@@ -21,9 +21,10 @@ package com.rabbit.ruteo.negocio;
  * Un pedido derivado a un transportista externo no tiene repartidor: la
  * hoja de ruta muestra el transportista y su código de seguimiento.
  *
- * Fuera de alcance: ordenar las paradas por distancia (no hay coordenadas
- * ni geocodificación) y juntar varios pedidos en un mismo viaje: un
- * repartidor lleva un pedido a la vez (ver ADR-017).
+ * Un repartidor con capacidad cargada lleva varios pedidos a la vez
+ * (ADR-032): el despacho por zona se fija a quién le entra cada pedido, no
+ * solo quién está libre. Fuera de alcance: ordenar las paradas por
+ * distancia (no hay geocodificación de las direcciones).
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
@@ -60,6 +61,7 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -120,12 +122,11 @@ public class RuteoService implements IRuteo {
 
     @Override
     @RolesAllowed("REPARTIDOR")
-    public HojaDeRutaDTO entregaActualDelRepartidor() {
-        List<PedidoDTO> enCurso = pedidos.listarPedidosDelRepartidorActual().stream()
+    public List<HojaDeRutaDTO> entregasEnCursoDelRepartidor() {
+        return armar(pedidos.listarPedidosDelRepartidorActual().stream()
                 .filter(p -> !TERMINADOS.contains(p.getEstado()))
-                .limit(1)
-                .collect(Collectors.toList());
-        return enCurso.isEmpty() ? null : armar(enCurso).get(0);
+                .sorted(Comparator.comparing(PedidoDTO::getId))
+                .collect(Collectors.toList()));
     }
 
     @Override
@@ -174,6 +175,8 @@ public class RuteoService implements IRuteo {
         hoja.cantidadTotal = p.getCantidadTotal();
         hoja.direccionEntrega = p.getDireccionEntrega();
         hoja.actualizado = p.getFechaActualizacion();
+        hoja.pesoKg = p.getPesoKg();
+        hoja.conRemito = p.isConRemito();
         hoja.cobrarAlEntregar = p.getMedioPago() == MedioPago.CONTRA_ENTREGA ? p.getImporte() : null;
 
         ComercioDTO comercio = comerciosPorId.get(p.getIdComercio());
@@ -233,8 +236,9 @@ public class RuteoService implements IRuteo {
         List<ZonaDTO> activas = zonas.listarTodas().stream().filter(ZonaDTO::isActiva).collect(Collectors.toList());
         Map<Long, String> nombresTransportistas = transportistas.listarTodos().stream()
                 .collect(Collectors.toMap(TransportistaDTO::getId, TransportistaDTO::getNombre));
+        // "Libres": a los que les queda lugar para algo más (ADR-032).
         List<RepartidorDTO> libres = repartidores.listarTodos().stream()
-                .filter(r -> "DISPONIBLE".equals(r.getEstado())).collect(Collectors.toList());
+                .filter(RepartidorDTO::isConLugar).collect(Collectors.toList());
 
         Map<Long, GrupoZonaDTO> grupos = new LinkedHashMap<>();
         for (ZonaDTO z : activas) {
@@ -293,9 +297,9 @@ public class RuteoService implements IRuteo {
     }
 
     /**
-     * Lo que un despacho necesita saber de la red, cargado una vez. Los
-     * repartidores se van marcando ocupados a medida que se les asignan
-     * pedidos del lote, así el siguiente pedido ve la disponibilidad real.
+     * Lo que un despacho necesita saber de la red, cargado una vez. A los
+     * repartidores se les va sumando cada pedido del lote que se les
+     * asigna, así el siguiente pedido ve el lugar que les queda de verdad.
      */
     private final class Despacho {
         final List<ZonaDTO> zonas = RuteoService.this.zonas.listarTodas().stream()
@@ -309,9 +313,11 @@ public class RuteoService implements IRuteo {
             return zonas.stream().filter(z -> z.contiene(codigoPostal)).findFirst().orElse(null);
         }
 
-        boolean hayLibreEn(ZonaDTO zona) {
+        // Si a algún repartidor de la zona le entra el pedido (ADR-032).
+        boolean hayLugarEn(ZonaDTO zona, PedidoDTO pedido) {
             return repartidores.values().stream()
-                    .anyMatch(r -> "DISPONIBLE".equals(r.getEstado()) && zona.getId().equals(r.getIdZona()));
+                    .anyMatch(r -> zona.getId().equals(r.getIdZona())
+                            && r.entra(pedido.getPesoKg(), pedido.getCantidadTotal()));
         }
 
         String nombre(Long idTransportista) {
@@ -332,20 +338,20 @@ public class RuteoService implements IRuteo {
             if (CoberturaZona.TRANSPORTISTA.name().equals(zona.getCobertura())) {
                 return derivar(idPedido, zona.getIdTransportista(), "cubre la zona " + zona.getNombre(), despacho);
             }
-            if (!despacho.hayLibreEn(zona) && zona.getIdTransportista() != null) {
+            if (!despacho.hayLugarEn(zona, pedido) && zona.getIdTransportista() != null) {
                 return derivar(idPedido, zona.getIdTransportista(),
-                        "respaldo: no hay repartidores libres en la zona " + zona.getNombre(), despacho);
+                        "respaldo: a ningún repartidor de la zona " + zona.getNombre() + " le entra el pedido", despacho);
             }
             Long idRepartidor = gestion.confirmarPedidoEnZona(idPedido, zona.getId());
             RepartidorDTO asignado = idRepartidor != null ? despacho.repartidores.get(idRepartidor) : null;
             if (asignado != null) {
-                asignado.estado = "OCUPADO";
+                asignado.sumar(idPedido, pedido.getPesoKg(), pedido.getCantidadTotal());
             }
             boolean deLaZona = asignado != null && zona.getId().equals(asignado.getIdZona());
             return ResultadoDespachoDTO.de(idPedido, Resultado.REPARTIDOR,
                     (asignado != null ? asignado.getNombre() : "Repartidor")
                             + (deLaZona ? " (zona " + zona.getNombre() + ")"
-                                        : " (de otra zona: no había libres en " + zona.getNombre() + ")"));
+                                        : " (de otra zona: en " + zona.getNombre() + " no le entraba a nadie)"));
         } catch (com.rabbit.pedidos.negocio.ValidacionException e) {
             return ResultadoDespachoDTO.de(idPedido, Resultado.ERROR, e.getMessage());
         } catch (EJBException e) {

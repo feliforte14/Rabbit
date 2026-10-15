@@ -29,6 +29,8 @@ public class DatosPedidoExternoDTO {
     public String direccionEntrega;
     // Opcional: si no viene, se busca en la dirección (ver CodigosPostales).
     public String codigoPostalEntrega;
+    // Solo PUNTO_PICKING, opcional: kilos totales (ver PedidoExterno.pesoKg).
+    public BigDecimal pesoKg;
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public Long getIdComercio() { return idComercio; }
@@ -45,6 +47,8 @@ public class DatosPedidoExternoDTO {
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
     public void setDireccionEntrega(String direccionEntrega) { this.direccionEntrega = direccionEntrega; }
+    public BigDecimal getPesoKg() { return pesoKg; }
+    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
     public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
     public void setCodigoPostalEntrega(String codigoPostalEntrega) { this.codigoPostalEntrega = codigoPostalEntrega; }
 }
