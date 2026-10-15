@@ -115,7 +115,6 @@ import jakarta.inject.Inject;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -430,9 +429,8 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     // y queda null (contarlo como 0 haría pasar por liviano un pedido que
     // no lo es).
     private BigDecimal pesoDeStockConsignado(List<LineaPedido> lineas) {
-        Map<Long, BigDecimal> pesoPorItem = new HashMap<>();
-        stock.listarItemsPorIds(lineas.stream().map(LineaPedido::getIdItem).collect(Collectors.toList()))
-                .forEach(item -> pesoPorItem.put(item.getId(), item.getPesoKg()));
+        Map<Long, BigDecimal> pesoPorItem =
+                stock.pesosPorItem(lineas.stream().map(LineaPedido::getIdItem).collect(Collectors.toList()));
         BigDecimal total = BigDecimal.ZERO;
         for (LineaPedido linea : lineas) {
             BigDecimal pesoUnidad = pesoPorItem.get(linea.getIdItem());
@@ -861,6 +859,16 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
                 .map(fila -> new ResumenEntregasDTO((Long) fila[0], ((Number) fila[1]).intValue(),
                         fila[2] != null ? (BigDecimal) fila[2] : BigDecimal.ZERO))
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    @RolesAllowed("COMERCIO")
+    public ResumenEntregasDTO resumenEntregasDelComercioActual(LocalDateTime desde, LocalDateTime hasta) {
+        Long idComercio = contextoUsuario.idComercioActual();
+        return resumenEntregas(desde, hasta).stream()
+                .filter(r -> r.idComercio().equals(idComercio))
+                .findFirst()
+                .orElse(new ResumenEntregasDTO(idComercio, 0, BigDecimal.ZERO));
     }
 
     // Todas las filas del mock del ERP (sincronizadas y pendientes) —

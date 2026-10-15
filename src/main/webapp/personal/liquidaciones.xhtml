@@ -66,16 +66,13 @@
                 <h:column>
                     <f:facet name="header">Entregas</f:facet>
                     #{l.cantidadEnvios}
-                    <span class="dato-secundario"><h:outputText value="#{l.kilos}"><f:convertNumber maxFractionDigits="3" /></h:outputText> kg</span>
+                    <span class="dato-secundario">#{etiquetas.kilos(l.kilos)}</span>
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Detalle</f:facet>
-                    <span class="dato-secundario">Abono
-                        <h:outputText value="#{l.abono}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></span>
-                    <span class="dato-secundario">Envíos
-                        <h:outputText value="#{l.cargoEnvios}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></span>
-                    <span class="dato-secundario">Kilos
-                        <h:outputText value="#{l.cargoKilos}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></span>
+                    <span class="dato-secundario">Abono: #{etiquetas.pesos(l.abono)}</span>
+                    <span class="dato-secundario">Envíos: #{etiquetas.pesos(l.cargoEnvios)}</span>
+                    <span class="dato-secundario">Kilos: #{etiquetas.pesos(l.cargoKilos)}</span>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Total</f:facet>

@@ -109,7 +109,7 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
             throw new ValidacionException("No hay repartidores cargados para el pedido " + idPedido);
         }
         throw new ValidacionException("No hay repartidores con lugar para el pedido " + idPedido + " ("
-                + (pesoKg != null ? pesoKg.stripTrailingZeros().toPlainString() + " kg, " : "")
+                + (pesoKg != null ? com.rabbit.infraestructura.Formatos.kilos(pesoKg) + ", " : "")
                 + bultos + " bulto(s)): están todos ocupados o les excede la capacidad");
     }
 

@@ -20,6 +20,15 @@ import jakarta.inject.Named;
 @ApplicationScoped
 public class EtiquetasBean {
 
+    // Kilos y montos (ver Formatos): #{etiquetas.kilos(p.pesoKg)}.
+    public String kilos(java.math.BigDecimal kilos) {
+        return Formatos.kilos(kilos);
+    }
+
+    public String pesos(java.math.BigDecimal importe) {
+        return Formatos.pesos(importe);
+    }
+
     public String estadoPedido(Object estado) {
         switch (texto(estado)) {
             case "PENDIENTE": return "Pendiente";

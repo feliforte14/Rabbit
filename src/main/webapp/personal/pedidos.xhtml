@@ -74,7 +74,7 @@
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Productos</f:facet>
                     #{p.productos} (#{p.cantidadTotal} u.)
-                    <span class="dato-secundario">#{etiquetas.origen(p.origen)}#{empty p.pesoKg ? '' : ' · ' += p.pesoKg += ' kg'}</span>
+                    <span class="dato-secundario">#{etiquetas.origen(p.origen)}#{empty p.pesoKg ? '' : ' · ' += etiquetas.kilos(p.pesoKg)}</span>
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Entrega en</f:facet>
@@ -296,7 +296,7 @@
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Productos</f:facet>
-                    #{pe.descripcionLineas} (#{pe.cantidadTotal} u.)
+                    #{pedidoBean.descripcionLineas(pe)} (#{pe.cantidadTotal} u.)
                     <span class="dato-secundario">#{etiquetas.origen(pe.origen)}#{pe.origen == 'PUNTO_PICKING' ? ': '.concat(pedidoBean.nombrePuntoPicking(pe.idComercio, pe.idPuntoPicking)) : ''}</span>
                 </h:column>
                 <h:column styleClass="col-p3" headerClass="col-p3">

@@ -94,7 +94,7 @@ public class RepartidorBean implements Serializable {
         }
         StringBuilder texto = new StringBuilder();
         if (r.getCapacidadKg() != null) {
-            texto.append(r.getCapacidadKg().stripTrailingZeros().toPlainString()).append(" kg");
+            texto.append(com.rabbit.infraestructura.Formatos.kilos(r.getCapacidadKg()));
         }
         if (r.getCapacidadBultos() != null) {
             texto.append(texto.length() > 0 ? " · " : "").append(r.getCapacidadBultos()).append(" bultos");
@@ -109,7 +109,7 @@ public class RepartidorBean implements Serializable {
             return "—";
         }
         return pedidos + (pedidos == 1 ? " pedido" : " pedidos") + " ("
-                + (r.getCargaKg().signum() > 0 ? r.getCargaKg().stripTrailingZeros().toPlainString() + " kg, " : "")
+                + (r.getCargaKg().signum() > 0 ? com.rabbit.infraestructura.Formatos.kilos(r.getCargaKg()) + ", " : "")
                 + r.getCargaBultos() + " bultos): "
                 + r.getPedidosEnCursoTexto();
     }

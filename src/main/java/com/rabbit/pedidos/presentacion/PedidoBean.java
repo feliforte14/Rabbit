@@ -28,6 +28,7 @@ import com.rabbit.inventario.negocio.IConsultaStock;
 import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
+import com.rabbit.pedidos.dto.LineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
@@ -92,6 +93,9 @@ public class PedidoBean implements Serializable {
 
     private List<PedidoDTO> pedidos;
     private List<PedidoExternoDTO> pedidosExternos;
+    // Nombre de cada ítem de stock que piden los pedidos del ERP: las líneas
+    // de stock consignado traen solo el ID del ítem (ver descripcionLineas).
+    private Map<Long, String> productosPorItem;
     private List<ComercioDTO> listaComercios;
     private List<DepositoDTO> listaDepositos;
     // Datos de otros componentes para mostrar junto a cada pedido. Se cargan
@@ -123,6 +127,11 @@ public class PedidoBean implements Serializable {
     public void cargar() {
         pedidos = seguimiento.listarTodos();
         pedidosExternos = seguimiento.listarPedidosExternos();
+        List<Long> idsItems = pedidosExternos.stream().flatMap(pe -> pe.getLineas().stream())
+                .map(LineaPedidoDTO::getIdItem).filter(java.util.Objects::nonNull).distinct()
+                .collect(Collectors.toList());
+        productosPorItem = idsItems.isEmpty() ? Map.of() : stock.listarItemsPorIds(idsItems).stream()
+                .collect(Collectors.toMap(ItemInventarioDTO::getId, ItemInventarioDTO::getProducto));
         listaComercios = comercios.listarTodos();
         listaDepositos = stock.listarDepositos();
         nombresRepartidores = repartidores.listarTodos().stream()
@@ -433,6 +442,15 @@ public class PedidoBean implements Serializable {
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public List<PedidoDTO> getPedidos() { return pedidos; }
     public List<PedidoExternoDTO> getPedidosExternos() { return pedidosExternos; }
+
+    // "Yerba 1kg, Aceite 900ml" en vez de "Ítem 2, Ítem 3"; si el ítem ya
+    // no existe, queda su ID.
+    public String descripcionLineas(PedidoExternoDTO pe) {
+        return pe.getLineas().stream()
+                .map(l -> l.getProducto() != null ? l.getProducto()
+                        : productosPorItem.getOrDefault(l.getIdItem(), "Ítem " + l.getIdItem()))
+                .collect(Collectors.joining(", "));
+    }
     public List<ComercioDTO> getListaComercios() { return listaComercios; }
     public List<DepositoDTO> getListaDepositos() { return listaDepositos; }
     public List<TransportistaDTO> getListaTransportistas() { return listaTransportistas; }
