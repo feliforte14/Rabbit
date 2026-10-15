@@ -344,8 +344,8 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   devuelve a Mis pedidos. Como `demo.repartidor`, abrir
   `personal/pedidos.xhtml` → lo devuelve a Mis entregas.
 - [ ] **S2. Solo administrador.** Como operador (crear uno en Usuarios):
-  no ve "Usuarios", no puede eliminar comercios ni cancelar un pedido
-  confirmado.
+  no ve "Usuarios", no puede eliminar comercios, repartidores ni zonas
+  (no ve el botón), ni cancelar un pedido confirmado.
 - [ ] **S3. Datos ajenos.** Como `demo.comercio`, pegar
   `comercio/puntos-picking.xhtml?idComercio=<otro id>` → el parámetro se
   ignora y ve solo los suyos.
@@ -371,6 +371,12 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   entra con la nueva y no con la vieja. Dar de baja el comercio de
   `demo.comercio`, dar de baja la cuenta e intentar reactivarla → se
   rechaza porque su comercio no está activo.
+- [ ] **S10. Eliminar usuario, repartidor y zona (ADR-036).** Como
+  administrador: eliminar una cuenta de prueba → desaparece y no se puede
+  reactivar; intentar eliminar la propia → no hay botón. Eliminar un
+  repartidor con cuenta → "tiene una cuenta de usuario (eliminala primero
+  desde Usuarios)"; uno recién creado → se elimina. Eliminar una zona →
+  sus repartidores quedan "Sin zona fija".
 
 ### Cierre
 
@@ -379,4 +385,7 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   ninguna de `rabbit.`).
 - [ ] Revisar el log: sin `ERROR` nuevos salvo los provocados a propósito
   (banco caído, rechazos).
-- [ ] Si fue un ensayo: limpiar la base con el script de limpieza.
+- [ ] Si fue un ensayo: limpiar la base con el script de limpieza. En el
+  SQL Editor de Supabase cada ejecución es una conexión aparte: el
+  `COMMIT;` tiene que ir al final del mismo bloque que se ejecuta (correrlo
+  después, solo, no confirma nada).

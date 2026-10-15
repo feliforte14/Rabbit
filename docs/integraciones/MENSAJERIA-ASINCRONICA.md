@@ -65,6 +65,7 @@ sequenceDiagram
 | Falla de negocio (comercio de baja, sin stock) | Se descarta el pedido con motivo y el mensaje se consume (reintentarlo no lo arregla) |
 | Mensaje ilegible | Se loguea y se consume |
 | Error transitorio (base caída) | Se relanza; el broker reintenta la entrega |
+| Un componente rechaza la llamada por permisos | El consumidor y el polling corren **sin usuario**: todo lo que llaman tiene que estar permitido sin rol. Si no, cada intento falla y el pedido queda "Pendiente" en "Recibidos del ERP" hasta que se corrija (pasó con el peso de los ítems; se agregó `pesosPorItem` sin rol, ADR-032) |
 
 **Orden:** no importa, cada mensaje es independiente (un ID por pedido).
 

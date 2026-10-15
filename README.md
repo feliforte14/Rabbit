@@ -30,7 +30,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   capacidad de su vehículo (kilos y bultos): al confirmar un pedido se le
   asigna al primero al que le entra, que puede llevar varios a la vez
   (ADR-032). Mientras reparte, su celular comparte la ubicación: el
-  personal lo ve en un mapa y el cliente, en el seguimiento (ADR-035).
+  personal lo ve en un mapa y el cliente, en el seguimiento (ADR-035). Un
+  administrador puede eliminar un repartidor sin entregas en curso ni
+  cuenta de usuario (ADR-036).
 - **Transportistas:** un pedido se puede derivar a una empresa de envíos
   externa (integrada por API REST o por SOAP legado), después de comparar
   sus cotizaciones; Rabbit sigue el estado del envío (consultándolo cada 15 s)
@@ -38,12 +40,14 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 - **Ruteo y entregas:** zonas de reparto por código postal; los pedidos
   pendientes se agrupan por zona y se despachan solos según quién cubre la
   zona (repartidores propios o un transportista; si el transportista no lo
-  toma, el más barato de los demás). Hoja de ruta de cada
+  toma, el más barato de los demás). Las zonas se dan de baja, se
+  reactivan o, solo un administrador, se eliminan (ADR-036). Hoja de ruta de cada
   pedido (de dónde se retira y adónde se entrega, con el recorrido en
   Google Maps) y tablero de entregas en curso.
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
   (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
-  pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
+  pedidos, su stock, sus puntos de picking y lo que se le cobra por mes
+  (con la vista previa del mes en curso); un `REPARTIDOR` ve su hoja de
   ruta y marca retiro y entrega (con la foto del remito firmado,
   ADR-033) desde el celular; un `ERP` (el sistema del
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
@@ -144,7 +148,7 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (30 ADRs)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (36 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
@@ -191,10 +195,10 @@ desde cualquier máquina entra en el WildFly de todos (paso 5, ADR-031).
 
 | Tipo de cuenta | Cómo se crea | Qué usa/ve |
 |---|---|---|
-| `ADMINISTRADOR` (la primera) | `add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s` (paso 5) — es la única que se crea por fuera de la app | Todo; además, único rol que puede eliminar un comercio, anular un cobro y dar de alta/baja otros usuarios |
-| `ADMINISTRADOR` / `OPERADOR` (resto) | Desde **Usuarios**, con un `ADMINISTRADOR` ya logueado | Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar comercios/anular cobros |
-| `COMERCIO` | Desde **Usuarios**, asociándola a un comercio ya dado de alta | Sus pedidos, su stock (solo lectura), sus puntos de picking |
-| `REPARTIDOR` | Desde **Usuarios**, asociándola a un repartidor ya dado de alta | Su hoja de ruta; marca retiro y entrega |
+| `ADMINISTRADOR` (la primera) | `add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s` (paso 5) — es la única que se crea por fuera de la app | Todo; además, único rol que puede eliminar comercios, repartidores, zonas y usuarios, anular un cobro, dar de alta/baja otros usuarios y liquidar el mes |
+| `ADMINISTRADOR` / `OPERADOR` (resto) | Desde **Usuarios**, con un `ADMINISTRADOR` ya logueado | Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar nada ni anular cobros |
+| `COMERCIO` | Desde **Usuarios**, asociándola a un comercio ya dado de alta | Sus pedidos (con el remito de cada entrega), su stock (solo lectura), sus puntos de picking y sus liquidaciones mensuales |
+| `REPARTIDOR` | Desde **Usuarios**, asociándola a un repartidor ya dado de alta | Su hoja de ruta; marca retiro y entrega (con foto del remito) y comparte su ubicación mientras reparte |
 | `ERP` | Desde **Usuarios**, asociándola a un comercio (paso 6) | Nada de la web — solo la API REST `/api/v1`, y solo los pedidos de ese comercio (HTTP Basic) |
 
 Un usuario creado a mano con `add-user.sh -g ERP`/`-g COMERCIO` (sin pasar
@@ -377,7 +381,9 @@ $WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADO
 ```
 
 Desde ahí, ese administrador crea los demás usuarios en "Usuarios"
-(`personal/usuarios.xhtml`), ya en la base.
+(`personal/usuarios.xhtml`), ya en la base. Ahí también los da de baja
+(se pueden reactivar con una contraseña nueva) o los elimina para siempre.
+Una cuenta de comercio o ERP solo se reactiva si su comercio está activo.
 
 **Cuentas creadas antes de ADR-031:** no tienen contraseña en la base y
 solo entran en la máquina donde se crearon; la pantalla Usuarios las

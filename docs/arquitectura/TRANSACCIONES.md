@@ -113,6 +113,11 @@ sigue activa.
 componente anota un impedimento, no se borra nada. Si no, `ComercioEliminado`
 borra el historial terminado del comercio en cada componente y después se
 borra el comercio: si cualquier paso falla, se deshace todo.
+`eliminarRepartidor` y `eliminarZona` (ADR-036) siguen el mismo esquema:
+el repartidor se bloquea (`SELECT ... FOR UPDATE`) para que no se le
+asigne un pedido mientras se lo elimina, y soltar sus pedidos terminados o
+dejar sin zona a los repartidores pasa en la misma transacción que el
+borrado.
 
 ## Flujo 6: derivar un pedido a un transportista (implementado)
 

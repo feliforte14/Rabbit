@@ -93,6 +93,11 @@ qué alternativa se descartó.
     cancelados, avisos, cobros anulados, envíos cancelados). Comercios no
     depende de ellos (ya dependen de él), y nada queda apuntando a un
     comercio inexistente. Implementado.
+  - `EliminacionDeRepartidor` / `RepartidorEliminado` y `ZonaEliminada`
+    (sincrónicos, ADR-036): el mismo esquema para eliminar un repartidor
+    (Pedidos y Seguridad lo impiden si tiene entregas en curso o cuenta, y
+    después Pedidos le suelta sus pedidos terminados) y una zona
+    (Repartidores deja sin zona fija a los suyos). Implementado.
   - `EstadoEnvioCambiado` (sincrónico): Transportistas avisa que un
     transportista informó un estado nuevo; Pedidos
     (`ActualizacionDePedidosPorEnvio`) mueve el pedido en la misma

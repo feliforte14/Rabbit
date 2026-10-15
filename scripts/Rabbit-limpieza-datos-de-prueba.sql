@@ -13,16 +13,21 @@
 --     negocio y todas las cuentas de la tabla usuarios. Deja las tablas,
 --     las columnas y las restricciones como están.
 --
--- Historial: la base se vació por última vez el 12/10/2026, antes de la
--- corrida de pruebas del 14/10. La base es COMPARTIDA con el equipo: si
+-- Historial: la base se vació por última vez el 15/10/2026, conservando
+-- usuarios, comercios, repartidores y zonas (para las pruebas de
+-- ADR-032 a 036). La base es COMPARTIDA con el equipo: si
 -- alguien cargó datos que necesita, NO corras la opción B sin avisar.
 --
 -- Cómo usarlo, en el SQL Editor de Supabase:
 --   1. Corré solo el PASO 1 y revisá los conteos.
---   2. Corré el bloque de la opción elegida completo. Termina SIN
---      confirmar.
---   3. Si los conteos del final dan todos 0, corré COMMIT;
---      si algo no cierra, corré ROLLBACK; y no se borra nada.
+--   2. Corré el bloque de la opción elegida completo, tal cual. Es un
+--      ensayo: el editor corre cada ejecución en una conexión aparte y,
+--      como el bloque termina sin COMMIT, al terminar se deshace solo.
+--      Revisá que los conteos del final den 0.
+--   3. Si dan 0, volvé a correr el MISMO bloque con la línea "COMMIT;"
+--      del final descomentada: tiene que ir en la misma ejecución. Un
+--      COMMIT corrido después, solo, no confirma nada (la transacción ya
+--      se descartó).
 --
 -- Los IDs no se reinician: los próximos registros siguen numerando desde
 -- donde quedaron.
@@ -115,8 +120,7 @@ UNION ALL
 SELECT 'pedidos externos [TEST]/[CARGA]', COUNT(*) FROM pedidos_externos
  WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%';
 
--- COMMIT;     -- confirma el borrado
--- ROLLBACK;   -- deshace todo, no se borra nada
+-- COMMIT;     -- descomentar para confirmar, en la misma ejecución (paso 3)
 
 
 -- ---------------------------------------------------------------------
@@ -164,8 +168,7 @@ UNION ALL SELECT 'usuarios', COUNT(*) FROM usuarios
 UNION ALL SELECT 'transportistas', COUNT(*) FROM transportistas
 UNION ALL SELECT 'zonas', COUNT(*) FROM zonas;
 
--- COMMIT;     -- confirma el borrado
--- ROLLBACK;   -- deshace todo, no se borra nada
+-- COMMIT;     -- descomentar para confirmar, en la misma ejecución (paso 3)
 
 
 -- ---------------------------------------------------------------------

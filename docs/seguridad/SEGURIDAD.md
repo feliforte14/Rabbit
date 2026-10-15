@@ -67,6 +67,9 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | `obtenerRemito` (`/remito?pedido=ID`) | El personal, el `COMERCIO` dueño del pedido y su `REPARTIDOR`. Cualquier otro caso responde 404, sin distinguir si existe |
 | `registrarUbicacion` | Solo el `REPARTIDOR`, para sí mismo y mientras tiene entregas en curso (ADR-035). El seguimiento público muestra la ubicación solo si el repartidor lleva ESE pedido |
 | `liquidarMes`, `reintentarCobro` | Solo `ADMINISTRADOR` (o el timer mensual con `@RunAs`): cobran por el banco (ADR-034) |
+| `previsualizarMesEnCursoDelComercioActual`, `resumenEntregasDelComercioActual` | Solo `COMERCIO`, y solo con sus entregas: el resumen de todos los comercios (`resumenEntregas`) es del personal |
+| `UsuarioService.eliminarUsuario`, `RepartidorService.eliminarRepartidor`, `ZonaService.eliminarZona` | Solo `ADMINISTRADOR`: borran físicamente y no se deshacen (ADR-036). No se puede eliminar la propia cuenta, ni al último administrador activo, ni un repartidor con entregas en curso o con cuenta |
+| `IConsultaStock.pesosPorItem` | Sin rol a propósito: la usa la sincronización de pedidos del ERP, que corre sin usuario (JMS y timer). Devuelve solo el peso de cada ítem; el listado completo del stock sigue siendo del personal |
 | `registrarPedidoExterno` | Personal de Rabbit (simulación) o el `ERP`, que solo carga pedidos de su comercio (el comercio sale de su cuenta, no del cuerpo del pedido) |
 | `cancelarPedidoExterno` | Solo el `ERP`, y solo pedidos de su comercio que todavía estén pendientes |
 | Puntos de picking (alta, baja, reactivación) | Personal de Rabbit o el `COMERCIO` dueño |

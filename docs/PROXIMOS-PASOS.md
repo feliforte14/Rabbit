@@ -9,9 +9,9 @@ no lo tome otro en paralelo).
 
 ## Hecho: mejoras del tablero (15/10/2026)
 
-Implementadas en la rama `feature/mejoras-trello` (sobre
-`feature/cuentas-compartidas`), probadas de punta a punta (ver la
-sección 10 de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
+Implementadas en la rama `feature/mejoras-trello` (todavía sin mergear a
+`main`), probadas de punta a punta (ver la sección 10 de
+[FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
 
 - [x] Contraseñas centralizadas en la base (ADR-031).
 - [x] Peso de los bultos y límite por repartidor en kilos y bultos (ADR-032).
@@ -20,6 +20,10 @@ sección 10 de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
       equipo:** los valores de la tarifa (hoy $15.000 + $1.200 por envío +
       $80 por kilo, configurables).
 - [x] Ubicación del repartidor en vivo, mapa del personal y del cliente (ADR-035).
+- [x] Eliminar usuarios, repartidores y zonas, solo administrador (ADR-036).
+- [x] Vista previa del mes en curso en "Mis liquidaciones" del comercio.
+- [ ] **Al mergear a `main`:** cada integrante despliega y corre una vez
+      `scripts/configurar-realm-compartido.cli` (README, paso 5).
 
 ## 1. Revisar en el código
 
