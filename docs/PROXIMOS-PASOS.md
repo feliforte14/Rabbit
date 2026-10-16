@@ -25,6 +25,27 @@ Implementadas en la rama `feature/mejoras-trello` (todavía sin mergear a
 - [ ] **Al mergear a `main`:** cada integrante despliega y corre una vez
       `scripts/configurar-realm-compartido.cli` (README, paso 5).
 
+## Hecho: correcciones del equipo (16/10/2026)
+
+De la lista "Testing NO OK" de Trello, en la misma rama (ver la sección 11
+de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
+
+- [x] Si el repartidor no tiene lugar, se le asigna a otro; si nadie,
+      lista de espera automática, sin cobrar (ADR-037).
+- [x] Hora de corte de la hoja de ruta, configurable sin tocar código
+      (`rabbit.ruteo.hora-corte`, ADR-037).
+- [x] "Devolver a depósito" desde Mis entregas: vuelve a la lista de
+      espera para otro repartidor, sin cobrar de nuevo (ADR-037).
+- [x] Hoja de ruta recomendada con link a Google Maps en tramos; la foto
+      del remito se sube en una ventana al tocar "Entregar pedido"
+      (ADR-038).
+- [ ] **A definir por el equipo:**
+  - la hora de corte (hoy sin corte si no se configura; se propuso 9:00);
+  - si se geocodifican las direcciones para ordenar el recorrido por
+    distancia real (hoy, por cercanía de código postal);
+  - la cobranza por almacenamiento: es solo una propuesta, sin
+    implementar ([PROPUESTA-COBRANZA-ALMACENAMIENTO.md](PROPUESTA-COBRANZA-ALMACENAMIENTO.md)).
+
 ## 1. Revisar en el código
 
 ### Limitaciones ya documentadas (pendientes de resolver)

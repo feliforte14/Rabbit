@@ -20,7 +20,7 @@ docs/
 | [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md) | Capas, componentes, interfaces entre componentes, stateless vs. stateful, máquina de estados del pedido |
 | [PATRONES.md](arquitectura/PATRONES.md) | Cada patrón de diseño: qué problema resuelve, dónde está, qué alternativa se descartó |
 | [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md) | Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo |
-| [DECISIONES.md](arquitectura/DECISIONES.md) | Registro de decisiones de arquitectura (36 ADR) |
+| [DECISIONES.md](arquitectura/DECISIONES.md) | Registro de decisiones de arquitectura (38 ADR) |
 
 ### [integraciones/](integraciones/)
 
@@ -43,7 +43,7 @@ docs/
 |---|---|
 | [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md) | Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo. Los tests automatizados están en `src/test` (ver el README principal) |
 | [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md) | Comandos para prender y apagar cada sistema, perillas de las demos y la lista completa de pruebas para marcar |
-| [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json) | Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos (41 requests) |
+| [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json) | Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos (45 requests) |
 
 ### [consigna/](consigna/)
 
@@ -57,6 +57,7 @@ docs/
 
 | Documento | Qué justifica |
 |---|---|
+| [PROPUESTA-COBRANZA-ALMACENAMIENTO.md](PROPUESTA-COBRANZA-ALMACENAMIENTO.md) | Propuesta, sin implementar, de cobrar por almacenamiento según la categoría de tamaño (para que la decida el equipo) |
 | [PROXIMOS-PASOS.md](PROXIMOS-PASOS.md) | Checklist de equipo: qué revisar en el código y qué tareas suman participación de cada integrante (no exigido por la consigna, ya completa) |
 
 Cómo levantar el sistema y el resumen funcional siguen en el

@@ -231,6 +231,10 @@ public class PedidosExternosResource {
         if (externo.codigoSeguimiento != null) {
             json.add("codigoSeguimiento", externo.codigoSeguimiento);
         }
+        if ("PENDIENTE".equals(externo.estadoPedido)) {
+            // Esperando repartidor (ADR-037): no hay lugar o pasó la hora de corte.
+            json.add("enListaDeEspera", externo.enListaDeEspera);
+        }
         if (externo.errorSincronizacion != null) {
             json.add("motivo", externo.errorSincronizacion);
         }
@@ -238,7 +242,8 @@ public class PedidosExternosResource {
         JsonObjectBuilder links = Json.createObjectBuilder()
                 .add("self", Json.createObjectBuilder().add("href", enlace(uri, externo.id).toString()));
         boolean cancelable = "Pendiente".equals(externo.resultado)
-                || ("Sincronizado".equals(externo.resultado) && "PENDIENTE".equals(externo.estadoPedido));
+                || ("Sincronizado".equals(externo.resultado) && "PENDIENTE".equals(externo.estadoPedido)
+                    && !externo.devueltoADeposito);
         if (cancelable) {
             links.add("cancelar", Json.createObjectBuilder()
                     .add("href", uri.getBaseUriBuilder().path(PedidosExternosResource.class)

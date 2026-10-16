@@ -133,6 +133,15 @@ public class PedidoRepository {
                 .getResultList();
     }
 
+    // La lista de espera (ADR-037): pendientes que esperan repartidor, por
+    // orden de llegada a la fila.
+    public List<Long> listarIdsEnEspera() {
+        return em.createQuery("SELECT p.id FROM Pedido p WHERE p.estado = :pendiente AND p.enEsperaDesde IS NOT NULL "
+                        + "ORDER BY p.enEsperaDesde, p.id", Long.class)
+                .setParameter("pendiente", EstadoPedido.PENDIENTE)
+                .getResultList();
+    }
+
     // Pedidos en viaje o por salir (CONFIRMADO o EN_CAMINO): el tablero de entregas.
     public List<Pedido> listarEntregasEnCurso() {
         return em.createQuery(

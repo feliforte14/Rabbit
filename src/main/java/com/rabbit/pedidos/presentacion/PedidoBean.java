@@ -355,11 +355,18 @@ public class PedidoBean implements Serializable {
         }
     }
 
-    // Avanza el pedido de PENDIENTE a CONFIRMADO (ver EstadoPedido).
+    // Avanza el pedido de PENDIENTE a CONFIRMADO (ver EstadoPedido), o lo
+    // deja en la lista de espera si nadie tiene lugar (ADR-037).
     public void confirmar(Long idPedido) {
         try {
-            gestion.confirmarPedido(idPedido);
-            Mensajes.info("Pedido confirmado");
+            Long idRepartidor = gestion.confirmarPedido(idPedido);
+            if (idRepartidor != null) {
+                Mensajes.info("Pedido confirmado");
+            } else {
+                Mensajes.info("Pedido " + idPedido + " en lista de espera: "
+                        + seguimiento.consultarEstadoPedido(idPedido).getMotivoEspera()
+                        + ". No se cobró nada todavía: se asigna solo en cuanto se pueda.");
+            }
             cargar();
         } catch (ValidacionException e) {
             Mensajes.error(e.getMessage());

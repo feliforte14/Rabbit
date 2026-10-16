@@ -29,7 +29,11 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 - **Repartidores:** padrón de repartidores propios con su zona y la
   capacidad de su vehículo (kilos y bultos): al confirmar un pedido se le
   asigna al primero al que le entra, que puede llevar varios a la vez
-  (ADR-032). Mientras reparte, su celular comparte la ubicación: el
+  (ADR-032). Si no le entra a nadie (o ya pasó la hora de corte de la hoja
+  de ruta), el pedido queda en una lista de espera, sin cobrar, y se
+  asigna solo cuando se libera alguno; el repartidor puede devolver al
+  depósito un pedido que no pudo entregar, y se le asigna a otro
+  (ADR-037). Mientras reparte, su celular comparte la ubicación: el
   personal lo ve en un mapa y el cliente, en el seguimiento (ADR-035). Un
   administrador puede eliminar un repartidor sin entregas en curso ni
   cuenta de usuario (ADR-036).
@@ -42,14 +46,15 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   zona (repartidores propios o un transportista; si el transportista no lo
   toma, el más barato de los demás). Las zonas se dan de baja, se
   reactivan o, solo un administrador, se eliminan (ADR-036). Hoja de ruta de cada
-  pedido (de dónde se retira y adónde se entrega, con el recorrido en
-  Google Maps) y tablero de entregas en curso.
+  pedido (de dónde se retira y adónde se entrega), hoja de ruta
+  recomendada del repartidor con todas sus paradas en orden y el recorrido
+  en Google Maps (ADR-038), y tablero de entregas en curso.
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
   (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
   pedidos, su stock, sus puntos de picking y lo que se le cobra por mes
   (con la vista previa del mes en curso); un `REPARTIDOR` ve su hoja de
-  ruta y marca retiro y entrega (con la foto del remito firmado,
-  ADR-033) desde el celular; un `ERP` (el sistema del
+  ruta recomendada y marca retiro y entrega (con la foto del remito
+  firmado, ADR-033) o devuelve el pedido al depósito, desde el celular; un `ERP` (el sistema del
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
   Todo por HTTPS, con límite de intentos en el login.
 - **Notificaciones:** cada cambio de estado le llega al comercio en su
@@ -59,7 +64,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
   columnas secundarias de cada tabla, en celular las tablas se ven como
   tarjetas con lo esencial y el menú se despliega con un botón (ver
-  `resources/rabbit/1_16/`).
+  `resources/rabbit/1_17/`).
 
 ## Tecnologías
 
@@ -96,7 +101,7 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_16/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+├── resources/rabbit/1_17/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
 │                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas),
 │                               remito.js (achica la foto del remito), ubicacion.js y mapa.js (mapas)
 └── WEB-INF/
@@ -148,7 +153,7 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (36 ADRs)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (38 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
@@ -420,6 +425,19 @@ Por defecto: $15.000 de abono, $1.200 por pedido entregado y $80 por kilo
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.abono:add(value=20000)"
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-envio:add(value=1500)"
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-kilo:add(value=100)"
+```
+
+### 7b. (Opcional) Hora de corte de la hoja de ruta
+
+Desde esa hora no se suman pedidos a la hoja del día de ningún
+repartidor: lo que se confirma después queda en la lista de espera y se
+asigna solo al día siguiente, antes del corte (ADR-037). Sin la
+propiedad no hay corte. Se lee en cada uso, sin redesplegar:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=09:00)"
+# para sacarla:
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:remove"
 ```
 
 ### 8. (Opcional) Avisos por mail

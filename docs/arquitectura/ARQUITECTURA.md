@@ -45,7 +45,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Comercios | `IConsultaComercios` | `obtenerComercio`, `listarTodos`, `listarPuntosPicking`, `listarPuntosPickingDeComercio`, `validarComercioActivo` | Vistas, Inventario, Pedidos, Ruteo, Seguridad (`UsuarioService`, `SesionBean`) |
 | Inventario | `IConsultaStock` | `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `actualizarPesoItem`, `listarItemsPorDeposito` / `PorComercio` / `PorComercioYDeposito` / `PorIds`, `pesosPorItem` (sin rol, ADR-032), `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas` | `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Pedidos, Ruteo |
 | Inventario | `IReservaStock` | `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion` | `ReservaBean`, Pedidos |
-| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona`, `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, `RemitoServlet`, Ruteo, MDB, timer |
+| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona` (null = quedó en lista de espera), `asignarDesdeEspera`, `sacarDeEspera`, `devolverADeposito` (ADR-037), `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, `RemitoServlet`, Ruteo, MDB, timer |
 | Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `consultarSeguimiento`, `listarPendientes`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual`, `resumenEntregas`, `resumenEntregasDelComercioActual` (ADR-034) | `PedidoBean`, `PortalComercioBean`, Ruteo, Pagos, API REST |
 | Seguridad | `IRegistroUsuarios` | `registrarUsuario`, `darDeBaja`, `reactivarUsuario`, `restablecerClave` (ADR-031), `eliminarUsuario` (ADR-036) | `UsuarioBean` |
 | Seguridad | `IConsultaUsuarios` | `listarTodos`, `obtenerUsuario` | `UsuarioBean` |
@@ -53,11 +53,11 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Transportistas | `IGestionTransportistas` | `registrarTransportista`, `darDeBajaTransportista`, `reactivarTransportista`, `listarTodos`, `listarActivos` | `TransportistaBean`, `PedidoBean`, `SeguimientoDeEnvios` |
 | Transportistas | `IEnvios` | `solicitarEnvio`, `cotizarEnvio`, `cancelarEnvioDePedido`, `listarEnvios`, `listarEnviosDelComercioActual` | Pedidos, Ruteo, `PedidoBean`, `TransportistaBean`, `PortalComercioBean` |
 | Transportistas | `ISeguimientoEnvios` | `listarEnviosActivos`, `registrarNovedad` | `SeguimientoDeEnvios` (interna del componente) |
-| Ruteo | `IRuteo` | `listarEntregasEnCurso`, `entregasEnCursoDelRepartidor`, `historialDelRepartidor`, `listarPendientesPorZona`, `despacharPedido`, `despacharZona` | `EntregasBean`, `MisEntregasBean`, `RuteoBean` |
+| Ruteo | `IRuteo` | `listarEntregasEnCurso`, `entregasEnCursoDelRepartidor`, `recorridoRecomendado` (ADR-038), `historialDelRepartidor`, `listarPendientesPorZona`, `despacharPedido`, `despacharZona` | `EntregasBean`, `MisEntregasBean`, `RuteoBean` |
 | Ruteo | `IZonas` | `registrarZona`, `darDeBajaZona`, `reactivarZona`, `eliminarZona` (ADR-036), `listarTodas`, `zonaDeCodigoPostal` | `RuteoBean`, `RepartidorBean`, `RuteoService` |
 | Pagos | `IRegistroCobros` | `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`) | Pedidos, `SuscriptorPagosEstadoPedido` |
 | Pagos | `IConsultaCobros` | `obtenerCobroDePedido`, `listarTodos`, `listarCobrosDelComercioActual` | `PedidoBean`, `PortalComercioBean` |
-| Repartidores | `IAsignacionRepartidores` | `asignarRepartidor` (zona preferida, peso y bultos: ADR-032), `liberarRepartidor` | Pedidos |
+| Repartidores | `IAsignacionRepartidores` | `asignarRepartidor` (zona preferida, peso, bultos y repartidor excluido: ADR-032 y 037), `motivoParaEsperar`, `antesDelCorte`, `liberarRepartidor` | Pedidos |
 | Repartidores | `IGestionRepartidores` | `registrarRepartidor`, `asignarZona`, `actualizarCapacidad`, `eliminarRepartidor` (ADR-036), `listarTodos`, `obtenerRepartidor`, `registrarUbicacion`, `listarUbicacionesRecientes`, `ubicacionParaPedido` (ADR-035) | `RepartidorBean`, `MapaBean`, `MisEntregasBean`, `SeguimientoBean`, `PedidoBean`, Ruteo, Seguridad |
 | Pagos | `ILiquidaciones` | `liquidarMes`, `previsualizar`, `reintentarCobro`, `reintentarPendientes`, `listarDelPeriodo`, `listarPeriodos`, `listarDelComercioActual`, `previsualizarMesEnCursoDelComercioActual`, `tarifaVigente` (ADR-034) | `LiquidacionBean`, `MisLiquidacionesBean`, `LiquidacionMensual` (timer) |
 | Notificaciones | `INotificaciones` | `avisarCambioDeEstado`, `listarRecientes`, `listarDelComercioActual` | `SuscriptorNotificacionesEstadoPedido`, `PedidoBean`, `PortalComercioBean` |
@@ -100,9 +100,19 @@ Otros detalles de cada componente:
   pide la reversa al banco;
   CONTRA_ENTREGA queda PENDIENTE y se acredita al recibir `ENTREGADO` por
   el tópico.
-- **Repartidores:** `asignarRepartidor` toma el primero DISPONIBLE con
-  bloqueo pesimista, para que dos confirmaciones simultáneas no se lleven
-  al mismo repartidor. Se libera al entregar o cancelar el pedido.
+- **Repartidores:** `asignarRepartidor` le da el pedido al primero al que
+  le entra (`AsignacionPorCapacidad`; los de la zona primero), con bloqueo
+  pesimista para que dos confirmaciones simultáneas no carguen de más al
+  mismo repartidor. Se libera al entregar, cancelar o devolver el pedido.
+- **Lista de espera (ADR-037):** si no le entra a nadie o ya pasó la hora
+  de corte (`HoraDeCorte`, system property `rabbit.ruteo.hora-corte`), el
+  pedido queda PENDIENTE con `enEsperaDesde`, sin cobrar.
+  `AsignadorDeEspera` (`@Singleton`, `@RunAs("OPERADOR")`) recorre la
+  fila cada minuto y apenas un pedido se entrega, cancela o devuelve
+  (`AvisosDeEspera`, después del commit).
+- **Hoja de ruta recomendada (ADR-038):** `OrdenDeRecorrido` ordena las
+  paradas del repartidor (retiros primero, entregas por cercanía de CP) y
+  `EnlaceMapa.tramos` arma los links de Google Maps de hasta 10 puntos.
 - **Notificaciones:** el aviso queda guardado y se ve en `pedidos.xhtml`
   y en el portal del comercio; si hay un servidor de correo configurado,
   además se le manda por mail (`AvisosPorMail`, después del commit).
@@ -238,13 +248,21 @@ stateDiagram-v2
     PENDIENTE --> CANCELADO: cancelarPedido
     CONFIRMADO --> EN_CAMINO: despacharPedido
     CONFIRMADO --> CANCELADO: cancelarPedido
+    CONFIRMADO --> PENDIENTE: devolverADeposito
     EN_CAMINO --> ENTREGADO: registrarEntrega
+    EN_CAMINO --> PENDIENTE: devolverADeposito
     ENTREGADO --> [*]
     CANCELADO --> [*]
 ```
 
 - **EN_CAMINO no se puede cancelar:** la mercadería ya salió con el
-  repartidor, no está en el depósito para devolver el stock.
+  repartidor, no está en el depósito para devolver el stock. Lo que sí
+  puede pasar es que el repartidor lo **devuelva al depósito**: vuelve a
+  PENDIENTE en la lista de espera, con su cobro, para otro repartidor
+  (ADR-037).
+- **Lista de espera no es un estado:** es un PENDIENTE con
+  `enEsperaDesde`, así la máquina de estados y los suscriptores del
+  tópico no cambian.
 - **Por qué centralizar las transiciones:** la regla está en un solo
   lugar, y protege contra acciones fuera de orden (un "entregar" sobre un
   pedido cancelado, o eventos que llegan desordenados).

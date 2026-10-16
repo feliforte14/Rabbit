@@ -165,6 +165,8 @@ paths:
         Si ya es un pedido `PENDIENTE`, se cancela y se devuelve el stock
         (`estadoPedido: CANCELADO`). Desde `CONFIRMADO` en adelante ya tiene
         cobro y repartidor: responde 409 y lo cancela el personal de Rabbit.
+        Lo mismo con un `PENDIENTE` que el repartidor devolvió al depósito:
+        ya salió a reparto (409).
         Idempotente: cancelar algo ya cancelado devuelve 200 con el mismo estado.
       security:
         - basicAuth: []
@@ -367,6 +369,12 @@ components:
         codigoSeguimiento:
           type: string
           description: Para el seguimiento público. Se lo puede pasar al cliente final.
+        enListaDeEspera:
+          type: boolean
+          description: |
+            Solo con `estadoPedido: PENDIENTE`. `true` si Rabbit lo quiso
+            confirmar pero ningún repartidor tenía lugar (o ya había pasado la
+            hora de corte de la hoja de ruta): se asigna solo en cuanto se pueda.
         motivo:
           type: string
           description: Por qué se descartó o canceló.

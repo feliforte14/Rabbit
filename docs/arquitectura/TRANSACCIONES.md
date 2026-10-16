@@ -31,6 +31,8 @@
 | `REQUIRES_NEW` | `TransportistaService.registrarNovedad` | Cada novedad de un envío (y el cambio de estado del pedido que dispara) en su propia transacción: una que falla no arrastra a las demás de la pasada |
 | `NOT_SUPPORTED` | `RuteoService.despacharPedido` / `despacharZona` | El despacho no abre transacción: cada pedido se confirma o deriva en la suya (la de `confirmarPedidoEnZona` o `derivarATransportista`), así un pedido que falla (por ejemplo, el cobro) no deshace los demás de la zona. Ver ADR-017 |
 | `NOT_SUPPORTED` | `PedidosExternosResource`, `SeguimientoResource` (API REST) | El recurso no abre transacción: cada operación de negocio confirma la suya, así un error al confirmar (dos reintentos simultáneos con la misma `Idempotency-Key` chocan contra la restricción única) llega al recurso, que reintenta y responde bien, en vez de explotar después de que el método terminó. Ver ADR-018 |
+| `NOT_SUPPORTED` + `REQUIRES_NEW` | `AsignadorDeEspera` → `PedidoService.asignarDesdeEspera` / `sacarDeEspera` | La pasada por la lista de espera no abre transacción; cada pedido se asigna (cobro + repartidor) o sale de la fila en la suya, así uno que falla no frena a los demás (ADR-037) |
+| `AFTER_SUCCESS` (observer) | `AvisosDeEspera` | Después del commit de una entrega, cancelación o devolución programa una pasada de la lista de espera en un timer: no demora la pantalla de quien hizo el cambio ni corre con su usuario |
 | `NOT_SUPPORTED` | `CircuitBreakerBanco` | Solo cambia estado en memoria: no tiene nada que hacer en la transacción del llamador |
 
 ## Flujo 1: sincronizar un pedido externo (implementado)
@@ -60,8 +62,9 @@ una devolución, se deshacen también las anteriores.
 | Paso | Si falla… |
 |---|---|
 | 1. Validar que el pedido esté PENDIENTE | No cambia nada |
-| 2. `IRegistroCobros.registrarCobro` (PREPAGO: `autorizarPago` en el banco por SOAP) | Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE |
-| 3. `IAsignacionRepartidores.asignarRepartidor` | Sin repartidor disponible: rollback en Rabbit **y reversa en el banco** (el rollback no alcanza al sistema externo) |
+| 1b. `IAsignacionRepartidores.motivoParaEsperar` (sin bloqueo, ADR-037) | Nadie tiene lugar o pasó la hora de corte: el pedido queda en la lista de espera, **sin cobrar**, y la transacción confirma solo esa marca |
+| 2. `IRegistroCobros.registrarCobro` (PREPAGO: `autorizarPago` en el banco por SOAP), salvo que ya tenga cobro (devuelto al depósito) | Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE |
+| 3. `IAsignacionRepartidores.asignarRepartidor` | Otro se quedó con el lugar justo después del paso 1b: rollback en Rabbit **y reversa en el banco** (el rollback no alcanza al sistema externo) |
 | 4. Estado CONFIRMADO + `EstadoPedidoCambiado` | Rollback de todo |
 | 5. Publicación en el tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`) | Se loguea; no deshace la confirmación (misma decisión que ADR-002) |
 
@@ -71,8 +74,10 @@ transacción a propósito. El banco tampoco participa de la transacción
 (un sistema legado por SOAP no puede): lo que hace se compensa con una
 reversa.
 
-Probado: sin repartidores, el banco llega a cobrar, Rabbit hace rollback
-y se le pide la reversa al banco; con un PREPAGO de más de $500.000 el
+Probado: sin repartidores con lugar, el pedido va a la lista de espera
+sin llamar al banco (antes de ADR-037 se cobraba, se hacía rollback y se
+pedía la reversa; esa reversa sigue cubriendo la carrera del paso 3 y la
+cancelación de un prepago); con un PREPAGO de más de $500.000 el
 banco lo rechaza y no hay nada que reversar; con el banco caído el pedido
 sigue PENDIENTE (tras 3 fallas seguidas el circuit breaker corta al
 instante, sin esperar el timeout). Ver [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md).
@@ -113,6 +118,11 @@ sigue activa.
 componente anota un impedimento, no se borra nada. Si no, `ComercioEliminado`
 borra el historial terminado del comercio en cada componente y después se
 borra el comercio: si cualquier paso falla, se deshace todo.
+`devolverADeposito` (ADR-037), `REQUIRED`: libera al repartidor, marca el
+pedido como devuelto (repartidor excluido, cobro registrado, en espera) y
+lo pasa a PENDIENTE en una sola transacción. La reasignación corre después
+del commit, en otra (la de `asignarDesdeEspera`), sin volver a cobrar.
+
 `eliminarRepartidor` y `eliminarZona` (ADR-036) siguen el mismo esquema:
 el repartidor se bloquea (`SELECT ... FOR UPDATE`) para que no se le
 asigne un pedido mientras se lo elimina, y soltar sus pedidos terminados o

@@ -1916,3 +1916,45 @@ html[data-tema="oscuro"] textarea {
 .ubicacion-estado {
     margin-bottom: 1rem;
 }
+
+/* ==================================================================
+   Ventanas (mis-entregas.xhtml): entregar con la foto del remito y
+   devolver a depósito. <dialog> nativo del navegador.
+   ================================================================== */
+.dialogo {
+    border: none;
+    border-radius: var(--radio);
+    padding: 1.4rem 1.5rem;
+    width: min(32rem, calc(100vw - 2rem));
+    background: var(--superficie);
+    color: var(--texto);
+    box-shadow: var(--sombra-media);
+}
+
+.dialogo::backdrop {
+    background: rgba(15, 27, 61, 0.55);
+}
+
+.dialogo h2 {
+    margin-top: 0;
+}
+
+.dialogo .formulario {
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    border: none;
+    box-shadow: none;
+    background: transparent;
+}
+
+/* Hoja de ruta recomendada: los links a Google Maps por tramo. */
+.recorrido-tramos {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.dialogo textarea {
+    font-family: inherit;
+    width: 100%;
+}

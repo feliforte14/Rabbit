@@ -174,6 +174,7 @@ public class EtiquetasBean {
         switch (texto(resultado)) {
             case "REPARTIDOR": return "Con repartidor";
             case "DERIVADO": return "Derivado";
+            case "EN_ESPERA": return "En espera";
             case "SIN_ZONA": return "Sin zona";
             case "ERROR": return "No se despachó";
             default: return "—";
@@ -184,6 +185,7 @@ public class EtiquetasBean {
         switch (texto(resultado)) {
             case "REPARTIDOR": return "badge badge-verde";
             case "DERIVADO": return "badge badge-azul";
+            case "EN_ESPERA": return "badge badge-naranja";
             case "SIN_ZONA": return "badge badge-naranja";
             case "ERROR": return "badge badge-rojo";
             default: return "";

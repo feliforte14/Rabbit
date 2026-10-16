@@ -27,6 +27,10 @@ public class HojaDeRutaDTO {
     // del que sale mercadería consignada.
     public List<String> retiros;
     public String direccionEntrega;
+    // Para la hoja de ruta recomendada (ver OrdenDeRecorrido): los retiros
+    // con su dirección y CP, y el CP de entrega.
+    public List<ParadaDTO> paradasRetiro;
+    public String codigoPostalEntrega;
     // Recorrido en Google Maps (retiros → entrega); null sin dirección de entrega.
     public String urlMapa;
     // Importe a cobrar al entregar; null si el pedido ya está pagado.

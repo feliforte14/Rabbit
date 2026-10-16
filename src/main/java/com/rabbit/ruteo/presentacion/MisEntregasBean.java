@@ -19,6 +19,7 @@ import com.rabbit.pedidos.negocio.IGestionPedidos;
 import com.rabbit.pedidos.negocio.ValidacionException;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.ruteo.dto.HojaDeRutaDTO;
+import com.rabbit.ruteo.dto.RecorridoDTO;
 import com.rabbit.ruteo.negocio.IRuteo;
 import jakarta.annotation.PostConstruct;
 import jakarta.ejb.EJBException;
@@ -47,13 +48,25 @@ public class MisEntregasBean implements Serializable {
     @Inject
     private IGestionRepartidores repartidores;
 
+    // Los motivos de devolución que se ofrecen; con "Otro" hay que contarlo.
+    private static final List<String> MOTIVOS_DEVOLUCION = List.of(
+            "Cliente ausente", "Dirección incorrecta o incompleta", "El cliente rechazó el pedido",
+            "No entra en el vehículo", "Otro");
+
     private List<HojaDeRutaDTO> entregas;
     private List<HojaDeRutaDTO> historial;
+    private RecorridoDTO recorrido;
 
-    // Formulario "Registrar una entrega": uno solo para todas las entregas
-    // en camino (h:inputFile no funciona dentro de ui:repeat).
+    // Ventana "Entregar pedido": una sola para todas las entregas en camino
+    // (h:inputFile no funciona dentro de ui:repeat); el botón de cada
+    // tarjeta le pone el pedido.
     private Long idPedidoAEntregar;
     private transient Part fotoRemito;
+
+    // Ventana "Devolver a depósito", mismo esquema.
+    private Long idPedidoADevolver;
+    private String motivoDevolucion;
+    private String detalleDevolucion;
 
     // Los manda ubicacion.js por ajax (ver compartirUbicacion).
     private Double latitud;
@@ -64,10 +77,12 @@ public class MisEntregasBean implements Serializable {
         try {
             entregas = ruteo.entregasEnCursoDelRepartidor();
             historial = ruteo.historialDelRepartidor();
+            recorrido = ruteo.recorridoRecomendado(entregas);
         } catch (com.rabbit.seguridad.negocio.ValidacionException e) {
             // Cuenta REPARTIDOR sin repartidor asociado.
             entregas = List.of();
             historial = List.of();
+            recorrido = new RecorridoDTO();
             Mensajes.error(e.getMessage());
         }
     }
@@ -89,6 +104,10 @@ public class MisEntregasBean implements Serializable {
         } finally {
             fotoRemito = null;
         }
+        if (idPedido == null) {
+            Mensajes.error("Elegí qué pedido entregaste");
+            return;
+        }
         if (foto == null) {
             Mensajes.error("La foto del remito no puede superar los 5 MB");
             return;
@@ -97,9 +116,29 @@ public class MisEntregasBean implements Serializable {
         idPedidoAEntregar = null;
     }
 
-    /** Las que ya retiró: las que se pueden entregar. */
-    public List<HojaDeRutaDTO> getEnCamino() {
-        return entregas.stream().filter(e -> "EN_CAMINO".equals(e.getEstado())).collect(java.util.stream.Collectors.toList());
+    // No lo pudo entregar: vuelve al depósito y se le asigna a otro (ADR-037).
+    public void devolver() {
+        Long idPedido = idPedidoADevolver;
+        if (idPedido == null) {
+            Mensajes.error("Elegí qué pedido devolvés");
+            return;
+        }
+        if (motivoDevolucion == null || !MOTIVOS_DEVOLUCION.contains(motivoDevolucion)) {
+            Mensajes.error("Elegí por qué no se pudo entregar");
+            return;
+        }
+        String detalle = detalleDevolucion == null ? "" : detalleDevolucion.trim();
+        if ("Otro".equals(motivoDevolucion) && detalle.isEmpty()) {
+            Mensajes.error("Contá qué pasó");
+            return;
+        }
+        String motivo = detalle.isEmpty() ? motivoDevolucion
+                : ("Otro".equals(motivoDevolucion) ? detalle : motivoDevolucion + ": " + detalle);
+        ejecutar(() -> gestion.devolverADeposito(idPedido, motivo),
+                "Pedido " + idPedido + " devuelto al depósito. Rabbit se lo asigna a otro repartidor.");
+        idPedidoADevolver = null;
+        motivoDevolucion = null;
+        detalleDevolucion = null;
     }
 
     private void ejecutar(Runnable accion, String exito) {
@@ -135,6 +174,14 @@ public class MisEntregasBean implements Serializable {
 
     public List<HojaDeRutaDTO> getEntregas() { return entregas; }
     public List<HojaDeRutaDTO> getHistorial() { return historial; }
+    public RecorridoDTO getRecorrido() { return recorrido; }
+    public List<String> getMotivosDevolucion() { return MOTIVOS_DEVOLUCION; }
+    public Long getIdPedidoADevolver() { return idPedidoADevolver; }
+    public void setIdPedidoADevolver(Long idPedidoADevolver) { this.idPedidoADevolver = idPedidoADevolver; }
+    public String getMotivoDevolucion() { return motivoDevolucion; }
+    public void setMotivoDevolucion(String motivoDevolucion) { this.motivoDevolucion = motivoDevolucion; }
+    public String getDetalleDevolucion() { return detalleDevolucion; }
+    public void setDetalleDevolucion(String detalleDevolucion) { this.detalleDevolucion = detalleDevolucion; }
     public Long getIdPedidoAEntregar() { return idPedidoAEntregar; }
     public void setIdPedidoAEntregar(Long idPedidoAEntregar) { this.idPedidoAEntregar = idPedidoAEntregar; }
     public Part getFotoRemito() { return fotoRemito; }
