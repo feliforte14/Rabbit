@@ -95,19 +95,26 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Estado</f:facet>
-                    <h:outputText value="#{etiquetas.estadoPedido(p.estado)}"
+                    <!-- En la lista de espera (ADR-037) se muestra "En espera" en
+                         lugar de "Pendiente": sigue PENDIENTE, pero es lo que importa. -->
+                    <h:outputText value="#{p.estado == 'PENDIENTE' and p.enEspera ? 'En espera' : etiquetas.estadoPedido(p.estado)}"
                                   styleClass="#{etiquetas.claseEstadoPedido(p.estado)}" />
                     <h:panelGroup rendered="#{p.conRemito}">
                         <span class="dato-secundario">
                             <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>
                         </span>
                     </h:panelGroup>
-                    <!-- Lista de espera y devolucion al deposito (ADR-037). -->
-                    <h:panelGroup rendered="#{p.estado == 'PENDIENTE' and p.enEspera}">
-                        <span class="badge badge-naranja">En espera desde #{p.enEsperaDesde}</span>
-                    </h:panelGroup>
-                    <h:panelGroup rendered="#{p.estado == 'PENDIENTE' and not empty p.motivoEspera}">
-                        <span class="dato-secundario">#{p.motivoEspera}</span>
+                    <h:panelGroup layout="block" styleClass="espera-detalle"
+                                  rendered="#{p.estado == 'PENDIENTE' and (not empty p.motivoEspera or not empty p.motivoDevolucion)}">
+                        <h:panelGroup rendered="#{p.enEspera}">
+                            <span class="espera-desde">Desde el #{p.enEsperaDesde}</span>
+                        </h:panelGroup>
+                        <h:panelGroup rendered="#{not empty p.motivoDevolucion}">
+                            <span class="espera-linea"><b>Devuelto:</b> #{p.motivoDevolucion}</span>
+                        </h:panelGroup>
+                        <h:panelGroup rendered="#{not empty p.motivoEspera and not p.motivoEspera.startsWith('Devuelto al depósito')}">
+                            <span class="espera-linea">#{p.motivoEspera}</span>
+                        </h:panelGroup>
                     </h:panelGroup>
                 </h:column>
                 <h:column styleClass="col-p3" headerClass="col-p3">
