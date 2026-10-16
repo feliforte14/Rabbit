@@ -92,7 +92,7 @@ en el SQL Editor de Supabase.
 ### Colección de Postman
 
 [`Rabbit.postman_collection.json`](Rabbit.postman_collection.json):
-**Import → File** en Postman. Trae 41 requests ordenados por prueba (los
+**Import → File** en Postman. Trae 45 requests ordenados por prueba (los
 códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 
 | Carpeta | Qué prueba |
@@ -124,6 +124,7 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 | `rabbit.transportista.simulador.segundos` | `20` | Cada cuántos segundos avanza un envío simulado. Menos de 15 hace que el pedido salte de Confirmado a Entregado | No |
 | `rabbit.cola.consumidores` | `1` | Consumidores de la cola de pedidos del ERP | Sí |
 | `rabbit.sincronizador.pausado` | sin definir | `true`: pausa el timer de respaldo de la cola (lo usa la prueba de escalabilidad) | No |
+| `rabbit.ruteo.hora-corte` | sin definir (sin corte) | `HH:mm`: desde esa hora los pedidos que se confirman van a la lista de espera para el día siguiente (ADR-037). Para probarlo a cualquier hora, `00:01` | No |
 
 Para ver cuáles están definidas:
 `cli --command="/system-property=*:read-resource"`.
@@ -245,21 +246,34 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
 ### D. Repartidor y comercio
 
 - [ ] **D1. Hoja de ruta.** Entregas en curso muestra el pedido de C1 con
-  retiro, entrega, repartidor y "Ver recorrido en el mapa".
+  retiro, entrega, repartidor y "Ver recorrido en el mapa" (esa vista es
+  del personal; el repartidor ya no tiene ese botón).
 - [ ] **D2. Vista del repartidor (en el celular, o con el navegador
   angosto).** Entrar como `demo.repartidor` → cae en
   `repartidor/mis-entregas.xhtml`: dónde retirar, dónde entregar y cuánto
   cobrar.
-- [ ] **D3. Mapa.** "Ver recorrido en el mapa" abre Google Maps en otra
-  pestaña, con el retiro como parada y la entrega como destino.
+- [ ] **D3. Hoja de ruta recomendada (ADR-038).** Arriba de Mis
+  entregas: retiros primero y entregas por cercanía de código postal;
+  "Abrir en Google Maps" abre el recorrido (con más de 9 paradas, en
+  tramos).
 - [ ] **D4. Retiro y entrega.** "Ya retiré el pedido" → En camino;
-  "Entregué el pedido" → Entregado; pasa al historial y el repartidor
-  queda libre.
+  "Entregar pedido" abre una ventana para la foto del remito → Entregado;
+  pasa al historial y el repartidor queda libre.
+- [ ] **D4b. Devolver a depósito (ADR-037).** En un pedido Confirmado o
+  En camino, "Devolver a depósito" con un motivo → vuelve a Pendiente en
+  lista de espera y se le asigna solo a otro repartidor; no se cobra de
+  nuevo.
 - [ ] **D5. Portal del comercio.** Entrar como `demo.comercio` → cae en
   `comercio/mis-pedidos.xhtml`: sus pedidos con estado, cobro y
   repartidor, y un aviso por cada cambio de estado (eso prueba el
   tópico). "Mi stock" muestra lo de A4; "Mis puntos de picking" permite
   agregar, dar de baja y reactivar.
+
+- [ ] **D6. Lista de espera y hora de corte (ADR-037).** Sin lugar en
+  ningún repartidor, Confirmar deja el pedido "En espera" sin cobrar; al
+  liberarse lugar se asigna solo. Con `rabbit.ruteo.hora-corte=00:01`,
+  todo lo que se confirma queda en espera aunque haya lugar; al quitarla
+  se asigna en menos de un minuto.
 
 ### E. Transportistas (REST y SOAP legado)
 

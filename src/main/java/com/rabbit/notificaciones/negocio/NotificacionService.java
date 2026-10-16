@@ -72,7 +72,11 @@ public class NotificacionService implements INotificaciones {
             return false;
         }
 
-        String texto = "Tu pedido #" + idPedido + " " + describir(estado) + extra(idPedido, estado);
+        String devolucion = "PENDIENTE".equals(estado) ? motivoDevolucion(idPedido) : null;
+        String texto = devolucion != null
+                ? "Tu pedido #" + idPedido + " volvió al depósito (" + devolucion
+                        + "): Rabbit se lo asigna a otro repartidor"
+                : "Tu pedido #" + idPedido + " " + describir(estado) + extra(idPedido, estado);
         Notificacion notificacion = new Notificacion();
         notificacion.setIdPedido(idPedido);
         notificacion.setIdComercio(idComercio);
@@ -128,6 +132,17 @@ public class NotificacionService implements INotificaciones {
             LOG.warning("[Notificaciones] No se pudo leer el pedido " + idPedido + ": " + e.getMessage());
         }
         return "";
+    }
+
+    // Un PENDIENTE que ya tiene motivo de devolución no es un pedido
+    // recibido: es uno que el repartidor devolvió al depósito (ADR-037).
+    private String motivoDevolucion(Long idPedido) {
+        try {
+            return pedidos.consultarEstadoPedido(idPedido).getMotivoDevolucion();
+        } catch (RuntimeException e) {
+            LOG.warning("[Notificaciones] No se pudo leer el pedido " + idPedido + ": " + e.getMessage());
+            return null;
+        }
     }
 
     private static String describir(String estado) {

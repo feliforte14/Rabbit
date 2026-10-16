@@ -35,6 +35,11 @@ public class PedidoDTO {
     public String fechaEntrega;
     public String entregadoPor;
     public boolean conRemito;
+    // Lista de espera y devolución al depósito (ADR-037).
+    public boolean enEspera;
+    public String enEsperaDesde;
+    public String motivoEspera;
+    public String motivoDevolucion;
 
     // Convierte una entidad Pedido en un DTO listo para mostrar en la vista.
     public static PedidoDTO desde(Pedido p) {
@@ -57,6 +62,10 @@ public class PedidoDTO {
         dto.fechaEntrega = p.getFechaEntrega() != null ? p.getFechaEntrega().format(FORMATO) : null;
         dto.entregadoPor = p.getEntregadoPor();
         dto.conRemito = p.isConRemito();
+        dto.enEspera = p.isEnEspera();
+        dto.enEsperaDesde = p.getEnEsperaDesde() != null ? p.getEnEsperaDesde().format(FORMATO) : null;
+        dto.motivoEspera = p.getMotivoEspera();
+        dto.motivoDevolucion = p.getMotivoDevolucion();
         return dto;
     }
 
@@ -90,4 +99,8 @@ public class PedidoDTO {
     public String getFechaEntrega() { return fechaEntrega; }
     public String getEntregadoPor() { return entregadoPor; }
     public boolean isConRemito() { return conRemito; }
+    public boolean isEnEspera() { return enEspera; }
+    public String getEnEsperaDesde() { return enEsperaDesde; }
+    public String getMotivoEspera() { return motivoEspera; }
+    public String getMotivoDevolucion() { return motivoDevolucion; }
 }

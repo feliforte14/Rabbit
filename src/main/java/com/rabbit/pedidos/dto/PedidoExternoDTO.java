@@ -37,6 +37,9 @@ public class PedidoExternoDTO {
     // DTO solo ve la fila del ERP).
     public String estadoPedido;
     public String codigoSeguimiento;
+    // Lista de espera y devolución al depósito (ADR-037).
+    public boolean enListaDeEspera;
+    public boolean devueltoADeposito;
 
     // Convierte una entidad PedidoExterno en un DTO listo para la vista.
     public static PedidoExternoDTO desde(PedidoExterno pe) {

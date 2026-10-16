@@ -103,6 +103,33 @@ public class Pedido {
     // en NULL.
     private Boolean conRemito;
 
+    // Lista de espera: el pedido se quiso confirmar pero ningún repartidor
+    // tenía lugar, o ya había pasado la hora de corte de la hoja de ruta.
+    // Sigue PENDIENTE y AsignadorDeEspera lo asigna solo, por orden de
+    // llegada, cuando alguno se libera. Null = no está esperando.
+    private LocalDateTime enEsperaDesde;
+
+    // Por qué espera (o por qué salió de la espera sin asignarse), para el
+    // personal.
+    @Column(length = 300)
+    private String motivoEspera;
+
+    // Zona del pedido según Ruteo, para que la asignación automática busque
+    // primero ahí, como lo habría hecho el despacho por zona.
+    private Long idZonaEspera;
+
+    // Devolución al depósito: el repartidor que lo devolvió (no se le
+    // vuelve a asignar este pedido) y por qué.
+    private Long idRepartidorExcluido;
+
+    @Column(length = 300)
+    private String motivoDevolucion;
+
+    // Si ya tiene cobro registrado en Pagos: un pedido devuelto al depósito
+    // vuelve a PENDIENTE con su cobro, y al reasignarlo no se cobra de nuevo.
+    // Boolean y no boolean: las filas anteriores quedan en NULL.
+    private Boolean cobroRegistrado;
+
     public Pedido() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -143,4 +170,17 @@ public class Pedido {
     public void setConRemito(boolean conRemito) { this.conRemito = conRemito; }
     public String getCodigoSeguimiento() { return codigoSeguimiento; }
     public void setCodigoSeguimiento(String codigoSeguimiento) { this.codigoSeguimiento = codigoSeguimiento; }
+    public LocalDateTime getEnEsperaDesde() { return enEsperaDesde; }
+    public void setEnEsperaDesde(LocalDateTime enEsperaDesde) { this.enEsperaDesde = enEsperaDesde; }
+    public boolean isEnEspera() { return enEsperaDesde != null; }
+    public String getMotivoEspera() { return motivoEspera; }
+    public void setMotivoEspera(String motivoEspera) { this.motivoEspera = motivoEspera; }
+    public Long getIdZonaEspera() { return idZonaEspera; }
+    public void setIdZonaEspera(Long idZonaEspera) { this.idZonaEspera = idZonaEspera; }
+    public Long getIdRepartidorExcluido() { return idRepartidorExcluido; }
+    public void setIdRepartidorExcluido(Long idRepartidorExcluido) { this.idRepartidorExcluido = idRepartidorExcluido; }
+    public String getMotivoDevolucion() { return motivoDevolucion; }
+    public void setMotivoDevolucion(String motivoDevolucion) { this.motivoDevolucion = motivoDevolucion; }
+    public boolean isCobroRegistrado() { return Boolean.TRUE.equals(cobroRegistrado); }
+    public void setCobroRegistrado(boolean cobroRegistrado) { this.cobroRegistrado = cobroRegistrado; }
 }

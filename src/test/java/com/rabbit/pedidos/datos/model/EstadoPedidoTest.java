@@ -36,4 +36,12 @@ class EstadoPedidoTest {
         assertFalse(PENDIENTE.puedePasarA(ENTREGADO));
         assertFalse(CONFIRMADO.puedePasarA(ENTREGADO));
     }
+
+    @Test
+    void unPedidoEnRepartoSePuedeDevolverAlDeposito() {
+        assertTrue(CONFIRMADO.puedePasarA(PENDIENTE));
+        assertTrue(EN_CAMINO.puedePasarA(PENDIENTE));
+        assertFalse(ENTREGADO.puedePasarA(PENDIENTE));
+        assertFalse(CANCELADO.puedePasarA(PENDIENTE));
+    }
 }

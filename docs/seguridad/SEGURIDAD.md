@@ -64,6 +64,8 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | Alta y cambios de comercios, depósitos, stock y repartidores; `confirmarPedido` y `cancelarPedido` | Solo el personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) |
 | `despacharPedido` (EN_CAMINO) | Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido |
 | `registrarEntrega` (ENTREGADO) | Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR`, y siempre con la foto del remito (ADR-033): dispara el cobro contra entrega. La foto se valida por sus primeros bytes (JPEG, PNG o WEBP) y hasta 5 MB |
+| `devolverADeposito` | Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR` (ADR-037). El pedido se forzó con un ID ajeno en el formulario: "no está asignado a vos" |
+| `asignarDesdeEspera`, `sacarDeEspera` | Personal de Rabbit; en la práctica las llama `AsignadorDeEspera` con `@RunAs("OPERADOR")`. Va en un bean propio porque `AvisosDeEspera`, que lo dispara después del commit, no puede tener `@RunAs`: en esa fase Elytron no puede consultar el realm JDBC |
 | `obtenerRemito` (`/remito?pedido=ID`) | El personal, el `COMERCIO` dueño del pedido y su `REPARTIDOR`. Cualquier otro caso responde 404, sin distinguir si existe |
 | `registrarUbicacion` | Solo el `REPARTIDOR`, para sí mismo y mientras tiene entregas en curso (ADR-035). El seguimiento público muestra la ubicación solo si el repartidor lleva ESE pedido |
 | `liquidarMes`, `reintentarCobro` | Solo `ADMINISTRADOR` (o el timer mensual con `@RunAs`): cobran por el banco (ADR-034) |
@@ -71,12 +73,12 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | `UsuarioService.eliminarUsuario`, `RepartidorService.eliminarRepartidor`, `ZonaService.eliminarZona` | Solo `ADMINISTRADOR`: borran físicamente y no se deshacen (ADR-036). No se puede eliminar la propia cuenta, ni al último administrador activo, ni un repartidor con entregas en curso o con cuenta |
 | `IConsultaStock.pesosPorItem` | Sin rol a propósito: la usa la sincronización de pedidos del ERP, que corre sin usuario (JMS y timer). Devuelve solo el peso de cada ítem; el listado completo del stock sigue siendo del personal |
 | `registrarPedidoExterno` | Personal de Rabbit (simulación) o el `ERP`, que solo carga pedidos de su comercio (el comercio sale de su cuenta, no del cuerpo del pedido) |
-| `cancelarPedidoExterno` | Solo el `ERP`, y solo pedidos de su comercio que todavía estén pendientes |
+| `cancelarPedidoExterno` | Solo el `ERP`, y solo pedidos de su comercio que todavía estén pendientes (no uno devuelto al depósito, que ya salió a reparto) |
 | Puntos de picking (alta, baja, reactivación) | Personal de Rabbit o el `COMERCIO` dueño |
 | Consultas del portal (`listarPedidosDelComercioActual`, `listarStockDelComercioActual`, `listarDelComercioActual`, `listarCobrosDelComercioActual`) | Solo `COMERCIO`, y solo lo suyo. El cobro guarda el comercio dueño, así que Pagos valida la pertenencia sin consultar a Pedidos |
 | Listados de pedidos, pedidos del ERP y cobros (`listarTodos`, `listarPedidosExternos`, `listarEntregasEnCurso`, `obtenerCobroDePedido`) | Solo el personal de Rabbit. `consultarPedidoExterno`, también el `ERP` (solo los de su comercio: uno ajeno responde como inexistente). `consultarSeguimiento` es pública a propósito (seguimiento sin login por código aleatorio, solo el estado) |
 | Transportistas: alta, baja, derivar un pedido (`derivarATransportista`), envíos | Solo el personal de Rabbit. Un `COMERCIO` ve solo los envíos de sus pedidos (`listarEnviosDelComercioActual`) |
-| Ruteo: tablero de entregas / entregas del repartidor | Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas |
+| Ruteo: tablero de entregas / entregas del repartidor y su hoja de ruta recomendada (`recorridoRecomendado`) | Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas |
 | Ruteo: zonas (alta, baja, reactivación), `despacharPedido`, `despacharZona`, `listarPendientesPorZona`; zona de un repartidor (`asignarZona`) | Solo el personal de Rabbit |
 | `UsuarioService.listarTodos` | Expone el padrón completo de usuarios |
 | `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |

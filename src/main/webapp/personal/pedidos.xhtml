@@ -46,6 +46,8 @@
             Cada pedido es una venta que el comercio ya cerró y que llega desde su ERP. Al
             confirmarlo se cobra (si es prepago) y se le asigna un repartidor; el recorrido se
             sigue en&#160;<h:link outcome="/personal/entregas" value="Entregas en curso" />.
+            Si ningún repartidor tiene lugar (o ya pasó la hora de corte), el pedido queda en la
+            lista de espera, sin cobrar, y se asigna solo cuando se libere uno.
         </p>
 
         <h:messages globalOnly="false" showDetail="false" showSummary="true"
@@ -100,6 +102,13 @@
                             <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>
                         </span>
                     </h:panelGroup>
+                    <!-- Lista de espera y devolucion al deposito (ADR-037). -->
+                    <h:panelGroup rendered="#{p.estado == 'PENDIENTE' and p.enEspera}">
+                        <span class="badge badge-naranja">En espera desde #{p.enEsperaDesde}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{p.estado == 'PENDIENTE' and not empty p.motivoEspera}">
+                        <span class="dato-secundario">#{p.motivoEspera}</span>
+                    </h:panelGroup>
                 </h:column>
                 <h:column styleClass="col-p3" headerClass="col-p3">
                     <!-- Estado del cobro en ServicioDePagosYCobranzas (ver EstadoCobro). -->
@@ -118,7 +127,7 @@
                 </h:column>
                 <h:column styleClass="acciones">
                     <f:facet name="header">Acciones</f:facet>
-                    <h:commandButton value="Confirmar" styleClass="btn btn-secondary"
+                    <h:commandButton value="#{p.enEspera ? 'Reintentar' : 'Confirmar'}" styleClass="btn btn-secondary"
                                      action="#{pedidoBean.confirmar(p.id)}"
                                      rendered="#{p.estado == 'PENDIENTE'}" />
                     <!-- Un pedido derivado lo mueve su transportista (ver SeguimientoDeEnvios). -->

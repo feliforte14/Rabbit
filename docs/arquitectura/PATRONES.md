@@ -65,6 +65,9 @@ qué alternativa se descartó.
   `AlineadorDeRestriccionesEnum` (`@Singleton @Startup`), que corre una
   sola vez al desplegar. `SeguimientoDeEnvios` (`@Singleton @Startup` +
   `@Schedule`) consulta a los transportistas en una sola pasada a la vez.
+  `AsignadorDeEspera` (`@Singleton @Startup`, ADR-037) recorre la lista de
+  espera de a una pasada; con concurrencia `BEAN`, un aviso que llega
+  durante una pasada no espera: pide otra vuelta al terminar.
 
 ## Provider (`Instance<T>` como fábrica)
 
@@ -98,6 +101,9 @@ qué alternativa se descartó.
     (Pedidos y Seguridad lo impiden si tiene entregas en curso o cuenta, y
     después Pedidos le suelta sus pedidos terminados) y una zona
     (Repartidores deja sin zona fija a los suyos). Implementado.
+  - `EstadoPedidoCambiado` → `AvisosDeEspera` (`AFTER_SUCCESS`,
+    ADR-037): una entrega, cancelación o devolución puede haber liberado
+    lugar, así que programa una pasada de la lista de espera. Implementado.
   - `EstadoEnvioCambiado` (sincrónico): Transportistas avisa que un
     transportista informó un estado nuevo; Pedidos
     (`ActualizacionDePedidosPorEnvio`) mueve el pedido en la misma

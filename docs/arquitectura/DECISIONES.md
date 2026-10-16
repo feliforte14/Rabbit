@@ -801,8 +801,9 @@ Propuesta o Reemplazada.
   - *Contadores en el repartidor (carga actual):* se desincronizan si una
     liberación falla o se repite; una fila por pedido se puede recalcular.
 - **Consecuencias:** la hoja de ruta del repartidor muestra todas sus
-  entregas en curso. No se ordenan las paradas (no hay geocodificación de
-  las direcciones). Cada unidad cuenta como un bulto (3 yerbas son 3
+  entregas en curso; el orden recomendado de las paradas llegó después,
+  por código postal (ADR-038). Si no le entra a nadie, el pedido va a la
+  lista de espera (ADR-037). Cada unidad cuenta como un bulto (3 yerbas son 3
   bultos). En pantalla los kilos se muestran como "1 kg" o "0,95 kg"
   (`infraestructura/Formatos`), no con la escala de la columna ("1.000").
 
@@ -949,3 +950,91 @@ Propuesta o Reemplazada.
   - *Solo baja lógica:* no resolvía el padrón lleno de pruebas.
 - **Consecuencias:** eliminar no se deshace. Para que alguien deje de
   operar sin perder nada, sigue estando la baja.
+
+## ADR-037: Lista de espera, hora de corte y devolución al depósito
+
+- **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
+  "Testing NO OK").
+- **Contexto:** si ningún repartidor tenía lugar (ADR-032), confirmar
+  fallaba y el pedido quedaba PENDIENTE hasta que alguien lo volviera a
+  confirmar a mano. La asignación ya probaba con todos los repartidores,
+  primero los de la zona. Además, no había un horario límite para armar
+  la hoja de ruta del día, y el repartidor no tenía cómo devolver un
+  pedido que no pudo entregar.
+- **Decisión:**
+  - **A otro repartidor:** se recorren los candidatos en orden y gana el
+    primero al que le entra (`AsignacionPorCapacidad`). Nunca se espera a
+    un repartidor puntual.
+  - **Lista de espera:** si no le entra a nadie, el pedido **no se cobra**
+    y queda PENDIENTE con la marca `enEsperaDesde` y el motivo. No es un
+    estado nuevo: así no cambian la máquina de estados, el tópico ni el
+    seguimiento. `AsignadorDeEspera` (`@Singleton`, `@RunAs("OPERADOR")`)
+    los asigna por orden de llegada, con cobro y asignación juntos como
+    siempre. Corre enseguida que un pedido se entrega, se cancela o se
+    devuelve (lo dispara `AvisosDeEspera`) y, de respaldo, cada minuto.
+    Un pedido grande que no entra no tapa la fila: se prueba con los
+    siguientes. Si falla por otra cosa (el banco rechaza el pago), sale de
+    la fila con el motivo a la vista del personal.
+  - **Antes de cobrar se consulta si hay lugar**
+    (`IAsignacionRepartidores.motivoParaEsperar`, sin bloqueo). Si otro se
+    queda con el lugar entre esa consulta y la asignación, el banco ya
+    cobró y se reversa como antes (`ReversasBancarias`).
+  - **Hora de corte:** system property `rabbit.ruteo.hora-corte` (por
+    ejemplo `09:00`), leída en cada uso (`HoraDeCorte`). Desde esa hora no
+    se suman pedidos a la hoja del día aunque haya lugar: lo que se
+    confirma después va a la lista de espera y se asigna solo al día
+    siguiente, antes del corte. **Sin la propiedad no hay corte**, para no
+    romper demos ni pruebas a la tarde.
+  - **Devolver a depósito:** el repartidor del pedido (o un
+    administrador), desde CONFIRMADO o EN_CAMINO, con motivo obligatorio.
+    El pedido vuelve a PENDIENTE en la lista de espera, el repartidor deja
+    de llevarlo y **no se le vuelve a asignar ese pedido**
+    (`idRepartidorExcluido`). Conserva su cobro (`cobroRegistrado`): al
+    reasignarlo no se cobra de nuevo, y si se cancela se anula. El ERP ya
+    no lo puede cancelar por la API (salió a reparto). El comercio recibe
+    el aviso "volvió al depósito".
+  - Despacho por zona (Ruteo): un pedido que va a la espera devuelve el
+    resultado "En espera" en lugar de un error.
+- **Alternativas descartadas:**
+  - *Estado nuevo EN_ESPERA o DEVUELTO:* obligaba a tocar la máquina de
+    estados, el tópico, los suscriptores y el seguimiento, para algo que
+    sigue siendo "pendiente de asignar".
+  - *Cobrar al confirmar aunque quede en espera:* cobra un servicio que
+    todavía no tiene fecha, y obliga a reversar si se cancela antes.
+  - *Corte por defecto a las 9:00:* después de esa hora ninguna prueba
+    asignaría pedidos.
+- **Consecuencias:** las columnas nuevas de `pedidos` admiten NULL y las
+  crea Hibernate al desplegar (`update`); las versiones anteriores siguen
+  funcionando sobre la misma base. La API del ERP agrega `enListaDeEspera`
+  y no ofrece el link de cancelar un pedido devuelto.
+
+## ADR-038: Hoja de ruta recomendada del repartidor
+
+- **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
+  "Testing NO OK").
+- **Contexto:** el repartidor tenía un link de Google Maps por pedido; con
+  varios pedidos a la vez (ADR-032) no tenía un recorrido para el día.
+- **Decisión:**
+  - Arriba de "Mis entregas", la **hoja de ruta recomendada** con todas
+    sus paradas: primero los retiros que le faltan (sin repetir lugares),
+    después las entregas encadenadas por **cercanía de código postal**
+    (vecino más cercano, desde el último retiro). Varios pedidos a la
+    misma dirección son una sola parada (`OrdenDeRecorrido`).
+  - El orden se calcula **en el back** y se abre en Google Maps con un
+    link común: hasta 10 puntos por link (la partida y 9 paradas). Con más
+    paradas se parte en tramos, y cada uno arranca donde terminó el
+    anterior. El primero no lleva origen: arranca donde está el
+    repartidor.
+  - Se sacaron el botón "Ver recorrido en el mapa" de cada pedido y la
+    sección "Registrar una entrega": "Entregar pedido" abre una ventana
+    para subir ahí la foto del remito, con las mismas validaciones
+    (ADR-033). "Devolver a depósito" abre otra para el motivo (ADR-037).
+- **Alternativas descartadas:**
+  - *Solo un link de Google Maps:* los links no reordenan las paradas;
+    eso lo hace la Directions API, que pide clave y facturación.
+  - *Geocodificar las direcciones para usar distancias reales:* contradice
+    ADR-017 y suma un servicio externo. Queda para que lo decida el
+    equipo.
+- **Consecuencias:** el orden es una aproximación (los CP cercanos suelen
+  ser barrios vecinos, no siempre). En el navegador de un celular sin la
+  app de Google Maps, Google acepta menos paradas por link que en la app.

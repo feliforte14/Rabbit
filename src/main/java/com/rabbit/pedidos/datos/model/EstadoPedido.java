@@ -15,6 +15,11 @@ import java.util.Set;
  *            v                                      v                                      v
  *       [CANCELADO] <-------------------------------+                                [ENTREGADO]
  *
+ * Devolución al depósito (devolverADeposito): un pedido CONFIRMADO o
+ * EN_CAMINO que el repartidor no pudo entregar (cliente ausente, no entra
+ * en el vehículo...) vuelve a PENDIENTE, en la lista de espera, para que
+ * se le asigne a otro repartidor. Conserva su cobro.
+ *
  * Una vez EN_CAMINO el pedido ya salió con el repartidor: no se puede
  * cancelar desde Rabbit (la mercadería no está en el depósito para
  * devolver el stock). ENTREGADO y CANCELADO son finales.
@@ -45,8 +50,8 @@ public enum EstadoPedido {
     public boolean puedePasarA(EstadoPedido destino) {
         return switch (this) {
             case PENDIENTE -> Set.of(CONFIRMADO, CANCELADO).contains(destino);
-            case CONFIRMADO -> Set.of(EN_CAMINO, CANCELADO).contains(destino);
-            case EN_CAMINO -> destino == ENTREGADO;
+            case CONFIRMADO -> Set.of(EN_CAMINO, CANCELADO, PENDIENTE).contains(destino);
+            case EN_CAMINO -> Set.of(ENTREGADO, PENDIENTE).contains(destino);
             case ENTREGADO, CANCELADO -> false;
         };
     }

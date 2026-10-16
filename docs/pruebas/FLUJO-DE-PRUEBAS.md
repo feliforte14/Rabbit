@@ -269,13 +269,16 @@ tiempo real`). En **Pedidos → Recibidos del ERP** el pedido aparece como
    - si el medio de pago es `PREPAGO`, se cobra en el banco legado por SOAP
      (`BancoLegadoService`, WSDL en
      `http://localhost:8080/Rabbit/BancoLegadoService?wsdl`);
-   - se asigna el repartidor disponible.
+   - se asigna un repartidor con lugar. Si ninguno tiene (o ya pasó la
+     hora de corte), el pedido queda en la **lista de espera**, sin
+     cobrar, y se asigna solo cuando se libera alguno (ADR-037).
 2. En **Entregas en curso** aparece la hoja de ruta del pedido (retiro →
    entrega).
-3. Logueate como `demo.repartidor` → **Mis entregas**: se ve la hoja de
-   ruta. **Ver recorrido en el mapa** abre Google Maps con el retiro como
-   parada y la entrega como destino. Botón **Ya retiré el pedido** y
-   después **Entregué el pedido**.
+3. Logueate como `demo.repartidor` → **Mis entregas**: arriba, la **hoja
+   de ruta recomendada** con todas sus paradas en orden (retiros primero)
+   y **Abrir en Google Maps** (ADR-038). En cada pedido, **Ya retiré el
+   pedido** y después **Entregar pedido**, que abre una ventana para
+   subir la foto del remito.
 4. Logueate como `demo.comercio` → **Mis pedidos**: el pedido figura
    "Entregado", con su **código de seguimiento para el cliente** y el
    enlace "Ver lo que ve el cliente" (la API pública), y en "Avisos de
@@ -289,8 +292,11 @@ al entregar).
 
 **Variantes para probar la transacción:** un pedido `PREPAGO` de más de
 $500.000 lo rechaza el banco y sigue Pendiente; un pedido `PREPAGO` sin
-repartidor disponible se cobra, se deshace y el banco lo reversa (se ve en
-el log: `[Banco legado] Reversado ...`).
+repartidor con lugar ya no se cobra: va a la lista de espera (antes de
+cobrar se consulta si hay lugar, ADR-037). La reversa del banco
+(`[Banco legado] Reversado ...`) queda para cuando otro se queda con el
+lugar justo entre esa consulta y la asignación, y al cancelar un pedido
+prepago confirmado.
 
 ---
 
@@ -445,7 +451,9 @@ Los pasos de estas demos están en
 
 ## 10. Mejoras del tablero: peso, capacidad, remito, mapa y liquidación
 
-Probado de punta a punta el 15/10/2026 (ADR-031 a 036). Con pedidos
+Probado de punta a punta el 15/10/2026 (ADR-031 a 036). Lo que cambió el
+16/10 (lista de espera, devolución y hoja de ruta recomendada) está en la
+sección 11. Con pedidos
 `[TEST]`, así la opción A de `scripts/Rabbit-limpieza-datos-de-prueba.sql`
 los borra después.
 
@@ -460,14 +468,12 @@ los borra después.
 2. **Capacidad:** en Repartidores → "Capacidad del vehículo": 60 kg y 20
    bultos. Confirmar dos pedidos de 30 y 25 kg: los dos quedan con el
    mismo repartidor ("Lleva: 2 pedidos (55 kg, 5 bultos)"). Uno de 10 kg
-   más: "No hay repartidores con lugar…".
-   Al entregar uno, se libera su lugar: un pedido que antes no entraba
-   ahora se le asigna (probado con 10 kg: 3 + 5 entran, 4 se rechaza y
-   entra después de entregar el de 3).
+   más: queda **en lista de espera** (ver la sección 11).
+   Al entregar uno, se libera su lugar y el que esperaba se asigna solo.
 3. **Remito:** como el repartidor, en Mis entregas: "Ya retiré el pedido"
-   y después "Registrar una entrega". Sin foto → "Sacale una foto al
-   remito…"; con un archivo que no es imagen → "tiene que ser una imagen
-   JPG, PNG o WEBP"; con la foto → entregado. "Ver remito" aparece en
+   y después "Entregar pedido", que abre una ventana para la foto. Sin
+   foto, el navegador no deja enviar; con un archivo que no es imagen →
+   "tiene que ser una imagen JPG, PNG o WEBP"; con la foto → entregado. "Ver remito" aparece en
    Pedidos (personal), Mis pedidos (comercio) y el historial del
    repartidor. Un OPERADOR ya no puede marcar entregado; un ADMINISTRADOR
    sí, con foto, en "Registrar una entrega" de Pedidos.
@@ -492,6 +498,38 @@ los borra después.
      se rechaza. Uno recién creado se elimina.
    - Zona: se elimina y sus repartidores quedan "Sin zona fija".
 
+## 11. Correcciones del equipo: lista de espera, hora de corte, devolución y hoja de ruta
+
+Probado de punta a punta el 16/10/2026 (ADR-037 y 038), con un
+repartidor de prueba de 3 kg además de Juan Perez (10 kg, con 9 kg
+cargados) y pedidos `[PRUEBA]` de 1 y 2 kg.
+
+1. **A otro repartidor y lista de espera:** confirmar uno de 2 kg → como
+   a Juan no le entra, se le asigna al de 3 kg. Otro de 2 kg → "Pedido N
+   en lista de espera: No hay repartidores con lugar…" y en Pedidos
+   figura "En espera desde …" con el motivo, Cobro "—" (no se cobró) y el
+   botón "Reintentar". Al cancelar o entregar el primero, en unos segundos
+   el que esperaba pasa solo a Confirmado.
+2. **Hora de corte:** `cli --command="/system-property=rabbit.ruteo.hora-corte:add(value=00:01)"`
+   y confirmar uno de 1 kg aunque Juan tenga lugar → en espera, "Ya pasó
+   la hora de corte (00:01): se asigna mañana". En Ruteo por zona,
+   "Despachar" muestra "En espera". Al quitar la propiedad, en menos de un
+   minuto se asigna solo. **Quitarla al terminar.**
+3. **Devolver a depósito:** como el repartidor, en un pedido Confirmado o
+   En camino → "Devolver a depósito" → motivo ("Otro" pide el detalle).
+   El pedido sale de su lista, vuelve a Pendiente en espera y en unos
+   segundos se le asigna a **otro** repartidor (nunca al que lo devolvió).
+   Si era prepago, no se cobra dos veces (en el log, un solo
+   `[Pagos] Cobro … del pedido N`). El comercio recibe "volvió al
+   depósito". Forzar el formulario con un pedido ajeno → "no está
+   asignado a vos".
+4. **Hoja de ruta recomendada:** arriba de Mis entregas, primero los
+   retiros pendientes y después las entregas por cercanía de código
+   postal; dos pedidos a la misma dirección son una sola parada
+   ("Pedido #353, #354"). "Abrir en Google Maps" lleva el recorrido; con
+   más de 9 paradas aparecen varios tramos. Ya no están "Ver recorrido en
+   el mapa" ni la sección "Registrar una entrega".
+
 ## Checklist rápido
 
 | Ítem | Resultado esperado |
@@ -509,7 +547,10 @@ los borra después.
 | Ruteo por zona | Pedidos agrupados por CP; despachar usa el repartidor de la zona, el respaldo o el transportista de la zona |
 | Eliminar un comercio dado de baja | Con pedidos en curso o entregados, stock o cuentas: rechazado. Con solo pedidos cancelados: se borra junto con ese historial, sin dejar nada huérfano |
 | Eliminar usuario / repartidor / zona (admin) | Se borra; un repartidor con cuenta o entregas en curso se rechaza; el operador no ve el botón |
-| Capacidad del repartidor | El pedido que no entra se rechaza y queda Pendiente; entra cuando el repartidor entrega otro |
+| Capacidad del repartidor | Si el primero no tiene lugar, se le asigna a otro; si nadie, queda en lista de espera sin cobrar y se asigna solo al liberarse uno |
+| Hora de corte (`rabbit.ruteo.hora-corte`) | Después del corte, lo que se confirma queda en espera para el día siguiente; sin la propiedad, no hay corte |
+| Devolver a depósito (repartidor) | Vuelve a Pendiente en espera y se reasigna a otro repartidor, sin cobrar de nuevo |
+| Hoja de ruta recomendada | Retiros primero, entregas por CP, link a Google Maps en tramos de hasta 9 paradas |
 | Navegar un rato largo (más de 30 min) y después derivar o abrir Entregas en curso | Funciona: las consultas de stock no dependen de una instancia stateful que vence (ADR-027) |
 | Acceso restringido a personal/usuarios.xhtml | Comercio/repartidor/operador no puede entrar |
 | REST sin credenciales | 401 (HTML de WildFly) |

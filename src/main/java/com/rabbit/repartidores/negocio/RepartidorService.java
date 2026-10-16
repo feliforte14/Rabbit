@@ -36,6 +36,7 @@ import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
@@ -79,38 +80,80 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
     // ===============================================================
 
     // Recorre los repartidores (los de la zona del pedido primero) y se lo
-    // da al primero al que le entra (ADR-032). Los candidatos quedan
-    // bloqueados hasta el fin de la transacción: dos confirmaciones a la vez
-    // no pueden cargar de más al mismo repartidor.
+    // da al primero al que le entra (ADR-032, ADR-037). Los candidatos
+    // quedan bloqueados hasta el fin de la transacción: dos confirmaciones
+    // a la vez no pueden cargar de más al mismo repartidor.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
-    public Long asignarRepartidor(Long idPedido, Long idZonaPreferida, BigDecimal pesoKg, int bultos) {
+    public Long asignarRepartidor(Long idPedido, Long idZonaPreferida, BigDecimal pesoKg, int bultos,
+                                  Long idRepartidorExcluido) {
+        String corte = motivoDelCorte();
+        if (corte != null) {
+            throw new SinLugarException(corte);
+        }
         List<Repartidor> candidatos = repository.bloquearCandidatos(idZonaPreferida);
         List<CargaAsignada> cargas = repository.listarCargas();
-        for (Repartidor repartidor : candidatos) {
-            if (!RepartidorDTO.desde(repartidor, cargas).entra(pesoKg, bultos)) {
-                continue;
-            }
-            CargaAsignada carga = new CargaAsignada();
-            carga.setIdRepartidor(repartidor.getId());
-            carga.setIdPedido(idPedido);
-            carga.setPesoKg(pesoKg);
-            carga.setBultos(bultos);
-            carga.setFechaAsignacion(LocalDateTime.now());
-            repository.guardarCarga(carga);
-            repartidor.setEstado(EstadoRepartidor.OCUPADO);
-            repartidor.setIdPedidoActual(idPedido);
-            repository.actualizar(repartidor);
-            LOG.info("[Repartidores] Repartidor " + repartidor.getId() + " asignado al pedido " + idPedido
-                    + " (" + (pesoKg != null ? pesoKg + " kg, " : "") + bultos + " bulto(s))");
-            return repartidor.getId();
+        RepartidorDTO elegido = AsignacionPorCapacidad.elegir(
+                candidatos.stream().map(r -> RepartidorDTO.desde(r, cargas)).collect(Collectors.toList()),
+                idRepartidorExcluido, pesoKg, bultos);
+        if (elegido == null) {
+            throw new SinLugarException(sinLugar(candidatos.isEmpty(), pesoKg, bultos));
         }
-        if (candidatos.isEmpty()) {
-            throw new ValidacionException("No hay repartidores cargados para el pedido " + idPedido);
+        Repartidor repartidor = candidatos.stream().filter(r -> r.getId().equals(elegido.getId())).findFirst().orElseThrow();
+        CargaAsignada carga = new CargaAsignada();
+        carga.setIdRepartidor(repartidor.getId());
+        carga.setIdPedido(idPedido);
+        carga.setPesoKg(pesoKg);
+        carga.setBultos(bultos);
+        carga.setFechaAsignacion(LocalDateTime.now());
+        repository.guardarCarga(carga);
+        repartidor.setEstado(EstadoRepartidor.OCUPADO);
+        repartidor.setIdPedidoActual(idPedido);
+        repository.actualizar(repartidor);
+        LOG.info("[Repartidores] Repartidor " + repartidor.getId() + " asignado al pedido " + idPedido
+                + " (" + (pesoKg != null ? pesoKg + " kg, " : "") + bultos + " bulto(s))");
+        return repartidor.getId();
+    }
+
+    // Sin bloqueo: es solo para decidir si vale la pena cobrar e intentar
+    // la asignación. Si entre esta consulta y asignarRepartidor otro se
+    // queda con el lugar, asignarRepartidor igual lanza SinLugarException.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.SUPPORTS)
+    public String motivoParaEsperar(BigDecimal pesoKg, int bultos, Long idRepartidorExcluido) {
+        String corte = motivoDelCorte();
+        if (corte != null) {
+            return corte;
         }
-        throw new ValidacionException("No hay repartidores con lugar para el pedido " + idPedido + " ("
-                + (pesoKg != null ? com.rabbit.infraestructura.Formatos.kilos(pesoKg) + ", " : "")
-                + bultos + " bulto(s)): están todos ocupados o les excede la capacidad");
+        List<RepartidorDTO> todos = listarTodos();
+        if (AsignacionPorCapacidad.elegir(todos, idRepartidorExcluido, pesoKg, bultos) != null) {
+            return null;
+        }
+        return sinLugar(todos.isEmpty(), pesoKg, bultos);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.SUPPORTS)
+    public boolean antesDelCorte() {
+        return motivoDelCorte() == null;
+    }
+
+    private static String motivoDelCorte() {
+        LocalTime corte = HoraDeCorte.configurada();
+        if (HoraDeCorte.permiteAsignar(corte, LocalTime.now())) {
+            return null;
+        }
+        return "Ya pasó la hora de corte de la hoja de ruta (" + corte
+                + "): se asigna mañana, antes del corte";
+    }
+
+    private static String sinLugar(boolean sinRepartidores, BigDecimal pesoKg, int bultos) {
+        if (sinRepartidores) {
+            return "No hay repartidores cargados";
+        }
+        return "No hay repartidores con lugar para "
+                + (pesoKg != null ? com.rabbit.infraestructura.Formatos.kilos(pesoKg) + " y " : "")
+                + bultos + " bulto(s): están todos ocupados o les excede la capacidad";
     }
 
     // Idempotente: liberar un pedido que ya no lleva no hace nada. Un

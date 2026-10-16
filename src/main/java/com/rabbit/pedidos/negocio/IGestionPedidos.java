@@ -103,20 +103,58 @@ public interface IGestionPedidos {
      * había cobrado, Pagos le pide la reversa. El stock ya se comprometió al
      * sincronizar (ver sincronizarPedidoExterno).
      *
+     * Si ningún repartidor tiene lugar, o ya pasó la hora de corte de la
+     * hoja de ruta, no se cobra nada: el pedido sigue PENDIENTE en la lista
+     * de espera y se asigna solo cuando se pueda (ADR-037).
+     *
      * @param idPedido ID del pedido a confirmar
+     * @return el ID del repartidor asignado, o null si quedó en espera
      * @throws ValidacionException si el pedido no existe, no está
-     *         PENDIENTE, no hay repartidores disponibles, el banco rechaza
-     *         el pago o no responde
+     *         PENDIENTE, el banco rechaza el pago o no responde
      */
-    void confirmarPedido(Long idPedido);
+    Long confirmarPedido(Long idPedido);
 
     /**
      * Como confirmarPedido, pero prefiere un repartidor de la zona indicada
      * (si no hay ninguno libre ahí, toma cualquiera). Lo usa el despacho por
      * zona del componente Ruteo.
+     *
+     * @return el ID del repartidor asignado, o null si quedó en espera
      */
-    /** @return el ID del repartidor asignado */
     Long confirmarPedidoEnZona(Long idPedido, Long idZona);
+
+    /**
+     * Intenta asignar un pedido de la lista de espera (lo llama
+     * AsignadorDeEspera, en su propia transacción). Si sigue sin haber
+     * lugar, lo deja esperando sin cambios.
+     *
+     * @return el ID del repartidor asignado, o null si sigue en espera
+     * @throws ValidacionException si falla por otra cosa (por ejemplo, el
+     *         banco rechaza el pago): ahí conviene sacarlo de la espera
+     */
+    Long asignarDesdeEspera(Long idPedido);
+
+    /**
+     * Saca un pedido de la lista de espera porque no se pudo asignar solo
+     * (el motivo queda a la vista del personal). Sigue PENDIENTE.
+     */
+    void sacarDeEspera(Long idPedido, String motivo);
+
+    /**
+     * El repartidor no pudo entregar el pedido (cliente ausente, dirección
+     * incorrecta, no entra en el vehículo...) y lo devuelve al depósito:
+     * CONFIRMADO o EN_CAMINO → PENDIENTE, deja de llevarlo y el pedido
+     * entra en la lista de espera para otro repartidor (ADR-037). Conserva
+     * su cobro: al reasignarlo no se cobra de nuevo.
+     *
+     * Solo el REPARTIDOR asignado o un ADMINISTRADOR.
+     *
+     * @param idPedido pedido a devolver
+     * @param motivo por qué no se entregó (obligatorio)
+     * @throws ValidacionException si no es suyo, no está en reparto, lo
+     *         lleva un transportista o falta el motivo
+     */
+    void devolverADeposito(Long idPedido, String motivo);
 
     /**
      * Alternativa a confirmarPedido cuando el pedido no lo lleva un

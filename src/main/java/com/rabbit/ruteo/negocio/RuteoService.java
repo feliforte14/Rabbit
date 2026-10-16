@@ -23,8 +23,9 @@ package com.rabbit.ruteo.negocio;
  *
  * Un repartidor con capacidad cargada lleva varios pedidos a la vez
  * (ADR-032): el despacho por zona se fija a quién le entra cada pedido, no
- * solo quién está libre. Fuera de alcance: ordenar las paradas por
- * distancia (no hay geocodificación de las direcciones).
+ * solo quién está libre. El orden recomendado de las paradas es por
+ * cercanía de código postal, no por distancia real (no hay geocodificación
+ * de las direcciones, ver OrdenDeRecorrido).
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
@@ -40,6 +41,8 @@ import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.repartidores.dto.RepartidorDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.ruteo.dto.HojaDeRutaDTO;
+import com.rabbit.ruteo.dto.ParadaDTO;
+import com.rabbit.ruteo.dto.RecorridoDTO;
 import com.rabbit.transportistas.dto.EnvioDTO;
 import com.rabbit.transportistas.negocio.IEnvios;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
@@ -131,6 +134,12 @@ public class RuteoService implements IRuteo {
 
     @Override
     @RolesAllowed("REPARTIDOR")
+    public RecorridoDTO recorridoRecomendado(List<HojaDeRutaDTO> entregasEnCurso) {
+        return OrdenDeRecorrido.recomendar(entregasEnCurso);
+    }
+
+    @Override
+    @RolesAllowed("REPARTIDOR")
     public List<HojaDeRutaDTO> historialDelRepartidor() {
         return armar(pedidos.listarPedidosDelRepartidorActual().stream()
                 .filter(p -> TERMINADOS.contains(p.getEstado()))
@@ -183,6 +192,10 @@ public class RuteoService implements IRuteo {
         hoja.comercio = comercio != null ? comercio.nombre : "Comercio " + p.getIdComercio();
         List<Retiro> retiros = retiros(p, comercio, depositosPorId, itemsPorId);
         hoja.retiros = retiros.stream().map(Retiro::descripcion).collect(Collectors.toList());
+        hoja.paradasRetiro = retiros.stream()
+                .map(r -> new ParadaDTO(ParadaDTO.Tipo.RETIRO, r.descripcion(), r.direccion(), r.codigoPostal(), p.getId()))
+                .collect(Collectors.toList());
+        hoja.codigoPostalEntrega = p.getCodigoPostalEntrega();
         hoja.urlMapa = EnlaceMapa.recorrido(
                 retiros.stream().map(Retiro::direccion).collect(Collectors.toList()), p.getDireccionEntrega());
 
@@ -194,9 +207,9 @@ public class RuteoService implements IRuteo {
         return hoja;
     }
 
-    // Un lugar de retiro: el texto para la hoja de ruta y la dirección sola
-    // para el mapa.
-    private record Retiro(String descripcion, String direccion) {
+    // Un lugar de retiro: el texto para la hoja de ruta, la dirección sola
+    // para el mapa y el CP para ordenar el recorrido (null si no se sabe).
+    private record Retiro(String descripcion, String direccion, String codigoPostal) {
     }
 
     // Lugares de retiro: el punto de picking del comercio, o los depósitos
@@ -210,7 +223,7 @@ public class RuteoService implements IRuteo {
             }
             return comercio.getPuntosPicking().stream()
                     .filter(pp -> pp.id.equals(p.getIdPuntoPicking()))
-                    .map(pp -> new Retiro("Punto de picking " + pp.nombre + " — " + pp.direccion, pp.direccion))
+                    .map(pp -> new Retiro("Punto de picking " + pp.nombre + " — " + pp.direccion, pp.direccion, null))
                     .collect(Collectors.toList());
         }
         return p.getLineas().stream()
@@ -222,7 +235,7 @@ public class RuteoService implements IRuteo {
                 .map(depositosPorId::get)
                 .filter(Objects::nonNull)
                 .map(d -> new Retiro(d.getEtiqueta() + " — " + d.direccion + ", " + d.localidad,
-                        d.direccion + ", " + d.localidad))
+                        d.direccion + ", " + d.localidad, d.codigoPostal))
                 .collect(Collectors.toList());
     }
 
@@ -343,6 +356,11 @@ public class RuteoService implements IRuteo {
                         "respaldo: a ningún repartidor de la zona " + zona.getNombre() + " le entra el pedido", despacho);
             }
             Long idRepartidor = gestion.confirmarPedidoEnZona(idPedido, zona.getId());
+            if (idRepartidor == null) {
+                return ResultadoDespachoDTO.de(idPedido, Resultado.EN_ESPERA,
+                        pedidos.consultarEstadoPedido(idPedido).getMotivoEspera()
+                                + ". Se asigna solo en cuanto se pueda.");
+            }
             RepartidorDTO asignado = idRepartidor != null ? despacho.repartidores.get(idRepartidor) : null;
             if (asignado != null) {
                 asignado.sumar(idPedido, pedido.getPesoKg(), pedido.getCantidadTotal());
