@@ -13,6 +13,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -140,6 +141,32 @@ public class PedidoRepository {
                         + "ORDER BY p.enEsperaDesde, p.id", Long.class)
                 .setParameter("pendiente", EstadoPedido.PENDIENTE)
                 .getResultList();
+    }
+
+    // Cuántos esperan repartidor ahora, de un comercio o de toda la red
+    // (idComercio null): el tablero de indicadores (ADR-044).
+    // El filtro por comercio se agrega solo si hace falta: un parámetro null
+    // en "(:c IS NULL OR ...)" PostgreSQL no siempre sabe de qué tipo es.
+    public long contarEnEspera(Long idComercio) {
+        TypedQuery<Long> consulta = em.createQuery("SELECT COUNT(p) FROM Pedido p WHERE p.estado = :pendiente"
+                        + " AND p.enEsperaDesde IS NOT NULL" + (idComercio != null ? " AND p.idComercio = :comercio" : ""),
+                Long.class).setParameter("pendiente", EstadoPedido.PENDIENTE);
+        if (idComercio != null) {
+            consulta.setParameter("comercio", idComercio);
+        }
+        return consulta.getSingleResult();
+    }
+
+    // Pedidos recibidos desde una fecha, de un comercio o de toda la red
+    // (idComercio null), sin las líneas: el tablero de indicadores no las usa.
+    public List<Pedido> listarRecibidosDesde(LocalDateTime desde, Long idComercio) {
+        TypedQuery<Pedido> consulta = em.createQuery("SELECT p FROM Pedido p WHERE p.fechaCreacion >= :desde"
+                        + (idComercio != null ? " AND p.idComercio = :comercio" : ""), Pedido.class)
+                .setParameter("desde", desde);
+        if (idComercio != null) {
+            consulta.setParameter("comercio", idComercio);
+        }
+        return consulta.getResultList();
     }
 
     // Pedidos en viaje o por salir (CONFIRMADO o EN_CAMINO): el tablero de entregas.

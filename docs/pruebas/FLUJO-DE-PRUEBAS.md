@@ -9,11 +9,11 @@ la demo.
 
 | Rol | Qué puede hacer | Dónde se prueba |
 |---|---|---|
-| `ADMINISTRADOR` | Todo lo del personal, **más** dar de alta/baja usuarios, eliminar (no solo dar de baja) comercios, usuarios, repartidores y zonas, liquidar el mes, registrar una entrega con remito como contingencia y anular el cobro de un pedido ya `CONFIRMADO` en adelante | 1, 2, 5, 6, 6b, 6c, 7b, 9, 10, 11 |
-| `OPERADOR` | Todo lo del personal **salvo** esas operaciones — no ve los botones y el EJB las rechaza con `EJBAccessException` | 1b, 10, 11 |
-| `COMERCIO` | Solo lo suyo: sus pedidos (con el remito de cada entrega), su stock (solo lectura), sus puntos de picking y sus liquidaciones (y el aviso cuando un pedido vuelve al depósito) | 3, 7, 10, 11 |
-| `REPARTIDOR` | Solo su hoja de ruta (la recomendada, con todas sus paradas): retirar, entregar con foto del remito, devolver al depósito y compartir su ubicación | 5 (paso 3), 10, 11 |
-| `ERP` | Solo la API REST, solo los pedidos de su comercio | 4 |
+| `ADMINISTRADOR` | Todo lo del personal, **más** dar de alta/baja usuarios, eliminar (no solo dar de baja) comercios, usuarios, repartidores y zonas, liquidar el mes, registrar una entrega con remito como contingencia y anular el cobro de un pedido ya `CONFIRMADO` en adelante | 1, 2, 5, 6, 6b, 6c, 7b, 9, 10, 11, 12 |
+| `OPERADOR` | Todo lo del personal **salvo** esas operaciones — no ve los botones y el EJB las rechaza con `EJBAccessException` | 1b, 10, 11, 12 |
+| `COMERCIO` | Solo lo suyo: sus pedidos (con el remito de cada entrega), sus indicadores, su stock (solo lectura), sus puntos de picking y sus liquidaciones (y el aviso cuando un pedido vuelve al depósito o al comercio) | 3, 7, 10, 11, 12 |
+| `REPARTIDOR` | Solo su hoja de ruta (la recomendada, con todas sus paradas): retirar, entregar con foto del remito, devolver al depósito con motivo y compartir su ubicación | 5 (paso 3), 10, 11, 12 |
+| `ERP` | Solo la API REST, solo los pedidos de su comercio | 4, 12 |
 
 Requisitos previos:
 - WildFly corriendo con `standalone-full.xml` (necesario por JMS/MDBs):
@@ -535,6 +535,60 @@ cargados) y pedidos `[PRUEBA]` de 1 y 2 kg.
    más de 9 paradas aparecen varios tramos. Ya no están "Ver recorrido en
    el mapa" ni la sección "Registrar una entrega".
 
+## 12. Mejoras frente a los líderes: destinatario, avisos, intentos, promesa, horario e indicadores
+
+En la rama `feature/mejoras-lideres-ultima-milla` (ADR-039 a 044).
+**Todavía sin probar de punta a punta en WildFly**: los tests unitarios
+pasan (98), pero esto es lo que hay que recorrer antes de mergear. Antes
+de desplegar, mejor que no haya cobros contra entrega pendientes de
+acreditar: el MDB de Pagos cambia de selector y Artemis recrea su
+suscripción (ADR-041).
+
+1. **Quién recibe (ADR-039):** en Pedidos → "Simular un pedido del ERP",
+   cargar nombre, teléfono y un email propio. En la tabla, debajo de la
+   dirección, "Recibe: …" y "Prometido para el dd/MM". Por la API, mandar
+   `nombreDestinatario`, `telefonoDestinatario` y `emailDestinatario`; un
+   email sin @ responde 400 con el campo. Sin esos campos, el alta sigue
+   igual que antes. El repartidor ve "Recibe: … · teléfono" (el teléfono
+   abre la llamada en el celular). El seguimiento público **no** los
+   muestra.
+2. **Avisos a quien recibe (ADR-040):** con el email cargado, cada cambio
+   de estado suma una fila en Pedidos → "Avisos a destinatarios" ("Recibimos
+   tu pedido de …", "…ya tiene quién lo lleve", "…llega hoy!",
+   "Entregamos…"), con el link al seguimiento. Con
+   `rabbit.mail.smtp.host` configurado, llegan por mail. Un pedido sin
+   email no genera avisos. En el log:
+   `[Notificaciones] Aviso al destinatario del pedido N: …`.
+3. **Fecha prometida (ADR-042):** la respuesta del POST ya trae
+   `fechaPrometida` (hoy si es antes de las 21:00). Con
+   `rabbit.ruteo.hora-corte=00:01`, un pedido nuevo trae la de mañana y el
+   seguimiento dice "Llega mañana". Sin código postal, no viene. Quitar la
+   propiedad al terminar.
+4. **Entrega fallida con intentos (ADR-041):** como repartidor, con un
+   pedido En camino → "Devolver a depósito" → "Cliente ausente". Vuelve a
+   la espera; en Pedidos dice "1 visita(s) fallida(s)" y el cliente recibe
+   "No pudimos entregar tu pedido". Al reasignarlo, la tarjeta del
+   repartidor dice "Visita 2 de 2: la anterior falló (Cliente ausente)".
+   Retirarlo y devolverlo de nuevo → pasa a **Devuelto al comercio**: el
+   stock consignado vuelve (ver Depósitos y stock), el cobro pasa a
+   Anulado (en el log, `[Pagos] … anulado: el pedido volvió al comercio`)
+   y, si era prepago, se pide la reversa al banco. Con "El cliente rechazó
+   el pedido" vuelve al comercio en la primera visita. "No entra en el
+   vehículo", o devolverlo desde Confirmado, no gasta una visita. El ERP
+   ve `estadoPedido: DEVUELTO_AL_COMERCIO` e `intentosFallidos`.
+5. **Horario estimado (ADR-043):** con dos o tres pedidos del mismo
+   repartidor, retirar uno y abrir su seguimiento: "Sos la parada N de M:
+   llega aproximadamente entre las HH:mm y las HH:mm". La API devuelve
+   `llegadaEstimada`. El número coincide con la hoja de ruta recomendada
+   del repartidor. Si la estimación falla, la página se ve igual, sin
+   horario (y queda un aviso en el log).
+6. **Indicadores (ADR-044):** Personal → Indicadores: a tiempo, al primer
+   intento, horas de recibido a entregado, en espera, costo por envío,
+   motivos de las visitas fallidas y la tabla por repartidor; filtrar por
+   comercio y por 7, 30 o 90 días (queda en la URL). Como comercio →
+   Mis indicadores: lo mismo, solo lo suyo y sin la tabla por
+   repartidor. Sin entregas en el período, los porcentajes dicen "—".
+
 ## Checklist rápido
 
 | Ítem | Resultado esperado |
@@ -556,6 +610,12 @@ cargados) y pedidos `[PRUEBA]` de 1 y 2 kg.
 | Hora de corte (21:00, `rabbit.ruteo.hora-corte`) | Después del corte, lo que se confirma queda en espera para el día siguiente; con `ninguno`, no hay corte |
 | Devolver a depósito (repartidor) | Vuelve a Pendiente en espera y se reasigna a otro repartidor, sin cobrar de nuevo |
 | Hoja de ruta recomendada | Retiros primero, entregas por CP, link a Google Maps en tramos de hasta 9 paradas |
+| Quién recibe (opcional) | Se ve en Pedidos, Mis pedidos y Mis entregas; no en el seguimiento público. Email inválido: 400 |
+| Avisos a quien recibe | Una fila por cambio de estado en "Avisos a destinatarios" (y mail si hay SMTP); sin email, nada |
+| Fecha prometida | Viene en el 201 del alta; hoy antes del corte, mañana después |
+| Visitas fallidas | La primera vuelve a la espera; la segunda (o un rechazo) pasa a Devuelto al comercio, con stock devuelto y cobro anulado |
+| Horario en el seguimiento | En camino: "parada N de M" y una franja; si falla, sin horario y sin error |
+| Indicadores | Personal (red o comercio, por repartidor) y comercio (lo suyo); "—" sin base |
 | Navegar un rato largo (más de 30 min) y después derivar o abrir Entregas en curso | Funciona: las consultas de stock no dependen de una instancia stateful que vence (ADR-027) |
 | Acceso restringido a personal/usuarios.xhtml | Comercio/repartidor/operador no puede entrar |
 | REST sin credenciales | 401 (HTML de WildFly) |

@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -49,6 +51,15 @@ class HoraDeCorteTest {
         assertEquals(NUEVE, HoraDeCorte.configurada());
         System.setProperty(HoraDeCorte.PROPIEDAD, " 18:30 ");
         assertEquals(LocalTime.of(18, 30), HoraDeCorte.configurada());
+    }
+
+    @Test
+    void laFechaPrometidaEsHoySiLlegaAntesDelCorteYMananaSiNo() {
+        LocalDate hoy = LocalDate.of(2026, 10, 16);
+        LocalTime corte = LocalTime.of(21, 0);
+        assertEquals(hoy, HoraDeCorte.diaDeEntrega(corte, hoy.atTime(20, 59)));
+        assertEquals(hoy.plusDays(1), HoraDeCorte.diaDeEntrega(corte, hoy.atTime(21, 0)));
+        assertEquals(hoy, HoraDeCorte.diaDeEntrega(null, LocalDateTime.of(2026, 10, 16, 23, 30)));
     }
 
     @Test

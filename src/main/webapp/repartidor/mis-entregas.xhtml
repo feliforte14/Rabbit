@@ -3,7 +3,7 @@
     VISTA (Facelet) - Capa de Presentacion.
     La pantalla del repartidor: arriba, la hoja de ruta recomendada con
     todas sus paradas en orden (ADR-038); despues, sus entregas en curso
-    (de donde retira, adonde entrega y cuanto cobrar) con los botones para
+    (de donde retira, adonde entrega, quien recibe y cuanto cobrar) con los botones para
     marcar el retiro, entregar con la foto del remito (ADR-033) o devolver
     el pedido al deposito (ADR-037), y su historial. Pensada para el
     celular. Mientras tiene entregas en curso, manda su ubicacion a Rabbit
@@ -102,6 +102,18 @@
 
                 <p class="hoja-ruta-datos">
                     <span>Llevás: <b>#{e.productos}</b> (#{e.cantidadTotal} u.#{empty e.pesoKg ? '' : ', ' += etiquetas.kilos(e.pesoKg)})</span>
+                    <!-- Quien recibe (ADR-039): para preguntar por esa persona o llamarla. -->
+                    <h:panelGroup rendered="#{not empty e.nombreDestinatario or not empty e.telefonoDestinatario}">
+                        <span>Recibe: <b>#{empty e.nombreDestinatario ? 'sin nombre' : e.nombreDestinatario}</b>
+                            <h:panelGroup rendered="#{not empty e.telefonoDestinatario}">
+                                · <a href="tel:#{e.telefonoParaLlamar}">#{e.telefonoDestinatario}</a>
+                            </h:panelGroup>
+                        </span>
+                    </h:panelGroup>
+                    <!-- Visitas que ya fallaron (ADR-041). -->
+                    <h:panelGroup rendered="#{e.intentosFallidos > 0}">
+                        <span class="cobrar">Visita #{e.intentosFallidos + 1} de #{misEntregasBean.maximoIntentos}: la anterior falló (#{e.motivoUltimoIntento})</span>
+                    </h:panelGroup>
                     <h:panelGroup rendered="#{not empty e.codigoCliente}">
                         <span>Código del cliente: <span class="codigo">#{e.codigoCliente}</span></span>
                     </h:panelGroup>
@@ -158,13 +170,18 @@
         <dialog id="dialogoDevolucion" class="dialogo" aria-labelledby="dialogoDevolucionTitulo">
             <h:form id="formDevolucion" styleClass="formulario">
                 <h2 id="dialogoDevolucionTitulo">Devolver a depósito el pedido <span data-numero-pedido=""></span></h2>
-                <p class="ayuda">Llevalo de vuelta al lugar donde lo retiraste. Rabbit se lo asigna a otro repartidor.</p>
+                <p class="ayuda">
+                    Llevalo de vuelta al lugar donde lo retiraste. Si ya habías salido con el pedido, cuenta como
+                    una visita: con #{misEntregasBean.maximoIntentos} visitas sin entregar (o si el cliente lo
+                    rechazó), vuelve al comercio. Si no, Rabbit se lo asigna a otro repartidor.
+                </p>
                 <h:inputHidden id="pedido" value="#{misEntregasBean.idPedidoADevolver}" />
                 <div class="campo">
                     <h:outputLabel styleClass="obligatorio" for="motivo" value="¿Por qué no se pudo entregar?" />
                     <h:selectOneMenu id="motivo" value="#{misEntregasBean.motivoDevolucion}" pt:required="required">
-                        <f:selectItem itemLabel="— Elegí el motivo —" itemValue="" />
-                        <f:selectItems value="#{misEntregasBean.motivosDevolucion}" />
+                        <f:selectItem itemLabel="— Elegí el motivo —" itemValue="#{null}" noSelectionOption="true" />
+                        <f:selectItems value="#{misEntregasBean.motivosDevolucion}" var="m"
+                                       itemValue="#{m}" itemLabel="#{m.descripcion}" />
                     </h:selectOneMenu>
                 </div>
                 <div class="campo">

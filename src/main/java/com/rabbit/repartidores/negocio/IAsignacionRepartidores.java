@@ -45,6 +45,13 @@ public interface IAsignacionRepartidores {
     boolean antesDelCorte();
 
     /**
+     * En qué hoja de ruta entra un pedido recibido a esa hora: la de ese
+     * día si llegó antes del corte, la del siguiente si no (ADR-042). Pedidos
+     * la usa para la fecha prometida.
+     */
+    java.time.LocalDate diaDeEntregaPara(java.time.LocalDateTime recibido);
+
+    /**
      * Le saca el pedido al repartidor (se entregó o se canceló después de
      * confirmado). Si era el último que llevaba, vuelve a DISPONIBLE.
      *

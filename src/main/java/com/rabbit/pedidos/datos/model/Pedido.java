@@ -19,6 +19,7 @@ package com.rabbit.pedidos.datos.model;
 import com.rabbit.pagos.dto.MedioPago;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -130,6 +131,33 @@ public class Pedido {
     // Boolean y no boolean: las filas anteriores quedan en NULL.
     private Boolean cobroRegistrado;
 
+    // Quién recibe (ADR-039): los manda el ERP, opcionales. Con el email,
+    // Rabbit le avisa cada cambio de estado (ADR-040); nombre y teléfono
+    // los ve el repartidor. Nunca salen en el seguimiento público.
+    @Column(length = 100)
+    private String nombreDestinatario;
+
+    @Column(length = 30)
+    private String telefonoDestinatario;
+
+    @Column(length = 120)
+    private String emailDestinatario;
+
+    // Día en que Rabbit se compromete a entregarlo (ADR-042): se calcula al
+    // recibirlo con la hora de corte. Es contra lo que se mide "a tiempo"
+    // (ADR-044). Null si no se pudo prometer (sin código postal) o en los
+    // pedidos anteriores a este cambio.
+    private LocalDate fechaPrometida;
+
+    // Visitas al cliente que no terminaron en entrega (ADR-041). Integer y
+    // no int: las filas anteriores quedan en NULL (= ninguna).
+    private Integer intentosFallidos;
+
+    // Por qué falló la última visita (o la devolución), con motivos fijos
+    // para poder contarlos. El detalle libre sigue en motivoDevolucion.
+    @Enumerated(EnumType.STRING)
+    private MotivoEntregaFallida motivoEntregaFallida;
+
     public Pedido() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -183,4 +211,16 @@ public class Pedido {
     public void setMotivoDevolucion(String motivoDevolucion) { this.motivoDevolucion = motivoDevolucion; }
     public boolean isCobroRegistrado() { return Boolean.TRUE.equals(cobroRegistrado); }
     public void setCobroRegistrado(boolean cobroRegistrado) { this.cobroRegistrado = cobroRegistrado; }
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
+    public String getTelefonoDestinatario() { return telefonoDestinatario; }
+    public void setTelefonoDestinatario(String telefonoDestinatario) { this.telefonoDestinatario = telefonoDestinatario; }
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
+    public LocalDate getFechaPrometida() { return fechaPrometida; }
+    public void setFechaPrometida(LocalDate fechaPrometida) { this.fechaPrometida = fechaPrometida; }
+    public int getIntentosFallidos() { return intentosFallidos == null ? 0 : intentosFallidos; }
+    public void setIntentosFallidos(int intentosFallidos) { this.intentosFallidos = intentosFallidos; }
+    public MotivoEntregaFallida getMotivoEntregaFallida() { return motivoEntregaFallida; }
+    public void setMotivoEntregaFallida(MotivoEntregaFallida motivoEntregaFallida) { this.motivoEntregaFallida = motivoEntregaFallida; }
 }

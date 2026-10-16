@@ -36,6 +36,7 @@ public class EtiquetasBean {
             case "EN_CAMINO": return "En camino";
             case "ENTREGADO": return "Entregado";
             case "CANCELADO": return "Cancelado";
+            case "DEVUELTO_AL_COMERCIO": return "Devuelto al comercio";
             default: return "—";
         }
     }
@@ -47,6 +48,7 @@ public class EtiquetasBean {
             case "EN_CAMINO": return "badge badge-azul";
             case "ENTREGADO": return "badge badge-verde";
             case "CANCELADO": return "badge badge-gris";
+            case "DEVUELTO_AL_COMERCIO": return "badge badge-rojo";
             default: return "";
         }
     }

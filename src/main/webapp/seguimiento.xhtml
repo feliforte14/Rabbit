@@ -3,8 +3,9 @@
     VISTA (Facelet) - Capa de Presentacion.
     Seguimiento publico de un pedido, para el cliente final: sin login, con
     el codigo que le paso la tienda (seguimiento.xhtml?codigo=RB-...). Muestra
-    solo el estado, con una linea de tiempo, y mientras va en camino con un
-    repartidor de Rabbit, donde esta (ADR-035). Se bindea a seguimientoBean
+    solo el estado, con una linea de tiempo, el dia prometido (ADR-042) y,
+    mientras va en camino con un repartidor de Rabbit, donde esta (ADR-035),
+    en que parada va y en que franja llega (ADR-043). Se bindea a seguimientoBean
     (SeguimientoBean.java). Es la version para personas de
     GET /api/v1/seguimiento/{codigo}.
 -->
@@ -73,13 +74,24 @@
             </p>
         </h:panelGroup>
 
-        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta #{seguimientoBean.cancelado ? 'seguimiento-cancelado' : ''}"
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta #{seguimientoBean.fueraDeCamino ? 'seguimiento-cancelado' : ''}"
                       rendered="#{not empty seguimientoBean.pedido}">
             <p class="seguimiento-codigo">Pedido <code>#{seguimientoBean.pedido.codigoSeguimiento}</code></p>
             <p class="seguimiento-titular">#{seguimientoBean.titular}</p>
             <p class="seguimiento-detalle">#{seguimientoBean.detalle}</p>
+            <!-- Dia prometido (ADR-042), antes de que salga a reparto. -->
+            <h:panelGroup rendered="#{not empty seguimientoBean.promesa}">
+                <p class="seguimiento-promesa">#{seguimientoBean.promesa}</p>
+            </h:panelGroup>
+            <!-- En camino: en que parada del repartidor va y cuando llega (ADR-043). -->
+            <h:panelGroup rendered="#{not empty seguimientoBean.llegada}">
+                <p class="seguimiento-promesa">
+                    #{seguimientoBean.llegada.esLaProxima ? 'Sos la próxima parada' : 'Sos la parada ' += seguimientoBean.llegada.numeroParada += ' de ' += seguimientoBean.llegada.totalParadas}:
+                    llega aproximadamente entre las #{seguimientoBean.llegada.desdeTexto} y las #{seguimientoBean.llegada.hastaTexto}.
+                </p>
+            </h:panelGroup>
 
-            <h:panelGroup rendered="#{not seguimientoBean.cancelado}">
+            <h:panelGroup rendered="#{not seguimientoBean.fueraDeCamino}">
                 <ol class="linea-tiempo">
                     <ui:repeat value="#{seguimientoBean.pasos}" var="paso">
                         <li class="#{seguimientoBean.claseDelPaso(paso)}">

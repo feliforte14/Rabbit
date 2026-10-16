@@ -20,7 +20,11 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   API REST versionada (`/api/v1`, alta idempotente, consulta y
   cancelación), su sincronización automática con stock y su seguimiento
   (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`), también público por
-  código de seguimiento.
+  código de seguimiento. El ERP puede mandar quién recibe (nombre,
+  teléfono y email, ADR-039), y Rabbit le promete el día de entrega según
+  la hora de corte, ya en la respuesta del alta (ADR-042). En camino, el
+  seguimiento dice en qué parada del repartidor va y en qué franja llega
+  (ADR-043).
 - **Pagos y cobranzas:** un pedido prepago se cobra en el banco legado al
   confirmarlo (con reversa si la confirmación falla después, y un circuit
   breaker si el banco no responde); uno contra entrega se acredita cuando
@@ -32,8 +36,10 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   (ADR-032). Si no le entra a nadie (o ya pasó la hora de corte de la hoja
   de ruta), el pedido queda en una lista de espera, sin cobrar, y se
   asigna solo cuando se libera alguno; el repartidor puede devolver al
-  depósito un pedido que no pudo entregar, y se le asigna a otro
-  (ADR-037). Mientras reparte, su celular comparte la ubicación: el
+  depósito un pedido que no pudo entregar, con un motivo fijo, y se le
+  asigna a otro (ADR-037). Después de 2 visitas fallidas (o si el cliente
+  lo rechaza) el pedido vuelve al comercio: el stock consignado se
+  devuelve y el cobro se anula (ADR-041). Mientras reparte, su celular comparte la ubicación: el
   personal lo ve en un mapa y el cliente, en el seguimiento (ADR-035). Un
   administrador puede eliminar un repartidor sin entregas en curso ni
   cuenta de usuario (ADR-036).
@@ -58,7 +64,13 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
   Todo por HTTPS, con límite de intentos en el login.
 - **Notificaciones:** cada cambio de estado le llega al comercio en su
-  portal y, si hay un servidor de correo configurado, por mail.
+  portal y, si hay un servidor de correo configurado, por mail. Si el ERP
+  mandó el email de quien recibe, a esa persona también, con el link al
+  seguimiento (ADR-040).
+- **Indicadores:** tablero para el personal (toda la red, un comercio y
+  por repartidor) y para cada comercio: entregas a tiempo, al primer
+  intento, horas de recibido a entregado, lista de espera y costo por
+  envío, de los últimos 7, 30 o 90 días (ADR-044).
 - **Interfaz:** tres temas visuales (normal, claro y oscuro) que se
   cambian en el momento desde el menú o el pie de las páginas públicas, y
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
@@ -154,7 +166,7 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (38 ADRs)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (44 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
@@ -474,7 +486,7 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.cont
 ## Tests
 
 ```bash
-mvn test                       # 62 tests unitarios (JUnit 5), sin servidor
+mvn test                       # 98 tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos

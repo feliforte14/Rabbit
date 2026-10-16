@@ -76,26 +76,30 @@ componente le interesa, por motivos distintos:
 
 | Suscriptor | Qué hace | Por qué |
 |---|---|---|
-| Notificaciones | Avisa al comercio del cambio: en su portal y, si hay servidor de correo configurado, por mail (`AvisosPorMail`, después del commit, timeout de 5 s) | Seguimiento del pedido |
-| Pagos y Cobranzas | Con `ENTREGADO` y `CONTRA_ENTREGA`, acredita el cobro | El repartidor cobra al entregar |
+| Notificaciones (comercio) | Avisa al comercio del cambio: en su portal y, si hay servidor de correo configurado, por mail (`AvisosPorMail`, después del commit, timeout de 5 s) | Seguimiento del pedido |
+| Notificaciones (quien recibe, ADR-040) | Si el ERP mandó el email de quien recibe, le avisa por mail con el link al seguimiento ("recibimos tu pedido, llega hoy", "en camino", "no pudimos entregarlo"...) | Los líderes le avisan al cliente final, no solo a la tienda |
+| Pagos y Cobranzas | Con `ENTREGADO` y `CONTRA_ENTREGA`, acredita el cobro; con `DEVUELTO_AL_COMERCIO`, lo anula (ADR-041) | El repartidor cobra al entregar; si no se entregó, no hay nada que cobrar |
 
-**Por qué Topic y no Queue:** el mismo evento lo necesitan dos
+**Por qué Topic y no Queue:** el mismo evento lo necesitan tres
 consumidores independientes (1 → N). Con una cola solo lo recibiría uno.
 Pedidos no conoce a los suscriptores: se puede agregar otro sin tocarlo.
+Así se sumó el aviso a quien recibe (ADR-040): un MDB nuevo con su
+suscripción, sin cambiar una línea de Pedidos ni de los otros dos.
 
 | Clase | Rol |
 |---|---|
 | `EstadoPedidoCambiado` | Evento CDI que dispara `PedidoService` en cada cambio de estado |
 | `PublicadorEstadosPedido` | Productor JMS + declaración del tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`, igual que la cola) |
-| `SuscriptorPagosEstadoPedido` | MDB de Pagos, filtra `estado = 'ENTREGADO'` |
+| `SuscriptorPagosEstadoPedido` | MDB de Pagos, filtra `estado IN ('ENTREGADO', 'DEVUELTO_AL_COMERCIO')` |
 | `SuscriptorNotificacionesEstadoPedido` | MDB de Notificaciones, recibe todos los cambios (a un pedido devuelto al depósito le avisa "volvió al depósito") |
+| `SuscriptorDestinatarioEstadoPedido` | MDB de Notificaciones para quien recibe (ADR-040), recibe todos los cambios; `AvisoDestinatarioService` arma el texto y lo guarda en `avisos_destinatario` |
 | `AvisosDeEspera` | No es del tópico: observa el mismo evento CDI (`AFTER_SUCCESS`) dentro de Rabbit y, si un pedido se entregó, canceló o devolvió, programa una pasada de la lista de espera (ADR-037) |
 
 **Mensaje:** `TextMessage` con body
 `{"idPedido", "idComercio", "estado", "fechaCambio"}` y propiedades JMS
 `estado` e `idPedido`. Las propiedades permiten filtrar con un
 `messageSelector` sin leer el body: el broker ni siquiera le entrega a
-Pagos los cambios que no son `ENTREGADO`.
+Pagos los cambios que no son `ENTREGADO` ni `DEVUELTO_AL_COMERCIO`.
 
 ```mermaid
 sequenceDiagram
@@ -118,8 +122,9 @@ sequenceDiagram
 
 ### Suscripciones durables
 
-Las dos suscripciones son **durables** (`clientId` +
-`subscriptionName`): si un suscriptor no está activo cuando se publica un
+Las tres suscripciones son **durables** (`clientId` +
+`subscriptionName`: `rabbit-pagos`, `rabbit-notificaciones` y
+`rabbit-destinatarios`): si un suscriptor no está activo cuando se publica un
 cambio —por un redeploy, por ejemplo—, el broker guarda el mensaje y se
 lo entrega al volver. `shareSubscriptions=true` permite que las varias
 instancias del pool del MDB consuman de la misma suscripción.
@@ -134,7 +139,8 @@ consola de WildFly), entregando un pedido contra entrega (el cobro quedó
 |---|---|
 | El broker falla al publicar | Se loguea; el cambio de estado ya está guardado. Se pierde el aviso (no hay polling de respaldo, a diferencia de la cola) |
 | Un suscriptor no está activo | La suscripción durable guarda el mensaje hasta que vuelve |
-| El mismo evento llega dos veces | Pagos es idempotente (si ya está `ACREDITADO` no hace nada, con bloqueo pesimista sobre el cobro). Notificaciones descarta el repetido por `fechaCambio` |
-| Los eventos llegan desordenados | Notificaciones guarda la `fechaCambio` por pedido e ignora los más viejos. A Pagos no le afecta: `ENTREGADO` es final |
+| El mismo evento llega dos veces | Pagos es idempotente (si ya está `ACREDITADO` o `ANULADO` no hace nada, con bloqueo pesimista sobre el cobro). Los dos suscriptores de Notificaciones descartan el repetido por `fechaCambio` |
+| Los eventos llegan desordenados | Cada suscriptor de Notificaciones guarda la `fechaCambio` por pedido e ignora los más viejos. A Pagos no le afecta: `ENTREGADO` y `DEVUELTO_AL_COMERCIO` son finales |
+| Cambia el selector de una suscripción durable | Artemis la borra y la recrea al desplegar: los mensajes pendientes de esa suscripción se pierden. Pasó al sumar `DEVUELTO_AL_COMERCIO` al selector de Pagos (ADR-041) |
 | Mensaje ilegible | Se loguea y se consume |
 | Error transitorio en Pagos (base caída) | Se relanza; el broker reintenta la entrega |

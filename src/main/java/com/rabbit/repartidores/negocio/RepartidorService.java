@@ -137,6 +137,11 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
         return motivoDelCorte() == null;
     }
 
+    @Override
+    public java.time.LocalDate diaDeEntregaPara(java.time.LocalDateTime recibido) {
+        return HoraDeCorte.diaDeEntrega(HoraDeCorte.configurada(), recibido);
+    }
+
     private static String motivoDelCorte() {
         LocalTime corte = HoraDeCorte.configurada();
         if (HoraDeCorte.permiteAsignar(corte, LocalTime.now())) {

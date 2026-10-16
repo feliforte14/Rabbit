@@ -1643,6 +1643,18 @@ a.codigo:hover {
     color: var(--texto-suave);
 }
 
+/* Dia prometido (ADR-042) y parada/franja en camino (ADR-043): lo que mas
+   le importa al cliente, un poco mas marcado que el detalle. */
+.seguimiento-promesa {
+    margin: 0.8rem 0 0;
+    padding: 0.55rem 0.8rem;
+    border-left: 3px solid var(--naranja);
+    background: var(--naranja-suave);
+    border-radius: 0 var(--radio) var(--radio) 0;
+    color: var(--titulo);
+    font-weight: 600;
+}
+
 /* Linea de tiempo: un punto por paso, unidos por una linea. Hecho =
    naranja lleno; actual = naranja con aro; pendiente = gris. */
 .linea-tiempo {

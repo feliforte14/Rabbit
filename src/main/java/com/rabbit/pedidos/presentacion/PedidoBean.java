@@ -36,6 +36,8 @@ import com.rabbit.pedidos.negocio.IGestionPedidos;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.ValidacionException;
 import com.rabbit.notificaciones.dto.NotificacionDTO;
+import com.rabbit.notificaciones.dto.AvisoDestinatarioDTO;
+import com.rabbit.notificaciones.negocio.IAvisosAlDestinatario;
 import com.rabbit.notificaciones.negocio.INotificaciones;
 import com.rabbit.pagos.dto.CobroDTO;
 import com.rabbit.pagos.negocio.IConsultaCobros;
@@ -84,6 +86,10 @@ public class PedidoBean implements Serializable {
     @Inject
     private INotificaciones notificaciones;
 
+    // Avisos a quien recibe cada pedido (ADR-040).
+    @Inject
+    private IAvisosAlDestinatario avisosAlDestinatario;
+
     // Derivación a transportistas externos.
     @Inject
     private IGestionTransportistas transportistas;
@@ -103,6 +109,7 @@ public class PedidoBean implements Serializable {
     private Map<Long, String> nombresRepartidores;
     private Map<Long, String> estadosCobro;
     private List<NotificacionDTO> avisosRecientes;
+    private List<AvisoDestinatarioDTO> avisosADestinatarios;
     private Map<Long, EnvioDTO> enviosPorPedido;
     private List<TransportistaDTO> listaTransportistas;
     private Long idPedidoADerivar;
@@ -139,6 +146,7 @@ public class PedidoBean implements Serializable {
         estadosCobro = cobros.listarTodos().stream()
                 .collect(Collectors.toMap(CobroDTO::getIdPedido, CobroDTO::getEstado));
         avisosRecientes = notificaciones.listarRecientes(10);
+        avisosADestinatarios = avisosAlDestinatario.listarRecientes(10);
         enviosPorPedido = envios.listarEnvios().stream()
                 .collect(Collectors.toMap(EnvioDTO::getIdPedido, Function.identity(), (a, b) -> a));
         listaTransportistas = transportistas.listarActivos();
@@ -248,6 +256,7 @@ public class PedidoBean implements Serializable {
     }
 
     public List<NotificacionDTO> getAvisosRecientes() { return avisosRecientes; }
+    public List<AvisoDestinatarioDTO> getAvisosADestinatarios() { return avisosADestinatarios; }
 
     // Un pedido nuevo siempre arranca con una línea vacía, así el
     // formulario ya muestra la primera fila sin que el usuario tenga que

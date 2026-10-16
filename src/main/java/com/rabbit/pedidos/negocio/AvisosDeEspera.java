@@ -2,7 +2,8 @@ package com.rabbit.pedidos.negocio;
 
 /**
  * Dispara una pasada de la lista de espera (AsignadorDeEspera) apenas un
- * pedido se entrega, se cancela o se devuelve al depósito: en ese momento
+ * pedido se entrega, se cancela, se devuelve al depósito o vuelve al
+ * comercio (ADR-041): en ese momento
  * a algún repartidor le pudo quedar lugar (ADR-037).
  *
  * Escucha EstadoPedidoCambiado después del commit (AFTER_SUCCESS) y no
@@ -47,7 +48,8 @@ public class AvisosDeEspera {
     @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void alCambiarEstado(@Observes(during = TransactionPhase.AFTER_SUCCESS) EstadoPedidoCambiado evento) {
         EstadoPedido estado = evento.estado();
-        if (estado == EstadoPedido.ENTREGADO || estado == EstadoPedido.CANCELADO || estado == EstadoPedido.PENDIENTE) {
+        if (estado == EstadoPedido.ENTREGADO || estado == EstadoPedido.CANCELADO || estado == EstadoPedido.PENDIENTE
+                || estado == EstadoPedido.DEVUELTO_AL_COMERCIO) {
             timers.createSingleActionTimer(500, new TimerConfig(null, false));
         }
     }

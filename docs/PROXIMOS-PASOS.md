@@ -9,8 +9,8 @@ no lo tome otro en paralelo).
 
 ## Hecho: mejoras del tablero (15/10/2026)
 
-Implementadas en la rama `feature/mejoras-trello` (todavía sin mergear a
-`main`), probadas de punta a punta (ver la sección 10 de
+Implementadas en la rama `feature/mejoras-trello` (mergeada a `main` el
+16/10/2026), probadas de punta a punta (ver la sección 10 de
 [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
 
 - [x] Contraseñas centralizadas en la base (ADR-031).
@@ -54,6 +54,29 @@ de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
     distancia real (hoy, por cercanía de código postal);
   - la cobranza por almacenamiento: es solo una propuesta, sin
     implementar ([PROPUESTA-COBRANZA-ALMACENAMIENTO.md](PROPUESTA-COBRANZA-ALMACENAMIENTO.md)).
+
+## En prueba: mejoras frente a los líderes de última milla (16/10/2026)
+
+En la rama `feature/mejoras-lideres-ultima-milla`, **sin mergear**. Salen
+de comparar Rabbit con Mercado Libre Full/Flex, Andreani, Moova, DHL,
+Amazon, Onfleet, Bringg y ShipBob: son las seis de prioridad alta. Los
+tests unitarios pasan; falta recorrer la sección 12 de
+[FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md) en WildFly.
+
+- [x] Datos de quien recibe: nombre, teléfono y email, opcionales (ADR-039).
+- [x] Avisos por mail a quien recibe en cada cambio, con un tercer
+      suscriptor del tópico (ADR-040).
+- [x] Entrega fallida con motivo fijo e intentos; al agotarlos, estado
+      DEVUELTO_AL_COMERCIO (ADR-041). **A definir por el equipo:** 2 o 3
+      visitas (`rabbit.entregas.max-intentos`, hoy 2).
+- [x] Fecha prometida con la hora de corte, en la API y el seguimiento (ADR-042).
+- [x] Horario estimado en el seguimiento: "sos la parada N de M" y una
+      franja (ADR-043).
+- [x] Tablero de indicadores para el personal y el comercio (ADR-044).
+- [ ] Probar en WildFly (sección 12) y decidir si se mergea a `main`.
+- [ ] Prioridad media y baja de la comparación (webhooks al ERP, orden de
+      ingreso de mercadería, retiro en depósito, etiquetas con QR, etc.):
+      sin empezar.
 
 ## 1. Revisar en el código
 
@@ -109,12 +132,14 @@ riesgo, sin tocar comportamiento:
       `Mensajes.ejecutar(Runnable accion, String mensajeExito)` que
       envuelva ese try/catch común.
 
-### Cobertura de tests (hoy hay 62 unitarios + 10 de integración)
+### Cobertura de tests (hoy hay 98 unitarios + 10 de integración)
 
-Los tests unitarios cubren sobre todo Pedidos, Seguridad, las reglas
-puras de Repartidores (capacidad, a quién se asigna, hora de corte) y de
-Ruteo (orden de la hoja de ruta y links a Google Maps), y la tarifa
-mensual. Sin tests propios todavía:
+Los tests unitarios cubren sobre todo Pedidos (incluidos destinatario,
+intentos e indicadores), Seguridad, las reglas puras de Repartidores
+(capacidad, a quién se asigna, hora de corte y fecha prometida) y de
+Ruteo (orden de la hoja de ruta, links a Google Maps y horario estimado),
+los textos de los avisos a quien recibe y la tarifa mensual. Sin tests
+propios todavía:
 
 - [ ] `comercios` (alta, baja/reactivación, eliminación en cascada)
 - [ ] `inventario` (reservar/confirmar/liberar stock, vencimiento)
@@ -123,7 +148,8 @@ mensual. Sin tests propios todavía:
 - [ ] `ruteo` (zonas, despacho; el orden de la hoja de ruta ya tiene)
 - [ ] `transportistas` (cotizar, derivar, seguimiento)
 - [ ] `pagos` (circuit breaker, reversa)
-- [ ] `notificaciones`
+- [ ] `notificaciones` (servicios y orden de llegada; los textos al
+      destinatario ya tienen)
 
 No hace falta levantar WildFly para esto: son tests unitarios con mocks,
 como los que ya existen en `src/test/java/com/rabbit/pedidos/negocio/`

@@ -2,11 +2,12 @@ package com.rabbit.notificaciones.negocio;
 
 /**
  * Canal de mail de las notificaciones: cada aviso al comercio, además de
- * quedar en su portal, se le manda al email que cargó al darse de alta.
+ * quedar en su portal, se le manda al email que cargó al darse de alta. Y
+ * cada aviso a quien recibe el pedido (ADR-040), al email que mandó el ERP.
  *
  * DESPUÉS del commit (AFTER_SUCCESS): un servidor de correo caído o lento
  * no puede deshacer ni frenar el aviso; si el mail no sale, se loguea y el
- * aviso igual queda en el portal. Timeouts de 5 s, como las demás
+ * aviso igual queda registrado en Rabbit. Timeouts de 5 s, como las demás
  * integraciones.
  *
  * Se configura con system properties (como el banco y el circuit breaker):
@@ -38,14 +39,21 @@ public class AvisosPorMail {
     private static final String TIMEOUT_MS = "5000";
 
     public void alRegistrarAviso(@Observes(during = TransactionPhase.AFTER_SUCCESS) AvisoRegistrado aviso) {
-        String host = System.getProperty("rabbit.mail.smtp.host");
-        if (host == null || host.isBlank()) {
-            return;
-        }
         // El email ya viene resuelto: acá (después del commit) no se puede
         // consultar la base.
-        String destino = aviso.email();
-        if (destino == null) {
+        enviar(aviso.email(), aviso.idPedido(), "Rabbit · Pedido #" + aviso.idPedido(),
+                aviso.texto() + ".\n\nEste aviso también está en tu portal de Rabbit.");
+    }
+
+    // ADR-040: el aviso al cliente final, mismo canal y mismas reglas.
+    public void alRegistrarAvisoDestinatario(
+            @Observes(during = TransactionPhase.AFTER_SUCCESS) AvisoDestinatarioRegistrado aviso) {
+        enviar(aviso.email(), aviso.idPedido(), "Rabbit · " + aviso.asunto(), aviso.texto());
+    }
+
+    private void enviar(String destino, Long idPedido, String asunto, String texto) {
+        String host = System.getProperty("rabbit.mail.smtp.host");
+        if (host == null || host.isBlank() || destino == null) {
             return;
         }
         try {
@@ -58,14 +66,14 @@ public class AvisosPorMail {
             MimeMessage mail = new MimeMessage(Session.getInstance(config));
             mail.setFrom(new InternetAddress(System.getProperty("rabbit.mail.remitente", "avisos@rabbit.example")));
             mail.setRecipients(Message.RecipientType.TO, InternetAddress.parse(destino.trim()));
-            mail.setSubject("Rabbit · Pedido #" + aviso.idPedido(), StandardCharsets.UTF_8.name());
-            mail.setText(aviso.texto() + ".\n\nEste aviso también está en tu portal de Rabbit.", StandardCharsets.UTF_8.name());
+            mail.setSubject(asunto, StandardCharsets.UTF_8.name());
+            mail.setText(texto, StandardCharsets.UTF_8.name());
             mail.setSentDate(new Date());
             Transport.send(mail);
-            LOG.info("[Notificaciones][Mail] Aviso del pedido " + aviso.idPedido() + " enviado a " + destino);
+            LOG.info("[Notificaciones][Mail] Aviso del pedido " + idPedido + " enviado a " + destino);
         } catch (MessagingException | RuntimeException e) {
-            LOG.warning("[Notificaciones][Mail] No se pudo mandar el aviso del pedido " + aviso.idPedido()
-                    + " a " + destino + ": " + e.getMessage() + ". Queda en el portal.");
+            LOG.warning("[Notificaciones][Mail] No se pudo mandar el aviso del pedido " + idPedido
+                    + " a " + destino + ": " + e.getMessage() + ". Queda registrado en Rabbit.");
         }
     }
 }

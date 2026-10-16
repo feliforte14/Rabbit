@@ -108,10 +108,15 @@ qué alternativa se descartó.
     transportista informó un estado nuevo; Pedidos
     (`ActualizacionDePedidosPorEnvio`) mueve el pedido en la misma
     transacción. Transportistas no depende de Pedidos. Implementado.
+  - `AvisoDestinatarioRegistrado` → `AvisosPorMail` (`AFTER_SUCCESS`,
+    ADR-040): el aviso a quien recibe sale por mail recién cuando quedó
+    guardado. Implementado.
 - **Y entre componentes, publicación/suscripción:** del otro lado del
-  tópico, `SuscriptorPagosEstadoPedido` y
-  `SuscriptorNotificacionesEstadoPedido` reaccionan al mismo evento sin
-  que Pedidos los conozca.
+  tópico, `SuscriptorPagosEstadoPedido`,
+  `SuscriptorNotificacionesEstadoPedido` y
+  `SuscriptorDestinatarioEstadoPedido` (ADR-040) reaccionan al mismo
+  evento sin que Pedidos los conozca. El tercero se sumó sin tocar a
+  Pedidos ni a los otros dos.
 - **Descartado:** llamar al publicador directo desde el servicio (ver
   ADR-002 en [DECISIONES.md](DECISIONES.md)).
 

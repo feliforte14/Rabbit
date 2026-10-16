@@ -84,6 +84,13 @@
                     <h:panelGroup rendered="#{not empty p.codigoPostalEntrega}">
                         <span class="dato-secundario">CP #{p.codigoPostalEntrega}</span>
                     </h:panelGroup>
+                    <!-- Quien recibe (ADR-039) y el dia prometido (ADR-042). -->
+                    <h:panelGroup rendered="#{not empty p.nombreDestinatario or not empty p.emailDestinatario}">
+                        <span class="dato-secundario">Recibe: #{empty p.nombreDestinatario ? p.emailDestinatario : p.nombreDestinatario}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty p.fechaPrometida}">
+                        <span class="dato-secundario">Prometido para el #{p.fechaPrometidaTexto}</span>
+                    </h:panelGroup>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Importe</f:facet>
@@ -103,6 +110,14 @@
                         <span class="dato-secundario">
                             <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>
                         </span>
+                    </h:panelGroup>
+                    <!-- Visitas fallidas (ADR-041); al agotarlas vuelve al comercio. -->
+                    <h:panelGroup layout="block" styleClass="espera-detalle"
+                                  rendered="#{p.estado == 'DEVUELTO_AL_COMERCIO' and not empty p.motivoDevolucion}">
+                        <span class="espera-linea"><b>#{p.intentosFallidos} visita(s):</b> #{p.motivoDevolucion}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{p.estado == 'PENDIENTE' and p.intentosFallidos > 0}">
+                        <span class="dato-secundario">#{p.intentosFallidos} visita(s) fallida(s)</span>
                     </h:panelGroup>
                     <h:panelGroup layout="block" styleClass="espera-detalle"
                                   rendered="#{p.estado == 'PENDIENTE' and (not empty p.motivoEspera or not empty p.motivoDevolucion)}">
@@ -293,6 +308,33 @@
         <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.avisosRecientes}"
                       value="Todavía no se enviaron avisos." />
 
+        <!--
+            Avisos a quien recibe cada pedido (ADR-040): los genera un tercer
+            suscriptor del mismo topico. Se mandan por mail si hay servidor de
+            correo configurado; si no, quedan registrados aca.
+        -->
+        <h2>Avisos a destinatarios</h2>
+        <h:dataTable value="#{pedidoBean.avisosADestinatarios}" var="a" id="tablaAvisosDestinatarios"
+                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                     rendered="#{not empty pedidoBean.avisosADestinatarios}">
+            <h:column styleClass="col-p2" headerClass="col-p2">
+                <f:facet name="header">Hora</f:facet>
+                #{a.fechaAviso}
+            </h:column>
+            <h:column styleClass="col-p3" headerClass="col-p3">
+                <f:facet name="header">Para</f:facet>
+                #{a.email}
+                <span class="dato-secundario">Pedido #{a.idPedido}</span>
+            </h:column>
+            <h:column>
+                <f:facet name="header">Aviso</f:facet>
+                <b>#{a.asunto}</b>
+                <span class="dato-secundario">#{a.mensaje}</span>
+            </h:column>
+        </h:dataTable>
+        <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.avisosADestinatarios}"
+                      value="Todavía no se avisó a ningún destinatario (solo se avisa si el ERP manda su email)." />
+
         <h2>Recibidos del ERP</h2>
         <p class="ayuda">
             Rabbit no origina pedidos: los recibe del sistema de cada comercio por la API REST
@@ -402,6 +444,25 @@
                              label="Código postal" maxlength="8" />
                 <p class="ayuda">Define la zona del pedido. Si no se carga, se busca en la dirección
                     ("CP 1414", "(1414)" o "C1414ABC").</p>
+            </div>
+
+            <!-- Quien recibe (ADR-039): opcionales, como en la API. Con el email,
+                 Rabbit le avisa cada cambio de estado (ADR-040). -->
+            <div class="campo">
+                <h:outputLabel for="nombreDestinatario" value="Quién recibe (opcional)" />
+                <h:inputText id="nombreDestinatario" value="#{pedidoBean.nuevoPedido.nombreDestinatario}"
+                             maxlength="100" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="telefonoDestinatario" value="Teléfono de quien recibe (opcional)" />
+                <h:inputText id="telefonoDestinatario" value="#{pedidoBean.nuevoPedido.telefonoDestinatario}"
+                             maxlength="30" pt:type="tel" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="emailDestinatario" value="Email de quien recibe (opcional)" />
+                <h:inputText id="emailDestinatario" value="#{pedidoBean.nuevoPedido.emailDestinatario}"
+                             maxlength="120" pt:type="email" />
+                <p class="ayuda">Si se carga, Rabbit le avisa cada cambio de estado con el link al seguimiento.</p>
             </div>
 
             <div class="campo">

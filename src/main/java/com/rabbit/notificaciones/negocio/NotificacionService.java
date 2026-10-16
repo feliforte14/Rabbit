@@ -72,11 +72,19 @@ public class NotificacionService implements INotificaciones {
             return false;
         }
 
-        String devolucion = "PENDIENTE".equals(estado) ? motivoDevolucion(idPedido) : null;
-        String texto = devolucion != null
-                ? "Tu pedido #" + idPedido + " volvió al depósito (" + devolucion
-                        + "): Rabbit se lo asigna a otro repartidor"
-                : "Tu pedido #" + idPedido + " " + describir(estado) + extra(idPedido, estado);
+        String devolucion = "PENDIENTE".equals(estado) || "DEVUELTO_AL_COMERCIO".equals(estado)
+                ? motivoDevolucion(idPedido) : null;
+        String texto;
+        if ("DEVUELTO_AL_COMERCIO".equals(estado)) {
+            // ADR-041: se agotaron las visitas o el cliente lo rechazó.
+            texto = "Tu pedido #" + idPedido + " no se pudo entregar" + (devolucion != null ? " (" + devolucion + ")" : "")
+                    + " y vuelve a tu comercio: el stock consignado vuelve a tu stock y el cobro se anula";
+        } else if (devolucion != null) {
+            texto = "Tu pedido #" + idPedido + " volvió al depósito (" + devolucion
+                    + "): Rabbit se lo asigna a otro repartidor";
+        } else {
+            texto = "Tu pedido #" + idPedido + " " + describir(estado) + extra(idPedido, estado);
+        }
         Notificacion notificacion = new Notificacion();
         notificacion.setIdPedido(idPedido);
         notificacion.setIdComercio(idComercio);
@@ -135,7 +143,8 @@ public class NotificacionService implements INotificaciones {
     }
 
     // Un PENDIENTE que ya tiene motivo de devolución no es un pedido
-    // recibido: es uno que el repartidor devolvió al depósito (ADR-037).
+    // recibido: es uno que el repartidor devolvió al depósito (ADR-037). Con
+    // DEVUELTO_AL_COMERCIO, el motivo de la última visita (ADR-041).
     private String motivoDevolucion(Long idPedido) {
         try {
             return pedidos.consultarEstadoPedido(idPedido).getMotivoDevolucion();
@@ -153,6 +162,7 @@ public class NotificacionService implements INotificaciones {
             case "EN_CAMINO" -> "está en camino";
             case "ENTREGADO" -> "fue entregado";
             case "CANCELADO" -> "fue cancelado";
+            case "DEVUELTO_AL_COMERCIO" -> "no se pudo entregar y vuelve a tu comercio";
             default -> "cambió de estado a " + estado;
         };
     }

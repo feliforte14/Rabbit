@@ -15,7 +15,9 @@ package com.rabbit.ruteo.presentacion;
 
 import com.rabbit.infraestructura.ArchivosSubidos;
 import com.rabbit.infraestructura.Mensajes;
+import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
+import com.rabbit.pedidos.negocio.IntentosDeEntrega;
 import com.rabbit.pedidos.negocio.ValidacionException;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.ruteo.dto.HojaDeRutaDTO;
@@ -48,10 +50,8 @@ public class MisEntregasBean implements Serializable {
     @Inject
     private IGestionRepartidores repartidores;
 
-    // Los motivos de devolución que se ofrecen; con "Otro" hay que contarlo.
-    private static final List<String> MOTIVOS_DEVOLUCION = List.of(
-            "Cliente ausente", "Dirección incorrecta o incompleta", "El cliente rechazó el pedido",
-            "No entra en el vehículo", "Otro");
+    // Motivos fijos (ADR-041); con "Otro" hay que contarlo.
+    private static final List<MotivoEntregaFallida> MOTIVOS_DEVOLUCION = List.of(MotivoEntregaFallida.values());
 
     private List<HojaDeRutaDTO> entregas;
     private List<HojaDeRutaDTO> historial;
@@ -65,7 +65,7 @@ public class MisEntregasBean implements Serializable {
 
     // Ventana "Devolver a depósito", mismo esquema.
     private Long idPedidoADevolver;
-    private String motivoDevolucion;
+    private MotivoEntregaFallida motivoDevolucion;
     private String detalleDevolucion;
 
     // Los manda ubicacion.js por ajax (ver compartirUbicacion).
@@ -116,26 +116,23 @@ public class MisEntregasBean implements Serializable {
         idPedidoAEntregar = null;
     }
 
-    // No lo pudo entregar: vuelve al depósito y se le asigna a otro (ADR-037).
+    // No lo pudo entregar: vuelve al depósito y se le asigna a otro
+    // (ADR-037), o, si se agotaron las visitas, vuelve al comercio (ADR-041).
     public void devolver() {
         Long idPedido = idPedidoADevolver;
         if (idPedido == null) {
             Mensajes.error("Elegí qué pedido devolvés");
             return;
         }
-        if (motivoDevolucion == null || !MOTIVOS_DEVOLUCION.contains(motivoDevolucion)) {
+        if (motivoDevolucion == null) {
             Mensajes.error("Elegí por qué no se pudo entregar");
             return;
         }
-        String detalle = detalleDevolucion == null ? "" : detalleDevolucion.trim();
-        if ("Otro".equals(motivoDevolucion) && detalle.isEmpty()) {
-            Mensajes.error("Contá qué pasó");
-            return;
-        }
-        String motivo = detalle.isEmpty() ? motivoDevolucion
-                : ("Otro".equals(motivoDevolucion) ? detalle : motivoDevolucion + ": " + detalle);
-        ejecutar(() -> gestion.devolverADeposito(idPedido, motivo),
-                "Pedido " + idPedido + " devuelto al depósito. Rabbit se lo asigna a otro repartidor.");
+        MotivoEntregaFallida motivo = motivoDevolucion;
+        String detalle = detalleDevolucion;
+        ejecutar(() -> gestion.devolverADeposito(idPedido, motivo, detalle),
+                "Pedido " + idPedido + " devuelto. Si le quedan visitas, Rabbit se lo asigna a otro repartidor;"
+                        + " si no, vuelve al comercio.");
         idPedidoADevolver = null;
         motivoDevolucion = null;
         detalleDevolucion = null;
@@ -175,11 +172,13 @@ public class MisEntregasBean implements Serializable {
     public List<HojaDeRutaDTO> getEntregas() { return entregas; }
     public List<HojaDeRutaDTO> getHistorial() { return historial; }
     public RecorridoDTO getRecorrido() { return recorrido; }
-    public List<String> getMotivosDevolucion() { return MOTIVOS_DEVOLUCION; }
+    public List<MotivoEntregaFallida> getMotivosDevolucion() { return MOTIVOS_DEVOLUCION; }
+    /** Visitas antes de devolver el pedido al comercio (ADR-041). */
+    public int getMaximoIntentos() { return IntentosDeEntrega.maximo(); }
     public Long getIdPedidoADevolver() { return idPedidoADevolver; }
     public void setIdPedidoADevolver(Long idPedidoADevolver) { this.idPedidoADevolver = idPedidoADevolver; }
-    public String getMotivoDevolucion() { return motivoDevolucion; }
-    public void setMotivoDevolucion(String motivoDevolucion) { this.motivoDevolucion = motivoDevolucion; }
+    public MotivoEntregaFallida getMotivoDevolucion() { return motivoDevolucion; }
+    public void setMotivoDevolucion(MotivoEntregaFallida motivoDevolucion) { this.motivoDevolucion = motivoDevolucion; }
     public String getDetalleDevolucion() { return detalleDevolucion; }
     public void setDetalleDevolucion(String detalleDevolucion) { this.detalleDevolucion = detalleDevolucion; }
     public Long getIdPedidoAEntregar() { return idPedidoAEntregar; }

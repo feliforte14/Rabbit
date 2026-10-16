@@ -81,6 +81,13 @@
             <h:column styleClass="col-p2" headerClass="col-p2">
                 <f:facet name="header">Entrega en</f:facet>
                 #{empty p.direccionEntrega ? '—' : p.direccionEntrega}
+                <!-- Quien recibe (ADR-039) y el dia prometido (ADR-042). -->
+                <h:panelGroup rendered="#{not empty p.nombreDestinatario}">
+                    <span class="dato-secundario">Recibe: #{p.nombreDestinatario}</span>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{not empty p.fechaPrometida}">
+                    <span class="dato-secundario">Prometido para el #{p.fechaPrometidaTexto}</span>
+                </h:panelGroup>
             </h:column>
             <h:column>
                 <f:facet name="header">Importe</f:facet>
@@ -94,6 +101,10 @@
                 <f:facet name="header">Estado</f:facet>
                 <h:outputText value="#{etiquetas.estadoPedido(p.estado)}"
                               styleClass="#{etiquetas.claseEstadoPedido(p.estado)}" />
+                <!-- Visitas fallidas (ADR-041). -->
+                <h:panelGroup rendered="#{p.intentosFallidos > 0}">
+                    <span class="dato-secundario">#{p.intentosFallidos} visita(s) fallida(s)#{empty p.motivoDevolucion ? '' : ': ' += p.motivoDevolucion}</span>
+                </h:panelGroup>
                 <h:panelGroup rendered="#{p.conRemito}">
                     <span class="dato-secundario">
                         <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>

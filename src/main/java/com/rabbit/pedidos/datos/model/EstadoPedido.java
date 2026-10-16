@@ -20,9 +20,18 @@ import java.util.Set;
  * en el vehículo...) vuelve a PENDIENTE, en la lista de espera, para que
  * se le asigne a otro repartidor. Conserva su cobro.
  *
+ * Entrega fallida (ADR-041): cada visita EN_CAMINO que no termina en
+ * entrega cuenta como intento. Al agotar los intentos, o si el cliente lo
+ * rechazó, no vuelve a PENDIENTE sino que pasa a DEVUELTO_AL_COMERCIO
+ * (final): el stock consignado vuelve al stock del comercio y el cobro se
+ * anula.
+ *
+ *       [EN_CAMINO] --- intentos agotados o rechazo ---> [DEVUELTO_AL_COMERCIO]
+ *
  * Una vez EN_CAMINO el pedido ya salió con el repartidor: no se puede
  * cancelar desde Rabbit (la mercadería no está en el depósito para
- * devolver el stock). ENTREGADO y CANCELADO son finales.
+ * devolver el stock). ENTREGADO, CANCELADO y DEVUELTO_AL_COMERCIO son
+ * finales.
  *
  * Con origen STOCK_CONSIGNADO (ver OrigenPedido), el stock ya queda
  * comprometido (reservado y confirmado en ServicioDeInventario) desde que
@@ -39,7 +48,8 @@ public enum EstadoPedido {
     CONFIRMADO,
     EN_CAMINO,
     ENTREGADO,
-    CANCELADO;
+    CANCELADO,
+    DEVUELTO_AL_COMERCIO;
 
     /**
      * Máquina de estados del pedido en un solo lugar: PedidoService la
@@ -51,8 +61,8 @@ public enum EstadoPedido {
         return switch (this) {
             case PENDIENTE -> Set.of(CONFIRMADO, CANCELADO).contains(destino);
             case CONFIRMADO -> Set.of(EN_CAMINO, CANCELADO, PENDIENTE).contains(destino);
-            case EN_CAMINO -> Set.of(ENTREGADO, PENDIENTE).contains(destino);
-            case ENTREGADO, CANCELADO -> false;
+            case EN_CAMINO -> Set.of(ENTREGADO, PENDIENTE, DEVUELTO_AL_COMERCIO).contains(destino);
+            case ENTREGADO, CANCELADO, DEVUELTO_AL_COMERCIO -> false;
         };
     }
 }
