@@ -81,8 +81,18 @@ public class IndicadoresDTO {
         public String getNombre() { return nombre; }
         public int getEntregas() { return entregas; }
         public BigDecimal getHorasPromedio() { return horasPromedio; }
+        public String getHorasPromedioTexto() { return horas(horasPromedio); }
         public Integer getPorcentajeATiempo() { return porcentaje(aTiempo, conPromesa); }
         public Integer getPorcentajePrimerIntento() { return porcentaje(alPrimerIntento, terminados); }
+    }
+
+    /** "6,5 h" o "—". */
+    public static String horas(BigDecimal horas) {
+        if (horas == null) {
+            return "—";
+        }
+        return new java.text.DecimalFormat("0.0", java.text.DecimalFormatSymbols.getInstance(
+                java.util.Locale.forLanguageTag("es-AR"))).format(horas) + " h";
     }
 
     /** Redondeado a entero; null si no hay base. */
@@ -106,6 +116,7 @@ public class IndicadoresDTO {
     public int getEntregadosATiempo() { return entregadosATiempo; }
     public int getAlPrimerIntento() { return alPrimerIntento; }
     public BigDecimal getHorasPromedioEntrega() { return horasPromedioEntrega; }
+    public String getHorasPromedioEntregaTexto() { return horas(horasPromedioEntrega); }
     public long getEnEsperaAhora() { return enEsperaAhora; }
     public BigDecimal getCostoPorEnvio() { return costoPorEnvio; }
     public List<Motivo> getMotivosFallidos() { return motivosFallidos; }

@@ -86,8 +86,10 @@
             <!-- En camino: en que parada del repartidor va y cuando llega (ADR-043). -->
             <h:panelGroup rendered="#{not empty seguimientoBean.llegada}">
                 <p class="seguimiento-promesa">
-                    #{seguimientoBean.llegada.esLaProxima ? 'Sos la próxima parada' : 'Sos la parada ' += seguimientoBean.llegada.numeroParada += ' de ' += seguimientoBean.llegada.totalParadas}:
-                    llega aproximadamente entre las #{seguimientoBean.llegada.desdeTexto} y las #{seguimientoBean.llegada.hastaTexto}.
+                    #{seguimientoBean.llegada.esLaProxima
+                      ? 'Sos la próxima parada: llega antes de las ' += seguimientoBean.llegada.hastaTexto += '.'
+                      : 'Sos la parada ' += seguimientoBean.llegada.numeroParada += ' de ' += seguimientoBean.llegada.totalParadas
+                        += ': llega aproximadamente entre las ' += seguimientoBean.llegada.desdeTexto += ' y las ' += seguimientoBean.llegada.hastaTexto += '.'}
                 </p>
             </h:panelGroup>
 

@@ -538,9 +538,12 @@ cargados) y pedidos `[PRUEBA]` de 1 y 2 kg.
 ## 12. Mejoras frente a los líderes: destinatario, avisos, intentos, promesa, horario e indicadores
 
 En la rama `feature/mejoras-lideres-ultima-milla` (ADR-039 a 044).
-**Todavía sin probar de punta a punta en WildFly**: los tests unitarios
-pasan (98), pero esto es lo que hay que recorrer antes de mergear. Antes
-de desplegar, mejor que no haya cobros contra entrega pendientes de
+Probado de punta a punta el 16/10/2026 en WildFly 41 con una base
+PostgreSQL local (no la compartida), con dos repartidores, un comercio,
+su ERP y un servidor SMTP de prueba. Salieron dos ajustes: la franja
+horaria empezaba en el pasado al redondear hacia abajo, y las horas de
+los indicadores se mostraban con punto decimal. Antes de desplegar contra
+la base compartida, mejor que no haya cobros contra entrega pendientes de
 acreditar: el MDB de Pagos cambia de selector y Artemis recrea su
 suscripción (ADR-041).
 
@@ -563,7 +566,11 @@ suscripción (ADR-041).
    `fechaPrometida` (hoy si es antes de las 21:00). Con
    `rabbit.ruteo.hora-corte=00:01`, un pedido nuevo trae la de mañana y el
    seguimiento dice "Llega mañana". Sin código postal, no viene. Quitar la
-   propiedad al terminar.
+   propiedad al terminar. Para probar los mails en local:
+   `python -m smtpd -n -c DebuggingServer 127.0.0.1:2525` (Python 3.11 o
+   anterior) y `rabbit.mail.smtp.host=127.0.0.1`: con `localhost` el
+   servidor de prueba puede quedar escuchando solo en IPv6 y WildFly no
+   llega.
 4. **Entrega fallida con intentos (ADR-041):** como repartidor, con un
    pedido En camino → "Devolver a depósito" → "Cliente ausente". Vuelve a
    la espera; en Pedidos dice "1 visita(s) fallida(s)" y el cliente recibe
@@ -577,8 +584,9 @@ suscripción (ADR-041).
    vehículo", o devolverlo desde Confirmado, no gasta una visita. El ERP
    ve `estadoPedido: DEVUELTO_AL_COMERCIO` e `intentosFallidos`.
 5. **Horario estimado (ADR-043):** con dos o tres pedidos del mismo
-   repartidor, retirar uno y abrir su seguimiento: "Sos la parada N de M:
-   llega aproximadamente entre las HH:mm y las HH:mm". La API devuelve
+   repartidor a direcciones distintas, retirarlos y abrir el seguimiento
+   de cada uno: "Sos la próxima parada: llega antes de las HH:mm", "Sos
+   la parada 2 de 3: llega aproximadamente entre las HH:mm y las HH:mm". La API devuelve
    `llegadaEstimada`. El número coincide con la hoja de ruta recomendada
    del repartidor. Si la estimación falla, la página se ve igual, sin
    horario (y queda un aviso en el log).

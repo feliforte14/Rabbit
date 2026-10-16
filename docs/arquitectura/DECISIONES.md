@@ -1167,7 +1167,9 @@ Propuesta o Reemplazada.
 - **Decisión:** con el pedido EN_CAMINO, el seguimiento (página y API)
   dice en qué parada de la **hoja de ruta recomendada** del repartidor
   está (ADR-038) y una franja: desde "ahora + paradas de antes x 20 min"
-  hasta dos paradas más de margen, redondeada a cuartos de hora
+  (nunca antes de la hora actual) hasta dos paradas más de margen,
+  redondeada a cuartos de hora; si es la próxima parada, "llega antes de
+  las HH:mm"
   (`EstimacionDeLlegada`; `rabbit.ruteo.minutos-por-parada`). Armar el
   recorrido lee direcciones de otros pedidos y depósitos, que solo ve el
   personal: lo hace `LlegadaEstimadaService` con `@RunAs("OPERADOR")` y

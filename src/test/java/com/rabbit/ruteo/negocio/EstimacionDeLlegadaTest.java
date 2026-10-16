@@ -71,6 +71,16 @@ class EstimacionDeLlegadaTest {
     }
 
     @Test
+    void laFranjaNuncaEmpiezaEnElPasado() {
+        // A las 20:27, la próxima parada no puede ser "desde las 20:15".
+        RecorridoDTO r = new RecorridoDTO();
+        r.paradas.add(new ParadaDTO(ParadaDTO.Tipo.ENTREGA, "Callao 800", "Callao 800", "1023", 11L));
+        LlegadaEstimadaDTO llegada = EstimacionDeLlegada.estimar(r, 11L, LocalDateTime.of(2026, 10, 16, 20, 27, 30), 20);
+        assertEquals(LocalTime.of(20, 30), llegada.desde);
+        assertEquals(LocalTime.of(21, 15), llegada.hasta);
+    }
+
+    @Test
     void unPedidoQueNoEstaEnElRecorridoNoTieneEstimacion() {
         assertNull(EstimacionDeLlegada.estimar(recorrido(), 99L, AHORA, 20));
     }

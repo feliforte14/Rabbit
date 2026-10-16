@@ -59,9 +59,10 @@ de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
 
 En la rama `feature/mejoras-lideres-ultima-milla`, **sin mergear**. Salen
 de comparar Rabbit con Mercado Libre Full/Flex, Andreani, Moova, DHL,
-Amazon, Onfleet, Bringg y ShipBob: son las seis de prioridad alta. Los
-tests unitarios pasan; falta recorrer la sección 12 de
-[FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md) en WildFly.
+Amazon, Onfleet, Bringg y ShipBob: son las seis de prioridad alta.
+Probadas de punta a punta en WildFly con una base local (sección 12 de
+[FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)); falta desplegarlas
+contra la base compartida.
 
 - [x] Datos de quien recibe: nombre, teléfono y email, opcionales (ADR-039).
 - [x] Avisos por mail a quien recibe en cada cambio, con un tercer
@@ -73,7 +74,8 @@ tests unitarios pasan; falta recorrer la sección 12 de
 - [x] Horario estimado en el seguimiento: "sos la parada N de M" y una
       franja (ADR-043).
 - [x] Tablero de indicadores para el personal y el comercio (ADR-044).
-- [ ] Probar en WildFly (sección 12) y decidir si se mergea a `main`.
+- [x] Probar en WildFly (sección 12), con una base local.
+- [ ] Decidir si se mergea a `main` y desplegar contra la base compartida.
 - [ ] Prioridad media y baja de la comparación (webhooks al ERP, orden de
       ingreso de mercadería, retiro en depósito, etiquetas con QR, etc.):
       sin empezar.
@@ -132,7 +134,7 @@ riesgo, sin tocar comportamiento:
       `Mensajes.ejecutar(Runnable accion, String mensajeExito)` que
       envuelva ese try/catch común.
 
-### Cobertura de tests (hoy hay 98 unitarios + 10 de integración)
+### Cobertura de tests (hoy hay 99 unitarios + 10 de integración)
 
 Los tests unitarios cubren sobre todo Pedidos (incluidos destinatario,
 intentos e indicadores), Seguridad, las reglas puras de Repartidores

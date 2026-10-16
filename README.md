@@ -486,7 +486,7 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.cont
 ## Tests
 
 ```bash
-mvn test                       # 98 tests unitarios (JUnit 5), sin servidor
+mvn test                       # 99 tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos
