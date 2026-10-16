@@ -20,7 +20,7 @@ docs/
 | [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md) | Capas, componentes, interfaces entre componentes, stateless vs. stateful, máquina de estados del pedido |
 | [PATRONES.md](arquitectura/PATRONES.md) | Cada patrón de diseño: qué problema resuelve, dónde está, qué alternativa se descartó |
 | [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md) | Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo |
-| [DECISIONES.md](arquitectura/DECISIONES.md) | Registro de decisiones de arquitectura (38 ADR) |
+| [DECISIONES.md](arquitectura/DECISIONES.md) | Registro de decisiones de arquitectura (44 ADR) |
 
 ### [integraciones/](integraciones/)
 

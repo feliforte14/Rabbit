@@ -39,7 +39,15 @@ public interface IRuteo {
      */
     RecorridoDTO recorridoRecomendado(List<HojaDeRutaDTO> entregasEnCurso);
 
-    /** Entregas terminadas (ENTREGADO o CANCELADO) del repartidor que llama. */
+    /**
+     * La hoja de ruta recomendada de un repartidor puntual, la misma que ve
+     * él en "Mis entregas". Solo el personal; el seguimiento público la usa
+     * a través de LlegadaEstimadaService (@RunAs), que devuelve solo la
+     * posición del pedido y la franja (ADR-043).
+     */
+    RecorridoDTO recorridoDeRepartidor(Long idRepartidor);
+
+    /** Entregas terminadas (ENTREGADO, CANCELADO o DEVUELTO_AL_COMERCIO) del repartidor que llama. */
     List<HojaDeRutaDTO> historialDelRepartidor();
 
     /** Tablero de ruteo: pedidos PENDIENTE agrupados por zona (y los sin zona al final). */

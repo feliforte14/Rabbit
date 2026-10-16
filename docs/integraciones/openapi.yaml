@@ -60,6 +60,9 @@ paths:
                   medioPago: PREPAGO
                   direccionEntrega: Av. Corrientes 1234, CABA
                   codigoPostalEntrega: "1043"
+                  nombreDestinatario: Ana Pérez
+                  telefonoDestinatario: "+54 11 4567-8901"
+                  emailDestinatario: ana@correo.com
               puntoPicking:
                 summary: A retirar de un punto de picking del comercio
                 value:
@@ -85,6 +88,7 @@ paths:
               example:
                 idPedidoExterno: 42
                 resultado: Pendiente
+                fechaPrometida: "2026-10-16"
                 _links:
                   self: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42" }
                   cancelar: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion", method: POST }
@@ -146,6 +150,7 @@ paths:
                 idPedido: 118
                 estadoPedido: PENDIENTE
                 codigoSeguimiento: RB-7KQ2M9XHTA
+                fechaPrometida: "2026-10-16"
                 _links:
                   self: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42" }
                   cancelar: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion", method: POST }
@@ -220,7 +225,7 @@ paths:
       tags: [Seguimiento]
       operationId: consultarSeguimiento
       summary: Estado de un pedido por su código de seguimiento
-      description: Público, sin autenticación. Solo expone el estado.
+      description: Público, sin autenticación. Solo expone el estado, la fecha prometida y, en camino, la parada y la franja; nunca datos de quien recibe.
       security: []
       parameters:
         - name: codigo
@@ -336,6 +341,19 @@ components:
           minimum: 0.001
           maximum: 5000
           description: Solo con PUNTO_PICKING, opcional. Kilos totales del pedido, con hasta 3 decimales; sin él, el límite del repartidor solo cuenta bultos. Con STOCK_CONSIGNADO no se informa (responde 422) porque Rabbit lo calcula con el peso de cada ítem.
+        nombreDestinatario:
+          type: string
+          maxLength: 100
+          description: Opcional. Quién recibe; lo ve el repartidor. Nunca sale en el seguimiento público (ADR-039).
+        telefonoDestinatario:
+          type: string
+          maxLength: 30
+          description: Opcional. Números, espacios, guiones, paréntesis y un + al principio; uno que no sirve responde 422.
+        emailDestinatario:
+          type: string
+          format: email
+          maxLength: 120
+          description: Opcional. Si viene, Rabbit le avisa por mail cada cambio de estado con el link al seguimiento (ADR-040).
     LineaPedido:
       type: object
       required: [cantidad]
@@ -365,7 +383,18 @@ components:
           description: Pedido real generado (con resultado Sincronizado).
         estadoPedido:
           type: string
-          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO]
+          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO, DEVUELTO_AL_COMERCIO]
+          description: DEVUELTO_AL_COMERCIO es final: se agotaron las visitas o el cliente lo rechazó (ADR-041).
+        fechaPrometida:
+          type: string
+          format: date
+          description: |
+            Día en que Rabbit se compromete a entregarlo (ADR-042): hoy si llegó
+            antes de la hora de corte (21:00), mañana si no. Viene desde la
+            respuesta del alta. No viene si el pedido no tiene código postal.
+        intentosFallidos:
+          type: integer
+          description: Visitas que no terminaron en entrega (ADR-041). No viene si es 0.
         codigoSeguimiento:
           type: string
           description: Para el seguimiento público. Se lo puede pasar al cliente final.
@@ -397,7 +426,20 @@ components:
         codigoSeguimiento: { type: string, example: RB-7KQ2M9XHTA }
         estado:
           type: string
-          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO]
+          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO, DEVUELTO_AL_COMERCIO]
+        fechaPrometida:
+          type: string
+          format: date
+          example: "2026-10-16"
+          description: Día prometido (ADR-042). No viene si no se pudo prometer.
+        llegadaEstimada:
+          type: object
+          description: Solo EN_CAMINO con un repartidor de Rabbit (ADR-043). En qué parada de su hoja de ruta va y una franja aproximada. Si no se puede estimar, el campo no viene.
+          properties:
+            numeroParada: { type: integer, example: 4 }
+            totalParadas: { type: integer, example: 9 }
+            desde: { type: string, example: "15:00" }
+            hasta: { type: string, example: "15:30" }
         ubicacionRepartidor:
           type: object
           description: Solo EN_CAMINO con un repartidor de Rabbit que compartió su ubicación en los últimos 15 minutos. Si no, el campo no viene.

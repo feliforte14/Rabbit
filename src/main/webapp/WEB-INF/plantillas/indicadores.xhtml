@@ -1,0 +1,60 @@
+<!--
+    Fragmento comun del tablero de indicadores (ADR-044): lo incluyen
+    personal/indicadores.xhtml y comercio/mis-indicadores.xhtml con
+    <ui:param name="t" value="\#{indicadoresBean.tablero}" />. Esta en
+    WEB-INF: no se puede pedir por URL.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets">
+    <p class="ayuda">
+        Pedidos recibidos del #{t.desdeTexto} al #{t.hastaTexto}: #{t.recibidos}
+        (#{t.entregados} entregados, #{t.enCurso} en reparto, #{t.pendientes} pendientes,
+        #{t.devueltos} devueltos al comercio y #{t.cancelados} cancelados).
+    </p>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <p class="stat-label">Entregados a tiempo</p>
+            <p class="stat-valor">#{indicadoresBean.porcentaje(t.porcentajeATiempo)}</p>
+            <p class="stat-nota">#{t.entregadosATiempo} de #{t.entregadosConPromesa} con fecha prometida</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Entregados al primer intento</p>
+            <p class="stat-valor">#{indicadoresBean.porcentaje(t.porcentajePrimerIntento)}</p>
+            <p class="stat-nota">#{t.alPrimerIntento} de #{t.terminados} que terminaron el reparto</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">De recibido a entregado</p>
+            <p class="stat-valor">#{empty t.horasPromedioEntrega ? '—' : t.horasPromedioEntrega += ' h'}</p>
+            <p class="stat-nota">promedio de los entregados</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">En lista de espera</p>
+            <p class="stat-valor">#{t.enEsperaAhora}</p>
+            <p class="stat-nota">ahora, esperando repartidor</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Costo por envío</p>
+            <p class="stat-valor">#{empty t.costoPorEnvio ? '—' : etiquetas.pesos(t.costoPorEnvio)}</p>
+            <p class="stat-nota">mes en curso: abono y cargos / envíos</p>
+        </div>
+    </div>
+
+    <h2>Por qué fallaron las visitas</h2>
+    <h:dataTable value="#{t.motivosFallidos}" var="m"
+                 styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                 rendered="#{not empty t.motivosFallidos}">
+        <h:column>
+            <f:facet name="header">Motivo</f:facet>
+            #{m.descripcion}
+        </h:column>
+        <h:column>
+            <f:facet name="header">Pedidos</f:facet>
+            #{m.cantidad}
+        </h:column>
+    </h:dataTable>
+    <h:outputText styleClass="ayuda" rendered="#{empty t.motivosFallidos}"
+                  value="Ninguna visita fallida en el período." />
+</ui:composition>

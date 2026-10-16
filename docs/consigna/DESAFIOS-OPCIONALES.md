@@ -7,7 +7,7 @@ cómo se muestran en la defensa.
 |---|---|
 | [Resiliencia ante fallas](#1-resiliencia-ante-fallas) | Cumple |
 | [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada) | Cumple: con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido) |
-| [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 38 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md); acá se desarrollan 3 con sus alternativas |
+| [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 44 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md); acá se desarrollan 3 con sus alternativas |
 | [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple, en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad): el banco legado también en Node.js y el transportista moderno en Python |
 
 ## 1. Resiliencia ante fallas
@@ -217,7 +217,7 @@ más conexiones.
 
 ## 3. Architecture Decision Records
 
-Los 38 ADR del proyecto están en [DECISIONES.md](../arquitectura/DECISIONES.md). Estos
+Los 44 ADR del proyecto están en [DECISIONES.md](../arquitectura/DECISIONES.md). Estos
 tres son los de más peso en la arquitectura; acá se desarrollan con las
 alternativas consideradas y por qué se descartaron.
 

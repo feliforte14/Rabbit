@@ -92,6 +92,7 @@ Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
 |---|---|
 | `registrarEntrega` | Guarda la foto del remito (ADR-033), estado ENTREGADO + le saca el pedido al repartidor (borra su `CargaAsignada`; si era el último, queda DISPONIBLE). El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
 | `cancelarPedido` (desde CONFIRMADO) | Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si era PREPAGO, después del commit se pide la reversa al banco. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada |
+| `devolverADeposito` sin visitas restantes (ADR-041) | Libera al repartidor, devuelve el stock consignado y pasa a DEVUELTO_AL_COMERCIO. El cobro **no** se anula acá (lo pide un repartidor, que no puede anular cobros): lo anula Pagos al recibir el evento por el tópico, en su propia transacción, y si era PREPAGO pide la reversa después de ese commit. Si Pagos está caído, la suscripción durable guarda el evento |
 
 ## Flujo 5: alta de usuario (implementado)
 

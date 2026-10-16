@@ -267,7 +267,7 @@ Postman.
 | `POST /api/v1/pedidos-externos` | ERP (HTTP Basic) + header `Idempotency-Key` | Registra un pedido externo de **su** comercio | `201` + `Location` · `400` · `401` · `403` · `422` |
 | `GET /api/v1/pedidos-externos/{id}` | ERP | Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`, `estadoPedido` y `codigoSeguimiento`; si está `PENDIENTE`, también `enListaDeEspera`, ADR-037), `Descartado` (con `motivo`) o `Cancelado` | `200` · `404` |
 | `POST /api/v1/pedidos-externos/{id}/cancelacion` | ERP | Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE`) | `200` · `404` · `409` |
-| `GET /api/v1/seguimiento/{codigo}` | Público | Estado actual del pedido | `200 {"codigoSeguimiento", "estado"}` · `404` |
+| `GET /api/v1/seguimiento/{codigo}` | Público | Estado actual del pedido, día prometido (ADR-042) y, en camino, parada y franja (ADR-043) | `200 {"codigoSeguimiento", "estado", "fechaPrometida"?, "llegadaEstimada"?, "ubicacionRepartidor"?}` · `404` |
 
 Ejemplo de alta desde el ERP:
 

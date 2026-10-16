@@ -954,7 +954,8 @@ Propuesta o Reemplazada.
 ## ADR-037: Lista de espera, hora de corte y devolución al depósito
 
 - **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
-  "Testing NO OK").
+  "Testing NO OK"). La devolución al depósito sin límite la reemplaza
+  ADR-041 (motivos fijos e intentos), propuesta.
 - **Contexto:** si ningún repartidor tenía lugar (ADR-032), confirmar
   fallaba y el pedido quedaba PENDIENTE hasta que alguien lo volviera a
   confirmar a mano. La asignación ya probaba con todos los repartidores,
@@ -1040,3 +1041,169 @@ Propuesta o Reemplazada.
 - **Consecuencias:** el orden es una aproximación (los CP cercanos suelen
   ser barrios vecinos, no siempre). En el navegador de un celular sin la
   app de Google Maps, Google acepta menos paradas por link que en la app.
+
+## ADR-039: Datos de quien recibe el pedido
+
+- **Estado:** Propuesta (16/10/2026), en la rama
+  `feature/mejoras-lideres-ultima-milla`. Sale de la comparación con los
+  líderes de última milla: todos saben a quién le entregan.
+- **Contexto:** el pedido solo tenía dirección y código postal. Rabbit no
+  sabía por quién preguntar en la puerta, no tenía a quién llamar si no
+  encontraba la dirección y no podía avisarle nada al cliente (ADR-040).
+- **Decisión:** tres campos **opcionales** en el alta (API y pantalla),
+  en `PedidoExterno` y en `Pedido`: `nombreDestinatario` (100),
+  `telefonoDestinatario` (30) y `emailDestinatario` (120). Los normaliza y
+  valida `Destinatarios`: vacío es "no vino", el teléfono se acepta como
+  lo escribe la gente (`+54 11 4567-8901`, `(011) 4567-8901`) y el email
+  tiene que tener forma de email porque es para avisar. El repartidor ve
+  nombre y teléfono (con link para llamar); el personal y el comercio, en
+  sus listados. El seguimiento público **no** los muestra.
+- **Alternativas descartadas:**
+  - *Obligatorios:* rompían a todo ERP que ya integra. Con opcionales, un
+    ERP que no los manda sigue igual, solo sin avisos al cliente.
+  - *Una entidad aparte (Destinatario):* para tres columnas que no se
+    reusan entre pedidos, era una tabla y un join más sin beneficio.
+- **Consecuencias:** las columnas nuevas admiten NULL (`update`). La huella
+  de idempotencia suma estos datos solo si vienen: un reintento de antes
+  de este cambio da la misma huella. Son datos personales: se borran con
+  el pedido cuando se elimina su comercio.
+
+## ADR-040: Avisos a quien recibe, con un tercer suscriptor del tópico
+
+- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Contexto:** solo se le avisaba al comercio. Onfleet, Bringg, Andreani
+  y DHL le avisan a quien recibe en cada cambio, con el link al
+  seguimiento.
+- **Decisión:** `SuscriptorDestinatarioEstadoPedido`, un **tercer MDB**
+  sobre `topico.pedidos.estado`, con su propia suscripción durable
+  (`rabbit-destinatarios`). Llama a `AvisoDestinatarioService`, que:
+  descarta eventos viejos o repetidos con la `fechaCambio` (igual que los
+  avisos al comercio), no hace nada si el pedido no tiene email, arma el
+  texto (`TextosAlDestinatario`: "Recibimos tu pedido de X, llega hoy",
+  "llega hoy", "no pudimos entregarlo", "entregado"...) con el link
+  público (`rabbit.url-publica`), lo guarda en `avisos_destinatario` y lo
+  manda por mail después del commit con el mismo `AvisosPorMail`.
+- **Alternativas descartadas:**
+  - *Que `NotificacionService` también le avise al cliente:* mezcla dos
+    destinatarios con reglas distintas en el mismo método, y una falla de
+    uno frenaría al otro.
+  - *Llamarlo desde `PedidoService.cambiarEstado`:* acopla Pedidos a
+    Notificaciones y hace esperar al usuario. El tópico existe justo para
+    no tener que tocar Pedidos al sumar un interesado (ADR-006).
+  - *SMS o WhatsApp:* exigen un proveedor pago; el mail ya estaba.
+- **Consecuencias:** sumar el canal no tocó Pedidos ni a los otros dos
+  suscriptores. Sin servidor de correo, los avisos quedan registrados y el
+  personal los ve en Pedidos → "Avisos a destinatarios". El texto usa el
+  motivo de devolución vigente al momento del aviso.
+
+## ADR-041: Entrega fallida con motivo fijo, intentos y devolución al comercio
+
+- **Estado:** Propuesta (16/10/2026), misma rama. Reemplaza en parte a
+  ADR-037 (la devolución al depósito ya no es ilimitada).
+- **Contexto:** "Devolver a depósito" mandaba el pedido a PENDIENTE con
+  texto libre y sin límite: un cliente que nunca estaba hacía dar vueltas
+  al pedido para siempre, y "entrega al primer intento" (el indicador que
+  usa toda la industria) no se podía medir.
+- **Decisión:**
+  - **Motivos fijos** (`MotivoEntregaFallida`): cliente ausente, dirección
+    incorrecta, rechazado, zona peligrosa, no entra en el vehículo y otro
+    (con detalle obligatorio). El texto libre sigue como detalle.
+  - **Visitas:** una devolución cuenta como intento si el pedido estaba
+    EN_CAMINO y el motivo implica haber ido a la dirección ("no entra en
+    el vehículo" no). Se cuentan en `intentosFallidos`.
+  - **Estado final `DEVUELTO_AL_COMERCIO`** (EN_CAMINO → DEVUELTO) al
+    llegar a **2 visitas** (`rabbit.entregas.max-intentos`, de 1 a 10) o
+    enseguida si el cliente **lo rechazó**. El stock consignado vuelve al
+    stock del comercio (como al cancelar), el repartidor queda libre y
+    **Pagos anula el cobro** al recibir el evento por el tópico (su MDB
+    ahora filtra `ENTREGADO` y `DEVUELTO_AL_COMERCIO`): un CONTRA_ENTREGA
+    nunca se cobró, y un PREPAGO se reversa en el banco como al cancelar.
+  - El pedido conserva el repartidor de la última visita, para saber
+    quién lo devolvió.
+- **Alternativas descartadas:**
+  - *Anular el cobro en la misma transacción:* `anularCobro` es solo de
+    ADMINISTRADOR y quien devuelve es el repartidor. Por el tópico, como
+    el cobro contra entrega, el permiso sigue intacto y el cobro se anula
+    aunque Pagos esté caído un rato (suscripción durable).
+  - *3 visitas:* lo hace algún operador, pero en la demo obliga a tres
+    vueltas completas. Con la propiedad se cambia sin tocar código.
+  - *Que el personal decida a mano cuándo devolverlo:* es justo lo que no
+    escala.
+- **Consecuencias:** `EstadoPedido` suma un valor (el CHECK lo realinea
+  `AlineadorDeRestriccionesEnum`) y una columna enum nueva
+  (`motivoentregafallida`). Cambiar el selector del MDB de Pagos hace que
+  Artemis recree esa suscripción durable al desplegar: conviene desplegar
+  sin cobros contra entrega pendientes de acreditar. Los pedidos devueltos
+  no entran en la liquidación mensual (solo cuenta ENTREGADO).
+
+## ADR-042: Fecha prometida con la hora de corte
+
+- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Contexto:** el ERP no sabía si el pedido llegaba hoy o mañana. Mercado
+  Libre Flex promete "llega hoy" según la hora de corte.
+- **Decisión:** al **recibir** el pedido (no al sincronizarlo), Rabbit
+  calcula `fechaPrometida` con la misma hora de corte de la hoja de ruta
+  (ADR-037): antes del corte, hoy; después, mañana
+  (`HoraDeCorte.diaDeEntrega`, expuesta a Pedidos por
+  `IAsignacionRepartidores.diaDeEntregaPara`). Sin código postal no se
+  promete nada (no se sabe la zona). Va en la respuesta del alta y en el
+  GET de la API, en el seguimiento ("Llega hoy") y en los listados.
+- **Alternativas descartadas:**
+  - *Calcularla al sincronizar:* el ERP recibe el 201 antes, sin fecha.
+  - *Hora de corte por zona:* es mejor (una zona lejana no llega a la
+    misma hora), pero exige un dato nuevo por zona. Queda como mejora; el
+    cálculo ya está en un solo lugar.
+  - *Saltear fines de semana y feriados:* Rabbit reparte todos los días;
+    si el equipo define días hábiles, se agrega en `diaDeEntrega`.
+- **Consecuencias:** la promesa no se mueve: es contra lo que se mide
+  "a tiempo" (ADR-044). Si una visita falla, el seguimiento deja de
+  mostrarla en lugar de mostrar una fecha vencida.
+
+## ADR-043: Horario estimado en el seguimiento (parada N de M)
+
+- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Contexto:** el cliente veía el mapa pero no cuándo llegaba. Amazon
+  muestra cuántas paradas faltan; Onfleet, una ETA.
+- **Decisión:** con el pedido EN_CAMINO, el seguimiento (página y API)
+  dice en qué parada de la **hoja de ruta recomendada** del repartidor
+  está (ADR-038) y una franja: desde "ahora + paradas de antes x 20 min"
+  hasta dos paradas más de margen, redondeada a cuartos de hora
+  (`EstimacionDeLlegada`; `rabbit.ruteo.minutos-por-parada`). Armar el
+  recorrido lee direcciones de otros pedidos y depósitos, que solo ve el
+  personal: lo hace `LlegadaEstimadaService` con `@RunAs("OPERADOR")` y
+  devuelve solo números. Si algo falla, el seguimiento se ve sin horario.
+- **Alternativas descartadas:**
+  - *Abrir sin rol `listarItemsPorIds` y la hoja de ruta:* expondría
+    direcciones de terceros a cualquier llamada sin usuario.
+  - *ETA real con tráfico:* exige geocodificar (ADR-017) y una API paga.
+- **Consecuencias:** es una aproximación, igual que el orden por código
+  postal. Coincide con lo que ve el repartidor, porque se arma con el
+  mismo orden de asignación.
+
+## ADR-044: Tablero de indicadores de entrega
+
+- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Contexto:** Rabbit no medía si entregaba a tiempo. ShipBob, Onfleet y
+  Bringg tienen tableros con esos indicadores, para el operador y para
+  el comercio.
+- **Decisión:** "Indicadores" para el personal (toda la red o un comercio,
+  con el detalle por repartidor) y "Mis indicadores" para el comercio,
+  sobre los pedidos recibidos en los últimos 7, 30 o 90 días:
+  - **a tiempo:** entregados el día prometido o antes, sobre los que
+    tenían promesa;
+  - **al primer intento:** entregados sin visitas fallidas, sobre los que
+    terminaron el reparto (entregados + devueltos al comercio);
+  - horas promedio de recibido a entregado, pedidos en espera ahora,
+    motivos de las visitas fallidas;
+  - **costo por envío:** la liquidación del mes en curso (abono + cargos)
+    dividida por los envíos, que la vista toma de Pagos.
+  Se calcula en memoria (`CalculoDeIndicadores`) sobre los pedidos del
+  período: no hay tablas ni columnas de agregados.
+- **Alternativas descartadas:**
+  - *Consultas agregadas en SQL:* más rápidas con millones de filas, pero
+    reparten cada regla entre JPQL y Java y no se prueban sin base.
+  - *Medir desde la confirmación:* no hay fecha de confirmación guardada;
+    "desde que se recibió" es lo que ve el cliente.
+- **Consecuencias:** los porcentajes salen como "—" si no hay base, en
+  vez de 0 %. Los pedidos anteriores a ADR-042 no tienen promesa y no
+  cuentan en "a tiempo".

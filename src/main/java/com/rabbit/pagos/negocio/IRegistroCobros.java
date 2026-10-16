@@ -53,4 +53,16 @@ public interface IRegistroCobros {
      * @param idPedido pedido cuyo cobro se anula
      */
     void anularCobro(Long idPedido);
+
+    /**
+     * Anula el cobro de un pedido que no se pudo entregar y volvió al
+     * comercio (ADR-041): un CONTRA_ENTREGA nunca se cobró, y un PREPAGO se
+     * le devuelve al cliente (reversa en el banco, después del commit). La
+     * dispara el suscriptor de Pagos al tópico, sin usuario, así que no
+     * lleva restricción de rol: la regla de cuándo un pedido vuelve al
+     * comercio la impone Pedidos. Idempotente.
+     *
+     * @param idPedido pedido devuelto al comercio
+     */
+    void anularCobroPorDevolucion(Long idPedido);
 }

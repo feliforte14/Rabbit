@@ -14,6 +14,8 @@ package com.rabbit.repartidores.negocio;
  * Un valor inválido se ignora y se usa el de por defecto.
  */
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.logging.Logger;
@@ -68,5 +70,17 @@ public final class HoraDeCorte {
      */
     public static boolean permiteAsignar(LocalTime corte, LocalTime ahora) {
         return corte == null || ahora.isBefore(corte);
+    }
+
+    /**
+     * El día que se le promete al comercio (ADR-042): si llega antes del
+     * corte, entra en la hoja de hoy; si llega después, en la de mañana.
+     * Mismo criterio que la lista de espera, que asigna al día siguiente lo
+     * que se confirma tarde.
+     */
+    public static LocalDate diaDeEntrega(LocalTime corte, LocalDateTime recibido) {
+        return permiteAsignar(corte, recibido.toLocalTime())
+                ? recibido.toLocalDate()
+                : recibido.toLocalDate().plusDays(1);
     }
 }

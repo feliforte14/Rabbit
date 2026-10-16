@@ -124,7 +124,10 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 | `rabbit.transportista.simulador.segundos` | `20` | Cada cuántos segundos avanza un envío simulado. Menos de 15 hace que el pedido salte de Confirmado a Entregado | No |
 | `rabbit.cola.consumidores` | `1` | Consumidores de la cola de pedidos del ERP | Sí |
 | `rabbit.sincronizador.pausado` | sin definir | `true`: pausa el timer de respaldo de la cola (lo usa la prueba de escalabilidad) | No |
-| `rabbit.ruteo.hora-corte` | `21:00` | `HH:mm`: desde esa hora los pedidos que se confirman van a la lista de espera para el día siguiente (ADR-037). Para probarlo de día, `00:01`; para una demo después de las 21, `ninguno` | No |
+| `rabbit.ruteo.hora-corte` | `21:00` | `HH:mm`: desde esa hora los pedidos que se confirman van a la lista de espera para el día siguiente (ADR-037), y los que llegan reciben fecha prometida para mañana (ADR-042). Para probarlo de día, `00:01`; para una demo después de las 21, `ninguno` | No |
+| `rabbit.entregas.max-intentos` | `2` | Visitas fallidas antes de devolver el pedido al comercio (ADR-041). Con `1`, la primera visita fallida ya lo devuelve | No |
+| `rabbit.ruteo.minutos-por-parada` | `20` | Minutos por parada para la franja horaria del seguimiento (ADR-043) | No |
+| `rabbit.url-publica` | `https://localhost:8443/Rabbit` | Base del link al seguimiento en los avisos a quien recibe (ADR-040) | No |
 
 Para ver cuáles están definidas:
 `cli --command="/system-property=*:read-resource"`.

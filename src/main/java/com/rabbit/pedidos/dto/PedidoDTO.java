@@ -5,10 +5,12 @@ package com.rabbit.pedidos.dto;
  * Nunca se persiste (ver Pedido para la entidad).
  */
 
+import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pagos.dto.MedioPago;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -16,6 +18,7 @@ import java.util.stream.Collectors;
 public class PedidoDTO {
 
     private static final DateTimeFormatter FORMATO = DateTimeFormatter.ofPattern("dd/MM HH:mm");
+    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM");
 
     public Long id;
     public Long idComercio;
@@ -40,6 +43,16 @@ public class PedidoDTO {
     public String enEsperaDesde;
     public String motivoEspera;
     public String motivoDevolucion;
+    // Quién recibe (ADR-039). Para el personal, el comercio y el repartidor:
+    // el seguimiento público no los muestra.
+    public String nombreDestinatario;
+    public String telefonoDestinatario;
+    public String emailDestinatario;
+    // Día prometido (ADR-042); null si no se pudo prometer.
+    public LocalDate fechaPrometida;
+    // Visitas fallidas y el motivo de la última (ADR-041).
+    public int intentosFallidos;
+    public MotivoEntregaFallida motivoEntregaFallida;
 
     // Convierte una entidad Pedido en un DTO listo para mostrar en la vista.
     public static PedidoDTO desde(Pedido p) {
@@ -66,7 +79,18 @@ public class PedidoDTO {
         dto.enEsperaDesde = p.getEnEsperaDesde() != null ? p.getEnEsperaDesde().format(FORMATO) : null;
         dto.motivoEspera = p.getMotivoEspera();
         dto.motivoDevolucion = p.getMotivoDevolucion();
+        dto.nombreDestinatario = p.getNombreDestinatario();
+        dto.telefonoDestinatario = p.getTelefonoDestinatario();
+        dto.emailDestinatario = p.getEmailDestinatario();
+        dto.fechaPrometida = p.getFechaPrometida();
+        dto.intentosFallidos = p.getIntentosFallidos();
+        dto.motivoEntregaFallida = p.getMotivoEntregaFallida();
         return dto;
+    }
+
+    /** La fecha prometida como "16/10", o null. */
+    public String getFechaPrometidaTexto() {
+        return fechaPrometida != null ? fechaPrometida.format(DIA) : null;
     }
 
     // Cantidad total de unidades del pedido, sumando todas las líneas.
@@ -103,4 +127,10 @@ public class PedidoDTO {
     public String getEnEsperaDesde() { return enEsperaDesde; }
     public String getMotivoEspera() { return motivoEspera; }
     public String getMotivoDevolucion() { return motivoDevolucion; }
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public String getTelefonoDestinatario() { return telefonoDestinatario; }
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public LocalDate getFechaPrometida() { return fechaPrometida; }
+    public int getIntentosFallidos() { return intentosFallidos; }
+    public MotivoEntregaFallida getMotivoEntregaFallida() { return motivoEntregaFallida; }
 }

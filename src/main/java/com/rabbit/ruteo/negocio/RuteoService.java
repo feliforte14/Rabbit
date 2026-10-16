@@ -79,7 +79,7 @@ public class RuteoService implements IRuteo {
 
     private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(RuteoService.class.getName());
 
-    private static final Set<String> TERMINADOS = Set.of("ENTREGADO", "CANCELADO");
+    private static final Set<String> TERMINADOS = Set.of("ENTREGADO", "CANCELADO", "DEVUELTO_AL_COMERCIO");
 
     @Inject
     private ISeguimientoPedido pedidos;
@@ -139,6 +139,12 @@ public class RuteoService implements IRuteo {
     }
 
     @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public RecorridoDTO recorridoDeRepartidor(Long idRepartidor) {
+        return OrdenDeRecorrido.recomendar(armar(pedidos.listarEntregasEnCursoDeRepartidor(idRepartidor)));
+    }
+
+    @Override
     @RolesAllowed("REPARTIDOR")
     public List<HojaDeRutaDTO> historialDelRepartidor() {
         return armar(pedidos.listarPedidosDelRepartidorActual().stream()
@@ -187,6 +193,10 @@ public class RuteoService implements IRuteo {
         hoja.pesoKg = p.getPesoKg();
         hoja.conRemito = p.isConRemito();
         hoja.cobrarAlEntregar = p.getMedioPago() == MedioPago.CONTRA_ENTREGA ? p.getImporte() : null;
+        hoja.nombreDestinatario = p.getNombreDestinatario();
+        hoja.telefonoDestinatario = p.getTelefonoDestinatario();
+        hoja.intentosFallidos = p.getIntentosFallidos();
+        hoja.motivoUltimoIntento = p.getMotivoEntregaFallida() != null ? p.getMotivoEntregaFallida().getDescripcion() : null;
 
         ComercioDTO comercio = comerciosPorId.get(p.getIdComercio());
         hoja.comercio = comercio != null ? comercio.nombre : "Comercio " + p.getIdComercio();

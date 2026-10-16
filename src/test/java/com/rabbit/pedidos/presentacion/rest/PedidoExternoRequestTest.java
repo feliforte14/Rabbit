@@ -68,4 +68,16 @@ class PedidoExternoRequestTest {
         assertTrue(errores.iterator().next().getPropertyPath().toString().contains("cantidad"));
         assertEquals("La cantidad debe ser mayor a cero", errores.iterator().next().getMessage());
     }
+
+    @Test
+    void quienRecibeEsOpcionalPeroElEmailTieneQueSerValido() {
+        // ADR-039: sin destinatario sigue siendo válido (no rompe a los ERP de antes).
+        PedidoExternoRequest r = valido();
+        r.nombreDestinatario = "Ana Pérez";
+        r.telefonoDestinatario = "+54 11 4567-8901";
+        r.emailDestinatario = "ana@correo.com";
+        assertTrue(validador.validate(r).isEmpty());
+        r.emailDestinatario = "ana.correo.com";
+        assertEquals(Set.of("emailDestinatario"), camposConError(r));
+    }
 }

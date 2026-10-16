@@ -260,7 +260,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"Caja de zapatillas\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 18000,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 2000, CABA\",\n  \"codigoPostalEntrega\": \"1428\",\n  \"pesoKg\": 1.2\n}",
+                  "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"Caja de zapatillas\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 18000,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 2000, CABA\",\n  \"codigoPostalEntrega\": \"1428\",\n  \"pesoKg\": 1.2,\n  \"nombreDestinatario\": \"Ana Pérez\",\n  \"telefonoDestinatario\": \"+54 11 4567-8901\",\n  \"emailDestinatario\": \"ana@correo.com\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"

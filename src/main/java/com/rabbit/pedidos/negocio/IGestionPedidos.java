@@ -13,6 +13,7 @@ package com.rabbit.pedidos.negocio;
  * Implementada por {@link PedidoService}.
  */
 
+import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import com.rabbit.pedidos.dto.RemitoDTO;
@@ -147,14 +148,21 @@ public interface IGestionPedidos {
      * entra en la lista de espera para otro repartidor (ADR-037). Conserva
      * su cobro: al reasignarlo no se cobra de nuevo.
      *
+     * Si estaba EN_CAMINO y el motivo implica haber ido a la dirección,
+     * cuenta como un intento de entrega. Al agotar los intentos
+     * (IntentosDeEntrega), o si el cliente lo rechazó, pasa a
+     * DEVUELTO_AL_COMERCIO: el stock consignado vuelve al comercio y Pagos
+     * anula el cobro (ADR-041).
+     *
      * Solo el REPARTIDOR asignado o un ADMINISTRADOR.
      *
      * @param idPedido pedido a devolver
      * @param motivo por qué no se entregó (obligatorio)
+     * @param detalle texto libre, obligatorio con el motivo OTRO
      * @throws ValidacionException si no es suyo, no está en reparto, lo
      *         lleva un transportista o falta el motivo
      */
-    void devolverADeposito(Long idPedido, String motivo);
+    void devolverADeposito(Long idPedido, MotivoEntregaFallida motivo, String detalle);
 
     /**
      * Alternativa a confirmarPedido cuando el pedido no lo lleva un
