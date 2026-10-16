@@ -93,11 +93,10 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
         }
         List<Repartidor> candidatos = repository.bloquearCandidatos(idZonaPreferida);
         List<CargaAsignada> cargas = repository.listarCargas();
-        RepartidorDTO elegido = AsignacionPorCapacidad.elegir(
-                candidatos.stream().map(r -> RepartidorDTO.desde(r, cargas)).collect(Collectors.toList()),
-                idRepartidorExcluido, pesoKg, bultos);
+        List<RepartidorDTO> conCarga = candidatos.stream().map(r -> RepartidorDTO.desde(r, cargas)).collect(Collectors.toList());
+        RepartidorDTO elegido = AsignacionPorCapacidad.elegir(conCarga, idRepartidorExcluido, pesoKg, bultos);
         if (elegido == null) {
-            throw new SinLugarException(sinLugar(candidatos.isEmpty(), pesoKg, bultos));
+            throw new SinLugarException(sinLugar(conCarga, idRepartidorExcluido, pesoKg, bultos));
         }
         Repartidor repartidor = candidatos.stream().filter(r -> r.getId().equals(elegido.getId())).findFirst().orElseThrow();
         CargaAsignada carga = new CargaAsignada();
@@ -129,7 +128,7 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
         if (AsignacionPorCapacidad.elegir(todos, idRepartidorExcluido, pesoKg, bultos) != null) {
             return null;
         }
-        return sinLugar(todos.isEmpty(), pesoKg, bultos);
+        return sinLugar(todos, idRepartidorExcluido, pesoKg, bultos);
     }
 
     @Override
@@ -143,17 +142,27 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
         if (HoraDeCorte.permiteAsignar(corte, LocalTime.now())) {
             return null;
         }
-        return "Ya pasó la hora de corte de la hoja de ruta (" + corte
-                + "): se asigna mañana, antes del corte";
+        return "Pasó la hora de corte (" + corte + "): se asigna mañana";
     }
 
-    private static String sinLugar(boolean sinRepartidores, BigDecimal pesoKg, int bultos) {
-        if (sinRepartidores) {
+    // Por qué no le entra a nadie, corto: se muestra en la tabla de Pedidos.
+    // Si el pedido fue devuelto, el que lo devolvió no cuenta, y se aclara
+    // (si no, "nadie tiene lugar" confunde cuando a él sí le sobra).
+    private static String sinLugar(List<RepartidorDTO> repartidores, Long idExcluido, BigDecimal pesoKg, int bultos) {
+        if (repartidores.isEmpty()) {
             return "No hay repartidores cargados";
         }
-        return "No hay repartidores con lugar para "
-                + (pesoKg != null ? com.rabbit.infraestructura.Formatos.kilos(pesoKg) + " y " : "")
-                + bultos + " bulto(s): están todos ocupados o les excede la capacidad";
+        String carga = (pesoKg != null ? com.rabbit.infraestructura.Formatos.kilos(pesoKg) + " y " : "")
+                + bultos + (bultos == 1 ? " bulto" : " bultos");
+        if (idExcluido == null) {
+            return "Ningún repartidor tiene lugar para " + carga;
+        }
+        boolean aQuienLoDevolvioLeEntra = repartidores.stream()
+                .anyMatch(r -> r.getId().equals(idExcluido) && r.entra(pesoKg, bultos));
+        if (aQuienLoDevolvioLeEntra) {
+            return "Se espera a otro repartidor con lugar para " + carga + ": no vuelve al que lo devolvió";
+        }
+        return "Ningún otro repartidor tiene lugar para " + carga + " (no vuelve al que lo devolvió)";
     }
 
     // Idempotente: liberar un pedido que ya no lleva no hace nada. Un

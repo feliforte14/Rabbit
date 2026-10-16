@@ -506,13 +506,15 @@ cargados) y pedidos `[PRUEBA]` de 1 y 2 kg.
 
 1. **A otro repartidor y lista de espera:** confirmar uno de 2 kg → como
    a Juan no le entra, se le asigna al de 3 kg. Otro de 2 kg → "Pedido N
-   en lista de espera: No hay repartidores con lugar…" y en Pedidos
-   figura "En espera desde …" con el motivo, Cobro "—" (no se cobró) y el
-   botón "Reintentar". Al cancelar o entregar el primero, en unos segundos
+   en lista de espera: Ningún repartidor tiene lugar para 2 kg y 2
+   bultos…" y en Pedidos figura "En espera", debajo "Desde el …" y el
+   motivo, Cobro "—" (no se cobró) y el botón "Reintentar". Si lo devolvió
+   un repartidor, se ve además "Devuelto: <motivo>" y el motivo de la
+   espera aclara que no vuelve al que lo devolvió. Al cancelar o entregar el primero, en unos segundos
    el que esperaba pasa solo a Confirmado.
 2. **Hora de corte:** `cli --command="/system-property=rabbit.ruteo.hora-corte:add(value=00:01)"`
-   y confirmar uno de 1 kg aunque Juan tenga lugar → en espera, "Ya pasó
-   la hora de corte (00:01): se asigna mañana". En Ruteo por zona,
+   y confirmar uno de 1 kg aunque Juan tenga lugar → en espera, "Pasó la
+   hora de corte (00:01): se asigna mañana". En Ruteo por zona,
    "Despachar" muestra "En espera". Al quitar la propiedad vuelve el corte
    de las 21:00 y, si es antes de esa hora, en menos de un minuto se
    asigna solo. **Quitarla al terminar.** Si probás después de las 21,

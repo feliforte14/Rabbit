@@ -2006,3 +2006,42 @@ html[data-tema="oscuro"] textarea {
         overflow-y: visible;
     }
 }
+
+/* Lista de espera en Pedidos (ADR-037): desde cuándo, por qué y, si lo
+   devolvió el repartidor, su motivo. Cada dato en su línea y con aire,
+   para que no quede un párrafo pegado a la insignia. */
+.espera-detalle {
+    margin-top: 0.5rem;
+    max-width: 30ch;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: var(--texto-suave);
+}
+
+.espera-desde,
+.espera-linea {
+    display: block;
+}
+
+.espera-desde {
+    font-weight: 600;
+    color: var(--texto);
+}
+
+.espera-linea {
+    margin-top: 0.3rem;
+}
+
+.espera-linea b {
+    color: var(--texto);
+    font-weight: 600;
+}
+
+/* En el celular la celda va alineada a la derecha (tabla-tarjetas). */
+@media (max-width: 860px) {
+    .espera-detalle {
+        max-width: none;
+        margin-left: auto;
+    }
+}
+
