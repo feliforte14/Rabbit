@@ -40,7 +40,7 @@
         <aside class="sidebar" id="menu-principal">
             <div class="sidebar-logo">
                 <div>
-                    <p class="marca">rabbit</p>
+                    <h:graphicImage library="rabbit" name="logo.png" alt="rabbit" styleClass="marca-logo" />
                     <p class="slogan">Plataforma de entregas urbanas</p>
                 </div>
                 <!-- Solo en celular y tablet (ver menu.js) -->
@@ -64,10 +64,11 @@
                         styleClass="#{view.viewId == '/personal/ruteo.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/personal/entregas" value="Entregas en curso"
                         styleClass="#{view.viewId == '/personal/entregas.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="/personal/repartidores" value="Repartidores"
-                        styleClass="#{view.viewId == '/personal/repartidores.xhtml' ? 'activo' : ''}" />
-                <h:link outcome="/personal/transportistas" value="Transportistas"
-                        styleClass="#{view.viewId == '/personal/transportistas.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/mapa" value="Mapa de repartidores"
+                        styleClass="#{view.viewId == '/personal/mapa.xhtml' ? 'activo' : ''}" />
+                <!-- Repartos: Repartidores Rabbit y Logística tercerizada, en pestañas (ver pestanas-repartos.xhtml). -->
+                <h:link outcome="/personal/repartidores" value="Repartos"
+                        styleClass="#{view.viewId == '/personal/repartidores.xhtml' or view.viewId == '/personal/transportistas.xhtml' ? 'activo' : ''}" />
                 <p class="sidebar-seccion">Red</p>
                 <h:link outcome="/personal/comercios" value="Comercios"
                         styleClass="#{view.viewId == '/personal/comercios.xhtml' or view.viewId == '/comercio/puntos-picking.xhtml' ? 'activo' : ''}" />
@@ -75,6 +76,9 @@
                         styleClass="#{view.viewId == '/personal/depositos.xhtml' or view.viewId == '/personal/items.xhtml' or view.viewId == '/personal/reservas.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/personal/historial" value="Historial de reservas"
                         styleClass="#{view.viewId == '/personal/historial.xhtml' ? 'activo' : ''}" />
+                <p class="sidebar-seccion">Cobranza</p>
+                <h:link outcome="/personal/liquidaciones" value="Liquidaciones mensuales"
+                        styleClass="#{view.viewId == '/personal/liquidaciones.xhtml' ? 'activo' : ''}" />
                 <h:panelGroup rendered="#{sesionBean.admin}">
                     <p class="sidebar-seccion">Administración</p>
                     <h:link outcome="/personal/usuarios" value="Usuarios"
@@ -89,6 +93,8 @@
                         styleClass="#{view.viewId == '/comercio/mi-stock.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/comercio/puntos-picking" value="Mis puntos de picking"
                         styleClass="#{view.viewId == '/comercio/puntos-picking.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/comercio/mis-liquidaciones" value="Mis liquidaciones"
+                        styleClass="#{view.viewId == '/comercio/mis-liquidaciones.xhtml' ? 'activo' : ''}" />
             </h:panelGroup>
 
             <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.repartidor}">

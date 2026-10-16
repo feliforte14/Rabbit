@@ -10,6 +10,7 @@ package com.rabbit.pedidos.negocio;
 
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
+import com.rabbit.pedidos.dto.ResumenEntregasDTO;
 import jakarta.ejb.Local;
 import java.util.List;
 
@@ -59,6 +60,18 @@ public interface ISeguimientoPedido {
      * @return los pedidos de ese comercio
      */
     List<PedidoDTO> listarPedidosDeComercio(Long idComercio);
+
+    /**
+     * Pedidos entregados en [desde, hasta), por comercio: cantidad y kilos.
+     * Para la liquidación mensual (ADR-034). Solo el personal.
+     */
+    List<ResumenEntregasDTO> resumenEntregas(java.time.LocalDateTime desde, java.time.LocalDateTime hasta);
+
+    /**
+     * Lo mismo, solo del comercio que representa el usuario que llama (la
+     * vista previa de su liquidación). Solo COMERCIO: no ve lo de otros.
+     */
+    ResumenEntregasDTO resumenEntregasDelComercioActual(java.time.LocalDateTime desde, java.time.LocalDateTime hasta);
 
     /** Pedidos CONFIRMADO o EN_CAMINO: los que tienen que salir o están en viaje. */
     List<PedidoDTO> listarEntregasEnCurso();

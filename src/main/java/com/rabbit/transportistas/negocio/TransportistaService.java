@@ -93,10 +93,10 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public Long registrarTransportista(DatosTransportistaDTO datos) {
         if (datos.nombre == null || datos.nombre.isBlank()) {
-            throw new ValidacionException("El nombre del transportista es obligatorio");
+            throw new ValidacionException("El nombre de la empresa de logística es obligatorio");
         }
         if (datos.tipoIntegracion == null) {
-            throw new ValidacionException("Elegí cómo se integra el transportista");
+            throw new ValidacionException("Elegí cómo se integra la empresa de logística");
         }
         validarEndpoint(datos.endpoint);
         Transportista t = new Transportista();
@@ -189,10 +189,10 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
     public EnvioDTO solicitarEnvio(Long idPedido, Long idComercio, Long idTransportista, DatosEnvioDTO datos) {
         Transportista t = obtenerOFallar(idTransportista);
         if (!t.isActivo()) {
-            throw new ValidacionException("El transportista " + t.getNombre() + " está dado de baja");
+            throw new ValidacionException("La empresa de logística " + t.getNombre() + " está dada de baja");
         }
         if (repository.buscarEnvioDePedido(idPedido) != null) {
-            throw new ValidacionException("El pedido " + idPedido + " ya fue derivado a un transportista");
+            throw new ValidacionException("El pedido " + idPedido + " ya fue derivado a logística tercerizada");
         }
 
         SolicitudEnvio solicitud = new SolicitudEnvio("PEDIDO-" + idPedido, datos.direccionRetiro,
@@ -203,7 +203,7 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
                 throw new ValidacionException(t.getNombre() + " rechazó el envío: " + resultado.getMotivo());
             case NO_DISPONIBLE:
                 throw new ValidacionException(t.getNombre() + " no respondió: el pedido no se derivó. "
-                        + "Probá de nuevo o con otro transportista.");
+                        + "Probá de nuevo o con otra empresa.");
             default:
                 break;
         }
@@ -351,14 +351,14 @@ public class TransportistaService implements IGestionTransportistas, IEnvios, IS
     private Transportista obtenerOFallar(Long id) {
         Transportista t = id != null ? repository.buscarPorId(id) : null;
         if (t == null) {
-            throw new ValidacionException("Transportista no encontrado: " + id);
+            throw new ValidacionException("Empresa de logística no encontrada: " + id);
         }
         return t;
     }
 
     private static void validarEndpoint(String endpoint) {
         if (endpoint == null || endpoint.isBlank()) {
-            throw new ValidacionException("El endpoint del transportista es obligatorio");
+            throw new ValidacionException("El endpoint de la empresa de logística es obligatorio");
         }
         try {
             URI uri = new URI(endpoint.trim());

@@ -71,6 +71,11 @@
                     <f:facet name="header">Libre</f:facet>
                     #{i.cantidadLibre}
                 </h:column>
+                <h:column>
+                    <f:facet name="header">Peso por unidad</f:facet>
+                    <h:outputText value="#{etiquetas.kilos(i.pesoKg)}" rendered="#{not empty i.pesoKg}" />
+                    <h:outputText value="Sin cargar" styleClass="badge badge-naranja" rendered="#{empty i.pesoKg}" />
+                </h:column>
             </h:dataTable>
             <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty itemInventarioBean.items}">
                 No hay stock cargado en este depósito.
@@ -84,7 +89,7 @@
         </p>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel value="Comercio" for="comercio" />
+                <h:outputLabel styleClass="obligatorio" value="Comercio" for="comercio" />
                 <h:selectOneMenu id="comercio" value="#{itemInventarioBean.nuevoItem.idComercio}"
                                  required="true" label="Comercio"
                                  requiredMessage="Elegí de qué comercio es el stock">
@@ -97,24 +102,63 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel value="Producto" for="producto" />
+                <h:outputLabel styleClass="obligatorio" value="Producto" for="producto" />
                 <h:inputText id="producto" value="#{itemInventarioBean.nuevoItem.producto}" required="true"
                              label="Producto" requiredMessage="Ingresá el producto" />
                 <h:message for="producto" styleClass="error-campo" />
             </div>
 
             <div class="campo">
-                <h:outputLabel value="Cantidad" for="cantidad" />
+                <h:outputLabel styleClass="obligatorio" value="Cantidad" for="cantidad" />
                 <h:inputText id="cantidad" value="#{itemInventarioBean.nuevoItem.cantidadDisponible}" required="true"
                              label="Cantidad" requiredMessage="Ingresá la cantidad"
                              converterMessage="La cantidad tiene que ser un número entero" />
                 <h:message for="cantidad" styleClass="error-campo" />
             </div>
 
+            <div class="campo">
+                <h:outputLabel styleClass="obligatorio" value="Peso por unidad (kg)" for="peso" />
+                <h:inputText id="peso" value="#{itemInventarioBean.nuevoItem.pesoKg}" required="true"
+                             label="Peso por unidad" requiredMessage="Ingresá el peso por unidad"
+                             converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
+                <h:message for="peso" styleClass="error-campo" />
+                <p class="ayuda">Con el peso, Rabbit calcula cuánto pesa cada pedido y no le asigna a un repartidor más de lo que soporta su vehículo.</p>
+            </div>
+
             <div class="form-acciones">
                 <h:commandButton value="Cargar stock" styleClass="btn btn-primary" action="#{itemInventarioBean.registrar}" />
             </div>
         </h:form>
+
+        <h:panelGroup rendered="#{not empty itemInventarioBean.items}">
+            <h2>Corregir peso</h2>
+            <h:form id="formPeso" styleClass="formulario">
+                <p class="ayuda">
+                    Para el stock cargado antes de que se pidiera el peso, o si se cargó mal. Los pedidos
+                    ya creados conservan el peso con el que se calcularon.
+                </p>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" value="Producto" for="itemPeso" />
+                    <h:selectOneMenu id="itemPeso" value="#{itemInventarioBean.idItemPeso}" required="true"
+                                     label="Producto" requiredMessage="Elegí el producto">
+                        <f:selectItem itemLabel="— Elegí un producto —" itemValue="#{null}" />
+                        <f:selectItems value="#{itemInventarioBean.items}" var="i" itemValue="#{i.id}"
+                                       itemLabel="#{i.producto} (#{itemInventarioBean.nombreComercio(i.idComercio)})#{empty i.pesoKg ? ' · sin peso' : ''}" />
+                    </h:selectOneMenu>
+                    <h:message for="itemPeso" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" value="Peso por unidad (kg)" for="pesoNuevo" />
+                    <h:inputText id="pesoNuevo" value="#{itemInventarioBean.pesoNuevo}" required="true"
+                                 label="Peso por unidad" requiredMessage="Ingresá el peso por unidad"
+                                 converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
+                    <h:message for="pesoNuevo" styleClass="error-campo" />
+                </div>
+                <div class="form-acciones">
+                    <h:commandButton value="Guardar peso" styleClass="btn btn-primary" action="#{itemInventarioBean.actualizarPeso}" />
+                </div>
+            </h:form>
+        </h:panelGroup>
         </h:panelGroup>
     </ui:define>
 </ui:composition>

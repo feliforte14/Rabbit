@@ -315,8 +315,9 @@ Propuesta o Reemplazada.
   - *Zona derivada de la localidad (texto libre):* las direcciones vienen
     escritas de mil formas; un rango numérico se valida y no es ambiguo.
   - *Viajes con varias paradas y orden óptimo del recorrido:* cambia el
-    modelo del repartidor (hoy lleva un pedido por viaje) y ordenar por
-    distancia necesita coordenadas. Queda fuera del alcance.
+    modelo del repartidor y ordenar por distancia necesita coordenadas.
+    Desde ADR-032 un repartidor con capacidad lleva varios pedidos; el
+    orden de las paradas sigue fuera del alcance.
   - *Despachar la zona en una sola transacción:* un pedido que falla (por
     ejemplo, el cobro) desharía los demás. Cada pedido va en su propia
     transacción y el resultado se informa pedido por pedido.
@@ -498,7 +499,9 @@ Propuesta o Reemplazada.
 
 ## ADR-023: Las contraseñas, solo en el realm; límite de intentos en el login
 
-- **Estado:** Aceptada. Reemplaza el SHA-256 sin salt de la tabla `usuarios`.
+- **Estado:** Aceptada. Reemplaza el SHA-256 sin salt de la tabla
+  `usuarios`. Desde ADR-031, las contraseñas vuelven a la base (con bcrypt
+  y usadas por el login); el límite de intentos sigue igual.
 - **Contexto:** la tabla `usuarios` guardaba un SHA-256 sin salt de cada
   contraseña, pero quien autentica es el ApplicationRealm de WildFly
   (`request.login`): ese hash no se usaba para nada. Tampoco había freno a
@@ -700,3 +703,340 @@ Propuesta o Reemplazada.
     configuración genérica; quedan en `main`.
 - **Consecuencias:** para mostrar la heterogeneidad hay que cambiar de
   rama y redesplegar. La rama hay que mantenerla al día con `main`.
+
+## ADR-031: Las cuentas, en la base compartida (realm JDBC con bcrypt)
+
+- **Estado:** Aceptada (15/10/2026). Reemplaza la parte de ADR-023 que
+  dejaba las contraseñas solo en el realm de archivos.
+- **Contexto:** cada integrante levanta su propio WildFly contra la misma
+  base de Supabase. Las contraseñas vivían en los archivos de add-user.sh
+  de cada WildFly, así que una cuenta creada desde la app de una máquina
+  aparecía en la base de todos pero solo entraba en esa máquina. Para
+  probar entre todos había que repetir cada cuenta con `add-user.sh` en
+  cada WildFly.
+- **Decisión:**
+  - La tabla `usuarios` guarda el hash bcrypt de la contraseña
+    (`hash_clave`, costo 10, generado con jBCrypt; clase `Claves`).
+  - WildFly valida el login con un `jdbc-realm` de Elytron
+    (`RabbitRealmBase`) que lee esa tabla por el mismo `RabbitDS`. Una
+    consulta trae el hash solo de cuentas activas; otra trae el rol. Una
+    cuenta dada de baja devuelve rol sin contraseña: existe, así que no
+    se sigue buscando, y no puede entrar.
+  - Un `distributed-realm` (`RabbitRealmCompartido`) busca primero en la
+    base y, si la cuenta no está, en los archivos de add-user.sh. Así
+    siguen entrando el administrador inicial de cada instalación y las
+    cuentas viejas mientras se migran.
+  - `ApplicationDomain` (el dominio que ya usaba Rabbit) pasa a usar ese
+    realm: la app no cambia su configuración de seguridad (`web.xml`,
+    `@RolesAllowed`).
+  - La configuración la deja `scripts/configurar-realm-compartido.cli`,
+    que cada integrante corre una vez. No lleva contraseñas.
+  - La pantalla Usuarios suma "Restablecer contraseña": pasa a la base las
+    cuentas viejas y sirve para quien olvidó la suya.
+- **Alternativas descartadas:**
+  - *Copiar los archivos del realm entre máquinas:* hay que repetirlo con
+    cada cuenta, y subirlos al repositorio (público) expone los hashes.
+  - *Que Rabbit escriba los archivos del realm desde la base al
+    desplegar:* casi el mismo trabajo, y una cuenta nueva no llega a las
+    otras máquinas hasta su próximo despliegue.
+  - *Un dominio de seguridad propio para Rabbit (`jboss-web.xml`,
+    `jboss-ejb3.xml`):* más archivos para el mismo resultado; si alguien
+    no corrió el script, el despliegue fallaría en vez de seguir
+    funcionando con las cuentas locales.
+  - *PBKDF2 (está en el JDK, sin dependencia nueva):* Elytron lo lee solo
+    como SCRAM, con tres columnas (hash, sal, iteraciones); bcrypt entra
+    en una sola y es el formato más conocido.
+- **Consecuencias:** una cuenta creada, dada de baja o con contraseña
+  nueva vale en el WildFly de todos al mismo tiempo. Las altas ya no
+  escriben archivos fuera de la transacción, así que desaparece la
+  compensación del Flujo 5 de TRANSACCIONES.md. Si la base no responde,
+  nadie con cuenta en la base puede entrar (tampoco funcionaría el resto
+  del sistema). El formato de los archivos (MD5) no se puede pasar a
+  bcrypt: las cuentas viejas necesitan una contraseña nueva una vez. Una
+  cuenta de la base con el mismo nombre que una de add-user.sh de alguna
+  máquina le gana a esa.
+
+## ADR-032: Peso de los bultos y capacidad del vehículo del repartidor
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero del equipo
+  ("límite de pedidos por repartidor" y "peso de los bultos").
+- **Contexto:** un repartidor llevaba un solo pedido a la vez, sin
+  importar si era un sobre o una heladera. Rabbit no conocía el peso de
+  nada.
+- **Decisión:**
+  - **Peso por unidad en el stock** (`ItemInventario.pesoKg`, obligatorio
+    en las altas, con "Corregir peso" para lo ya cargado). Un pedido de
+    stock consignado calcula su peso al sincronizarse: peso por unidad ×
+    cantidad. Si algún ítem no tiene peso, el del pedido queda
+    desconocido (null): contarlo como 0 lo haría pasar por liviano. La
+    sincronización corre sin usuario (JMS y timer), así que el peso se
+    pide con `IConsultaStock.pesosPorItem`, sin rol y que solo devuelve el
+    peso de cada ítem; el listado completo del stock sigue siendo del
+    personal.
+  - **Punto de picking:** Rabbit no conoce esa mercadería; el ERP puede
+    informar `pesoKg` (opcional). Con stock consignado no se acepta (422):
+    lo calcula Rabbit. La huella de idempotencia solo incluye el peso si
+    vino, así las claves de antes siguen valiendo.
+  - **Capacidad del vehículo** (`Repartidor.capacidadKg` y
+    `capacidadBultos`, opcionales). Se mide por las dos cosas: el peso
+    (lo que soporta) y los bultos (el espacio). La regla vive en
+    `CapacidadRepartidor`:
+    - con capacidad cargada, lleva varios pedidos mientras la suma no pase
+      ninguno de los límites que tenga;
+    - sin capacidad, un pedido a la vez, como antes (los repartidores que
+      ya existían no cambian);
+    - un pedido de peso desconocido solo se controla por bultos.
+  - **Qué lleva cada uno:** una fila por pedido asignado
+    (`CargaAsignada`, tabla `repartidores_cargas`), con el peso y los
+    bultos del momento. Se borra al entregar o cancelar. Asignar bloquea
+    a los candidatos (`SELECT ... FOR UPDATE`): dos confirmaciones a la
+    vez no cargan de más al mismo repartidor.
+  - El despacho por zona pregunta "¿a quién de la zona le entra este
+    pedido?" en lugar de "¿quién está libre?", y si a nadie, usa el
+    transportista de respaldo como antes.
+- **Alternativas descartadas:**
+  - *Solo cantidad de pedidos:* una moto y un camión tendrían el mismo
+    límite.
+  - *Solo kilos:* veinte cajas livianas no entran en una moto.
+  - *Contadores en el repartidor (carga actual):* se desincronizan si una
+    liberación falla o se repite; una fila por pedido se puede recalcular.
+- **Consecuencias:** la hoja de ruta del repartidor muestra todas sus
+  entregas en curso; el orden recomendado de las paradas llegó después,
+  por código postal (ADR-038). Si no le entra a nadie, el pedido va a la
+  lista de espera (ADR-037). Cada unidad cuenta como un bulto (3 yerbas son 3
+  bultos). En pantalla los kilos se muestran como "1 kg" o "0,95 kg"
+  (`infraestructura/Formatos`), no con la escala de la columna ("1.000").
+
+## ADR-033: La entrega se registra con la foto del remito, y solo quien estuvo ahí
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero ("cambio de estado
+  en camino / entregado").
+- **Contexto:** cualquiera del personal podía marcar un pedido como
+  entregado con un clic, sin prueba. ENTREGADO dispara el cobro contra
+  entrega: es el cambio de estado que mueve plata.
+- **Decisión:**
+  - **ENTREGADO:** solo el `REPARTIDOR` que lleva el pedido, o un
+    `ADMINISTRADOR` como contingencia (por ejemplo, el repartidor se quedó
+    sin batería). Un `OPERADOR` ya no. Los dos tienen que subir la **foto
+    del remito firmado**. Se guarda quién y cuándo (`entregadoPor`,
+    `fechaEntrega`).
+  - **EN_CAMINO:** lo sigue pudiendo marcar el repartidor o el personal
+    (por ejemplo, al despachar desde el depósito): no mueve plata.
+  - **Pedidos derivados a un transportista externo:** entran por otra
+    operación (`registrarEntregaDeTransportista`), sin remito de Rabbit:
+    la prueba es del transportista. Esa operación rechaza los pedidos con
+    repartidor propio, así no sirve para saltear el remito.
+  - **La foto:** JPEG, PNG o WEBP, reconocida por sus primeros bytes (no
+    por el nombre ni por lo que dice el navegador), hasta 5 MB. El celular
+    la achica antes de subirla (`remito.js`, ~300 KB). Se guarda en la
+    base compartida, en su propia tabla (`remitos_entrega`), y se ve en
+    `/remito?pedido=ID`: el personal, el comercio dueño y su repartidor;
+    a cualquier otro le responde 404.
+- **Alternativas descartadas:**
+  - *Guardarla en el disco del WildFly:* cada integrante levanta el suyo;
+    la foto solo la vería quien registró la entrega (el mismo problema que
+    ADR-031 con las contraseñas).
+  - *Supabase Storage:* sería lo prolijo en producción, pero suma claves
+    de API y otro servicio que configurar en cada máquina. Para el volumen
+    del TP, la base alcanza.
+  - *Firma en pantalla en lugar de foto:* el remito en papel ya lo firma
+    el cliente; la foto prueba también qué se entregó.
+- **Consecuencias:** el aviso al comercio de ENTREGADO menciona el
+  remito, y el comercio lo ve en "Mis pedidos". La base crece unos 300 KB
+  por entrega.
+
+## ADR-034: Liquidación mensual a comercios
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero ("cálculo de
+  cobranzas a comercios"). La tarifa es una propuesta para que el equipo
+  la ajuste.
+- **Contexto:** Rabbit cobraba cada pedido (la venta del comercio a su
+  cliente), pero no cobraba su propio servicio al comercio.
+- **Decisión:**
+  - Una vez por mes, a cada comercio activo: **abono fijo + un cargo por
+    pedido entregado + un cargo por kilo entregado**. Tarifa por defecto:
+    $15.000 de abono, $1.200 por envío y $80 por kilo. Se cambia con
+    system properties (`rabbit.tarifa.abono`, `rabbit.tarifa.por-envio`,
+    `rabbit.tarifa.por-kilo`) sin tocar el código (`TarifaMensual`).
+  - Se liquida **solo un mes cerrado**. Los pedidos del mes se cuentan
+    por su fecha de entrega. Cada liquidación queda guardada con los
+    importes del momento (`liquidaciones`, una por comercio y mes) y se
+    cobra por el **banco legado** (SOAP, referencia `LIQ-<id>`), con el
+    mismo circuit breaker que los pedidos.
+  - **Timer diario a las 6** (`LiquidacionMensual`): el día 1 liquida el
+    mes anterior; los demás días solo completa lo que falte (si WildFly
+    estaba apagado el 1) y reintenta los cobros PENDIENTE (el banco no
+    respondió). Un rechazo del banco queda RECHAZADA y un administrador lo
+    reintenta a mano.
+  - Cada comercio va en sus propias transacciones (crear, después cobrar):
+    el banco no se deshace con un rollback, así que la liquidación existe
+    antes de llamarlo.
+  - Pantalla "Liquidaciones mensuales" (personal): lo cobrado por mes, el
+    botón para liquidar un mes cerrado (administrador) y una **vista
+    previa del mes en curso**, que calcula sin guardar ni cobrar. El
+    comercio ve las suyas en "Mis liquidaciones", también con la vista
+    previa del mes en curso, calculada solo con sus entregas (el
+    resumen de entregas de todos los comercios es solo del personal).
+- **Alternativas descartadas:**
+  - *Descontarlo de lo que se cobra contra entrega:* mezcla la plata del
+    comercio con la de Rabbit y obliga a hacer rendiciones.
+  - *Cobrar por pedido al confirmar:* más llamadas al banco y más
+    reversas cuando un pedido se cancela.
+- **Consecuencias:** un comercio sin entregas paga solo el abono. Si un
+  pedido se entrega pero se informa después del cierre, entra en el mes
+  de su fecha de entrega solo si ese mes todavía no se liquidó.
+
+## ADR-035: Ubicación del repartidor en vivo y mapa
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero ("mapa para
+  repartidores internos").
+- **Decisión:**
+  - Mientras el repartidor tiene entregas en curso y la pantalla "Mis
+    entregas" abierta, su celular manda la ubicación cada 30 segundos
+    (`ubicacion.js`, geolocalización del navegador, por el mismo
+    formulario JSF). Se guarda **solo la última** (`Repartidor.latitud`,
+    `longitud`, `fechaUbicacion`), no el recorrido. Sin entregas en curso
+    no se acepta: es para seguir entregas, no a la persona.
+  - **Personal:** "Mapa de repartidores" con los que repartieron en los
+    últimos 15 minutos; se actualiza solo por ajax.
+  - **Cliente:** la página pública de seguimiento muestra el mapa mientras
+    el pedido está EN_CAMINO con un repartidor de Rabbit, y la API de
+    seguimiento devuelve `ubicacionRepartidor`. Solo si ese repartidor
+    tiene **ese** pedido en curso: el código de un pedido viejo no sirve
+    para seguirlo en otro reparto.
+  - **Aviso:** el de EN_CAMINO al comercio incluye el código para que su
+    cliente lo siga en vivo.
+  - Mapas con Leaflet (cdnjs, con hash de integridad) y teselas de
+    OpenStreetMap, gratis y sin claves.
+- **Alternativas descartadas:**
+  - *Google Maps:* pide clave de API y facturación.
+  - *WebSockets para tiempo real:* para posiciones cada 30 segundos, una
+    consulta periódica alcanza y no suma infraestructura.
+  - *Guardar el recorrido completo:* más datos personales de los que
+    hacen falta.
+- **Consecuencias:** el navegador solo da la ubicación por HTTPS y con
+  permiso del repartidor; en el celular, con el certificado autofirmado
+  hay que aceptar la advertencia. Sin coordenadas de las direcciones de
+  entrega no se calcula cuánto falta.
+
+## ADR-036: El administrador puede eliminar usuarios, repartidores y zonas
+
+- **Estado:** Aceptada (15/10/2026). Pedido del equipo durante las
+  pruebas.
+- **Contexto:** usuarios, repartidores y zonas solo se podían dar de baja.
+  Las cuentas y zonas de prueba se acumulaban en el padrón compartido y
+  un repartidor cargado por error no se podía sacar.
+- **Decisión:** baja física, **solo `ADMINISTRADOR`** (`@RolesAllowed` en
+  el EJB; el botón "Eliminar" solo se le muestra a él). Mismo patrón que
+  la eliminación de comercios (ADR-028): cada componente que guarda una
+  referencia puede impedirlo o la suelta, en la misma transacción, por
+  eventos CDI, así el componente dueño no depende de los demás.
+  - **Usuario** (`eliminarUsuario`): nada apunta a una cuenta (quién
+    entregó cada pedido queda como texto, ADR-033). No se puede eliminar
+    la propia cuenta ni al último administrador activo. También se borra
+    su línea del realm de archivos de esa máquina, si tenía.
+  - **Repartidor** (`eliminarRepartidor`): no se puede con entregas en
+    curso ni con una cuenta de usuario asociada, activa o dada de baja
+    (`EliminacionDeRepartidor`; hay que eliminar la cuenta primero). Sus
+    pedidos ya terminados quedan sin repartidor asignado
+    (`RepartidorEliminado`).
+  - **Zona** (`eliminarZona`): los pedidos no guardan su zona (se calcula
+    por el código postal), así que no hay nada que impedir. Los
+    repartidores de esa zona quedan sin zona fija (`ZonaEliminada`).
+- **Alternativas descartadas:**
+  - *Borrar también la cuenta del repartidor:* una cuenta es acceso al
+    sistema; que desaparezca sin que nadie la elimine a propósito es
+    peligroso.
+  - *Solo baja lógica:* no resolvía el padrón lleno de pruebas.
+- **Consecuencias:** eliminar no se deshace. Para que alguien deje de
+  operar sin perder nada, sigue estando la baja.
+
+## ADR-037: Lista de espera, hora de corte y devolución al depósito
+
+- **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
+  "Testing NO OK").
+- **Contexto:** si ningún repartidor tenía lugar (ADR-032), confirmar
+  fallaba y el pedido quedaba PENDIENTE hasta que alguien lo volviera a
+  confirmar a mano. La asignación ya probaba con todos los repartidores,
+  primero los de la zona. Además, no había un horario límite para armar
+  la hoja de ruta del día, y el repartidor no tenía cómo devolver un
+  pedido que no pudo entregar.
+- **Decisión:**
+  - **A otro repartidor:** se recorren los candidatos en orden y gana el
+    primero al que le entra (`AsignacionPorCapacidad`). Nunca se espera a
+    un repartidor puntual.
+  - **Lista de espera:** si no le entra a nadie, el pedido **no se cobra**
+    y queda PENDIENTE con la marca `enEsperaDesde` y el motivo. No es un
+    estado nuevo: así no cambian la máquina de estados, el tópico ni el
+    seguimiento. `AsignadorDeEspera` (`@Singleton`, `@RunAs("OPERADOR")`)
+    los asigna por orden de llegada, con cobro y asignación juntos como
+    siempre. Corre enseguida que un pedido se entrega, se cancela o se
+    devuelve (lo dispara `AvisosDeEspera`) y, de respaldo, cada minuto.
+    Un pedido grande que no entra no tapa la fila: se prueba con los
+    siguientes. Si falla por otra cosa (el banco rechaza el pago), sale de
+    la fila con el motivo a la vista del personal.
+  - **Antes de cobrar se consulta si hay lugar**
+    (`IAsignacionRepartidores.motivoParaEsperar`, sin bloqueo). Si otro se
+    queda con el lugar entre esa consulta y la asignación, el banco ya
+    cobró y se reversa como antes (`ReversasBancarias`).
+  - **Hora de corte: 21:00**, definida por el equipo el 16/10/2026
+    (`HoraDeCorte.POR_DEFECTO`). Desde esa hora no se suman pedidos a la
+    hoja del día aunque haya lugar: lo que se confirma después va a la
+    lista de espera y se asigna solo al día siguiente, antes del corte. Se
+    cambia con la system property `rabbit.ruteo.hora-corte` (`HH:mm`),
+    leída en cada uso, y con el valor `ninguno` no hay corte (para una
+    demo de noche). Un valor inválido se ignora y rige el de 21:00.
+  - **Devolver a depósito:** el repartidor del pedido (o un
+    administrador), desde CONFIRMADO o EN_CAMINO, con motivo obligatorio.
+    El pedido vuelve a PENDIENTE en la lista de espera, el repartidor deja
+    de llevarlo y **no se le vuelve a asignar ese pedido**
+    (`idRepartidorExcluido`). Conserva su cobro (`cobroRegistrado`): al
+    reasignarlo no se cobra de nuevo, y si se cancela se anula. El ERP ya
+    no lo puede cancelar por la API (salió a reparto). El comercio recibe
+    el aviso "volvió al depósito".
+  - Despacho por zona (Ruteo): un pedido que va a la espera devuelve el
+    resultado "En espera" en lugar de un error.
+- **Alternativas descartadas:**
+  - *Estado nuevo EN_ESPERA o DEVUELTO:* obligaba a tocar la máquina de
+    estados, el tópico, los suscriptores y el seguimiento, para algo que
+    sigue siendo "pendiente de asignar".
+  - *Cobrar al confirmar aunque quede en espera:* cobra un servicio que
+    todavía no tiene fecha, y obliga a reversar si se cancela antes.
+  - *Corte a las 9:00:* se propuso primero, pero después de esa hora
+    ninguna prueba ni demo de la tarde asignaría pedidos. El equipo
+    eligió las 21:00, cuando ya terminó el reparto del día.
+- **Consecuencias:** las columnas nuevas de `pedidos` admiten NULL y las
+  crea Hibernate al desplegar (`update`); las versiones anteriores siguen
+  funcionando sobre la misma base. La API del ERP agrega `enListaDeEspera`
+  y no ofrece el link de cancelar un pedido devuelto.
+
+## ADR-038: Hoja de ruta recomendada del repartidor
+
+- **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
+  "Testing NO OK").
+- **Contexto:** el repartidor tenía un link de Google Maps por pedido; con
+  varios pedidos a la vez (ADR-032) no tenía un recorrido para el día.
+- **Decisión:**
+  - Arriba de "Mis entregas", la **hoja de ruta recomendada** con todas
+    sus paradas: primero los retiros que le faltan (sin repetir lugares),
+    después las entregas encadenadas por **cercanía de código postal**
+    (vecino más cercano, desde el último retiro). Varios pedidos a la
+    misma dirección son una sola parada (`OrdenDeRecorrido`).
+  - El orden se calcula **en el back** y se abre en Google Maps con un
+    link común: hasta 10 puntos por link (la partida y 9 paradas). Con más
+    paradas se parte en tramos, y cada uno arranca donde terminó el
+    anterior. El primero no lleva origen: arranca donde está el
+    repartidor.
+  - Se sacaron el botón "Ver recorrido en el mapa" de cada pedido y la
+    sección "Registrar una entrega": "Entregar pedido" abre una ventana
+    para subir ahí la foto del remito, con las mismas validaciones
+    (ADR-033). "Devolver a depósito" abre otra para el motivo (ADR-037).
+- **Alternativas descartadas:**
+  - *Solo un link de Google Maps:* los links no reordenan las paradas;
+    eso lo hace la Directions API, que pide clave y facturación.
+  - *Geocodificar las direcciones para usar distancias reales:* contradice
+    ADR-017 y suma un servicio externo. Queda para que lo decida el
+    equipo.
+- **Consecuencias:** el orden es una aproximación (los CP cercanos suelen
+  ser barrios vecinos, no siempre). En el navegador de un celular sin la
+  app de Google Maps, Google acepta menos paradas por link que en la app.

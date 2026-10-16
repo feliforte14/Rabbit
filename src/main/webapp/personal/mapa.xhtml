@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Mapa de repartidores (ADR-035): donde esta cada repartidor que tiene
+    entregas en curso, con la ultima ubicacion que mando su celular. Se
+    actualiza solo cada 30 segundos (ajax, ver mapa.js). Solo el personal.
+    Se bindea a mapaBean (MapaBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Mapa de repartidores</ui:define>
+
+    <ui:define name="cabecera">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+              integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb"
+              crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+                integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO"
+                crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    </ui:define>
+
+    <ui:define name="contenido">
+        <h1>Mapa de repartidores</h1>
+        <p class="ayuda">
+            Cada repartidor con entregas en curso manda su ubicación desde "Mis entregas" mientras tiene
+            la pantalla abierta. Se muestra la última de los últimos 15 minutos. Se actualiza sola.
+        </p>
+        <p class="ayuda" id="resumenMapa" aria-live="polite">#{mapaBean.resumen}</p>
+
+        <div id="mapaRepartidores" class="mapa mapa-grande" data-puntos="#{mapaBean.puntosJson}"
+             role="region" aria-label="Mapa de repartidores"></div>
+
+        <h:form id="formMapa">
+            <h:commandButton id="actualizar" style="display: none" tabindex="-1" pt:aria-hidden="true"
+                             action="#{mapaBean.actualizar}">
+                <f:ajax execute="@this" render="datos" onevent="RabbitMapa.alActualizar" />
+            </h:commandButton>
+            <h:panelGroup id="datos">
+                <span id="datosMapa" data-puntos="#{mapaBean.puntosJson}" data-resumen="#{mapaBean.resumen}"></span>
+            </h:panelGroup>
+        </h:form>
+
+        <h:outputScript library="rabbit" name="mapa.js" />
+        <script>
+            setInterval(function () {
+                var boton = document.getElementById('formMapa:actualizar');
+                if (boton &amp;&amp; !document.hidden) {
+                    boton.click();
+                }
+            }, 30000);
+        </script>
+    </ui:define>
+</ui:composition>

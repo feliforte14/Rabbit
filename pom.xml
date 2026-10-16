@@ -21,6 +21,13 @@
             <version>10.0.0</version>
             <scope>provided</scope>
         </dependency>
+        <!-- bcrypt para las contraseñas de la tabla usuarios (ADR-031). Va dentro
+             del WAR; el realm JDBC de WildFly verifica el mismo formato ($2a$). -->
+        <dependency>
+            <groupId>org.mindrot</groupId>
+            <artifactId>jbcrypt</artifactId>
+            <version>0.4</version>
+        </dependency>
 
         <!-- Tests: solo en compilación de tests, nunca entran al WAR. -->
         <dependency>

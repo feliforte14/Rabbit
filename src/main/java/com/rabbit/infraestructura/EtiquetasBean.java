@@ -20,6 +20,15 @@ import jakarta.inject.Named;
 @ApplicationScoped
 public class EtiquetasBean {
 
+    // Kilos y montos (ver Formatos): #{etiquetas.kilos(p.pesoKg)}.
+    public String kilos(java.math.BigDecimal kilos) {
+        return Formatos.kilos(kilos);
+    }
+
+    public String pesos(java.math.BigDecimal importe) {
+        return Formatos.pesos(importe);
+    }
+
     public String estadoPedido(Object estado) {
         switch (texto(estado)) {
             case "PENDIENTE": return "Pendiente";
@@ -155,8 +164,8 @@ public class EtiquetasBean {
 
     public String cobertura(Object cobertura) {
         switch (texto(cobertura)) {
-            case "PROPIA": return "Repartidores propios";
-            case "TRANSPORTISTA": return "Transportista";
+            case "PROPIA": return "Repartidores Rabbit";
+            case "TRANSPORTISTA": return "Logística tercerizada";
             default: return "—";
         }
     }
@@ -165,6 +174,7 @@ public class EtiquetasBean {
         switch (texto(resultado)) {
             case "REPARTIDOR": return "Con repartidor";
             case "DERIVADO": return "Derivado";
+            case "EN_ESPERA": return "En espera";
             case "SIN_ZONA": return "Sin zona";
             case "ERROR": return "No se despachó";
             default: return "—";
@@ -175,9 +185,29 @@ public class EtiquetasBean {
         switch (texto(resultado)) {
             case "REPARTIDOR": return "badge badge-verde";
             case "DERIVADO": return "badge badge-azul";
+            case "EN_ESPERA": return "badge badge-naranja";
             case "SIN_ZONA": return "badge badge-naranja";
             case "ERROR": return "badge badge-rojo";
             default: return "";
+        }
+    }
+
+    public String estadoLiquidacion(Object estado) {
+        switch (texto(estado)) {
+            case "PENDIENTE": return "Cobro pendiente";
+            case "COBRADA": return "Cobrada";
+            case "RECHAZADA": return "Rechazada por el banco";
+            case "VISTA_PREVIA": return "Vista previa";
+            default: return "—";
+        }
+    }
+
+    public String claseEstadoLiquidacion(Object estado) {
+        switch (texto(estado)) {
+            case "PENDIENTE": return "badge badge-naranja";
+            case "COBRADA": return "badge badge-verde";
+            case "RECHAZADA": return "badge badge-rojo";
+            default: return "badge badge-gris";
         }
     }
 

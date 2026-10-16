@@ -91,10 +91,13 @@ import com.rabbit.pedidos.datos.model.LineaPedidoExterno;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
+import com.rabbit.pedidos.datos.model.RemitoEntrega;
 import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
+import com.rabbit.pedidos.dto.RemitoDTO;
+import com.rabbit.pedidos.dto.ResumenEntregasDTO;
 
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
@@ -113,6 +116,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -127,6 +131,9 @@ import java.util.stream.Collectors;
 public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
 
     private static final Logger LOG = Logger.getLogger(PedidoService.class.getName());
+
+    // Tope de un pedido de punto de picking: más que cualquier vehículo.
+    private static final BigDecimal PESO_MAXIMO_PEDIDO_KG = new BigDecimal("5000");
 
     @Inject
     private PedidoRepository repository;
@@ -209,6 +216,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             throw new ValidacionException("El código postal de entrega tiene que tener 4 dígitos (o ser un CPA como C1414ABC)");
         }
         OrigenPedido origen = datos.origen != null ? datos.origen : OrigenPedido.STOCK_CONSIGNADO;
+        validarPesoInformado(datos.pesoKg, origen);
 
         // Idempotencia: si el ERP no recibió la respuesta (timeout) y
         // reintenta, la misma clave con el mismo pedido devuelve el que ya
@@ -235,6 +243,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         externo.setOrigen(origen);
         externo.setImporte(datos.importe);
         externo.setMedioPago(datos.medioPago);
+        externo.setPesoKg(datos.pesoKg);
         externo.setDireccionEntrega(datos.direccionEntrega.trim());
         externo.setCodigoPostalEntrega(CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega));
         externo.setFechaPedido(LocalDateTime.now());
@@ -288,6 +297,27 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         return idExterno;
     }
 
+    // El peso lo informa el comercio solo para PUNTO_PICKING; con stock
+    // consignado lo calcula Rabbit con el peso de cada ítem (ADR-032).
+    private void validarPesoInformado(BigDecimal pesoKg, OrigenPedido origen) {
+        if (pesoKg == null) {
+            return;
+        }
+        if (origen != OrigenPedido.PUNTO_PICKING) {
+            throw new ValidacionException("El peso solo se informa en pedidos de punto de picking: "
+                    + "con stock consignado lo calcula Rabbit con el peso de cada producto");
+        }
+        if (pesoKg.signum() <= 0) {
+            throw new ValidacionException("El peso del pedido debe ser mayor a cero");
+        }
+        if (pesoKg.compareTo(PESO_MAXIMO_PEDIDO_KG) > 0) {
+            throw new ValidacionException("El peso del pedido no puede superar los " + PESO_MAXIMO_PEDIDO_KG + " kg");
+        }
+        if (pesoKg.stripTrailingZeros().scale() > 3) {
+            throw new ValidacionException("El peso admite hasta 3 decimales (gramos)");
+        }
+    }
+
     private void validarCantidadLinea(int cantidad) {
         if (cantidad <= 0) {
             throw new ValidacionException("La cantidad debe ser mayor a cero");
@@ -330,6 +360,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             // retiro.
             validarPuntoPickingActivo(externo.getIdComercio(), externo.getIdPuntoPicking());
             pedido.setIdPuntoPicking(externo.getIdPuntoPicking());
+            pedido.setPesoKg(externo.getPesoKg());
             for (LineaPedidoExterno lineaExterna : externo.getLineas()) {
                 LineaPedido linea = new LineaPedido();
                 linea.setPedido(pedido);
@@ -377,6 +408,9 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             }
         }
         pedido.setLineas(lineasPedido);
+        if (externo.getOrigen() != OrigenPedido.PUNTO_PICKING) {
+            pedido.setPesoKg(pesoDeStockConsignado(lineasPedido));
+        }
 
         repository.guardarPedido(pedido);
         avisarCambioDeEstado(pedido);
@@ -388,6 +422,24 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         LOG.info("[Pedidos] Sincronizado pedido externo " + idPedidoExterno + " -> pedido "
                 + pedido.getId() + " (" + lineasPedido.size() + " línea(s))");
         return pedido.getId();
+    }
+
+    // Suma peso por unidad x cantidad de cada línea, con el peso que tiene
+    // hoy cada ítem. Si alguno no tiene peso cargado, el total no se conoce
+    // y queda null (contarlo como 0 haría pasar por liviano un pedido que
+    // no lo es).
+    private BigDecimal pesoDeStockConsignado(List<LineaPedido> lineas) {
+        Map<Long, BigDecimal> pesoPorItem =
+                stock.pesosPorItem(lineas.stream().map(LineaPedido::getIdItem).collect(Collectors.toList()));
+        BigDecimal total = BigDecimal.ZERO;
+        for (LineaPedido linea : lineas) {
+            BigDecimal pesoUnidad = pesoPorItem.get(linea.getIdItem());
+            if (pesoUnidad == null) {
+                return null;
+            }
+            total = total.add(pesoUnidad.multiply(BigDecimal.valueOf(linea.getCantidad())));
+        }
+        return total;
     }
 
     @Override
@@ -416,8 +468,8 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
-    public void confirmarPedido(Long idPedido) {
-        confirmar(idPedido, null);
+    public Long confirmarPedido(Long idPedido) {
+        return confirmar(idPedido, null);
     }
 
     @Override
@@ -428,25 +480,39 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     }
 
     // idZona: la zona del pedido (la decide Ruteo); el repartidor se busca
-    // primero ahí. Null: cualquier repartidor libre.
+    // primero ahí. Null: cualquier repartidor libre. Devuelve null si el
+    // pedido quedó en la lista de espera (ADR-037).
     private Long confirmar(Long idPedido, Long idZona) {
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
 
+        // Antes de cobrar: si no hay a quién dárselo, va a la lista de
+        // espera sin cobrar nada (no tiene sentido cobrar en el banco para
+        // reversarlo enseguida).
+        String motivoEspera = repartidores.motivoParaEsperar(
+                pedido.getPesoKg(), pedido.getBultos(), pedido.getIdRepartidorExcluido());
+        if (motivoEspera != null) {
+            ponerEnEspera(pedido, idZona, motivoEspera);
+            return null;
+        }
+
         // Los tres pasos son UNA transacción: si algo falla, el pedido sigue
         // PENDIENTE y no queda cobro ni repartidor asignado en Rabbit. Lo que
         // el rollback NO deshace es el cobro en el banco (sistema externo):
-        // si el banco ya autorizó y después no hay repartidor, Pagos pide la
-        // reversa al banco (ver ReversasBancarias). Se cobra primero a
-        // propósito: así ese caso se puede mostrar en la demo.
+        // si el banco ya autorizó y después no hay repartidor (otro se quedó
+        // con el lugar entre la consulta de arriba y la asignación), Pagos
+        // pide la reversa al banco (ver ReversasBancarias).
         //
         // Las excepciones de Repartidores y Pagos ya marcan la transacción
         // para rollback (@ApplicationException(rollback = true)); acá solo
         // se traducen a la de Pedidos para que la vista muestre el motivo.
         Long idRepartidor;
         try {
-            cobros.registrarCobro(idPedido, pedido.getIdComercio(), pedido.getImporte(), pedido.getMedioPago());
-            idRepartidor = repartidores.asignarRepartidor(idPedido, idZona);
+            registrarCobroSiFalta(pedido);
+            idRepartidor = repartidores.asignarRepartidor(idPedido, idZona != null ? idZona : pedido.getIdZonaEspera(),
+                    pedido.getPesoKg(), pedido.getBultos(), pedido.getIdRepartidorExcluido());
+        } catch (com.rabbit.repartidores.negocio.SinLugarException e) {
+            throw new SinRepartidorConLugarException(e.getMessage() + ". Probá de nuevo en un momento.");
         } catch (com.rabbit.repartidores.negocio.ValidacionException
                  | com.rabbit.pagos.negocio.ValidacionException e) {
             throw new ValidacionException(e.getMessage());
@@ -456,6 +522,105 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         return idRepartidor;
     }
 
+    // Un pedido devuelto al depósito ya tiene su cobro: no se cobra dos veces.
+    private void registrarCobroSiFalta(Pedido pedido) {
+        if (pedido.isCobroRegistrado()) {
+            return;
+        }
+        cobros.registrarCobro(pedido.getId(), pedido.getIdComercio(), pedido.getImporte(), pedido.getMedioPago());
+        pedido.setCobroRegistrado(true);
+    }
+
+    // Si ya estaba esperando, conserva su lugar en la fila (enEsperaDesde).
+    // AsignadorDeEspera pasa por acá cada minuto con los que siguen sin
+    // lugar: si no cambió nada, no se escribe.
+    private void ponerEnEspera(Pedido pedido, Long idZona, String motivo) {
+        String texto = aTexto300(motivo);
+        boolean yaEsperaba = pedido.isEnEspera();
+        if (yaEsperaba && texto.equals(pedido.getMotivoEspera())
+                && (idZona == null || idZona.equals(pedido.getIdZonaEspera()))) {
+            return;
+        }
+        if (!yaEsperaba) {
+            pedido.setEnEsperaDesde(LocalDateTime.now());
+        }
+        if (idZona != null) {
+            pedido.setIdZonaEspera(idZona);
+        }
+        pedido.setMotivoEspera(texto);
+        repository.actualizarPedido(pedido);
+        LOG.info("[Pedidos] Pedido " + pedido.getId() + " en lista de espera: " + motivo);
+    }
+
+    // REQUIRES_NEW: AsignadorDeEspera recorre la fila sin transacción y cada
+    // pedido se asigna (o falla) en la suya.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public Long asignarDesdeEspera(Long idPedido) {
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        if (pedido.getEstado() != EstadoPedido.PENDIENTE || !pedido.isEnEspera()) {
+            return null;
+        }
+        Long idRepartidor = confirmar(idPedido, null);
+        if (idRepartidor != null) {
+            LOG.info("[Pedidos] Pedido " + idPedido + " asignado desde la lista de espera al repartidor " + idRepartidor);
+        }
+        return idRepartidor;
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void sacarDeEspera(Long idPedido, String motivo) {
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        if (!pedido.isEnEspera()) {
+            return;
+        }
+        pedido.setEnEsperaDesde(null);
+        pedido.setMotivoEspera(aTexto300("No se pudo asignar solo: " + motivo + ". Confirmalo o derivalo a mano."));
+        repository.actualizarPedido(pedido);
+        LOG.warning("[Pedidos] Pedido " + idPedido + " sale de la lista de espera: " + motivo);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "REPARTIDOR"})
+    public void devolverADeposito(Long idPedido, String motivo) {
+        if (motivo == null || motivo.isBlank()) {
+            throw new ValidacionException("Contá por qué no se pudo entregar el pedido");
+        }
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        exigirRepartidorAsignado(pedido);
+        if (pedido.getEstado() != EstadoPedido.CONFIRMADO && pedido.getEstado() != EstadoPedido.EN_CAMINO) {
+            throw new ValidacionException("El pedido " + idPedido + " está " + pedido.getEstado()
+                    + ": solo se devuelve al depósito un pedido en reparto");
+        }
+        if (pedido.getIdRepartidor() == null) {
+            throw new ValidacionException("El pedido " + idPedido
+                    + " lo lleva una empresa de logística tercerizada: no se devuelve desde Rabbit");
+        }
+        Long idRepartidor = pedido.getIdRepartidor();
+        String detalle = aTexto300(motivo.trim());
+        repartidores.liberarRepartidor(idRepartidor, idPedido);
+
+        pedido.setIdRepartidor(null);
+        pedido.setIdRepartidorExcluido(idRepartidor);
+        pedido.setMotivoDevolucion(detalle);
+        // Se confirmó, así que tiene cobro (también los confirmados antes
+        // de que existiera esta marca).
+        pedido.setCobroRegistrado(true);
+        pedido.setEnEsperaDesde(LocalDateTime.now());
+        pedido.setMotivoEspera(aTexto300("Devuelto al depósito: " + detalle));
+        cambiarEstado(pedido, EstadoPedido.PENDIENTE);
+        LOG.info("[Pedidos] Pedido " + idPedido + " devuelto al depósito por el repartidor " + idRepartidor + ": " + detalle);
+    }
+
+    // Las columnas de la espera y la devolución son de 300.
+    private static String aTexto300(String texto) {
+        return texto.length() <= 300 ? texto : texto.substring(0, 297) + "...";
+    }
+
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
@@ -463,7 +628,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
         if (idTransportista == null) {
-            throw new ValidacionException("Elegí a qué transportista derivar el pedido");
+            throw new ValidacionException("Elegí a qué empresa de logística derivar el pedido");
         }
 
         // Mismo esquema que confirmarPedido, con el transportista en lugar
@@ -473,7 +638,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         DatosEnvioDTO datos = datosDeEnvio(pedido);
         String codigoSeguimiento;
         try {
-            cobros.registrarCobro(idPedido, pedido.getIdComercio(), pedido.getImporte(), pedido.getMedioPago());
+            registrarCobroSiFalta(pedido);
             codigoSeguimiento = envios.solicitarEnvio(idPedido, pedido.getIdComercio(), idTransportista, datos)
                     .getCodigoSeguimiento();
         } catch (com.rabbit.pagos.negocio.ValidacionException
@@ -539,17 +704,87 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         cambiarEstado(pedido, EstadoPedido.EN_CAMINO);
     }
 
+    // Con prueba: la entrega dispara el cobro contra entrega, así que no
+    // alcanza con un clic (ADR-033). OPERADOR no: la marca quien estuvo ahí
+    // (el repartidor) o, como contingencia, un ADMINISTRADOR.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
-    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
-    public void registrarEntrega(Long idPedido) {
+    @RolesAllowed({"ADMINISTRADOR", "REPARTIDOR"})
+    public void registrarEntrega(Long idPedido, byte[] imagen) {
+        String tipo = Remitos.tipoDeImagen(imagen);
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         exigirRepartidorAsignado(pedido);
+        if (pedido.getIdRepartidor() == null) {
+            throw new ValidacionException("El pedido " + idPedido
+                    + " lo lleva una empresa de logística tercerizada: su entrega la informa la empresa");
+        }
+        String usuario = contexto.getCallerPrincipal().getName();
+        LocalDateTime ahora = LocalDateTime.now();
+
+        RemitoEntrega remito = new RemitoEntrega();
+        remito.setIdPedido(idPedido);
+        remito.setTipoContenido(tipo);
+        remito.setImagen(imagen);
+        remito.setTamanoBytes(imagen.length);
+        remito.setFechaCarga(ahora);
+        remito.setCargadoPor(usuario);
+        repository.guardarRemito(remito);
+
+        pedido.setConRemito(true);
+        marcarEntregado(pedido, usuario, ahora);
+    }
+
+    // Lo dispara el seguimiento de envíos (timer con @RunAs): sin foto
+    // porque la prueba de entrega es del transportista. Un pedido con
+    // repartidor propio no puede entrar por acá sin remito.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void registrarEntregaDeTransportista(Long idPedido) {
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        if (pedido.getIdRepartidor() != null) {
+            throw new ValidacionException("El pedido " + idPedido
+                    + " lo lleva un repartidor de Rabbit: la entrega se registra con la foto del remito");
+        }
+        marcarEntregado(pedido, "transportista", LocalDateTime.now());
+    }
+
+    // El cobro CONTRA_ENTREGA NO se hace acá: lo efectiviza Pagos al
+    // recibir ENTREGADO por el tópico (ver SuscriptorPagosEstadoPedido).
+    private void marcarEntregado(Pedido pedido, String usuario, LocalDateTime cuando) {
+        pedido.setFechaEntrega(cuando);
+        pedido.setEntregadoPor(usuario);
         cambiarEstado(pedido, EstadoPedido.ENTREGADO);
-        // El repartidor queda libre para otro pedido. El cobro CONTRA_ENTREGA
-        // NO se hace acá: lo efectiviza Pagos al recibir ENTREGADO por el
-        // tópico (ver SuscriptorPagosEstadoPedido).
-        repartidores.liberarRepartidor(pedido.getIdRepartidor());
+        repartidores.liberarRepartidor(pedido.getIdRepartidor(), pedido.getId());
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.SUPPORTS)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "COMERCIO", "REPARTIDOR"})
+    public RemitoDTO obtenerRemito(Long idPedido) {
+        Pedido pedido = idPedido != null ? repository.buscarPedidoPorId(idPedido) : null;
+        RemitoEntrega remito = pedido != null && puedeVerRemito(pedido) ? repository.buscarRemitoDePedido(idPedido) : null;
+        if (remito == null) {
+            throw new PedidoNoEncontradoException("No hay remito para el pedido " + idPedido);
+        }
+        return new RemitoDTO(idPedido, remito.getTipoContenido(), remito.getImagen());
+    }
+
+    private boolean puedeVerRemito(Pedido pedido) {
+        if (contexto.isCallerInRole("ADMINISTRADOR") || contexto.isCallerInRole("OPERADOR")) {
+            return true;
+        }
+        try {
+            if (contexto.isCallerInRole("COMERCIO")) {
+                return pedido.getIdComercio().equals(contextoUsuario.idComercioActual());
+            }
+            if (contexto.isCallerInRole("REPARTIDOR")) {
+                return contextoUsuario.idRepartidorActual().equals(pedido.getIdRepartidor());
+            }
+        } catch (com.rabbit.seguridad.negocio.ValidacionException e) {
+            // Cuenta sin comercio o repartidor asociado: no ve nada.
+        }
+        return false;
     }
 
     @Override
@@ -577,7 +812,10 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             LOG.info("[Pedidos] Pedido externo " + idPedidoExterno + " cancelado por el ERP antes de sincronizarse");
         } else if (externo.getIdPedido() != null) {
             Pedido pedido = obtenerParaActualizarOFallar(externo.getIdPedido());
-            if (pedido.getEstado() == EstadoPedido.PENDIENTE) {
+            if (pedido.getEstado() == EstadoPedido.PENDIENTE && pedido.isCobroRegistrado()) {
+                throw new CancelacionNoPermitidaException("El pedido " + pedido.getId()
+                        + " ya salió a reparto y volvió al depósito: lo puede cancelar el personal de Rabbit.");
+            } else if (pedido.getEstado() == EstadoPedido.PENDIENTE) {
                 cancelar(pedido);
                 LOG.info("[Pedidos] Pedido " + pedido.getId() + " cancelado por el ERP");
             } else if (pedido.getEstado() != EstadoPedido.CANCELADO) {
@@ -613,10 +851,14 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         // un OPERADOR recibe EJBAccessException y no se cancela nada.
         if (pedido.getEstado() == EstadoPedido.CONFIRMADO) {
             cobros.anularCobro(idPedido);
-            repartidores.liberarRepartidor(pedido.getIdRepartidor());
+            repartidores.liberarRepartidor(pedido.getIdRepartidor(), idPedido);
             // Si lo llevaba un transportista, se le cancela el envío (se le
             // avisa recién cuando esta cancelación queda confirmada).
             envios.cancelarEnvioDePedido(idPedido);
+        } else if (pedido.isCobroRegistrado()) {
+            // PENDIENTE pero devuelto al depósito: conserva el cobro de
+            // cuando se confirmó.
+            cobros.anularCobro(idPedido);
         }
 
         // El stock de cada línea con reserva se descontó al sincronizarla
@@ -730,6 +972,25 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
                 .collect(Collectors.toList());
     }
 
+    @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public List<ResumenEntregasDTO> resumenEntregas(LocalDateTime desde, LocalDateTime hasta) {
+        return repository.resumenEntregas(desde, hasta).stream()
+                .map(fila -> new ResumenEntregasDTO((Long) fila[0], ((Number) fila[1]).intValue(),
+                        fila[2] != null ? (BigDecimal) fila[2] : BigDecimal.ZERO))
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    @RolesAllowed("COMERCIO")
+    public ResumenEntregasDTO resumenEntregasDelComercioActual(LocalDateTime desde, LocalDateTime hasta) {
+        Long idComercio = contextoUsuario.idComercioActual();
+        return resumenEntregas(desde, hasta).stream()
+                .filter(r -> r.idComercio().equals(idComercio))
+                .findFirst()
+                .orElse(new ResumenEntregasDTO(idComercio, 0, BigDecimal.ZERO));
+    }
+
     // Todas las filas del mock del ERP (sincronizadas y pendientes) —
     // deja ver en la vista el "antes y después" de la sincronización.
     @Override
@@ -780,6 +1041,8 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             if (pedido != null) {
                 dto.estadoPedido = pedido.getEstado().name();
                 dto.codigoSeguimiento = pedido.getCodigoSeguimiento();
+                dto.enListaDeEspera = pedido.getEstado() == EstadoPedido.PENDIENTE && pedido.isEnEspera();
+                dto.devueltoADeposito = pedido.getEstado() == EstadoPedido.PENDIENTE && pedido.isCobroRegistrado();
             }
         }
         return dto;
@@ -821,6 +1084,12 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     // y avisa el cambio.
     private void cambiarEstado(Pedido pedido, EstadoPedido destino) {
         validarTransicion(pedido, destino);
+        if (destino != EstadoPedido.PENDIENTE) {
+            // Confirmado, derivado o cancelado: ya no espera repartidor.
+            pedido.setEnEsperaDesde(null);
+            pedido.setMotivoEspera(null);
+            pedido.setIdZonaEspera(null);
+        }
         pedido.setEstado(destino);
         pedido.setFechaActualizacion(LocalDateTime.now());
         repository.actualizarPedido(pedido);

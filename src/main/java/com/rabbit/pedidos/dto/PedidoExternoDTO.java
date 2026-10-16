@@ -24,6 +24,7 @@ public class PedidoExternoDTO {
     public Long idPuntoPicking;
     public List<LineaPedidoDTO> lineas;
     public BigDecimal importe;
+    public BigDecimal pesoKg;
     public MedioPago medioPago;
     public String direccionEntrega;
     public String codigoPostalEntrega;
@@ -36,6 +37,9 @@ public class PedidoExternoDTO {
     // DTO solo ve la fila del ERP).
     public String estadoPedido;
     public String codigoSeguimiento;
+    // Lista de espera y devolución al depósito (ADR-037).
+    public boolean enListaDeEspera;
+    public boolean devueltoADeposito;
 
     // Convierte una entidad PedidoExterno en un DTO listo para la vista.
     public static PedidoExternoDTO desde(PedidoExterno pe) {
@@ -45,6 +49,7 @@ public class PedidoExternoDTO {
         dto.origen = pe.getOrigen();
         dto.idPuntoPicking = pe.getIdPuntoPicking();
         dto.importe = pe.getImporte();
+        dto.pesoKg = pe.getPesoKg();
         dto.medioPago = pe.getMedioPago();
         dto.direccionEntrega = pe.getDireccionEntrega();
         dto.codigoPostalEntrega = pe.getCodigoPostalEntrega();
@@ -89,6 +94,7 @@ public class PedidoExternoDTO {
     public Long getIdPuntoPicking() { return idPuntoPicking; }
     public List<LineaPedidoDTO> getLineas() { return lineas; }
     public BigDecimal getImporte() { return importe; }
+    public BigDecimal getPesoKg() { return pesoKg; }
     public MedioPago getMedioPago() { return medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
     public String getCodigoPostalEntrega() { return codigoPostalEntrega; }

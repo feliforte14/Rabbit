@@ -10,12 +10,12 @@ package com.rabbit.seguridad.negocio;
  * mejor. Contrastar con ServicioDeInventario (@Stateful), donde sí hace
  * falta recordar la reserva en curso entre llamadas.
  *
- * Gestiona el padrón de usuarios de la app (tabla "usuarios") Y, vía
- * ApplicationRealmSync, lo mantiene sincronizado con el ApplicationRealm
- * nativo de WildFly — el que realmente resuelve la autenticación y el rol
- * que evalúan las anotaciones @RolesAllowed en operaciones sensibles de
- * otros componentes (ver ComercioService.eliminarComercio). Sin esa
- * sincronización, un alta acá no alcanzaría para poder loguearse.
+ * Gestiona el padrón de usuarios de la app (tabla "usuarios"), con el
+ * hash bcrypt de cada contraseña. WildFly autentica leyendo esa misma
+ * tabla con su realm JDBC (ADR-031) y de ahí saca el rol que evalúan las
+ * anotaciones @RolesAllowed (ver ComercioService.eliminarComercio). Como
+ * la base es compartida, una cuenta creada acá entra en el WildFly de
+ * cualquier integrante.
  *
  * EVIDENCIA DE CICLO DE VIDA GESTIONADO POR EL CONTENEDOR:
  * @PostConstruct/@PreDestroy no los llama nadie del código de la app — los
@@ -41,9 +41,6 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.SessionContext;
 import jakarta.ejb.Stateless;
-import jakarta.transaction.Status;
-import jakarta.transaction.Synchronization;
-import jakarta.transaction.TransactionSynchronizationRegistry;
 import jakarta.inject.Inject;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
@@ -72,9 +69,6 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
     @Resource
     private SessionContext contexto;
 
-    @Resource
-    private TransactionSynchronizationRegistry transacciones;
-
     // Para validar a quién representa una cuenta COMERCIO o REPARTIDOR.
     @Inject
     private IConsultaComercios comercios;
@@ -97,9 +91,9 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
     // IRegistroUsuarios
 
     /**
-     * Crea un usuario nuevo: guarda su perfil en la tabla "usuarios" y su
-     * credencial SOLO en el ApplicationRealm de WildFly, que es quien la
-     * valida al iniciar sesión (ver ApplicationRealmSync).
+     * Crea un usuario nuevo: guarda en la tabla "usuarios" su perfil y el
+     * hash bcrypt de su contraseña, que es lo que valida WildFly al iniciar
+     * sesión (ADR-031).
      *
      * @param datos datos ingresados en el formulario de alta
      * @return el ID asignado por la BD al nuevo usuario
@@ -124,19 +118,13 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         usuario.setActivo(true);
         usuario.setIdComercio(representaUnComercio(rol) ? datos.idComercio : null);
         usuario.setIdRepartidor(rol == Rol.REPARTIDOR ? datos.idRepartidor : null);
-        Long id = repository.guardar(usuario).getId();
-
-        // Sin esto, el usuario queda en esta tabla pero no puede loguearse
-        // — ver ApplicationRealmSync. Si esto falla, el throw revierte
-        // también el alta en la tabla "usuarios" (unchecked -> rollback).
-        ApplicationRealmSync.altaUsuario(usuario.getUsername(), datos.password, usuario.getRol().name());
-        quitarDelRealmSiSeDeshace(usuario.getUsername(), "El alta");
-        return id;
+        usuario.setHashClave(Claves.hashear(datos.password));
+        return repository.guardar(usuario).getId();
     }
 
     /**
-     * Reactiva una cuenta dada de baja con una contraseña nueva y la vuelve
-     * a poner en el ApplicationRealm. Revalida a quién representa: el
+     * Reactiva una cuenta dada de baja con una contraseña nueva. Revalida
+     * a quién representa: el
      * comercio pudo darse de baja, o el repartidor tener otra cuenta, desde
      * que esta se dio de baja.
      */
@@ -160,60 +148,80 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         validarAsociacion(usuario.getRol(), asociacion);
 
         usuario.setActivo(true);
+        usuario.setHashClave(Claves.hashear(passwordNueva));
         repository.actualizar(usuario);
-        ApplicationRealmSync.altaUsuario(usuario.getUsername(), passwordNueva, usuario.getRol().name());
-        quitarDelRealmSiSeDeshace(usuario.getUsername(), "La reactivación");
     }
 
-    // El realm se escribe dentro de la transacción, pero no es parte de
-    // ella: si la transacción se deshace después (por ejemplo, falla el
-    // commit), sin compensar la cuenta podría entrar sin estar activa en la
-    // tabla.
-    private void quitarDelRealmSiSeDeshace(String username, String operacion) {
-        transacciones.registerInterposedSynchronization(new Synchronization() {
-            @Override
-            public void beforeCompletion() {
-            }
-
-            @Override
-            public void afterCompletion(int estado) {
-                if (estado != Status.STATUS_COMMITTED) {
-                    LOG.warning("[Usuarios] " + operacion + " de " + username + " se deshizo: se quita del realm");
-                    ApplicationRealmSync.bajaUsuario(username);
-                }
-            }
-        });
+    /**
+     * Le pone una contraseña nueva a una cuenta activa. Sirve para quien
+     * olvidó la suya y para pasar a la base las cuentas creadas antes de
+     * ADR-031, que solo entraban en la máquina donde se crearon.
+     */
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
+    public void restablecerClave(Long id, String passwordNueva) {
+        Usuario usuario = obtenerOFallar(id);
+        if (!usuario.isActivo()) {
+            throw new ValidacionException("El usuario " + usuario.getUsername()
+                    + " está dado de baja: reactivalo con una contraseña nueva");
+        }
+        validarPassword(passwordNueva);
+        usuario.setHashClave(Claves.hashear(passwordNueva));
+        repository.actualizar(usuario);
+        // Desde ahora entra con la contraseña de la base: la línea vieja del
+        // realm de archivos de esta máquina ya no se usa.
+        ApplicationRealmSync.bajaUsuario(usuario.getUsername());
     }
 
     /**
      * Baja lógica: el usuario deja de poder autenticarse (ver
-     * Usuario.activo), tanto en la tabla propia como en el
-     * ApplicationRealm de WildFly.
+     * Usuario.activo) en el WildFly de todos, porque el realm JDBC solo
+     * acepta cuentas activas.
      *
      * @param id ID del usuario a dar de baja
      * @throws ValidacionException si el usuario no existe
      */
-    // Si la transacción se deshace después de quitarlo del realm, la cuenta
-    // queda sin poder entrar aunque siga activa en la tabla: es el lado
-    // seguro (menos acceso, no más), y se corrige dándola de baja y
-    // reactivándola.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed("ADMINISTRADOR")
     public void darDeBaja(Long id) {
         Usuario usuario = obtenerOFallar(id);
-        if (usuario.getUsername().equals(contexto.getCallerPrincipal().getName())) {
-            throw new ValidacionException("No podés darte de baja a vos mismo");
-        }
-        // Sin administradores activos nadie podría volver a dar de alta
-        // usuarios desde la aplicación.
-        if (usuario.getRol() == Rol.ADMINISTRADOR && usuario.isActivo()
-                && repository.contarAdministradoresActivos() <= 1) {
-            throw new ValidacionException("No se puede dar de baja al último administrador activo");
-        }
+        exigirQueSePuedaSacar(usuario, "dar de baja");
         usuario.setActivo(false);
         repository.actualizar(usuario);
+        // Una cuenta vieja (sin hash en la base) puede tener además una
+        // línea en el realm de archivos de esta máquina: se borra. En las
+        // otras máquinas la bloquea el realm JDBC (ADR-031).
         ApplicationRealmSync.bajaUsuario(usuario.getUsername());
+    }
+
+    /**
+     * Baja física: borra la fila de "usuarios". Mismas protecciones que la
+     * baja lógica; además se borra la línea que pudiera tener en el realm de
+     * archivos de esta máquina (cuentas anteriores a ADR-031).
+     */
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
+    public void eliminarUsuario(Long id) {
+        Usuario usuario = obtenerOFallar(id);
+        exigirQueSePuedaSacar(usuario, "eliminar");
+        repository.eliminar(usuario);
+        ApplicationRealmSync.bajaUsuario(usuario.getUsername());
+    }
+
+    // Ni la propia cuenta ni el último administrador activo: sin
+    // administradores nadie podría volver a dar de alta usuarios desde la
+    // aplicación.
+    private void exigirQueSePuedaSacar(Usuario usuario, String accion) {
+        if (usuario.getUsername().equals(contexto.getCallerPrincipal().getName())) {
+            throw new ValidacionException("No podés " + accion + " tu propia cuenta");
+        }
+        if (usuario.getRol() == Rol.ADMINISTRADOR && usuario.isActivo()
+                && repository.contarAdministradoresActivos() <= 1) {
+            throw new ValidacionException("No se puede " + accion + " al último administrador activo");
+        }
     }
 
     // Una cuenta COMERCIO o ERP representa a un comercio existente y activo;
@@ -245,16 +253,17 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         return rol == Rol.COMERCIO || rol == Rol.ERP;
     }
 
-    // El username termina escrito en los archivos de properties del realm
-    // (ver ApplicationRealmSync): una lista blanca estricta evita que un
-    // salto de línea, "=" o ":" altere las entradas de otros usuarios.
+    // Lista blanca estricta para el username: es el identificador de login
+    // en WildFly y también se busca en los archivos del realm local (ver
+    // ApplicationRealmSync), donde un salto de línea, "=" o ":" podría
+    // confundir las entradas de otros usuarios.
     private void validarUsername(String username) {
         if (username == null || username.isBlank()) {
             throw new ValidacionException("El nombre de usuario es obligatorio");
         }
         if (!ApplicationRealmSync.usernameValido(username.trim())) {
             throw new ValidacionException("El nombre de usuario debe tener entre 3 y 30 caracteres: "
-                    + "letras, números, punto, guion o guion bajo");
+                    + "letras, números, punto, guion o guion bajo, sin espacios");
         }
     }
 
@@ -278,7 +287,7 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         return repository.listarTodos().stream().map(UsuarioDTO::desde).collect(Collectors.toList());
     }
 
-    // Devuelve el usuario como DTO (nunca expone la entidad, ni su passwordHash)
+    // Devuelve el usuario como DTO (nunca expone la entidad, ni el hash de la contraseña)
     @Override
     public UsuarioDTO obtenerUsuario(Long id) {
         return UsuarioDTO.desde(obtenerOFallar(id));

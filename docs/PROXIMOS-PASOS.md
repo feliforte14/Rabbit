@@ -7,6 +7,54 @@ pensadas para que cada uno pueda tomar una sin pisar el trabajo de otro.
 Tachá o movelo a "Hecho" cuando lo termines (y avisá en el grupo, para que
 no lo tome otro en paralelo).
 
+## Hecho: mejoras del tablero (15/10/2026)
+
+Implementadas en la rama `feature/mejoras-trello` (todavía sin mergear a
+`main`), probadas de punta a punta (ver la sección 10 de
+[FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
+
+- [x] Contraseñas centralizadas en la base (ADR-031).
+- [x] Peso de los bultos y límite por repartidor en kilos y bultos (ADR-032).
+- [x] Quién marca la entrega y foto del remito obligatoria (ADR-033).
+- [x] Liquidación mensual a comercios (ADR-034). **A definir por el
+      equipo:** los valores de la tarifa (hoy $15.000 + $1.200 por envío +
+      $80 por kilo, configurables).
+- [x] Ubicación del repartidor en vivo, mapa del personal y del cliente (ADR-035).
+- [x] Eliminar usuarios, repartidores y zonas, solo administrador (ADR-036).
+- [x] Vista previa del mes en curso en "Mis liquidaciones" del comercio.
+- [ ] **Al mergear a `main`:** cada integrante despliega y corre una vez
+      `scripts/configurar-realm-compartido.cli` (README, paso 5).
+
+## Hecho: correcciones del equipo (16/10/2026)
+
+De la lista "Testing NO OK" de Trello, en la misma rama (ver la sección 11
+de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
+
+- [x] Si el repartidor no tiene lugar, se le asigna a otro; si nadie,
+      lista de espera automática, sin cobrar (ADR-037).
+- [x] Hora de corte de la hoja de ruta: **21:00**, definida por el
+      equipo; se cambia sin tocar código (`rabbit.ruteo.hora-corte`,
+      ADR-037).
+- [x] "Devolver a depósito" desde Mis entregas: vuelve a la lista de
+      espera para otro repartidor, sin cobrar de nuevo (ADR-037).
+- [x] Hoja de ruta recomendada con link a Google Maps en tramos; la foto
+      del remito se sube en una ventana al tocar "Entregar pedido"
+      (ADR-038).
+- [x] Durante la prueba guiada: barra lateral sin scroll en pantallas
+      bajas, motivo de la lista de espera más claro (aclara cuando no
+      vuelve al repartidor que lo devolvió) y errores del alta de
+      usuarios junto al formulario (un nombre con espacios parecía no
+      hacer nada).
+- [ ] **Mejora menor:** una pestaña de "Mis entregas" que quedó abierta
+      desde antes de un redespliegue sigue intentando mandar la
+      ubicación y deja un `ViewExpiredException` en el log cada vez. Se
+      podría hacer que `ubicacion.js` recargue la página en ese caso.
+- [ ] **A definir por el equipo:**
+  - si se geocodifican las direcciones para ordenar el recorrido por
+    distancia real (hoy, por cercanía de código postal);
+  - la cobranza por almacenamiento: es solo una propuesta, sin
+    implementar ([PROPUESTA-COBRANZA-ALMACENAMIENTO.md](PROPUESTA-COBRANZA-ALMACENAMIENTO.md)).
+
 ## 1. Revisar en el código
 
 ### Limitaciones ya documentadas (pendientes de resolver)
@@ -61,15 +109,18 @@ riesgo, sin tocar comportamiento:
       `Mensajes.ejecutar(Runnable accion, String mensajeExito)` que
       envuelva ese try/catch común.
 
-### Cobertura de tests (hoy hay 27 unitarios + 10 de integración)
+### Cobertura de tests (hoy hay 62 unitarios + 10 de integración)
 
-Los tests unitarios de hoy cubren sobre todo Pedidos y Seguridad. Sin
-tests propios todavía:
+Los tests unitarios cubren sobre todo Pedidos, Seguridad, las reglas
+puras de Repartidores (capacidad, a quién se asigna, hora de corte) y de
+Ruteo (orden de la hoja de ruta y links a Google Maps), y la tarifa
+mensual. Sin tests propios todavía:
 
 - [ ] `comercios` (alta, baja/reactivación, eliminación en cascada)
 - [ ] `inventario` (reservar/confirmar/liberar stock, vencimiento)
-- [ ] `repartidores`
-- [ ] `ruteo` (zonas, despacho)
+- [ ] `repartidores` (alta, liberar al entregar; la capacidad, la
+      asignación y el corte ya tienen)
+- [ ] `ruteo` (zonas, despacho; el orden de la hoja de ruta ya tiene)
 - [ ] `transportistas` (cotizar, derivar, seguimiento)
 - [ ] `pagos` (circuit breaker, reversa)
 - [ ] `notificaciones`

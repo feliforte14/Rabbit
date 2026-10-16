@@ -19,7 +19,7 @@
         PROJECT_STAGE=Production: en Development JSF muestra stack traces y
         detalles internos cuando algo falla, informacion util para un
         atacante. El CSS no queda cacheado viejo porque se sirve desde una
-        carpeta versionada (resources/rabbit/1_11/): al cambiarlo se sube la
+        carpeta versionada (resources/rabbit/1_17/): al cambiarlo se sube la
         version. Para depurar en local se puede volver a Development.
     -->
     <context-param>
@@ -31,6 +31,14 @@
         <servlet-name>Faces Servlet</servlet-name>
         <servlet-class>jakarta.faces.webapp.FacesServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
+        <!-- Formularios con archivo (h:inputFile): la foto del remito de
+             entrega (ADR-033). El celular la achica antes de subirla
+             (remito.js); 8 MB de tope deja margen si no pudo. -->
+        <multipart-config>
+            <max-file-size>8388608</max-file-size>
+            <max-request-size>9437184</max-request-size>
+            <file-size-threshold>1048576</file-size-threshold>
+        </multipart-config>
     </servlet>
     <servlet-mapping>
         <servlet-name>Faces Servlet</servlet-name>

@@ -71,6 +71,15 @@ public interface IConsultaStock {
     Long registrarItem(Long idDeposito, DatosItemInventarioDTO datos);
 
     /**
+     * Carga o corrige el peso por unidad de un ítem (ADR-032).
+     *
+     * @param idItem ítem de inventario
+     * @param pesoKg kilos por unidad, mayor a cero
+     * @throws ValidacionException si el ítem no existe o el peso es inválido
+     */
+    void actualizarPesoItem(Long idItem, java.math.BigDecimal pesoKg);
+
+    /**
      * TODO el stock de un deposito, de todos los comercios. Es la vista de
      * operador de Rabbit: quien administra el galpon ve todo lo que hay
      * adentro, sin importar de quien sea. Para las pantallas donde se
@@ -96,6 +105,15 @@ public interface IConsultaStock {
 
     /** Varios ítems por ID en una sola consulta (lo usa Ruteo). */
     List<ItemInventarioDTO> listarItemsPorIds(Collection<Long> idsItems);
+
+    /**
+     * El peso por unidad de cada ítem (ADR-032), para calcular el peso de
+     * un pedido. Un ítem sin peso cargado queda con valor null; uno que no
+     * existe no aparece. Sin restricción de rol: la usa la sincronización
+     * de pedidos del ERP, que corre sin usuario (JMS y timer), y no expone
+     * nada más que el peso.
+     */
+    java.util.Map<Long, java.math.BigDecimal> pesosPorItem(Collection<Long> idsItems);
 
     /** Stock consignado del comercio que representa el usuario que llama (rol COMERCIO). */
     List<ItemInventarioDTO> listarStockDelComercioActual();

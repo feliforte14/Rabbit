@@ -2,23 +2,28 @@
 
 ## Autenticación
 
-- Jakarta Security contra el `ApplicationRealm` nativo de WildFly (no hay
-  un `IdentityStore` propio).
-- Al registrar un usuario, `UsuarioService` lo guarda en la tabla
-  `usuarios` y lo sincroniza al realm (`ApplicationRealmSync`, que
-  escribe `application-users.properties`).
+- El login (`request.login`) lo valida WildFly con el dominio
+  `ApplicationDomain`, que busca la cuenta primero en la tabla `usuarios`
+  de la base compartida (un `jdbc-realm` de Elytron) y, si no está ahí,
+  en los archivos de add-user.sh de esa máquina (ADR-031,
+  `scripts/configurar-realm-compartido.cli`). No hay un `IdentityStore`
+  propio.
+- Al registrar un usuario, `UsuarioService` guarda en la tabla `usuarios`
+  su perfil y el hash de su contraseña. Como la base es compartida, la
+  cuenta entra en el WildFly de cualquier integrante.
 - **No hay alta pública de cuentas:** los usuarios los crea un
   `ADMINISTRADOR`. El primer administrador se crea en el servidor con
   `add-user.sh` (README, paso 5).
 - Al iniciar sesión se renueva el ID de sesión (`changeSessionId`),
   contra *session fixation*.
-- Contraseñas: hay **una sola copia**, en el ApplicationRealm de WildFly
-  (MD5 de `usuario:ApplicationRealm:contraseña`, el formato que exige su
-  properties-realm), que es quien la valida. La tabla `usuarios` guarda el
-  perfil (rol, comercio o repartidor), **no** contraseñas: antes guardaba
-  además un SHA-256 sin salt que nadie usaba para autenticar, y una
-  credencial redundante solo suma riesgo si la base se filtra.
-  `LimpiezaDeCredenciales` borra esa columna al desplegar (ADR-023).
+- Contraseñas: **bcrypt** (costo 10, con sal propia) en
+  `usuarios.hash_clave` (`Claves`), y es lo que valida el login. El realm
+  JDBC solo lee el hash de cuentas activas: una baja corta el acceso en
+  todas las máquinas a la vez. Las cuentas creadas antes de ADR-031 siguen
+  en los archivos de add-user.sh (MD5) hasta que un administrador les
+  restablezca la contraseña. La columna vieja `passwordhash` (SHA-256 sin
+  salt, que nadie usaba) la borra `LimpiezaDeCredenciales` al desplegar
+  (ADR-023).
 - **Límite de intentos de login:** 5 intentos fallidos seguidos bloquean
   ese usuario 15 minutos (`LimiteDeIntentos`); el login ni consulta al
   realm mientras dura. El mensaje es el mismo exista o no el usuario. Vive
@@ -57,18 +62,28 @@ La autorización real está en la capa de Negocio, sobre los EJB:
 | `ComercioService.eliminarComercio` | Borra físicamente el comercio y sus puntos de picking en cascada, y su historial cancelado (pedidos, avisos, cobros anulados, envíos; ADR-028) |
 | `UsuarioService.registrarUsuario` | Crea cuentas con acceso al sistema. Si fuera público, cualquiera se daría un `OPERADOR` |
 | Alta y cambios de comercios, depósitos, stock y repartidores; `confirmarPedido` y `cancelarPedido` | Solo el personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) |
-| `despacharPedido`, `registrarEntrega` | Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido |
+| `despacharPedido` (EN_CAMINO) | Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido |
+| `registrarEntrega` (ENTREGADO) | Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR`, y siempre con la foto del remito (ADR-033): dispara el cobro contra entrega. La foto se valida por sus primeros bytes (JPEG, PNG o WEBP) y hasta 5 MB |
+| `devolverADeposito` | Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR` (ADR-037). El pedido se forzó con un ID ajeno en el formulario: "no está asignado a vos" |
+| `asignarDesdeEspera`, `sacarDeEspera` | Personal de Rabbit; en la práctica las llama `AsignadorDeEspera` con `@RunAs("OPERADOR")`. Va en un bean propio porque `AvisosDeEspera`, que lo dispara después del commit, no puede tener `@RunAs`: en esa fase Elytron no puede consultar el realm JDBC |
+| `obtenerRemito` (`/remito?pedido=ID`) | El personal, el `COMERCIO` dueño del pedido y su `REPARTIDOR`. Cualquier otro caso responde 404, sin distinguir si existe |
+| `registrarUbicacion` | Solo el `REPARTIDOR`, para sí mismo y mientras tiene entregas en curso (ADR-035). El seguimiento público muestra la ubicación solo si el repartidor lleva ESE pedido |
+| `liquidarMes`, `reintentarCobro` | Solo `ADMINISTRADOR` (o el timer mensual con `@RunAs`): cobran por el banco (ADR-034) |
+| `previsualizarMesEnCursoDelComercioActual`, `resumenEntregasDelComercioActual` | Solo `COMERCIO`, y solo con sus entregas: el resumen de todos los comercios (`resumenEntregas`) es del personal |
+| `UsuarioService.eliminarUsuario`, `RepartidorService.eliminarRepartidor`, `ZonaService.eliminarZona` | Solo `ADMINISTRADOR`: borran físicamente y no se deshacen (ADR-036). No se puede eliminar la propia cuenta, ni al último administrador activo, ni un repartidor con entregas en curso o con cuenta |
+| `IConsultaStock.pesosPorItem` | Sin rol a propósito: la usa la sincronización de pedidos del ERP, que corre sin usuario (JMS y timer). Devuelve solo el peso de cada ítem; el listado completo del stock sigue siendo del personal |
 | `registrarPedidoExterno` | Personal de Rabbit (simulación) o el `ERP`, que solo carga pedidos de su comercio (el comercio sale de su cuenta, no del cuerpo del pedido) |
-| `cancelarPedidoExterno` | Solo el `ERP`, y solo pedidos de su comercio que todavía estén pendientes |
+| `cancelarPedidoExterno` | Solo el `ERP`, y solo pedidos de su comercio que todavía estén pendientes (no uno devuelto al depósito, que ya salió a reparto) |
 | Puntos de picking (alta, baja, reactivación) | Personal de Rabbit o el `COMERCIO` dueño |
 | Consultas del portal (`listarPedidosDelComercioActual`, `listarStockDelComercioActual`, `listarDelComercioActual`, `listarCobrosDelComercioActual`) | Solo `COMERCIO`, y solo lo suyo. El cobro guarda el comercio dueño, así que Pagos valida la pertenencia sin consultar a Pedidos |
 | Listados de pedidos, pedidos del ERP y cobros (`listarTodos`, `listarPedidosExternos`, `listarEntregasEnCurso`, `obtenerCobroDePedido`) | Solo el personal de Rabbit. `consultarPedidoExterno`, también el `ERP` (solo los de su comercio: uno ajeno responde como inexistente). `consultarSeguimiento` es pública a propósito (seguimiento sin login por código aleatorio, solo el estado) |
 | Transportistas: alta, baja, derivar un pedido (`derivarATransportista`), envíos | Solo el personal de Rabbit. Un `COMERCIO` ve solo los envíos de sus pedidos (`listarEnviosDelComercioActual`) |
-| Ruteo: tablero de entregas / entregas del repartidor | Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas |
+| Ruteo: tablero de entregas / entregas del repartidor y su hoja de ruta recomendada (`recorridoRecomendado`) | Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas |
 | Ruteo: zonas (alta, baja, reactivación), `despacharPedido`, `despacharZona`, `listarPendientesPorZona`; zona de un repartidor (`asignarZona`) | Solo el personal de Rabbit |
 | `UsuarioService.listarTodos` | Expone el padrón completo de usuarios |
 | `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |
-| `UsuarioService.reactivarUsuario` | Le devuelve el acceso a una cuenta dada de baja, con una contraseña nueva: la baja la sacó del realm, que es el único lugar donde vive la contraseña, así que no hay de dónde recuperar la anterior. Revalida que su comercio siga activo o que su repartidor no tenga otra cuenta activa |
+| `UsuarioService.reactivarUsuario` | Le devuelve el acceso a una cuenta dada de baja, con una contraseña nueva (la anterior no se puede recuperar del hash). Revalida que su comercio siga activo o que su repartidor no tenga otra cuenta activa |
+| `UsuarioService.restablecerClave` | Cambia la contraseña de una cuenta activa: quien la cambia puede entrar como esa cuenta. También pasa a la base las cuentas creadas antes de ADR-031 |
 | `PagoService.anularCobro` | Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR` |
 | `PedidosExternosResource` (`/api/v1/pedidos-externos`) | Un sistema externo carga pedidos en Rabbit: solo el rol `ERP`. Sin credenciales responde `401`; con un usuario de otro rol, o un ERP sin comercio asociado, `403`. El `401` y el `403` por rol los responde WildFly en HTML, antes de llegar al código: es la seguridad declarativa en acción |
 
@@ -90,7 +105,8 @@ repartidor del cliente:
 
 - las consultas del portal del comercio filtran por su comercio;
 - `despacharPedido` y `registrarEntrega` rechazan a un `REPARTIDOR` que no
-  tiene asignado ese pedido;
+  tiene asignado ese pedido, y el remito solo lo ve el comercio dueño o
+  ese repartidor;
 - `ComercioService` rechaza que un `COMERCIO` toque puntos de picking de
   otro comercio (y `comercio/puntos-picking.xhtml` ignora el `idComercio` de la URL
   para un comercio).
@@ -116,24 +132,25 @@ Cuando no alcanza con el rol, `UsuarioService.darDeBaja` controla además:
 
 ### Usuarios y archivos del realm
 
-`ApplicationRealmSync` escribe el username en los archivos de properties
-del realm, que son texto `usuario=valor` por línea. Un username con salto
-de línea, `=` o `:` podría alterar las entradas de otros usuarios. Por
-eso:
+Desde ADR-031 las altas van solo a la base, dentro de la transacción: si
+se deshace, no queda nada a medias. Los archivos de add-user.sh de cada
+máquina siguen existiendo (administrador inicial, cuentas viejas), y
+`ApplicationRealmSync` los toca en dos casos: para no crear desde la app
+una cuenta con un nombre que ya existe ahí, y para borrar la línea de una
+cuenta que se da de baja o pasa a la base. Esos archivos son texto
+`usuario=valor` por línea; un username con salto de línea, `=` o `:`
+podría alterar las entradas de otros usuarios. Por eso:
 
 - solo se aceptan letras, números, punto, guion y guion bajo, entre 3 y
   30 caracteres (se valida en `UsuarioService` y otra vez en
   `ApplicationRealmSync`);
-- no se puede crear un usuario que ya exista en el realm (por ejemplo, el
-  del ERP creado con `add-user.sh`): lo pisaría;
-- las escrituras se serializan para que dos altas simultáneas no se
-  pisen;
-- cada archivo se reemplaza de forma atómica (temporal + move), y los dos
-  van juntos: si falla el segundo, el primero vuelve a su contenido
-  original;
-- si el alta se deshace después de escribir el realm (por ejemplo, falla
-  el commit), se quita al usuario del realm. En la baja, el caso inverso
-  deja la cuenta sin acceso, que es el lado seguro.
+- las escrituras se serializan, y cada archivo se reemplaza de forma
+  atómica (temporal + move); si falla el segundo, el primero vuelve a su
+  contenido original.
+
+Una baja de una cuenta vieja borra su línea solo en la máquina donde se
+hace; en las demás la bloquea el realm JDBC, que encuentra la cuenta
+inactiva en la base y no sigue buscando en los archivos.
 
 ### Control de UX en la vista
 
@@ -145,8 +162,9 @@ Cada tipo de usuario ve su propio menú, y un usuario `ERP` no puede
 entrar a la web (el login lo rechaza). Las páginas están en una carpeta
 por tipo de usuario (`personal/`, `comercio/`, `repartidor/`), y la
 plantilla con el menú vive en `WEB-INF/plantillas/`, que el contenedor
-nunca sirve por URL. El link "Ver recorrido en el mapa" manda las
-direcciones del pedido a Google solo cuando alguien lo toca (Rabbit no
+nunca sirve por URL. Los links a Google Maps ("Ver recorrido en el mapa"
+en el tablero, "Abrir en Google Maps" en la hoja de ruta del repartidor)
+mandan las direcciones a Google solo cuando alguien los toca (Rabbit no
 llama a ningún servicio de mapas), y abre en otra pestaña con
 `rel="noopener noreferrer"`. **No es seguridad**: la vista puede
 ocultar botones, pero la autorización siempre la impone el EJB.
@@ -216,11 +234,10 @@ Además, el login y la página de error, que tienen que verse sin sesión.
 - El certificado HTTPS de WildFly es autofirmado (el navegador advierte,
   `curl` necesita `-k`). En producción iría un certificado de una
   autoridad reconocida en el `key-store` de Elytron.
-- Las contraseñas del realm de WildFly son un MD5 de
-  `usuario:ApplicationRealm:contraseña` (el formato que exige el
-  properties-realm): el usuario hace de salt, pero MD5 es rápido de
-  probar. En producción iría un realm JDBC o LDAP con bcrypt/PBKDF2.
-  Mínimo de 6 caracteres.
+- Las cuentas que siguen en los archivos de add-user.sh (el administrador
+  inicial, las viejas sin migrar) tienen un MD5 de
+  `usuario:ApplicationRealm:contraseña`, rápido de probar. Las de la base
+  usan bcrypt. Mínimo de 6 caracteres.
 - El límite de intentos vive en memoria de cada servidor: se pierde al
   reiniciar y, con varios nodos, cada uno cuenta por su lado. La API del
   ERP (HTTP Basic, autenticada por WildFly) no tiene ese freno.

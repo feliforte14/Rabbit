@@ -1,0 +1,17 @@
+<!--
+    Pestañas de la sección Repartos: quién lleva los pedidos. Son dos
+    pantallas aparte (Repartidor y Transportista son entidades distintas:
+    una persona con cuenta y hoja de ruta, una empresa integrada por SOAP o
+    REST), unificadas en un solo ítem del menú. Cada página la incluye
+    debajo de su título.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:ui="jakarta.faces.facelets"
+                xmlns:h="jakarta.faces.html">
+    <nav class="pestanas" aria-label="Repartos">
+        <h:link outcome="/personal/repartidores" value="Repartidores Rabbit"
+                styleClass="#{view.viewId == '/personal/repartidores.xhtml' ? 'activa' : ''}" />
+        <h:link outcome="/personal/transportistas" value="Logística tercerizada"
+                styleClass="#{view.viewId == '/personal/transportistas.xhtml' ? 'activa' : ''}" />
+    </nav>
+</ui:composition>

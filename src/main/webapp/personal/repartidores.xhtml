@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    Listado y alta de repartidores. Se bindea a repartidorBean
+    Listado, alta y eliminacion (solo administrador) de repartidores. Se bindea a repartidorBean
     (RepartidorBean.java). La asignacion a pedidos no se hace desde aca:
     la hace PedidoService al confirmar un pedido (ver
     IAsignacionRepartidores).
@@ -16,10 +16,12 @@
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
 
-    <ui:define name="titulo">Rabbit · Repartidores</ui:define>
+    <ui:define name="titulo">Rabbit · Repartos · Repartidores Rabbit</ui:define>
 
     <ui:define name="contenido">
-        <h1>Repartidores</h1>
+        <h1>Repartos</h1>
+
+        <ui:include src="/WEB-INF/plantillas/pestanas-repartos.xhtml" />
 
         <h:messages globalOnly="true" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
@@ -51,14 +53,23 @@
                                   styleClass="#{etiquetas.claseEstadoRepartidor(r.estado)}" />
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
-                    <f:facet name="header">Pedido a cargo</f:facet>
-                    <h:outputText value="Pedido #{r.idPedidoActual}" rendered="#{not empty r.idPedidoActual}" />
-                    <h:outputText value="—" rendered="#{empty r.idPedidoActual}" />
+                    <f:facet name="header">Vehículo</f:facet>
+                    #{repartidorBean.capacidad(r)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Lleva</f:facet>
+                    #{repartidorBean.carga(r)}
+                </h:column>
+                <h:column styleClass="acciones" rendered="#{sesionBean.admin}">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Eliminar" styleClass="btn btn-danger"
+                                     action="#{repartidorBean.eliminar(r.id)}"
+                                     onclick="return confirm('¿Eliminar definitivamente a #{r.nombre}? Esta acción no se puede deshacer.');" />
                 </h:column>
             </h:dataTable>
         </h:form>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty repartidorBean.repartidores}">
-            Todavía no hay repartidores. Sin repartidores disponibles, los pedidos solo se pueden derivar a un transportista.
+            Todavía no hay repartidores. Sin repartidores disponibles, los pedidos solo se pueden derivar a logística tercerizada.
         </h:panelGroup>
 
         <h2>Registrar repartidor</h2>
@@ -68,7 +79,7 @@
         </p>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel for="nombre" value="Nombre" />
+                <h:outputLabel styleClass="obligatorio" for="nombre" value="Nombre" />
                 <h:inputText id="nombre" value="#{repartidorBean.nuevoRepartidor.nombre}"
                              required="true" label="Nombre"
                              requiredMessage="Ingresá el nombre del repartidor" />
@@ -90,6 +101,21 @@
                 </h:selectOneMenu>
             </div>
 
+            <div class="campo">
+                <h:outputLabel for="capacidadKg" value="Capacidad del vehículo en kg (opcional)" />
+                <h:inputText id="capacidadKg" value="#{repartidorBean.nuevoRepartidor.capacidadKg}" label="Capacidad en kg"
+                             converterMessage="La capacidad tiene que ser un número, con punto para los decimales" />
+                <h:message for="capacidadKg" styleClass="error-campo" />
+            </div>
+
+            <div class="campo">
+                <h:outputLabel for="capacidadBultos" value="Capacidad en bultos (opcional)" />
+                <h:inputText id="capacidadBultos" value="#{repartidorBean.nuevoRepartidor.capacidadBultos}" label="Capacidad en bultos"
+                             converterMessage="La capacidad en bultos tiene que ser un número entero" />
+                <h:message for="capacidadBultos" styleClass="error-campo" />
+                <p class="ayuda">Con la capacidad cargada, Rabbit le asigna varios pedidos mientras le entren. Sin capacidad, lleva uno a la vez.</p>
+            </div>
+
             <div class="form-acciones">
                 <h:commandButton value="Registrar" styleClass="btn btn-primary" action="#{repartidorBean.registrar}" />
             </div>
@@ -98,7 +124,7 @@
         <h2>Cambiar la zona de un repartidor</h2>
         <h:form id="formZona" styleClass="formulario" rendered="#{not empty repartidorBean.repartidores}">
             <div class="campo">
-                <h:outputLabel for="repartidorZona" value="Repartidor" />
+                <h:outputLabel styleClass="obligatorio" for="repartidorZona" value="Repartidor" />
                 <h:selectOneMenu id="repartidorZona" value="#{repartidorBean.idRepartidorACambiar}"
                                  required="true" label="Repartidor" requiredMessage="Elegí el repartidor">
                     <f:selectItem itemLabel="— Elegí un repartidor —" itemValue="#{null}" />
@@ -115,6 +141,40 @@
             </div>
             <div class="form-acciones">
                 <h:commandButton value="Cambiar zona" styleClass="btn btn-primary" action="#{repartidorBean.cambiarZona}" />
+            </div>
+        </h:form>
+
+        <h2>Capacidad del vehículo</h2>
+        <h:form id="formCapacidad" styleClass="formulario" rendered="#{not empty repartidorBean.repartidores}">
+            <p class="ayuda">
+                Cuánto soporta el vehículo del repartidor. Se le asignan pedidos mientras la suma no pase
+                ninguno de los dos límites; los pedidos de peso desconocido solo cuentan bultos. Dejá los
+                dos vacíos para que lleve un pedido a la vez. No le saca los pedidos que ya lleva.
+            </p>
+            <div class="campo">
+                <h:outputLabel styleClass="obligatorio" for="repartidorCapacidad" value="Repartidor" />
+                <h:selectOneMenu id="repartidorCapacidad" value="#{repartidorBean.idRepartidorCapacidad}"
+                                 required="true" label="Repartidor" requiredMessage="Elegí el repartidor">
+                    <f:selectItem itemLabel="— Elegí un repartidor —" itemValue="#{null}" />
+                    <f:selectItems value="#{repartidorBean.repartidores}" var="r" itemValue="#{r.id}"
+                                   itemLabel="#{r.nombre} (#{repartidorBean.capacidad(r)})" />
+                </h:selectOneMenu>
+                <h:message for="repartidorCapacidad" styleClass="error-campo" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="capacidadKgNueva" value="Kilos" />
+                <h:inputText id="capacidadKgNueva" value="#{repartidorBean.capacidadKgNueva}" label="Kilos"
+                             converterMessage="La capacidad tiene que ser un número, con punto para los decimales" />
+                <h:message for="capacidadKgNueva" styleClass="error-campo" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="capacidadBultosNueva" value="Bultos" />
+                <h:inputText id="capacidadBultosNueva" value="#{repartidorBean.capacidadBultosNueva}" label="Bultos"
+                             converterMessage="La capacidad en bultos tiene que ser un número entero" />
+                <h:message for="capacidadBultosNueva" styleClass="error-campo" />
+            </div>
+            <div class="form-acciones">
+                <h:commandButton value="Guardar capacidad" styleClass="btn btn-primary" action="#{repartidorBean.cambiarCapacidad}" />
             </div>
         </h:form>
     </ui:define>

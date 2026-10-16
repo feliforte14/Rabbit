@@ -1,49 +1,34 @@
 package com.rabbit.seguridad.negocio;
 
 /**
- * Sincroniza el alta/baja de usuarios de la app con el ApplicationRealm
- * nativo de WildFly. Sin esto, registrarse en usuarios.xhtml guardaba una
- * fila en la tabla "usuarios" pero la persona seguía sin poder loguearse:
- * la autenticación real la resuelve el dominio de seguridad del servidor
- * (ver LoginBean, que explica por qué se usa ApplicationRealm en vez de
- * un IdentityStore propio), no esta tabla.
+ * Lo que queda del realm de archivos de cada WildFly
+ * (application-users.properties / application-roles.properties, los de
+ * add-user.sh) desde que las cuentas viven en la base (ADR-031).
  *
- * SIMPLIFICACIÓN A PROPÓSITO PARA EL ALCANCE DEL TP: escribe directo a los
- * mismos archivos de properties que usa add-user.sh
- * (application-users.properties / application-roles.properties), con el
- * mismo formato de hash (MD5 de "usuario:ApplicationRealm:contraseña",
- * ver digest-realm-name="ApplicationRealm" en standalone.xml). Funciona
- * sin reiniciar el servidor porque el properties-realm de WildFly relee
- * esos archivos por timestamp en cada intento de login — el mismo
- * mecanismo que permite que add-user.sh no necesite reiniciar nada.
+ * Esos archivos ya no reciben altas: el realm JDBC lee las contraseñas de
+ * la tabla "usuarios". Siguen sirviendo para dos cosas: el administrador
+ * inicial de cada instalación (add-user.sh) y las cuentas creadas antes de
+ * ADR-031, que todavía no tienen contraseña en la base. Esta clase solo
+ * consulta si un nombre está tomado ahí y borra la línea de una cuenta
+ * cuando se la da de baja o se le pasa la contraseña a la base.
  *
  * SEGURIDAD: los archivos son texto "usuario=valor" por línea, así que un
  * username con salto de línea, "=" o ":" podría alterar las entradas de
  * otros usuarios. Por eso solo se acepta un username que pase
- * {@link #usernameValido} (se revisa acá además de en UsuarioService), no
- * se pisa un usuario que ya exista en el realm (por ejemplo el del ERP,
- * creado con add-user.sh), y las escrituras se serializan para que dos
- * altas simultáneas no se pisen entre sí.
+ * {@link #usernameValido}, y las escrituras se serializan.
  *
  * ATOMICIDAD: cada archivo se escribe entero en un temporal y se reemplaza
  * con un move atómico, así nunca queda a medio escribir. Los dos archivos
  * van juntos: si falla el segundo, el primero vuelve a su contenido
- * original, así un usuario nunca queda en uno solo de los dos.
- *
- * No es el camino para producción real — ahí correspondería un Elytron
- * custom realm respaldado por la tabla "usuarios", o delegar en un
- * Identity Provider externo.
+ * original.
  */
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
-import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,8 +36,6 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public final class ApplicationRealmSync {
-
-    private static final String REALM = "ApplicationRealm";
 
     private static final Pattern PATRON_USERNAME = Pattern.compile("^[A-Za-z0-9._-]{3,30}$");
 
@@ -63,42 +46,10 @@ public final class ApplicationRealmSync {
     private ApplicationRealmSync() {}
 
     /**
-     * Da de alta al usuario en el ApplicationRealm: escribe su hash en
-     * application-users.properties y su rol en application-roles.properties.
-     * A partir de acá ya puede loguearse (ver LoginBean.login).
+     * Borra la línea del usuario de los dos archivos del realm de esta
+     * máquina, si la tiene. Si no la tiene, no cambia nada.
      *
-     * @param username usuario, igual al de la tabla "usuarios"
-     * @param passwordEnClaro contraseña sin hashear (se hashea acá, con el algoritmo propio del realm)
-     * @param rol nombre del rol (ver Rol) que WildFly va a exponer como "group" al autenticar
-     */
-    public static void altaUsuario(String username, String passwordEnClaro, String rol) {
-        exigirUsernameValido(username);
-        try {
-            Path configDir = configDir();
-            Path usuarios = configDir.resolve("application-users.properties");
-            synchronized (LOCK) {
-                if (tieneLinea(usuarios, username)) {
-                    throw new IllegalStateException("El usuario " + username + " ya existe en el servidor");
-                }
-                Path roles = configDir.resolve("application-roles.properties");
-                Map<Path, List<String>> nuevos = new LinkedHashMap<>();
-                nuevos.put(usuarios, conLinea(usuarios, username, hashDigest(username, passwordEnClaro)));
-                nuevos.put(roles, conLinea(roles, username, rol));
-                reemplazar(nuevos);
-            }
-        } catch (IOException e) {
-            throw new IllegalStateException(
-                    "No se pudo sincronizar el usuario con el ApplicationRealm del servidor", e);
-        }
-    }
-
-    /**
-     * Quita al usuario del ApplicationRealm (borra su línea de ambos
-     * archivos de properties) — a partir de acá ya no puede autenticarse,
-     * aunque la fila siga existiendo en la tabla "usuarios" (ver
-     * UsuarioService.darDeBaja, que es baja lógica, no elimina la fila).
-     *
-     * @param username usuario a remover del realm
+     * @param username usuario a quitar de los archivos
      */
     public static void bajaUsuario(String username) {
         exigirUsernameValido(username);
@@ -154,16 +105,6 @@ public final class ApplicationRealmSync {
         return Path.of(dir);
     }
 
-    // Reemplaza (o agrega) la línea "username=valor" de un archivo de
-    // properties del realm — primero saca la línea vieja si existía, para
-    // no dejar duplicados que el properties-realm de WildFly no sabría
-    // resolver.
-    private static List<String> conLinea(Path archivo, String username, String valor) throws IOException {
-        List<String> lineas = sinLineaDe(archivo, username);
-        lineas.add(username + "=" + valor);
-        return lineas;
-    }
-
     // Reemplaza varios archivos como una unidad: si falla uno, los que ya
     // se reemplazaron vuelven a su contenido original.
     private static void reemplazar(Map<Path, List<String>> nuevos) throws IOException {
@@ -212,19 +153,5 @@ public final class ApplicationRealmSync {
         return Files.readAllLines(archivo).stream()
                 .filter(linea -> !linea.startsWith(username + "="))
                 .collect(Collectors.toList());
-    }
-
-    // Hash MD5 de "usuario:realm:contraseña" — el formato exacto que
-    // exige el properties-realm de WildFly para ApplicationRealm (ver
-    // digest-realm-name en standalone.xml). Es la única copia de la
-    // credencial: la tabla "usuarios" no guarda contraseñas.
-    private static String hashDigest(String username, String passwordEnClaro) {
-        try {
-            MessageDigest md5 = MessageDigest.getInstance("MD5");
-            String entrada = username + ":" + REALM + ":" + passwordEnClaro;
-            return HexFormat.of().formatHex(md5.digest(entrada.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("MD5 no disponible en esta JVM", e);
-        }
     }
 }

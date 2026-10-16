@@ -18,6 +18,14 @@ public interface IZonas {
 
     void reactivarZona(Long idZona);
 
+    /**
+     * Borra la zona definitivamente. Solo ADMINISTRADOR. Los pedidos no
+     * guardan su zona (se calcula del código postal), así que los
+     * pendientes de ahí pasan a "sin zona"; los repartidores que tenían
+     * esa zona quedan sin zona fija (ver ZonaEliminada).
+     */
+    void eliminarZona(Long idZona);
+
     List<ZonaDTO> listarTodas();
 
     /** @return la zona activa que contiene el código postal, o null */

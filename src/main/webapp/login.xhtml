@@ -25,7 +25,7 @@
 <h:body styleClass="pagina-sola">
     <div class="container">
         <div class="login-marca">
-            <p class="marca">rabbit</p>
+            <h:graphicImage library="rabbit" name="logo.png" alt="rabbit" styleClass="marca-logo" />
             <p class="slogan">Entregas urbanas para comercios</p>
         </div>
 
@@ -52,12 +52,15 @@
                                requiredMessage="Ingresá tu contraseña" />
             </div>
 
-            <div class="form-acciones">
+            <div class="form-acciones login-acciones">
                 <h:commandButton value="Ingresar" styleClass="btn btn-primary" action="#{loginBean.login}" />
             </div>
         </h:form>
 
-        <p class="ayuda">¿No tenés cuenta? Pedísela a un administrador de Rabbit.</p>
+        <!-- Sin alta abierta: el pedido llega por mail y un administrador
+             crea la cuenta (ver LoginBean.getContactoMailto). -->
+        <p class="ayuda">¿Sos un comercio o repartidor y no tenés cuenta? Escribinos a
+            <a href="#{loginBean.contactoMailto}">#{loginBean.contactoMail}</a> y te la creamos.</p>
 
         <!-- Para el cliente final, que no tiene cuenta: el seguimiento publico. -->
         <p class="enlace-seguimiento">

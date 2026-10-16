@@ -183,7 +183,7 @@
                 Los productos que se ofrecen aca ya vienen filtrados por el.
             -->
             <div class="campo">
-                <h:outputLabel for="item" value="Producto" />
+                <h:outputLabel styleClass="obligatorio" for="item" value="Producto" />
                 <h:selectOneMenu id="item" value="#{reservaBean.idItem}"
                                  required="true" label="Producto"
                                  requiredMessage="Elegí el producto a reservar">
@@ -203,7 +203,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="cantidad" value="Cantidad" />
+                <h:outputLabel styleClass="obligatorio" for="cantidad" value="Cantidad" />
                 <h:inputText id="cantidad" value="#{reservaBean.cantidad}"
                              required="true" label="Cantidad"
                              requiredMessage="Ingresá la cantidad a reservar" />

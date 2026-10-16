@@ -94,6 +94,16 @@
                 <f:facet name="header">Estado</f:facet>
                 <h:outputText value="#{etiquetas.estadoPedido(p.estado)}"
                               styleClass="#{etiquetas.claseEstadoPedido(p.estado)}" />
+                <h:panelGroup rendered="#{p.conRemito}">
+                    <span class="dato-secundario">
+                        <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>
+                    </span>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{p.estado == 'EN_CAMINO' and not empty p.codigoSeguimiento}">
+                    <span class="dato-secundario">
+                        <a href="#{request.contextPath}/seguimiento.xhtml?codigo=#{p.codigoSeguimiento}" target="_blank" rel="noopener noreferrer">Seguir en el mapa</a>
+                    </span>
+                </h:panelGroup>
             </h:column>
             <h:column styleClass="col-p3" headerClass="col-p3">
                 <f:facet name="header">Cobro</f:facet>

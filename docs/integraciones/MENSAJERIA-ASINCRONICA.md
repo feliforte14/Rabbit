@@ -65,6 +65,7 @@ sequenceDiagram
 | Falla de negocio (comercio de baja, sin stock) | Se descarta el pedido con motivo y el mensaje se consume (reintentarlo no lo arregla) |
 | Mensaje ilegible | Se loguea y se consume |
 | Error transitorio (base caída) | Se relanza; el broker reintenta la entrega |
+| Un componente rechaza la llamada por permisos | El consumidor y el polling corren **sin usuario**: todo lo que llaman tiene que estar permitido sin rol. Si no, cada intento falla y el pedido queda "Pendiente" en "Recibidos del ERP" hasta que se corrija (pasó con el peso de los ítems; se agregó `pesosPorItem` sin rol, ADR-032) |
 
 **Orden:** no importa, cada mensaje es independiente (un ID por pedido).
 
@@ -87,7 +88,8 @@ Pedidos no conoce a los suscriptores: se puede agregar otro sin tocarlo.
 | `EstadoPedidoCambiado` | Evento CDI que dispara `PedidoService` en cada cambio de estado |
 | `PublicadorEstadosPedido` | Productor JMS + declaración del tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`, igual que la cola) |
 | `SuscriptorPagosEstadoPedido` | MDB de Pagos, filtra `estado = 'ENTREGADO'` |
-| `SuscriptorNotificacionesEstadoPedido` | MDB de Notificaciones, recibe todos los cambios |
+| `SuscriptorNotificacionesEstadoPedido` | MDB de Notificaciones, recibe todos los cambios (a un pedido devuelto al depósito le avisa "volvió al depósito") |
+| `AvisosDeEspera` | No es del tópico: observa el mismo evento CDI (`AFTER_SUCCESS`) dentro de Rabbit y, si un pedido se entregó, canceló o devolvió, programa una pasada de la lista de espera (ADR-037) |
 
 **Mensaje:** `TextMessage` con body
 `{"idPedido", "idComercio", "estado", "fechaCambio"}` y propiedades JMS
@@ -103,7 +105,7 @@ sequenceDiagram
     participant T as topico.pedidos.estado
     participant Pag as SuscriptorPagos
     participant Not as SuscriptorNotificaciones
-    U->>PS: registrarEntrega(id)
+    U->>PS: registrarEntrega(id, foto del remito)
     PS->>PS: UPDATE estado = ENTREGADO
     PS-)Pub: evento EstadoPedidoCambiado
     Note over PS,Pub: commit, recién después corre el observer (AFTER_SUCCESS)

@@ -5,25 +5,18 @@ package com.rabbit.seguridad.presentacion;
  * contenedor. Junta usuario/contraseña del formulario y llama a
  * HttpServletRequest.login(), la API estándar de Servlet: el propio
  * WildFly valida la credencial contra el dominio de seguridad de la
- * aplicación (ApplicationDomain / ApplicationRealm) y, si es válida,
+ * aplicación (ApplicationDomain) y, si es válida,
  * asocia el caller y sus roles a la sesión — esos roles son los que
  * después evalúan las anotaciones @RolesAllowed en cualquier EJB (ver
  * ComercioService.eliminarComercio).
  *
- * NOTA DE ALCANCE: se evaluó primero un IdentityStore propio (Jakarta
- * Security) para autenticar contra la tabla "usuarios" de UsuarioService,
- * pero en este WildFly el subsistema ejb3/undertow ya mapea la app al
- * dominio "ApplicationDomain" a nivel de servidor
- * (application-security-domain "other" -> ApplicationDomain, ver
- * standalone.xml) — el mismo dominio que hace funcionar @RolesAllowed en
- * ComercioService. Pelear ese mapeo agregaba una capa de configuración de
- * Elytron fuera del alcance de "seguridad declarativa mínima". Se optó
- * por lo que YA es nativo y funciona: usuarios/roles administrados con
- * add-user.sh en ApplicationRealm. UsuarioService sigue siendo el tercer
- * componente funcional (alta/baja de usuarios de la aplicación como dato
- * de negocio), separado de las credenciales que usa el contenedor para
- * autenticar — la misma separación que ya existe en cualquier sistema real
- * entre un Identity Provider y el perfil de usuario de la aplicación.
+ * DE DÓNDE SALEN LAS CUENTAS (ADR-031): el dominio de seguridad de la
+ * aplicación (ApplicationDomain) busca primero en la tabla "usuarios" de
+ * la base compartida, con un realm JDBC que valida el hash bcrypt, y solo
+ * si la cuenta no está ahí, en los archivos de add-user.sh de esta máquina
+ * (el administrador inicial y las cuentas viejas). Así, una cuenta creada
+ * desde cualquier WildFly del equipo entra en todos. La configuración la
+ * deja scripts/configurar-realm-compartido.cli.
  */
 
 import com.rabbit.infraestructura.Mensajes;
@@ -103,6 +96,32 @@ public class LoginBean implements Serializable {
         }
         request.getSession().invalidate();
         facesContext.getExternalContext().redirect(request.getContextPath() + "/login.xhtml");
+    }
+
+    // Pedido de cuenta: no hay alta abierta (ver UsuarioService), así que
+    // quien no tiene cuenta escribe a Rabbit y un administrador la crea a
+    // mano. La dirección se configura con la system property
+    // rabbit.contacto.mail, como las de AvisosPorMail.
+    public String getContactoMail() {
+        return System.getProperty("rabbit.contacto.mail", "altas_rabbit@gmail.com");
+    }
+
+    // mailto: con asunto y cuerpo ya escritos, para que el primer mail
+    // traiga lo que el administrador necesita para dar el alta.
+    public String getContactoMailto() {
+        String asunto = "Solicitud de cuenta en Rabbit";
+        String cuerpo = "Hola, quiero una cuenta en Rabbit.\n\n"
+                + "Soy (comercio / repartidor):\n"
+                + "Nombre o razón social:\n"
+                + "CUIT / DNI:\n"
+                + "Teléfono:\n";
+        return "mailto:" + getContactoMail() + "?subject=" + codificar(asunto) + "&body=" + codificar(cuerpo);
+    }
+
+    // URLEncoder codifica para formularios (espacio = "+"); en un mailto:
+    // el espacio va como %20.
+    private static String codificar(String texto) {
+        return java.net.URLEncoder.encode(texto, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).

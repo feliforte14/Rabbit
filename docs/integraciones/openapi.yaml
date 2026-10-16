@@ -70,6 +70,7 @@ paths:
                   importe: 89000.00
                   medioPago: CONTRA_ENTREGA
                   direccionEntrega: Lima 775, CABA
+                  pesoKg: 1.2
       responses:
         '201':
           description: Pedido registrado (o ya registrado con esa clave). Queda Pendiente hasta que se sincroniza.
@@ -164,6 +165,8 @@ paths:
         Si ya es un pedido `PENDIENTE`, se cancela y se devuelve el stock
         (`estadoPedido: CANCELADO`). Desde `CONFIRMADO` en adelante ya tiene
         cobro y repartidor: responde 409 y lo cancela el personal de Rabbit.
+        Lo mismo con un `PENDIENTE` que el repartidor devolvió al depósito:
+        ya salió a reparto (409).
         Idempotente: cancelar algo ya cancelado devuelve 200 con el mismo estado.
       security:
         - basicAuth: []
@@ -328,6 +331,11 @@ components:
           type: string
           maxLength: 8
           description: 4 dígitos o CPA (C1414ABC). Si no viene, se busca en la dirección. Con otro formato ("12") responde 422 (regla de negocio, no de formato).
+        pesoKg:
+          type: number
+          minimum: 0.001
+          maximum: 5000
+          description: Solo con PUNTO_PICKING, opcional. Kilos totales del pedido, con hasta 3 decimales; sin él, el límite del repartidor solo cuenta bultos. Con STOCK_CONSIGNADO no se informa (responde 422) porque Rabbit lo calcula con el peso de cada ítem.
     LineaPedido:
       type: object
       required: [cantidad]
@@ -361,6 +369,12 @@ components:
         codigoSeguimiento:
           type: string
           description: Para el seguimiento público. Se lo puede pasar al cliente final.
+        enListaDeEspera:
+          type: boolean
+          description: |
+            Solo con `estadoPedido: PENDIENTE`. `true` si Rabbit lo quiso
+            confirmar pero ningún repartidor tenía lugar (o ya había pasado la
+            hora de corte de la hoja de ruta): se asigna solo en cuanto se pueda.
         motivo:
           type: string
           description: Por qué se descartó o canceló.
@@ -384,6 +398,13 @@ components:
         estado:
           type: string
           enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO]
+        ubicacionRepartidor:
+          type: object
+          description: Solo EN_CAMINO con un repartidor de Rabbit que compartió su ubicación en los últimos 15 minutos. Si no, el campo no viene.
+          properties:
+            latitud: { type: number, example: -34.6037 }
+            longitud: { type: number, example: -58.3816 }
+            actualizada: { type: string, description: "Hora local de Rabbit (sin zona), ej. 2026-10-15T14:05:12" }
     Problema:
       type: object
       description: Problem Details (RFC 9457).

@@ -31,6 +31,8 @@
 | `REQUIRES_NEW` | `TransportistaService.registrarNovedad` | Cada novedad de un envío (y el cambio de estado del pedido que dispara) en su propia transacción: una que falla no arrastra a las demás de la pasada |
 | `NOT_SUPPORTED` | `RuteoService.despacharPedido` / `despacharZona` | El despacho no abre transacción: cada pedido se confirma o deriva en la suya (la de `confirmarPedidoEnZona` o `derivarATransportista`), así un pedido que falla (por ejemplo, el cobro) no deshace los demás de la zona. Ver ADR-017 |
 | `NOT_SUPPORTED` | `PedidosExternosResource`, `SeguimientoResource` (API REST) | El recurso no abre transacción: cada operación de negocio confirma la suya, así un error al confirmar (dos reintentos simultáneos con la misma `Idempotency-Key` chocan contra la restricción única) llega al recurso, que reintenta y responde bien, en vez de explotar después de que el método terminó. Ver ADR-018 |
+| `NOT_SUPPORTED` + `REQUIRES_NEW` | `AsignadorDeEspera` → `PedidoService.asignarDesdeEspera` / `sacarDeEspera` | La pasada por la lista de espera no abre transacción; cada pedido se asigna (cobro + repartidor) o sale de la fila en la suya, así uno que falla no frena a los demás (ADR-037) |
+| `AFTER_SUCCESS` (observer) | `AvisosDeEspera` | Después del commit de una entrega, cancelación o devolución programa una pasada de la lista de espera en un timer: no demora la pantalla de quien hizo el cambio ni corre con su usuario |
 | `NOT_SUPPORTED` | `CircuitBreakerBanco` | Solo cambia estado en memoria: no tiene nada que hacer en la transacción del llamador |
 
 ## Flujo 1: sincronizar un pedido externo (implementado)
@@ -60,8 +62,9 @@ una devolución, se deshacen también las anteriores.
 | Paso | Si falla… |
 |---|---|
 | 1. Validar que el pedido esté PENDIENTE | No cambia nada |
-| 2. `IRegistroCobros.registrarCobro` (PREPAGO: `autorizarPago` en el banco por SOAP) | Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE |
-| 3. `IAsignacionRepartidores.asignarRepartidor` | Sin repartidor disponible: rollback en Rabbit **y reversa en el banco** (el rollback no alcanza al sistema externo) |
+| 1b. `IAsignacionRepartidores.motivoParaEsperar` (sin bloqueo, ADR-037) | Nadie tiene lugar o pasó la hora de corte: el pedido queda en la lista de espera, **sin cobrar**, y la transacción confirma solo esa marca |
+| 2. `IRegistroCobros.registrarCobro` (PREPAGO: `autorizarPago` en el banco por SOAP), salvo que ya tenga cobro (devuelto al depósito) | Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE |
+| 3. `IAsignacionRepartidores.asignarRepartidor` | Otro se quedó con el lugar justo después del paso 1b: rollback en Rabbit **y reversa en el banco** (el rollback no alcanza al sistema externo) |
 | 4. Estado CONFIRMADO + `EstadoPedidoCambiado` | Rollback de todo |
 | 5. Publicación en el tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`) | Se loguea; no deshace la confirmación (misma decisión que ADR-002) |
 
@@ -71,8 +74,10 @@ transacción a propósito. El banco tampoco participa de la transacción
 (un sistema legado por SOAP no puede): lo que hace se compensa con una
 reversa.
 
-Probado: sin repartidores, el banco llega a cobrar, Rabbit hace rollback
-y se le pide la reversa al banco; con un PREPAGO de más de $500.000 el
+Probado: sin repartidores con lugar, el pedido va a la lista de espera
+sin llamar al banco (antes de ADR-037 se cobraba, se hacía rollback y se
+pedía la reversa; esa reversa sigue cubriendo la carrera del paso 3 y la
+cancelación de un prepago); con un PREPAGO de más de $500.000 el
 banco lo rechaza y no hay nada que reversar; con el banco caído el pedido
 sigue PENDIENTE (tras 3 fallas seguidas el circuit breaker corta al
 instante, sin esperar el timeout). Ver [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md).
@@ -85,31 +90,44 @@ Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
 
 | Operación | Qué hace, en la misma transacción |
 |---|---|
-| `registrarEntrega` | Estado ENTREGADO + libera al repartidor. El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
+| `registrarEntrega` | Guarda la foto del remito (ADR-033), estado ENTREGADO + le saca el pedido al repartidor (borra su `CargaAsignada`; si era el último, queda DISPONIBLE). El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
 | `cancelarPedido` (desde CONFIRMADO) | Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si era PREPAGO, después del commit se pide la reversa al banco. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada |
 
-## Flujo 5: alta de usuario, en la base y en el realm (implementado)
+## Flujo 5: alta de usuario (implementado)
 
-`UsuarioService.registrarUsuario`, `REQUIRED`. El usuario vive en dos
-lugares: la tabla `usuarios` (dentro de la transacción) y los archivos del
-realm de WildFly (fuera de ella: un archivo no participa de JTA).
+`UsuarioService.registrarUsuario`, `REQUIRED`. Desde ADR-031 la cuenta
+vive solo en la tabla `usuarios` (perfil y hash bcrypt de la contraseña),
+que es lo que lee WildFly al loguear: todo queda dentro de una
+transacción.
 
 | Paso | Si falla… |
 |---|---|
 | 1. Validar username, contraseña y a quién representa la cuenta | No cambia nada |
-| 2. Guardar la fila en `usuarios` | Rollback |
-| 3. Escribir los dos archivos del realm (`ApplicationRealmSync`) | Si falla la escritura, la excepción deshace también el paso 2. Los dos archivos se reemplazan como una unidad: si falla el segundo, el primero vuelve a su contenido original |
-| 4. Commit | Si la transacción se deshace después de escribir el realm, una `Synchronization` (`afterCompletion`) quita al usuario del realm: compensación, igual que la reversa del banco |
+| 2. Guardar la fila en `usuarios`, con el hash | Rollback: la cuenta no existe en ningún lado |
 
-`darDeBaja` hace el camino inverso sin compensación: si se deshace después
-de quitar al usuario del realm, la cuenta queda sin poder entrar aunque
-siga activa en la tabla. Es el lado seguro (menos acceso, no más).
+Antes de ADR-031 la contraseña iba a los archivos del realm de WildFly,
+fuera de la transacción, y hacía falta una `Synchronization` que la
+quitara si la transacción se deshacía. Ya no: `darDeBaja`,
+`reactivarUsuario` y `restablecerClave` también son una sola escritura en
+la base. La baja además borra la línea vieja de los archivos de esa
+máquina, si la había; si eso falla, la transacción se deshace y la cuenta
+sigue activa.
 
 `eliminarComercio` también es una sola transacción: el evento
 `EliminacionDeComercio` corre adentro (observers sincrónicos) y, si algún
 componente anota un impedimento, no se borra nada. Si no, `ComercioEliminado`
 borra el historial terminado del comercio en cada componente y después se
 borra el comercio: si cualquier paso falla, se deshace todo.
+`devolverADeposito` (ADR-037), `REQUIRED`: libera al repartidor, marca el
+pedido como devuelto (repartidor excluido, cobro registrado, en espera) y
+lo pasa a PENDIENTE en una sola transacción. La reasignación corre después
+del commit, en otra (la de `asignarDesdeEspera`), sin volver a cobrar.
+
+`eliminarRepartidor` y `eliminarZona` (ADR-036) siguen el mismo esquema:
+el repartidor se bloquea (`SELECT ... FOR UPDATE`) para que no se le
+asigne un pedido mientras se lo elimina, y soltar sus pedidos terminados o
+dejar sin zona a los repartidores pasa en la misma transacción que el
+borrado.
 
 ## Flujo 6: derivar un pedido a un transportista (implementado)
 
@@ -175,4 +193,18 @@ o expirar) la lee con `PESSIMISTIC_WRITE`, y cada escritura del item hace
 del método y traducirla a un mensaje ("otro usuario modificó el stock,
 volvé a intentar"). El barredor expira cada reserva vencida en su propia
 transacción: un choque sobre un item no deshace la pasada entera.
+
+## Flujo 6: liquidación mensual (implementado, ADR-034)
+
+`LiquidacionService.liquidarMes`, `NOT_SUPPORTED`: no abre una
+transacción propia y recorre los comercios activos. Por cada uno:
+
+| Paso | Transacción | Si falla… |
+|---|---|---|
+| 1. Calcular entregas y kilos del mes (Pedidos) | Sin transacción | No se crea nada |
+| 2. `CobroDeLiquidaciones.crear`: la liquidación, PENDIENTE | `REQUIRES_NEW` | Rollback de ese comercio; los demás siguen |
+| 3. `CobroDeLiquidaciones.cobrar`: banco (SOAP) y resultado | `REQUIRES_NEW`, con la fila bloqueada | El banco no se deshace: por eso la liquidación ya existe (paso 2) antes de llamarlo. Si no responde, queda PENDIENTE y el timer la reintenta |
+
+Correrlo dos veces no duplica: `crear` no hace nada si el comercio ya
+tiene la de ese mes (y hay una restricción única por comercio y período).
 

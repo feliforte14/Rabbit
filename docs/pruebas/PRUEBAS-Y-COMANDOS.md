@@ -92,7 +92,7 @@ en el SQL Editor de Supabase.
 ### Colección de Postman
 
 [`Rabbit.postman_collection.json`](Rabbit.postman_collection.json):
-**Import → File** en Postman. Trae 41 requests ordenados por prueba (los
+**Import → File** en Postman. Trae 45 requests ordenados por prueba (los
 códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 
 | Carpeta | Qué prueba |
@@ -124,6 +124,7 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 | `rabbit.transportista.simulador.segundos` | `20` | Cada cuántos segundos avanza un envío simulado. Menos de 15 hace que el pedido salte de Confirmado a Entregado | No |
 | `rabbit.cola.consumidores` | `1` | Consumidores de la cola de pedidos del ERP | Sí |
 | `rabbit.sincronizador.pausado` | sin definir | `true`: pausa el timer de respaldo de la cola (lo usa la prueba de escalabilidad) | No |
+| `rabbit.ruteo.hora-corte` | `21:00` | `HH:mm`: desde esa hora los pedidos que se confirman van a la lista de espera para el día siguiente (ADR-037). Para probarlo de día, `00:01`; para una demo después de las 21, `ninguno` | No |
 
 Para ver cuáles están definidas:
 `cli --command="/system-property=*:read-resource"`.
@@ -245,21 +246,35 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
 ### D. Repartidor y comercio
 
 - [ ] **D1. Hoja de ruta.** Entregas en curso muestra el pedido de C1 con
-  retiro, entrega, repartidor y "Ver recorrido en el mapa".
+  retiro, entrega, repartidor y "Ver recorrido en el mapa" (esa vista es
+  del personal; el repartidor ya no tiene ese botón).
 - [ ] **D2. Vista del repartidor (en el celular, o con el navegador
   angosto).** Entrar como `demo.repartidor` → cae en
   `repartidor/mis-entregas.xhtml`: dónde retirar, dónde entregar y cuánto
   cobrar.
-- [ ] **D3. Mapa.** "Ver recorrido en el mapa" abre Google Maps en otra
-  pestaña, con el retiro como parada y la entrega como destino.
+- [ ] **D3. Hoja de ruta recomendada (ADR-038).** Arriba de Mis
+  entregas: retiros primero y entregas por cercanía de código postal;
+  "Abrir en Google Maps" abre el recorrido (con más de 9 paradas, en
+  tramos).
 - [ ] **D4. Retiro y entrega.** "Ya retiré el pedido" → En camino;
-  "Entregué el pedido" → Entregado; pasa al historial y el repartidor
-  queda libre.
+  "Entregar pedido" abre una ventana para la foto del remito → Entregado;
+  pasa al historial y el repartidor queda libre.
+- [ ] **D4b. Devolver a depósito (ADR-037).** En un pedido Confirmado o
+  En camino, "Devolver a depósito" con un motivo → vuelve a Pendiente en
+  lista de espera y se le asigna solo a otro repartidor; no se cobra de
+  nuevo.
 - [ ] **D5. Portal del comercio.** Entrar como `demo.comercio` → cae en
   `comercio/mis-pedidos.xhtml`: sus pedidos con estado, cobro y
   repartidor, y un aviso por cada cambio de estado (eso prueba el
   tópico). "Mi stock" muestra lo de A4; "Mis puntos de picking" permite
   agregar, dar de baja y reactivar.
+
+- [ ] **D6. Lista de espera y hora de corte (ADR-037).** Sin lugar en
+  ningún repartidor, Confirmar deja el pedido "En espera" sin cobrar; al
+  liberarse lugar se asigna solo. Con `rabbit.ruteo.hora-corte=00:01`,
+  todo lo que se confirma queda en espera aunque haya lugar; al quitarla
+  (vuelve a las 21:00) se asigna en menos de un minuto. Después de las
+  21 pasa lo mismo sin configurar nada; para probar de noche, `ninguno`.
 
 ### E. Transportistas (REST y SOAP legado)
 
@@ -344,8 +359,8 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   devuelve a Mis pedidos. Como `demo.repartidor`, abrir
   `personal/pedidos.xhtml` → lo devuelve a Mis entregas.
 - [ ] **S2. Solo administrador.** Como operador (crear uno en Usuarios):
-  no ve "Usuarios", no puede eliminar comercios ni cancelar un pedido
-  confirmado.
+  no ve "Usuarios", no puede eliminar comercios, repartidores ni zonas
+  (no ve el botón), ni cancelar un pedido confirmado.
 - [ ] **S3. Datos ajenos.** Como `demo.comercio`, pegar
   `comercio/puntos-picking.xhtml?idComercio=<otro id>` → el parámetro se
   ignora y ve solo los suyos.
@@ -371,6 +386,12 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   entra con la nueva y no con la vieja. Dar de baja el comercio de
   `demo.comercio`, dar de baja la cuenta e intentar reactivarla → se
   rechaza porque su comercio no está activo.
+- [ ] **S10. Eliminar usuario, repartidor y zona (ADR-036).** Como
+  administrador: eliminar una cuenta de prueba → desaparece y no se puede
+  reactivar; intentar eliminar la propia → no hay botón. Eliminar un
+  repartidor con cuenta → "tiene una cuenta de usuario (eliminala primero
+  desde Usuarios)"; uno recién creado → se elimina. Eliminar una zona →
+  sus repartidores quedan "Sin zona fija".
 
 ### Cierre
 
@@ -379,4 +400,7 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   ninguna de `rabbit.`).
 - [ ] Revisar el log: sin `ERROR` nuevos salvo los provocados a propósito
   (banco caído, rechazos).
-- [ ] Si fue un ensayo: limpiar la base con el script de limpieza.
+- [ ] Si fue un ensayo: limpiar la base con el script de limpieza. En el
+  SQL Editor de Supabase cada ejecución es una conexión aparte: el
+  `COMMIT;` tiene que ir al final del mismo bloque que se ejecuta (correrlo
+  después, solo, no confirma nada).

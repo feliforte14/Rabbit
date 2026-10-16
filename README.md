@@ -13,8 +13,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   vive en el ERP del comercio, y Rabbit solo conoce lo que tiene que
   retirar y entregar.
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
-  comercios, y reservas de stock con vencimiento (5 minutos, extensibles):
-  si nadie las confirma ni las libera, se liberan solas.
+  comercios (con el peso de cada unidad), y reservas de stock con
+  vencimiento (5 minutos, extensibles): si nadie las confirma ni las
+  libera, se liberan solas.
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio por una
   API REST versionada (`/api/v1`, alta idempotente, consulta y
   cancelación), su sincronización automática con stock y su seguimiento
@@ -23,9 +24,19 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 - **Pagos y cobranzas:** un pedido prepago se cobra en el banco legado al
   confirmarlo (con reversa si la confirmación falla después, y un circuit
   breaker si el banco no responde); uno contra entrega se acredita cuando
-  se entrega.
-- **Repartidores:** padrón de repartidores propios con su zona; al
-  confirmar un pedido se le asigna uno libre.
+  se entrega. Además, cada mes se le liquida y cobra a cada comercio el
+  servicio de Rabbit: abono + cargo por envío + cargo por kilo (ADR-034).
+- **Repartidores:** padrón de repartidores propios con su zona y la
+  capacidad de su vehículo (kilos y bultos): al confirmar un pedido se le
+  asigna al primero al que le entra, que puede llevar varios a la vez
+  (ADR-032). Si no le entra a nadie (o ya pasó la hora de corte de la hoja
+  de ruta), el pedido queda en una lista de espera, sin cobrar, y se
+  asigna solo cuando se libera alguno; el repartidor puede devolver al
+  depósito un pedido que no pudo entregar, y se le asigna a otro
+  (ADR-037). Mientras reparte, su celular comparte la ubicación: el
+  personal lo ve en un mapa y el cliente, en el seguimiento (ADR-035). Un
+  administrador puede eliminar un repartidor sin entregas en curso ni
+  cuenta de usuario (ADR-036).
 - **Transportistas:** un pedido se puede derivar a una empresa de envíos
   externa (integrada por API REST o por SOAP legado), después de comparar
   sus cotizaciones; Rabbit sigue el estado del envío (consultándolo cada 15 s)
@@ -33,13 +44,17 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 - **Ruteo y entregas:** zonas de reparto por código postal; los pedidos
   pendientes se agrupan por zona y se despachan solos según quién cubre la
   zona (repartidores propios o un transportista; si el transportista no lo
-  toma, el más barato de los demás). Hoja de ruta de cada
-  pedido (de dónde se retira y adónde se entrega, con el recorrido en
-  Google Maps) y tablero de entregas en curso.
+  toma, el más barato de los demás). Las zonas se dan de baja, se
+  reactivan o, solo un administrador, se eliminan (ADR-036). Hoja de ruta de cada
+  pedido (de dónde se retira y adónde se entrega), hoja de ruta
+  recomendada del repartidor con todas sus paradas en orden y el recorrido
+  en Google Maps (ADR-038), y tablero de entregas en curso.
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
   (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
-  pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
-  ruta y marca retiro y entrega desde el celular; un `ERP` (el sistema del
+  pedidos, su stock, sus puntos de picking y lo que se le cobra por mes
+  (con la vista previa del mes en curso); un `REPARTIDOR` ve su hoja de
+  ruta recomendada y marca retiro y entrega (con la foto del remito
+  firmado, ADR-033) o devuelve el pedido al depósito, desde el celular; un `ERP` (el sistema del
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
   Todo por HTTPS, con límite de intentos en el login.
 - **Notificaciones:** cada cambio de estado le llega al comercio en su
@@ -49,7 +64,8 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
   columnas secundarias de cada tabla, en celular las tablas se ven como
   tarjetas con lo esencial y el menú se despliega con un botón (ver
-  `resources/rabbit/1_11/`).
+  `resources/rabbit/1_17/`). En la compu, la barra lateral entra entera
+  sin scroll propio también en pantallas bajas (notebooks de 13").
 
 ## Tecnologías
 
@@ -86,8 +102,9 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_11/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
-│                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas)
+├── resources/rabbit/1_17/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+│                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas),
+│                               remito.js (achica la foto del remito), ubicacion.js y mapa.js (mapas)
 └── WEB-INF/
     ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)
     ├── web.xml, beans.xml, jboss-ejb3.xml
@@ -137,7 +154,7 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (30 ADRs)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (38 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
@@ -175,17 +192,19 @@ es el checklist de qué necesita cada quien y dónde se consigue o se crea
 | Usuario/contraseña de management de WildFly | `wildfly-maven-plugin` para desplegar (paso 3), puerto `9990` | Se crea una sola vez con `add-user.sh -u ... -p ...` (sin `-a`, no es un usuario de la app) y se guarda en `~/.m2/settings.xml`, nunca en `pom.xml` |
 | Servidor SMTP (host, puerto, remitente) | Avisos por mail al comercio (paso 7, opcional) | El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal |
 
-### Cuentas de la aplicación (realm de WildFly)
+### Cuentas de la aplicación
 
 Estas **no** se precargan: las crea cada administrador desde la pantalla
-**Usuarios**, salvo la primera, que arranca el sistema.
+**Usuarios**, salvo la primera, que arranca el sistema. Se guardan en la
+base compartida (con la contraseña en bcrypt), así que una cuenta creada
+desde cualquier máquina entra en el WildFly de todos (paso 5, ADR-031).
 
 | Tipo de cuenta | Cómo se crea | Qué usa/ve |
 |---|---|---|
-| `ADMINISTRADOR` (la primera) | `add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s` (paso 5) — es la única que se crea por fuera de la app | Todo; además, único rol que puede eliminar un comercio, anular un cobro y dar de alta/baja otros usuarios |
-| `ADMINISTRADOR` / `OPERADOR` (resto) | Desde **Usuarios**, con un `ADMINISTRADOR` ya logueado | Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar comercios/anular cobros |
-| `COMERCIO` | Desde **Usuarios**, asociándola a un comercio ya dado de alta | Sus pedidos, su stock (solo lectura), sus puntos de picking |
-| `REPARTIDOR` | Desde **Usuarios**, asociándola a un repartidor ya dado de alta | Su hoja de ruta; marca retiro y entrega |
+| `ADMINISTRADOR` (la primera) | `add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s` (paso 5) — es la única que se crea por fuera de la app | Todo; además, único rol que puede eliminar comercios, repartidores, zonas y usuarios, anular un cobro, dar de alta/baja otros usuarios y liquidar el mes |
+| `ADMINISTRADOR` / `OPERADOR` (resto) | Desde **Usuarios**, con un `ADMINISTRADOR` ya logueado | Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar nada ni anular cobros |
+| `COMERCIO` | Desde **Usuarios**, asociándola a un comercio ya dado de alta | Sus pedidos (con el remito de cada entrega), su stock (solo lectura), sus puntos de picking y sus liquidaciones mensuales |
+| `REPARTIDOR` | Desde **Usuarios**, asociándola a un repartidor ya dado de alta | Su hoja de ruta; marca retiro y entrega (con foto del remito) y comparte su ubicación mientras reparte |
 | `ERP` | Desde **Usuarios**, asociándola a un comercio (paso 6) | Nada de la web — solo la API REST `/api/v1`, y solo los pedidos de ese comercio (HTTP Basic) |
 
 Un usuario creado a mano con `add-user.sh -g ERP`/`-g COMERCIO` (sin pasar
@@ -343,22 +362,41 @@ Abrir https://localhost:8443/Rabbit. Rabbit exige HTTPS: si se entra por
 certificado autofirmado, así que el navegador muestra una advertencia la
 primera vez (aceptarla) y `curl` necesita `-k`.
 
-### 5. Primer acceso
+### 5. Cuentas compartidas y primer acceso (una sola vez)
 
-El login valida contra el `ApplicationRealm` de WildFly, así que un
-WildFly recién instalado no reconoce usuarios creados en otra instalación
-aunque estén en la base. No hay alta pública de cuentas: el primer
-administrador se crea en WildFly:
+Las cuentas viven en la tabla `usuarios` de la base compartida y WildFly
+las valida leyendo esa tabla (ADR-031). Para eso, **después del primer
+despliegue** (que agrega la columna de contraseñas), cada integrante
+configura su WildFly una vez:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --file=scripts/configurar-realm-compartido.cli
+```
+
+Tiene que terminar con `"outcome" => "success"` y recargar WildFly. Desde
+ahí, cualquier cuenta creada desde la app de cualquier integrante entra en
+todas las máquinas, y una baja corta el acceso en todas. Para volver
+atrás: `scripts/revertir-realm-compartido.cli`.
+
+Si la base ya tiene administradores, entrá con uno de ellos. Si es una
+base vacía, no hay alta pública de cuentas: el primer administrador se
+crea en tu WildFly y entra solo en tu máquina:
 
 ```bash
 $WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s
 ```
 
 Desde ahí, ese administrador crea los demás usuarios en "Usuarios"
-(`personal/usuarios.xhtml`).
+(`personal/usuarios.xhtml`), ya en la base. Ahí también los da de baja
+(se pueden reactivar con una contraseña nueva) o los elimina para siempre.
+Una cuenta de comercio o ERP solo se reactiva si su comercio está activo.
 
-Los usuarios que crea un administrador desde la app se sincronizan solos
-contra el realm (ver `ApplicationRealmSync`). Hay cinco tipos de cuenta:
+**Cuentas creadas antes de ADR-031:** no tienen contraseña en la base y
+solo entran en la máquina donde se crearon; la pantalla Usuarios las
+marca "Solo en una máquina". Un administrador les pone una contraseña
+nueva en "Restablecer contraseña" y desde ahí entran en todas.
+
+Hay cinco tipos de cuenta:
 `ADMINISTRADOR` y `OPERADOR` (personal de Rabbit), `COMERCIO` (se asocia a
 un comercio), `REPARTIDOR` (se asocia a un repartidor) y `ERP` (se asocia
 a un comercio; solo usa la API REST, ver paso 6). Cada uno de los cuatro
@@ -373,13 +411,39 @@ administrador desde `personal/usuarios.xhtml`, eligiendo el tipo "ERP
 (API REST)" y el comercio. No puede entrar a la web.
 
 Un usuario ERP creado a mano con `add-user.sh` (como se hacía antes) no
-tiene comercio y la API le responde `403`: hay que borrarlo del realm y
-crearlo desde la app.
+tiene comercio y la API le responde `403`: hay que borrarlo de los
+archivos del realm de esa máquina y crearlo desde la app.
 
 Contrato en [docs/integraciones/openapi.yaml](docs/integraciones/openapi.yaml) y ejemplos en
 [MENSAJERIA-SINCRONICA.md](docs/integraciones/MENSAJERIA-SINCRONICA.md).
 
-### 7. (Opcional) Avisos por mail
+### 7. (Opcional) Tarifa de la liquidación mensual
+
+Por defecto: $15.000 de abono, $1.200 por pedido entregado y $80 por kilo
+(ADR-034). Para cambiarla, sin redesplegar:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.abono:add(value=20000)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-envio:add(value=1500)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-kilo:add(value=100)"
+```
+
+### 7b. (Opcional) Hora de corte de la hoja de ruta
+
+Por defecto, **21:00** (la definió el equipo). Desde esa hora no se
+suman pedidos a la hoja del día de ningún repartidor: lo que se confirma
+después queda en la lista de espera y se asigna solo al día siguiente,
+antes del corte (ADR-037). Para cambiarla, sin redesplegar:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=18:30)"
+# sin corte (por ejemplo, para una demo después de las 21):
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=ninguno)"
+# volver a las 21:00:
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:remove"
+```
+
+### 8. (Opcional) Avisos por mail
 
 Los avisos a los comercios siempre quedan en su portal. Para que además
 salgan por mail (al email que cargó el comercio), configurar un servidor
@@ -397,16 +461,29 @@ y `rabbit.mail.smtp.host=localhost`, `rabbit.mail.smtp.port=2525`: cada
 mail se imprime en esa consola. Sin servidor configurado no se intenta
 mandar nada.
 
+**Mail para pedir una cuenta (opcional).** No hay alta abierta: el login
+muestra un mail de contacto (con asunto y datos a completar ya escritos) y
+un `ADMINISTRADOR` crea la cuenta desde **Usuarios** después de hablar con
+el comercio o repartidor. Por defecto es `altas_rabbit@gmail.com`; para
+cambiarlo:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.contacto.mail:add(value=altas@tu-dominio.com)"
+```
+
 ## Tests
 
 ```bash
-mvn test                       # 27 tests unitarios (JUnit 5), sin servidor
+mvn test                       # 62 tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos
 postales y de seguimiento, huella de idempotencia, límite de intentos de
-login, reglas del transportista simulado y validación del cuerpo de la
-API.
+login, reglas del transportista simulado, validación del cuerpo de la
+API, hash de contraseñas, capacidad de los repartidores, a quién se le
+asigna un pedido (y la lista de espera), hora de corte, orden de la hoja
+de ruta recomendada y sus links a Google Maps, validación de la foto del
+remito y tarifa mensual.
 
 10 tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:

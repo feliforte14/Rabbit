@@ -3,13 +3,11 @@ package com.rabbit.seguridad.datos.model;
 /**
  * Entidad JPA: cada instancia es una fila de la tabla "usuarios": el
  * perfil de la cuenta en la aplicación (rol, si está activa, a qué
- * comercio o repartidor representa).
+ * comercio o repartidor representa) y el hash bcrypt de su contraseña.
  *
- * NO guarda credenciales: la contraseña la valida el ApplicationRealm de
- * WildFly (ver LoginBean y ApplicationRealmSync). Antes se guardaba acá
- * también un hash que nadie usaba para autenticar; una credencial
- * redundante solo suma riesgo si la base se filtra, así que se quitó (ver
- * LimpiezaDeCredenciales).
+ * El login lo valida WildFly leyendo esta tabla con su realm JDBC
+ * (ADR-031, scripts/configurar-realm-compartido.cli): como la base es
+ * compartida, una cuenta creada en cualquier máquina entra en todas.
  */
 
 import jakarta.persistence.*;
@@ -31,6 +29,13 @@ public class Usuario {
     // Baja lógica: false = no puede autenticarse aunque la contraseña sea correcta.
     private boolean activo;
 
+    // Hash bcrypt ("$2a$10$...", ver Claves). Null en las cuentas creadas
+    // antes de ADR-031: esas siguen entrando solo con el realm de archivos
+    // de la máquina donde se crearon, hasta que un administrador les
+    // restablezca la contraseña.
+    @Column(name = "hash_clave", length = 60)
+    private String hashClave;
+
     // A quién representa la cuenta: el comercio de un usuario COMERCIO o el
     // repartidor de un usuario REPARTIDOR. Null para el personal de Rabbit.
     private Long idComercio;
@@ -46,6 +51,8 @@ public class Usuario {
     public void setRol(Rol rol) { this.rol = rol; }
     public boolean isActivo() { return activo; }
     public void setActivo(boolean activo) { this.activo = activo; }
+    public String getHashClave() { return hashClave; }
+    public void setHashClave(String hashClave) { this.hashClave = hashClave; }
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
     public Long getIdRepartidor() { return idRepartidor; }

@@ -11,6 +11,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
                  template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
@@ -45,6 +46,8 @@
             Cada pedido es una venta que el comercio ya cerró y que llega desde su ERP. Al
             confirmarlo se cobra (si es prepago) y se le asigna un repartidor; el recorrido se
             sigue en&#160;<h:link outcome="/personal/entregas" value="Entregas en curso" />.
+            Si ningún repartidor tiene lugar (o ya pasó la hora de corte), el pedido queda en la
+            lista de espera, sin cobrar, y se asigna solo cuando se libere uno.
         </p>
 
         <h:messages globalOnly="false" showDetail="false" showSummary="true"
@@ -73,7 +76,7 @@
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Productos</f:facet>
                     #{p.productos} (#{p.cantidadTotal} u.)
-                    <span class="dato-secundario">#{etiquetas.origen(p.origen)}</span>
+                    <span class="dato-secundario">#{etiquetas.origen(p.origen)}#{empty p.pesoKg ? '' : ' · ' += etiquetas.kilos(p.pesoKg)}</span>
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Entrega en</f:facet>
@@ -92,8 +95,27 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Estado</f:facet>
-                    <h:outputText value="#{etiquetas.estadoPedido(p.estado)}"
+                    <!-- En la lista de espera (ADR-037) se muestra "En espera" en
+                         lugar de "Pendiente": sigue PENDIENTE, pero es lo que importa. -->
+                    <h:outputText value="#{p.estado == 'PENDIENTE' and p.enEspera ? 'En espera' : etiquetas.estadoPedido(p.estado)}"
                                   styleClass="#{etiquetas.claseEstadoPedido(p.estado)}" />
+                    <h:panelGroup rendered="#{p.conRemito}">
+                        <span class="dato-secundario">
+                            <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>
+                        </span>
+                    </h:panelGroup>
+                    <h:panelGroup layout="block" styleClass="espera-detalle"
+                                  rendered="#{p.estado == 'PENDIENTE' and (not empty p.motivoEspera or not empty p.motivoDevolucion)}">
+                        <h:panelGroup rendered="#{p.enEspera}">
+                            <span class="espera-desde">Desde el #{p.enEsperaDesde}</span>
+                        </h:panelGroup>
+                        <h:panelGroup rendered="#{not empty p.motivoDevolucion}">
+                            <span class="espera-linea"><b>Devuelto:</b> #{p.motivoDevolucion}</span>
+                        </h:panelGroup>
+                        <h:panelGroup rendered="#{not empty p.motivoEspera and not p.motivoEspera.startsWith('Devuelto al depósito')}">
+                            <span class="espera-linea">#{p.motivoEspera}</span>
+                        </h:panelGroup>
+                    </h:panelGroup>
                 </h:column>
                 <h:column styleClass="col-p3" headerClass="col-p3">
                     <!-- Estado del cobro en ServicioDePagosYCobranzas (ver EstadoCobro). -->
@@ -107,21 +129,20 @@
                                   rendered="#{empty pedidoBean.envio(p.id)}" />
                     <h:panelGroup rendered="#{not empty pedidoBean.envio(p.id)}">
                         #{pedidoBean.envio(p.id).transportista}
-                        <span class="dato-secundario">Transportista · #{pedidoBean.envio(p.id).codigoSeguimiento}</span>
+                        <span class="dato-secundario">Logística tercerizada · #{pedidoBean.envio(p.id).codigoSeguimiento}</span>
                     </h:panelGroup>
                 </h:column>
                 <h:column styleClass="acciones">
                     <f:facet name="header">Acciones</f:facet>
-                    <h:commandButton value="Confirmar" styleClass="btn btn-secondary"
+                    <h:commandButton value="#{p.enEspera ? 'Reintentar' : 'Confirmar'}" styleClass="btn btn-secondary"
                                      action="#{pedidoBean.confirmar(p.id)}"
                                      rendered="#{p.estado == 'PENDIENTE'}" />
                     <!-- Un pedido derivado lo mueve su transportista (ver SeguimientoDeEnvios). -->
                     <h:commandButton value="Despachar" styleClass="btn btn-secondary"
                                      action="#{pedidoBean.despachar(p.id)}"
                                      rendered="#{p.estado == 'CONFIRMADO' and empty pedidoBean.envio(p.id)}" />
-                    <h:commandButton value="Entregar" styleClass="btn btn-secondary"
-                                     action="#{pedidoBean.entregar(p.id)}"
-                                     rendered="#{p.estado == 'EN_CAMINO' and empty pedidoBean.envio(p.id)}" />
+                    <!-- La entrega la registra el repartidor con la foto del remito
+                         (ADR-033); un administrador puede hacerlo abajo, con foto. -->
                     <h:commandButton value="Cancelar" styleClass="btn btn-danger"
                                      action="#{pedidoBean.cancelar(p.id)}"
                                      rendered="#{p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO'}"
@@ -133,21 +154,53 @@
             Todavía no hay pedidos. Llegan desde el ERP de cada comercio (o simulalos abajo).
         </h:panelGroup>
 
-        <h2>Derivar a un transportista</h2>
+        <h:panelGroup rendered="#{sesionBean.admin and not empty pedidoBean.enCaminoConRepartidor}">
+            <h2>Registrar una entrega</h2>
+            <h:form id="formEntrega" styleClass="formulario" enctype="multipart/form-data">
+                <p class="ayuda">
+                    La entrega la marca el repartidor desde su celular, con la foto del remito firmado.
+                    Si no pudo hacerlo (se quedó sin batería, por ejemplo), un administrador la registra
+                    acá, también con la foto. Con pago contra entrega, registrar la entrega cobra el pedido.
+                </p>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" for="pedidoEntrega" value="Pedido en camino" />
+                    <h:selectOneMenu id="pedidoEntrega" value="#{pedidoBean.idPedidoAEntregar}" required="true"
+                                     label="Pedido" requiredMessage="Elegí el pedido">
+                        <f:selectItem itemLabel="— Elegí un pedido —" itemValue="#{null}" />
+                        <f:selectItems value="#{pedidoBean.enCaminoConRepartidor}" var="pe" itemValue="#{pe.id}"
+                                       itemLabel="#{pe.id} · #{pedidoBean.nombreComercio(pe.idComercio)} · #{pedidoBean.nombreRepartidor(pe.idRepartidor)}" />
+                    </h:selectOneMenu>
+                    <h:message for="pedidoEntrega" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel for="fotoRemitoAdmin" value="Foto del remito firmado" />
+                    <h:inputFile id="fotoRemitoAdmin" value="#{pedidoBean.fotoRemito}" styleClass="foto-remito"
+                                 pt:accept="image/jpeg,image/png,image/webp" />
+                    <h:message for="fotoRemitoAdmin" styleClass="error-campo" />
+                </div>
+                <div class="form-acciones">
+                    <h:commandButton value="Registrar entrega" styleClass="btn btn-primary" action="#{pedidoBean.entregar}"
+                                     onclick="return confirm('¿Registrar la entrega? Si es contra entrega, se cobra el pedido.');" />
+                </div>
+            </h:form>
+            <h:outputScript library="rabbit" name="remito.js" />
+        </h:panelGroup>
+
+        <h2>Derivar a logística tercerizada</h2>
         <p class="ayuda">
-            En lugar de confirmarlo con un repartidor propio, un pedido pendiente se puede derivar
-            a una empresa de envíos externa: se cobra (si es prepago), se le pide el envío y el
-            transportista lo lleva. Su estado se actualiza solo con lo que informe.
-            Con <strong>Cotizar</strong> se ve antes cuánto cobra y cuánto tarda cada transportista
+            En lugar de confirmarlo con un repartidor Rabbit, un pedido pendiente se puede derivar
+            a una empresa de logística externa: se cobra (si es prepago), se le pide el envío y la
+            empresa lo lleva. Su estado se actualiza solo con lo que informe.
+            Con <strong>Cotizar</strong> se ve antes cuánto cobra y cuánto tarda cada empresa
             (los legados por SOAP no cotizan, pero se les puede derivar igual).
         </p>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.listaTransportistas}">
-            No hay transportistas activos. Se dan de alta en
-            <h:link outcome="/personal/transportistas" value="Transportistas" />.
+            No hay empresas de logística activas. Se dan de alta en
+            <h:link outcome="/personal/transportistas" value="Logística tercerizada" />.
         </h:panelGroup>
         <h:form id="formDerivar" styleClass="formulario" rendered="#{not empty pedidoBean.listaTransportistas}">
             <div class="campo">
-                <h:outputLabel for="pedidoDerivar" value="Pedido" />
+                <h:outputLabel styleClass="obligatorio" for="pedidoDerivar" value="Pedido" />
                 <h:selectOneMenu id="pedidoDerivar" value="#{pedidoBean.idPedidoADerivar}"
                                  required="true" label="Pedido" requiredMessage="Elegí el pedido a derivar">
                     <f:selectItem itemLabel="— Elegí un pedido pendiente —" itemValue="#{null}" />
@@ -156,12 +209,12 @@
                 </h:selectOneMenu>
             </div>
             <div class="campo">
-                <h:outputLabel for="transportista" value="Transportista" />
+                <h:outputLabel styleClass="obligatorio" for="transportista" value="Empresa de logística" />
                 <!-- Obligatorio solo al derivar: para cotizar alcanza con el pedido. -->
                 <h:selectOneMenu id="transportista" value="#{pedidoBean.idTransportistaElegido}"
                                  required="#{not empty param['formDerivar:btnDerivar']}"
-                                 label="Transportista" requiredMessage="Elegí el transportista">
-                    <f:selectItem itemLabel="— Elegí un transportista —" itemValue="#{null}" />
+                                 label="Empresa de logística" requiredMessage="Elegí la empresa de logística">
+                    <f:selectItem itemLabel="— Elegí una empresa de logística —" itemValue="#{null}" />
                     <f:selectItems value="#{pedidoBean.listaTransportistas}" var="t" itemValue="#{t.id}"
                                    itemLabel="#{t.nombre} (#{etiquetas.tipoIntegracion(t.tipoIntegracion)})" />
                 </h:selectOneMenu>
@@ -183,7 +236,7 @@
             <h:dataTable value="#{pedidoBean.cotizaciones}" var="c"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
                 <h:column>
-                    <f:facet name="header">Transportista</f:facet>
+                    <f:facet name="header">Empresa de logística</f:facet>
                     #{c.transportista}
                     <span class="dato-secundario">#{etiquetas.tipoIntegracion(c.tipoIntegracion)}</span>
                 </h:column>
@@ -259,7 +312,7 @@
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Productos</f:facet>
-                    #{pe.descripcionLineas} (#{pe.cantidadTotal} u.)
+                    #{pedidoBean.descripcionLineas(pe)} (#{pe.cantidadTotal} u.)
                     <span class="dato-secundario">#{etiquetas.origen(pe.origen)}#{pe.origen == 'PUNTO_PICKING' ? ': '.concat(pedidoBean.nombrePuntoPicking(pe.idComercio, pe.idPuntoPicking)) : ''}</span>
                 </h:column>
                 <h:column styleClass="col-p3" headerClass="col-p3">
@@ -289,7 +342,7 @@
         </p>
         <h:form id="formAlta" styleClass="formulario formulario-ancho">
             <div class="campo">
-                <h:outputLabel for="comercio" value="Comercio" />
+                <h:outputLabel styleClass="obligatorio" for="comercio" value="Comercio" />
                 <h:selectOneMenu id="comercio" value="#{pedidoBean.nuevoPedido.idComercio}"
                                  required="true" label="Comercio"
                                  requiredMessage="Elegí el comercio del pedido">
@@ -322,7 +375,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="importe" value="Importe" />
+                <h:outputLabel styleClass="obligatorio" for="importe" value="Importe" />
                 <h:inputText id="importe" value="#{pedidoBean.nuevoPedido.importe}"
                              required="true" label="Importe"
                              requiredMessage="Ingresá el importe del pedido"
@@ -337,7 +390,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="direccionEntrega" value="Dirección de entrega" />
+                <h:outputLabel styleClass="obligatorio" for="direccionEntrega" value="Dirección de entrega" />
                 <h:inputText id="direccionEntrega" value="#{pedidoBean.nuevoPedido.direccionEntrega}"
                              required="true" label="Dirección de entrega" maxlength="200"
                              requiredMessage="Ingresá adónde se entrega el pedido" />
@@ -363,7 +416,7 @@
             <h:panelGroup id="camposOrigen" layout="block">
                 <h:panelGroup rendered="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}" layout="block">
                     <div class="campo">
-                        <h:outputLabel for="puntoPicking" value="Punto de picking" />
+                        <h:outputLabel styleClass="obligatorio" for="puntoPicking" value="Punto de picking" />
                         <h:selectOneMenu id="puntoPicking" value="#{pedidoBean.nuevoPedido.idPuntoPicking}"
                                          required="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}"
                                          label="Punto de picking">
@@ -374,11 +427,18 @@
                         <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.listaPuntosPicking}"
                                       value="Elegí un comercio arriba para ver sus puntos de picking activos." />
                     </div>
+                    <div class="campo">
+                        <h:outputLabel for="pesoPedido" value="Peso total en kg (opcional)" />
+                        <h:inputText id="pesoPedido" value="#{pedidoBean.nuevoPedido.pesoKg}" label="Peso total"
+                                     converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 12.5)" />
+                        <h:message for="pesoPedido" styleClass="error-campo" />
+                        <p class="ayuda">Rabbit no conoce lo que hay en el punto de picking: sin el peso, el límite del repartidor solo cuenta los bultos.</p>
+                    </div>
                 </h:panelGroup>
 
                 <h:panelGroup rendered="#{pedidoBean.nuevoPedido.origen != 'PUNTO_PICKING'}" layout="block">
                     <div class="campo">
-                        <h:outputLabel for="deposito" value="Depósito" />
+                        <h:outputLabel styleClass="obligatorio" for="deposito" value="Depósito" />
                         <!--
                             Obligatorio: un pedido de stock consignado tiene
                             que salir de un deposito puntual de Rabbit, no

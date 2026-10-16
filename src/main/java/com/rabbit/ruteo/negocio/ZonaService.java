@@ -22,6 +22,7 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -39,6 +40,10 @@ public class ZonaService implements IZonas {
 
     @Inject
     private IGestionTransportistas transportistas;
+
+    // Avisa a Repartidores antes de borrar una zona (ver eliminarZona).
+    @Inject
+    private Event<ZonaEliminada> zonaEliminada;
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
@@ -92,6 +97,15 @@ public class ZonaService implements IZonas {
     }
 
     @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
+    public void eliminarZona(Long idZona) {
+        Zona zona = obtenerOFallar(idZona);
+        zonaEliminada.fire(new ZonaEliminada(idZona));
+        repository.eliminar(zona);
+    }
+
+    @Override
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<ZonaDTO> listarTodas() {
         return repository.listarTodas().stream().map(ZonaDTO::desde).collect(Collectors.toList());
@@ -112,13 +126,13 @@ public class ZonaService implements IZonas {
 
     private void validarTransportista(CoberturaZona cobertura, Long idTransportista) {
         if (cobertura == CoberturaZona.TRANSPORTISTA && idTransportista == null) {
-            throw new ValidacionException("Una zona que cubre un transportista necesita el transportista");
+            throw new ValidacionException("Una zona de logística tercerizada necesita la empresa de logística");
         }
         if (idTransportista != null) {
             boolean activo = transportistas.listarActivos().stream()
                     .map(TransportistaDTO::getId).anyMatch(idTransportista::equals);
             if (!activo) {
-                throw new ValidacionException("El transportista elegido no existe o está dado de baja");
+                throw new ValidacionException("La empresa de logística elegida no existe o está dada de baja");
             }
         }
     }

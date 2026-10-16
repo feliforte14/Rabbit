@@ -34,7 +34,7 @@
                 <p class="stat-label">Repartidores disponibles</p>
                 <p class="stat-valor">#{entregasBean.repartidoresDisponibles}</p>
                 <h:panelGroup rendered="#{entregasBean.repartidoresDisponibles == 0}">
-                    <p class="stat-nota">Sin repartidores libres, los pedidos solo se pueden derivar a un transportista</p>
+                    <p class="stat-nota">Sin repartidores libres, los pedidos solo se pueden derivar a logística tercerizada</p>
                 </h:panelGroup>
             </div>
         </div>
@@ -70,7 +70,7 @@
                             <h:outputText value=" · #{e.telefonoRepartidor}" rendered="#{not empty e.telefonoRepartidor}" /></span>
                     </h:panelGroup>
                     <h:panelGroup rendered="#{not empty e.transportista}">
-                        <span>Transportista: <b>#{e.transportista}</b> · seguimiento #{e.codigoSeguimiento}</span>
+                        <span>Logística tercerizada: <b>#{e.transportista}</b> · seguimiento #{e.codigoSeguimiento}</span>
                     </h:panelGroup>
                     <span>Lleva: <b>#{e.productos}</b> (#{e.cantidadTotal} u.)</span>
                     <span>Actualizado: <b>#{e.actualizado}</b></span>
@@ -105,9 +105,9 @@
                               styleClass="#{etiquetas.claseEstadoRepartidor(r.estado)}" />
             </h:column>
             <h:column>
-                <f:facet name="header">Pedido a cargo</f:facet>
-                <h:outputText value="Pedido #{r.idPedidoActual}" rendered="#{not empty r.idPedidoActual}" />
-                <h:outputText value="—" rendered="#{empty r.idPedidoActual}" />
+                <f:facet name="header">Pedidos a cargo</f:facet>
+                <h:outputText value="#{r.pedidosEnCursoTexto}" rendered="#{r.pedidosEnCurso gt 0}" />
+                <h:outputText value="—" rendered="#{r.pedidosEnCurso eq 0}" />
             </h:column>
         </h:dataTable>
     </ui:define>

@@ -18,6 +18,7 @@ package com.rabbit.notificaciones.negocio;
 import com.rabbit.notificaciones.datos.NotificacionRepository;
 import com.rabbit.notificaciones.datos.model.Notificacion;
 import com.rabbit.notificaciones.dto.NotificacionDTO;
+import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.seguridad.negocio.IContextoUsuario;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
@@ -44,6 +45,10 @@ public class NotificacionService implements INotificaciones {
     @Inject
     private IContextoUsuario contextoUsuario;
 
+    // Para el código de seguimiento y el remito que se mencionan en el aviso.
+    @Inject
+    private ISeguimientoPedido pedidos;
+
 
     private static final Logger LOG = Logger.getLogger(NotificacionService.class.getName());
 
@@ -67,7 +72,11 @@ public class NotificacionService implements INotificaciones {
             return false;
         }
 
-        String texto = "Tu pedido #" + idPedido + " " + describir(estado);
+        String devolucion = "PENDIENTE".equals(estado) ? motivoDevolucion(idPedido) : null;
+        String texto = devolucion != null
+                ? "Tu pedido #" + idPedido + " volvió al depósito (" + devolucion
+                        + "): Rabbit se lo asigna a otro repartidor"
+                : "Tu pedido #" + idPedido + " " + describir(estado) + extra(idPedido, estado);
         Notificacion notificacion = new Notificacion();
         notificacion.setIdPedido(idPedido);
         notificacion.setIdComercio(idComercio);
@@ -102,6 +111,36 @@ public class NotificacionService implements INotificaciones {
             return comercio != null && comercio.email != null && !comercio.email.isBlank() ? comercio.email.trim() : null;
         } catch (RuntimeException e) {
             LOG.warning("[Notificaciones] No se pudo leer el email del comercio " + idComercio + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    // En camino: con qué código lo sigue el cliente en el mapa (ADR-035).
+    // Entregado: dónde está la prueba (ADR-033). Si no se puede leer el
+    // pedido, el aviso sale igual, sin el agregado.
+    private String extra(Long idPedido, String estado) {
+        try {
+            if ("EN_CAMINO".equals(estado)) {
+                String codigo = pedidos.consultarEstadoPedido(idPedido).getCodigoSeguimiento();
+                return codigo == null ? "" : ". Tu cliente lo puede seguir en vivo con el código " + codigo
+                        + " en la página de seguimiento de Rabbit";
+            }
+            if ("ENTREGADO".equals(estado) && pedidos.consultarEstadoPedido(idPedido).isConRemito()) {
+                return ". El remito firmado está en tu portal, en Mis pedidos";
+            }
+        } catch (RuntimeException e) {
+            LOG.warning("[Notificaciones] No se pudo leer el pedido " + idPedido + ": " + e.getMessage());
+        }
+        return "";
+    }
+
+    // Un PENDIENTE que ya tiene motivo de devolución no es un pedido
+    // recibido: es uno que el repartidor devolvió al depósito (ADR-037).
+    private String motivoDevolucion(Long idPedido) {
+        try {
+            return pedidos.consultarEstadoPedido(idPedido).getMotivoDevolucion();
+        } catch (RuntimeException e) {
+            LOG.warning("[Notificaciones] No se pudo leer el pedido " + idPedido + ": " + e.getMessage());
             return null;
         }
     }
