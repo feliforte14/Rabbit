@@ -24,6 +24,17 @@ public final class Mensajes {
         agregar(FacesMessage.SEVERITY_ERROR, texto);
     }
 
+    /**
+     * Error que se muestra junto a un formulario o campo puntual (el
+     * <h:messages for="..."> o <h:message for="..."> de esa parte de la
+     * vista), cuando el aviso global de arriba de la página quedaría fuera
+     * de la vista.
+     */
+    public static void errorEn(String clientId, String texto) {
+        FacesContext.getCurrentInstance().addMessage(clientId,
+                new FacesMessage(FacesMessage.SEVERITY_ERROR, texto, null));
+    }
+
     private static void agregar(FacesMessage.Severity severidad, String texto) {
         FacesContext.getCurrentInstance().addMessage(null, new FacesMessage(severidad, texto, null));
     }
