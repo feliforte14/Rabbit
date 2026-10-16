@@ -263,7 +263,7 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         }
         if (!ApplicationRealmSync.usernameValido(username.trim())) {
             throw new ValidacionException("El nombre de usuario debe tener entre 3 y 30 caracteres: "
-                    + "letras, números, punto, guion o guion bajo");
+                    + "letras, números, punto, guion o guion bajo, sin espacios");
         }
     }
 

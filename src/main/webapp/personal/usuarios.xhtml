@@ -15,6 +15,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
                  template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirAdministrador}" />
@@ -137,9 +138,11 @@
                 <h:outputLabel styleClass="obligatorio" for="username" value="Usuario" />
                 <h:inputText id="username" value="#{usuarioBean.nuevoUsuario.username}"
                              required="true" label="Usuario" maxlength="30"
-                             requiredMessage="Ingresá el nombre de usuario" />
+                             requiredMessage="Ingresá el nombre de usuario"
+                             pt:pattern="[A-Za-z0-9._\-]{3,30}"
+                             pt:title="Entre 3 y 30 caracteres, sin espacios: letras, números, punto, guion o guion bajo" />
                 <h:message for="username" styleClass="error-campo" />
-                <p class="ayuda">Entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo.</p>
+                <p class="ayuda">Entre 3 y 30 caracteres, sin espacios: letras, números, punto, guion o guion bajo.</p>
             </div>
 
             <div class="campo">
@@ -187,6 +190,13 @@
                     <h:message for="repartidor" styleClass="error-campo" />
                 </h:panelGroup>
             </h:panelGroup>
+
+            <!-- Errores del alta, acá y no solo arriba de la página: el
+                 formulario está al final y el aviso global no se veía. -->
+            <h:panelGroup id="avisosAlta" />
+            <h:messages for="avisosAlta" showDetail="false" showSummary="true"
+                        layout="list" styleClass="mensajes"
+                        errorClass="mensaje-error" infoClass="mensaje-info" />
 
             <div class="form-acciones">
                 <h:commandButton value="Crear usuario" styleClass="btn btn-primary" action="#{usuarioBean.registrar}" />

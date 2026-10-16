@@ -76,6 +76,9 @@ public class UsuarioBean implements Serializable {
     // Alta de un usuario nuevo: UsuarioService guarda el perfil y el hash
     // de la contraseña en la tabla, que es lo que lee WildFly al loguear
     // (ADR-031).
+    // Donde se muestran los errores del alta (ver usuarios.xhtml).
+    private static final String AVISOS_ALTA = "formAlta:avisosAlta";
+
     public void registrar() {
         try {
             registro.registrarUsuario(nuevoUsuario);
@@ -83,10 +86,12 @@ public class UsuarioBean implements Serializable {
             nuevoUsuario = nuevoUsuarioVacio();
             cargar();
         } catch (ValidacionException e) {
-            Mensajes.error(e.getMessage());
+            // Junto al formulario de alta: está al final de la página y el
+            // aviso global de arriba no se veía (parecía que no pasaba nada).
+            Mensajes.errorEn(AVISOS_ALTA, e.getMessage());
         } catch (EJBAccessException e) {
             // @RolesAllowed("ADMINISTRADOR") en UsuarioService.registrarUsuario.
-            Mensajes.error("Solo un administrador puede registrar usuarios.");
+            Mensajes.errorEn(AVISOS_ALTA, "Solo un administrador puede registrar usuarios.");
         }
     }
 
