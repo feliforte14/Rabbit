@@ -185,10 +185,10 @@ h2 {
 /* Barra minimalista: sin bloques de color ni bordes; la jerarquía la dan
    el tamaño, el color y el espacio. */
 .sidebar-logo {
-    padding: 1.6rem 1.5rem 1.25rem;
+    padding: 1.1rem 1.5rem 0.9rem;
     text-align: center;
     border-bottom: 1px solid var(--sidebar-borde);
-    margin-bottom: 0.75rem;
+    margin-bottom: 0.5rem;
 }
 
 /* El logo (conejo + "rabbit") es un PNG con fondo transparente: se ve
@@ -200,7 +200,7 @@ h2 {
 }
 
 .sidebar-logo .marca-logo {
-    width: 104px;
+    width: 96px;
 }
 
 .sidebar-logo .slogan {
@@ -209,7 +209,7 @@ h2 {
 
 .sidebar-nav {
     flex: 1;
-    padding: 0.5rem 0.75rem 1rem;
+    padding: 0.25rem 0.75rem 0.5rem;
     display: flex;
     flex-direction: column;
     gap: 0.05rem;
@@ -222,7 +222,7 @@ h2 {
     display: flex;
     align-items: center;
     gap: 0.65rem;
-    padding: 0.45rem 0.75rem;
+    padding: 0.38rem 0.75rem;
     border-radius: var(--radio-chico);
     color: var(--sidebar-texto-suave);
     text-decoration: none;
@@ -260,7 +260,7 @@ h2 {
 }
 
 .sidebar-foot {
-    padding: 0.9rem 1.25rem 1.25rem;
+    padding: 0.7rem 1.25rem 1rem;
 }
 
 .sidebar-foot form {
@@ -954,7 +954,7 @@ label.obligatorio::after {
    Menú por tipo de usuario: títulos de sección
    ================================================================== */
 .sidebar-seccion {
-    margin: 1.1rem 0.75rem 0.3rem;
+    margin: 0.85rem 0.75rem 0.2rem;
     font-size: 0.72rem;
     font-weight: 500;
     color: var(--sidebar-texto-tenue);
@@ -1957,4 +1957,52 @@ html[data-tema="oscuro"] textarea {
 .dialogo textarea {
     font-family: inherit;
     width: 100%;
+}
+
+/* ==================================================================
+   Barra lateral en pantallas bajas (notebooks de 13", 1366 x 768 con
+   la barra del navegador): el menú del personal entra entero, sin
+   scroll propio. Solo escritorio: en celular la barra es el menú
+   desplegable de arriba.
+   ================================================================== */
+@media (min-width: 861px) and (max-height: 720px) {
+    .sidebar-logo {
+        padding: 0.7rem 1.5rem 0.6rem;
+        margin-bottom: 0.25rem;
+    }
+
+    .sidebar-logo .marca-logo {
+        width: 72px;
+    }
+
+    .sidebar-nav a {
+        padding: 0.28rem 0.75rem;
+    }
+
+    .sidebar-seccion {
+        margin: 0.55rem 0.75rem 0.1rem;
+    }
+
+    .sidebar-foot {
+        padding: 0.5rem 1.25rem 0.75rem;
+    }
+
+    .sidebar-usuario {
+        margin-bottom: 0.35rem;
+    }
+}
+
+/* Más bajas todavía (ventana achicada): la barra deja de quedar fija y
+   se desplaza con la página, en vez de tener un scroll propio. */
+@media (min-width: 861px) and (max-height: 640px) {
+    .sidebar {
+        position: relative;
+        height: auto;
+        min-height: 100vh;
+    }
+
+    .sidebar-nav {
+        flex: none;
+        overflow-y: visible;
+    }
 }
