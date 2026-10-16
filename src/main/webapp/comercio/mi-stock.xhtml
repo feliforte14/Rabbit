@@ -64,6 +64,10 @@
                 <f:facet name="header">Libre</f:facet>
                 #{i.cantidadLibre}
             </h:column>
+            <h:column styleClass="col-p2" headerClass="col-p2">
+                <f:facet name="header">Peso por unidad</f:facet>
+                #{empty i.pesoKg ? '—' : etiquetas.kilos(i.pesoKg)}
+            </h:column>
         </h:dataTable>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty portalComercioBean.items}">
             No tenés stock consignado en los depósitos de Rabbit.

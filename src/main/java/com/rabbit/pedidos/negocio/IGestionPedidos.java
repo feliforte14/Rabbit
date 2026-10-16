@@ -15,6 +15,7 @@ package com.rabbit.pedidos.negocio;
 
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
+import com.rabbit.pedidos.dto.RemitoDTO;
 import com.rabbit.transportistas.dto.CotizacionDTO;
 import java.util.List;
 import jakarta.ejb.Local;
@@ -102,20 +103,58 @@ public interface IGestionPedidos {
      * había cobrado, Pagos le pide la reversa. El stock ya se comprometió al
      * sincronizar (ver sincronizarPedidoExterno).
      *
+     * Si ningún repartidor tiene lugar, o ya pasó la hora de corte de la
+     * hoja de ruta, no se cobra nada: el pedido sigue PENDIENTE en la lista
+     * de espera y se asigna solo cuando se pueda (ADR-037).
+     *
      * @param idPedido ID del pedido a confirmar
+     * @return el ID del repartidor asignado, o null si quedó en espera
      * @throws ValidacionException si el pedido no existe, no está
-     *         PENDIENTE, no hay repartidores disponibles, el banco rechaza
-     *         el pago o no responde
+     *         PENDIENTE, el banco rechaza el pago o no responde
      */
-    void confirmarPedido(Long idPedido);
+    Long confirmarPedido(Long idPedido);
 
     /**
      * Como confirmarPedido, pero prefiere un repartidor de la zona indicada
      * (si no hay ninguno libre ahí, toma cualquiera). Lo usa el despacho por
      * zona del componente Ruteo.
+     *
+     * @return el ID del repartidor asignado, o null si quedó en espera
      */
-    /** @return el ID del repartidor asignado */
     Long confirmarPedidoEnZona(Long idPedido, Long idZona);
+
+    /**
+     * Intenta asignar un pedido de la lista de espera (lo llama
+     * AsignadorDeEspera, en su propia transacción). Si sigue sin haber
+     * lugar, lo deja esperando sin cambios.
+     *
+     * @return el ID del repartidor asignado, o null si sigue en espera
+     * @throws ValidacionException si falla por otra cosa (por ejemplo, el
+     *         banco rechaza el pago): ahí conviene sacarlo de la espera
+     */
+    Long asignarDesdeEspera(Long idPedido);
+
+    /**
+     * Saca un pedido de la lista de espera porque no se pudo asignar solo
+     * (el motivo queda a la vista del personal). Sigue PENDIENTE.
+     */
+    void sacarDeEspera(Long idPedido, String motivo);
+
+    /**
+     * El repartidor no pudo entregar el pedido (cliente ausente, dirección
+     * incorrecta, no entra en el vehículo...) y lo devuelve al depósito:
+     * CONFIRMADO o EN_CAMINO → PENDIENTE, deja de llevarlo y el pedido
+     * entra en la lista de espera para otro repartidor (ADR-037). Conserva
+     * su cobro: al reasignarlo no se cobra de nuevo.
+     *
+     * Solo el REPARTIDOR asignado o un ADMINISTRADOR.
+     *
+     * @param idPedido pedido a devolver
+     * @param motivo por qué no se entregó (obligatorio)
+     * @throws ValidacionException si no es suyo, no está en reparto, lo
+     *         lleva un transportista o falta el motivo
+     */
+    void devolverADeposito(Long idPedido, String motivo);
 
     /**
      * Alternativa a confirmarPedido cuando el pedido no lo lleva un
@@ -142,7 +181,9 @@ public interface IGestionPedidos {
 
     /**
      * El repartidor retiró el pedido: CONFIRMADO → EN_CAMINO. Desde acá ya
-     * no se puede cancelar (ver EstadoPedido).
+     * no se puede cancelar (ver EstadoPedido). Lo puede marcar el
+     * repartidor asignado o el personal (por ejemplo, al despachar desde el
+     * depósito): no mueve plata, así que no pide prueba (ADR-033).
      *
      * @param idPedido ID del pedido a despachar
      * @throws ValidacionException si el pedido no existe o no está CONFIRMADO
@@ -150,14 +191,39 @@ public interface IGestionPedidos {
     void despacharPedido(Long idPedido);
 
     /**
-     * El repartidor entregó el pedido: EN_CAMINO → ENTREGADO, y queda libre
-     * para otro pedido. Con pago CONTRA_ENTREGA, este cambio es el que
-     * dispara el cobro (vía el tópico de estados, suscriptor de Pagos).
+     * El repartidor entregó el pedido: EN_CAMINO → ENTREGADO, con la foto
+     * del remito firmado como prueba (ADR-033), y deja de llevarlo. Con pago
+     * CONTRA_ENTREGA, este cambio es el que dispara el cobro (vía el tópico
+     * de estados, suscriptor de Pagos).
+     *
+     * Solo el REPARTIDOR asignado, o un ADMINISTRADOR como contingencia
+     * (por ejemplo, el repartidor se quedó sin batería): un OPERADOR no.
      *
      * @param idPedido ID del pedido entregado
-     * @throws ValidacionException si el pedido no existe o no está EN_CAMINO
+     * @param imagen foto del remito: JPEG, PNG o WEBP, hasta 5 MB
+     * @throws ValidacionException si el pedido no existe, no está EN_CAMINO,
+     *         no es del repartidor, o falta la foto o no es una imagen válida
      */
-    void registrarEntrega(Long idPedido);
+    void registrarEntrega(Long idPedido, byte[] imagen);
+
+    /**
+     * ENTREGADO informado por el transportista externo de un pedido
+     * derivado (ver ActualizacionDePedidosPorEnvio): la prueba de entrega
+     * es la del transportista, no hay remito de Rabbit. Solo para pedidos
+     * sin repartidor propio.
+     *
+     * @throws ValidacionException si el pedido tiene repartidor de Rabbit o no está EN_CAMINO
+     */
+    void registrarEntregaDeTransportista(Long idPedido);
+
+    /**
+     * La foto del remito de un pedido. El personal ve cualquiera; un
+     * COMERCIO, las de sus pedidos; un REPARTIDOR, las de los suyos.
+     *
+     * @throws PedidoNoEncontradoException si no existe, no tiene remito o
+     *         quien llama no lo puede ver (no se distingue: no revela nada)
+     */
+    RemitoDTO obtenerRemito(Long idPedido);
 
     /**
      * Cancela el pedido y DEVUELVE el stock que había comprometido: por

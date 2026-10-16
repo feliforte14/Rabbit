@@ -35,6 +35,7 @@ import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
 import jakarta.inject.Inject;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -47,6 +48,8 @@ import java.util.stream.Collectors;
 @DeclareRoles({"ADMINISTRADOR", "OPERADOR", "COMERCIO", "REPARTIDOR"})
 @PermitAll
 public class ConsultaStockService implements IConsultaStock {
+
+    private static final BigDecimal PESO_MAXIMO_KG = new BigDecimal("1000");
 
     @Inject
     private IContextoUsuario contextoUsuario;
@@ -98,6 +101,7 @@ public class ConsultaStockService implements IConsultaStock {
         Deposito deposito = obtenerDepositoOFallar(idDeposito);
         validarProducto(datos.producto);
         validarCantidad(datos.cantidadDisponible);
+        validarPeso(datos.pesoKg);
 
         // Cargar stock es registrar una consignacion: sin comercio dueño,
         // la mercaderia no seria de nadie y nadie podria reservarla.
@@ -119,7 +123,21 @@ public class ConsultaStockService implements IConsultaStock {
         item.setCantidadReservada(0);
         item.setDeposito(deposito);
         item.setIdComercio(datos.idComercio);
+        item.setPesoKg(datos.pesoKg);
         return repository.guardarItem(item).getId();
+    }
+
+    // Para los ítems cargados antes de que existiera el peso, o si se
+    // cargó mal. No cambia el peso de los pedidos ya creados: ese se
+    // calculó con el valor de ese momento.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void actualizarPesoItem(Long idItem, BigDecimal pesoKg) {
+        ItemInventario item = obtenerItemOFallar(idItem);
+        validarPeso(pesoKg);
+        item.setPesoKg(pesoKg);
+        repository.actualizarItem(item);
     }
 
     // TODO el stock de un depósito, de todos los comercios — vista de operador.
@@ -138,6 +156,13 @@ public class ConsultaStockService implements IConsultaStock {
         return repository.listarItemsPorIds(idsItems).stream()
                 .map(ItemInventarioDTO::desde)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public java.util.Map<Long, BigDecimal> pesosPorItem(Collection<Long> idsItems) {
+        java.util.Map<Long, BigDecimal> pesos = new java.util.HashMap<>();
+        repository.listarItemsPorIds(idsItems).forEach(item -> pesos.put(item.getId(), item.getPesoKg()));
+        return pesos;
     }
 
     // Stock consignado del comercio que representa el usuario que llama.
@@ -213,6 +238,21 @@ public class ConsultaStockService implements IConsultaStock {
     }
 
     // --- Validaciones de negocio ---
+
+    // Kilos por unidad: obligatorio, mayor a cero, hasta 1000 kg y 3
+    // decimales (gramos).
+    private void validarPeso(BigDecimal pesoKg) {
+        if (pesoKg == null) {
+            throw new ValidacionException("Ingresá el peso por unidad, en kilos");
+        }
+        if (pesoKg.signum() <= 0 || pesoKg.compareTo(PESO_MAXIMO_KG) > 0) {
+            throw new ValidacionException("El peso por unidad tiene que ser mayor a 0 y de hasta "
+                    + PESO_MAXIMO_KG + " kg");
+        }
+        if (pesoKg.stripTrailingZeros().scale() > 3) {
+            throw new ValidacionException("El peso admite hasta 3 decimales (gramos)");
+        }
+    }
 
     // Nombre obligatorio, sin más restricción de formato.
     private void validarNombreDeposito(String nombre) {

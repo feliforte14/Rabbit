@@ -57,6 +57,14 @@ public class Pedido {
     @Enumerated(EnumType.STRING)
     private MedioPago medioPago;
 
+    // Kilos totales del pedido: con STOCK_CONSIGNADO, la suma de peso por
+    // unidad x cantidad de cada línea; con PUNTO_PICKING, lo que informó el
+    // comercio. Null si no se conoce (ítems sin peso, picking sin informar,
+    // pedidos anteriores): ahí el límite del repartidor solo cuenta bultos
+    // (ADR-032).
+    @Column(precision = 10, scale = 3)
+    private BigDecimal pesoKg;
+
     // Adónde se entrega (la manda el ERP con el pedido). Es el destino de
     // la hoja de ruta del repartidor (ver RuteoService). Nullable: los
     // pedidos anteriores a este cambio no la tienen.
@@ -82,6 +90,46 @@ public class Pedido {
     @Column(length = 16, unique = true)
     private String codigoSeguimiento;
 
+    // Cuándo se entregó y quién lo registró (ADR-033). La fecha la usa la
+    // liquidación mensual (ADR-034). Null en pedidos no entregados y en los
+    // entregados antes de este cambio.
+    private LocalDateTime fechaEntrega;
+
+    @Column(length = 30)
+    private String entregadoPor;
+
+    // Si tiene foto del remito (RemitoEntrega), para no consultar esa
+    // tabla al listar. Boolean y no boolean: las filas anteriores quedan
+    // en NULL.
+    private Boolean conRemito;
+
+    // Lista de espera: el pedido se quiso confirmar pero ningún repartidor
+    // tenía lugar, o ya había pasado la hora de corte de la hoja de ruta.
+    // Sigue PENDIENTE y AsignadorDeEspera lo asigna solo, por orden de
+    // llegada, cuando alguno se libera. Null = no está esperando.
+    private LocalDateTime enEsperaDesde;
+
+    // Por qué espera (o por qué salió de la espera sin asignarse), para el
+    // personal.
+    @Column(length = 300)
+    private String motivoEspera;
+
+    // Zona del pedido según Ruteo, para que la asignación automática busque
+    // primero ahí, como lo habría hecho el despacho por zona.
+    private Long idZonaEspera;
+
+    // Devolución al depósito: el repartidor que lo devolvió (no se le
+    // vuelve a asignar este pedido) y por qué.
+    private Long idRepartidorExcluido;
+
+    @Column(length = 300)
+    private String motivoDevolucion;
+
+    // Si ya tiene cobro registrado en Pagos: un pedido devuelto al depósito
+    // vuelve a PENDIENTE con su cobro, y al reasignarlo no se cobra de nuevo.
+    // Boolean y no boolean: las filas anteriores quedan en NULL.
+    private Boolean cobroRegistrado;
+
     public Pedido() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -98,6 +146,10 @@ public class Pedido {
     public void setEstado(EstadoPedido estado) { this.estado = estado; }
     public BigDecimal getImporte() { return importe; }
     public void setImporte(BigDecimal importe) { this.importe = importe; }
+    public BigDecimal getPesoKg() { return pesoKg; }
+    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
+    /** Bultos del pedido: la suma de las cantidades de sus líneas. */
+    public int getBultos() { return lineas == null ? 0 : lineas.stream().mapToInt(LineaPedido::getCantidad).sum(); }
     public MedioPago getMedioPago() { return medioPago; }
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
@@ -110,6 +162,25 @@ public class Pedido {
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
     public void setFechaActualizacion(LocalDateTime fechaActualizacion) { this.fechaActualizacion = fechaActualizacion; }
+    public LocalDateTime getFechaEntrega() { return fechaEntrega; }
+    public void setFechaEntrega(LocalDateTime fechaEntrega) { this.fechaEntrega = fechaEntrega; }
+    public String getEntregadoPor() { return entregadoPor; }
+    public void setEntregadoPor(String entregadoPor) { this.entregadoPor = entregadoPor; }
+    public boolean isConRemito() { return Boolean.TRUE.equals(conRemito); }
+    public void setConRemito(boolean conRemito) { this.conRemito = conRemito; }
     public String getCodigoSeguimiento() { return codigoSeguimiento; }
     public void setCodigoSeguimiento(String codigoSeguimiento) { this.codigoSeguimiento = codigoSeguimiento; }
+    public LocalDateTime getEnEsperaDesde() { return enEsperaDesde; }
+    public void setEnEsperaDesde(LocalDateTime enEsperaDesde) { this.enEsperaDesde = enEsperaDesde; }
+    public boolean isEnEspera() { return enEsperaDesde != null; }
+    public String getMotivoEspera() { return motivoEspera; }
+    public void setMotivoEspera(String motivoEspera) { this.motivoEspera = motivoEspera; }
+    public Long getIdZonaEspera() { return idZonaEspera; }
+    public void setIdZonaEspera(Long idZonaEspera) { this.idZonaEspera = idZonaEspera; }
+    public Long getIdRepartidorExcluido() { return idRepartidorExcluido; }
+    public void setIdRepartidorExcluido(Long idRepartidorExcluido) { this.idRepartidorExcluido = idRepartidorExcluido; }
+    public String getMotivoDevolucion() { return motivoDevolucion; }
+    public void setMotivoDevolucion(String motivoDevolucion) { this.motivoDevolucion = motivoDevolucion; }
+    public boolean isCobroRegistrado() { return Boolean.TRUE.equals(cobroRegistrado); }
+    public void setCobroRegistrado(boolean cobroRegistrado) { this.cobroRegistrado = cobroRegistrado; }
 }

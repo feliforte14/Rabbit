@@ -8,16 +8,22 @@ package com.rabbit.inventario.dto;
  * depósito es de Rabbit, pero el stock que entra tiene dueño.
  */
 
+import java.math.BigDecimal;
+
 public class DatosItemInventarioDTO {
     public String producto;
     public int cantidadDisponible;
     public Long idComercio;
+    // Kilos por unidad (ADR-032).
+    public BigDecimal pesoKg;
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public String getProducto() { return producto; }
     public void setProducto(String producto) { this.producto = producto; }
     public int getCantidadDisponible() { return cantidadDisponible; }
     public void setCantidadDisponible(int cantidadDisponible) { this.cantidadDisponible = cantidadDisponible; }
+    public BigDecimal getPesoKg() { return pesoKg; }
+    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
 }

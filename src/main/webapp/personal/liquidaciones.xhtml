@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Liquidacion mensual a comercios (ADR-034): abono + cargo por pedido
+    entregado + cargo por kilo, cobrado por el banco. Se elige un mes: si
+    esta liquidado se ve lo cobrado; si termino y no, un administrador lo
+    liquida; el mes en curso muestra una vista previa. Solo el personal.
+    Se bindea a liquidacionBean (LiquidacionBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Liquidaciones</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Liquidación mensual a comercios</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <p class="ayuda">
+            Cada mes, a cada comercio activo se le cobra el servicio de Rabbit:
+            <b><h:outputText value="#{liquidacionBean.tarifa.abono()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> de abono,
+            <b><h:outputText value="#{liquidacionBean.tarifa.porEnvio()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por pedido entregado y
+            <b><h:outputText value="#{liquidacionBean.tarifa.porKilo()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por kilo entregado.
+            Es aparte del cobro de cada pedido. El día 1 a las 6 se liquida solo el mes anterior y se cobra por el banco;
+            si el banco no responde, se reintenta todos los días.
+        </p>
+
+        <h:form id="formPeriodo" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="periodo" value="Mes" />
+                <h:selectOneMenu id="periodo" value="#{liquidacionBean.periodo}">
+                    <f:selectItems value="#{liquidacionBean.periodos}" var="p" itemValue="#{p}"
+                                   itemLabel="#{liquidacionBean.nombreMes(p)}" />
+                    <f:ajax listener="#{liquidacionBean.cargar}" render="@form :formTabla" />
+                </h:selectOneMenu>
+            </div>
+            <h:panelGroup layout="block" styleClass="form-acciones"
+                          rendered="#{liquidacionBean.vistaPrevia and liquidacionBean.mesCerrado and sesionBean.admin}">
+                <h:commandButton value="Liquidar y cobrar este mes" styleClass="btn btn-primary"
+                                 action="#{liquidacionBean.liquidar}"
+                                 onclick="return confirm('¿Liquidar el mes y pedirle al banco el cobro a cada comercio?');" />
+            </h:panelGroup>
+            <h:outputText styleClass="ayuda" rendered="#{liquidacionBean.vistaPrevia and not liquidacionBean.mesCerrado}"
+                          value="El mes todavía no terminó: es una vista previa con lo entregado hasta ahora. Se liquida el día 1." />
+            <h:outputText styleClass="ayuda" rendered="#{liquidacionBean.vistaPrevia and liquidacionBean.mesCerrado}"
+                          value="Este mes todavía no se liquidó: lo que se ve es lo que se va a cobrar." />
+        </h:form>
+
+        <h:form id="formTabla">
+            <h:dataTable value="#{liquidacionBean.filas}" var="l"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty liquidacionBean.filas}">
+                <h:column>
+                    <f:facet name="header">Comercio</f:facet>
+                    #{liquidacionBean.nombreComercio(l.idComercio)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Entregas</f:facet>
+                    #{l.cantidadEnvios}
+                    <span class="dato-secundario">#{etiquetas.kilos(l.kilos)}</span>
+                </h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
+                    <f:facet name="header">Detalle</f:facet>
+                    <span class="dato-secundario">Abono: #{etiquetas.pesos(l.abono)}</span>
+                    <span class="dato-secundario">Envíos: #{etiquetas.pesos(l.cargoEnvios)}</span>
+                    <span class="dato-secundario">Kilos: #{etiquetas.pesos(l.cargoKilos)}</span>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Total</f:facet>
+                    <b><h:outputText value="#{l.total}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{etiquetas.estadoLiquidacion(l.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoLiquidacion(l.estado)}" />
+                    <h:panelGroup rendered="#{not empty l.codigoAutorizacion}">
+                        <span class="dato-secundario">Autorización #{l.codigoAutorizacion}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty l.motivo and l.estado != 'COBRADA'}">
+                        <span class="dato-secundario">#{l.motivo}</span>
+                    </h:panelGroup>
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Reintentar cobro" styleClass="btn btn-secondary"
+                                     action="#{liquidacionBean.reintentar(l.id)}"
+                                     rendered="#{sesionBean.admin and (l.estado == 'PENDIENTE' or l.estado == 'RECHAZADA')}" />
+                </h:column>
+            </h:dataTable>
+            <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty liquidacionBean.filas}">
+                No hay comercios activos para liquidar.
+            </h:panelGroup>
+            <h:panelGroup rendered="#{not empty liquidacionBean.filas}">
+                <p class="ayuda">Total del mes:
+                    <b><h:outputText value="#{liquidacionBean.totalGeneral}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
+                </p>
+            </h:panelGroup>
+        </h:form>
+    </ui:define>
+</ui:composition>

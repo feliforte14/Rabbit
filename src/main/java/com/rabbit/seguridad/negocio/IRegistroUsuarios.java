@@ -21,8 +21,8 @@ public interface IRegistroUsuarios {
     Long registrarUsuario(DatosUsuarioDTO datos);
 
     /**
-     * Baja lógica: el usuario deja de poder autenticarse (RabbitIdentityStore
-     * lo excluye), pero el registro se conserva.
+     * Baja lógica: el usuario deja de poder autenticarse (el realm JDBC de
+     * WildFly solo acepta cuentas activas), pero el registro se conserva.
      *
      * @param id ID del usuario a dar de baja
      * @throws ValidacionException si el usuario no existe
@@ -30,10 +30,20 @@ public interface IRegistroUsuarios {
     void darDeBaja(Long id);
 
     /**
-     * Vuelve a habilitar una cuenta dada de baja, con una contraseña nueva:
-     * la baja la sacó del realm de WildFly, que guarda su propio hash de la
-     * contraseña, y ese hash no se puede reconstruir desde la tabla. Solo
-     * ADMINISTRADOR.
+     * Borra la cuenta definitivamente: desaparece del padrón y no se puede
+     * reactivar. Solo ADMINISTRADOR. Nada del resto del sistema apunta a
+     * una cuenta (los pedidos guardan el nombre de quien entregó como
+     * texto), así que no deja referencias colgadas.
+     *
+     * @param id ID del usuario a eliminar
+     * @throws ValidacionException si no existe, es la propia cuenta o es el
+     *         último administrador activo
+     */
+    void eliminarUsuario(Long id);
+
+    /**
+     * Vuelve a habilitar una cuenta dada de baja, con una contraseña nueva
+     * (la anterior no se puede recuperar del hash). Solo ADMINISTRADOR.
      *
      * @param id ID del usuario a reactivar
      * @param passwordNueva contraseña en claro con la que va a entrar
@@ -42,4 +52,15 @@ public interface IRegistroUsuarios {
      *         comercio o repartidor que representa
      */
     void reactivarUsuario(Long id, String passwordNueva);
+
+    /**
+     * Cambia la contraseña de una cuenta activa. También pasa a la base
+     * las cuentas creadas antes de ADR-031. Solo ADMINISTRADOR.
+     *
+     * @param id ID del usuario
+     * @param passwordNueva contraseña en claro con la que va a entrar
+     * @throws ValidacionException si no existe, está dado de baja o la
+     *         contraseña es inválida
+     */
+    void restablecerClave(Long id, String passwordNueva);
 }

@@ -27,6 +27,7 @@ import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -54,6 +55,10 @@ public class ItemInventarioBean implements Serializable {
     private Long idComercioFiltro;
 
     private DatosItemInventarioDTO nuevoItem = new DatosItemInventarioDTO();
+
+    // Formulario "Corregir peso".
+    private Long idItemPeso;
+    private BigDecimal pesoNuevo;
 
     // Se invoca vía <f:viewAction> apenas idDeposito queda seteado por el
     // <f:viewParam> de items.xhtml (no hay @PostConstruct porque en ese
@@ -116,6 +121,20 @@ public class ItemInventarioBean implements Serializable {
         }
     }
 
+    // Peso por unidad de un ítem ya cargado (los anteriores al peso no lo
+    // tienen, ver ItemInventario.pesoKg).
+    public void actualizarPeso() {
+        try {
+            service.actualizarPesoItem(idItemPeso, pesoNuevo);
+            Mensajes.info("Peso actualizado");
+            idItemPeso = null;
+            pesoNuevo = null;
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        }
+    }
+
     // Getters/setters JavaBean: los requiere Expression Language (JSF),
     // incluido idDeposito, que <f:viewParam> escribe vía su setter.
     public Long getIdDeposito() { return idDeposito; }
@@ -127,4 +146,8 @@ public class ItemInventarioBean implements Serializable {
     public void setIdComercioFiltro(Long idComercioFiltro) { this.idComercioFiltro = idComercioFiltro; }
     public DatosItemInventarioDTO getNuevoItem() { return nuevoItem; }
     public void setNuevoItem(DatosItemInventarioDTO nuevoItem) { this.nuevoItem = nuevoItem; }
+    public Long getIdItemPeso() { return idItemPeso; }
+    public void setIdItemPeso(Long idItemPeso) { this.idItemPeso = idItemPeso; }
+    public BigDecimal getPesoNuevo() { return pesoNuevo; }
+    public void setPesoNuevo(BigDecimal pesoNuevo) { this.pesoNuevo = pesoNuevo; }
 }

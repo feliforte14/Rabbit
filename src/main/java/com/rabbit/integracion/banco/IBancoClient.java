@@ -18,6 +18,12 @@ public interface IBancoClient {
     ResultadoAutorizacion autorizar(Long idPedido, BigDecimal importe);
 
     /**
+     * Como autorizar, con la referencia que va a ver el banco (por ejemplo
+     * "LIQ-12" para la liquidación mensual de un comercio, ADR-034).
+     */
+    ResultadoAutorizacion autorizarReferencia(String referencia, BigDecimal importe);
+
+    /**
      * Pide al banco que devuelva la plata de una autorización.
      *
      * @return true si el banco confirmó la reversa; false si no respondió

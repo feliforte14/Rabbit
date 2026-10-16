@@ -13,16 +13,21 @@
 --     negocio y todas las cuentas de la tabla usuarios. Deja las tablas,
 --     las columnas y las restricciones como están.
 --
--- Historial: la base se vació por última vez el 12/10/2026, antes de la
--- corrida de pruebas del 14/10. La base es COMPARTIDA con el equipo: si
+-- Historial: la base se vació por última vez el 15/10/2026, conservando
+-- usuarios, comercios, repartidores y zonas (para las pruebas de
+-- ADR-032 a 036). La base es COMPARTIDA con el equipo: si
 -- alguien cargó datos que necesita, NO corras la opción B sin avisar.
 --
 -- Cómo usarlo, en el SQL Editor de Supabase:
 --   1. Corré solo el PASO 1 y revisá los conteos.
---   2. Corré el bloque de la opción elegida completo. Termina SIN
---      confirmar.
---   3. Si los conteos del final dan todos 0, corré COMMIT;
---      si algo no cierra, corré ROLLBACK; y no se borra nada.
+--   2. Corré el bloque de la opción elegida completo, tal cual. Es un
+--      ensayo: el editor corre cada ejecución en una conexión aparte y,
+--      como el bloque termina sin COMMIT, al terminar se deshace solo.
+--      Revisá que los conteos del final den 0.
+--   3. Si dan 0, volvé a correr el MISMO bloque con la línea "COMMIT;"
+--      del final descomentada: tiene que ir en la misma ejecución. Un
+--      COMMIT corrido después, solo, no confirma nada (la transacción ya
+--      se descartó).
 --
 -- Los IDs no se reinician: los próximos registros siguen numerando desde
 -- donde quedaron.
@@ -37,7 +42,10 @@ UNION ALL SELECT 'pedidos', COUNT(*) FROM pedidos
 UNION ALL SELECT 'pedidos_externos_lineas', COUNT(*) FROM pedidos_externos_lineas
 UNION ALL SELECT 'pedidos_externos', COUNT(*) FROM pedidos_externos
 UNION ALL SELECT 'cobros', COUNT(*) FROM cobros
+UNION ALL SELECT 'liquidaciones', COUNT(*) FROM liquidaciones
 UNION ALL SELECT 'notificaciones', COUNT(*) FROM notificaciones
+UNION ALL SELECT 'remitos_entrega', COUNT(*) FROM remitos_entrega
+UNION ALL SELECT 'repartidores_cargas', COUNT(*) FROM repartidores_cargas
 UNION ALL SELECT 'envios', COUNT(*) FROM envios
 UNION ALL SELECT 'reservas_stock', COUNT(*) FROM reservas_stock
 UNION ALL SELECT 'items_inventario', COUNT(*) FROM items_inventario
@@ -79,11 +87,23 @@ DELETE FROM cobros WHERE idpedido IN (
 DELETE FROM envios WHERE idpedido IN (
   SELECT id FROM pedidos
    WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%');
+DELETE FROM remitos_entrega WHERE idpedido IN (
+  SELECT id FROM pedidos
+   WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%');
+DELETE FROM repartidores_cargas WHERE idpedido IN (
+  SELECT id FROM pedidos
+   WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%');
 DELETE FROM pedidos_lineas WHERE pedido_id IN (
   SELECT id FROM pedidos
    WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%');
 DELETE FROM pedidos
  WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%';
+
+-- Un repartidor que llevaba solo pedidos de prueba vuelve a quedar libre.
+UPDATE repartidores r SET estado = 'DISPONIBLE', idpedidoactual = NULL
+ WHERE r.estado = 'OCUPADO'
+   AND NOT EXISTS (SELECT 1 FROM repartidores_cargas c WHERE c.idrepartidor = r.id)
+   AND (r.idpedidoactual IS NULL OR NOT EXISTS (SELECT 1 FROM pedidos p WHERE p.id = r.idpedidoactual));
 
 -- Los pedidos que mandó el ERP de prueba (incluye los descartados, que
 -- nunca llegaron a ser pedidos).
@@ -100,8 +120,7 @@ UNION ALL
 SELECT 'pedidos externos [TEST]/[CARGA]', COUNT(*) FROM pedidos_externos
  WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%';
 
--- COMMIT;     -- confirma el borrado
--- ROLLBACK;   -- deshace todo, no se borra nada
+-- COMMIT;     -- descomentar para confirmar, en la misma ejecución (paso 3)
 
 
 -- ---------------------------------------------------------------------
@@ -112,6 +131,9 @@ BEGIN;
 -- Primero lo que referencia a otras tablas, después lo referenciado.
 DELETE FROM notificaciones;
 DELETE FROM cobros;
+DELETE FROM liquidaciones;
+DELETE FROM remitos_entrega;
+DELETE FROM repartidores_cargas;
 DELETE FROM envios;
 DELETE FROM pedidos_lineas;
 DELETE FROM pedidos;
@@ -133,6 +155,9 @@ DELETE FROM transportistas;
 SELECT 'pedidos' AS tabla, COUNT(*) FROM pedidos
 UNION ALL SELECT 'pedidos_externos', COUNT(*) FROM pedidos_externos
 UNION ALL SELECT 'cobros', COUNT(*) FROM cobros
+UNION ALL SELECT 'liquidaciones', COUNT(*) FROM liquidaciones
+UNION ALL SELECT 'remitos_entrega', COUNT(*) FROM remitos_entrega
+UNION ALL SELECT 'repartidores_cargas', COUNT(*) FROM repartidores_cargas
 UNION ALL SELECT 'notificaciones', COUNT(*) FROM notificaciones
 UNION ALL SELECT 'envios', COUNT(*) FROM envios
 UNION ALL SELECT 'reservas_stock', COUNT(*) FROM reservas_stock
@@ -143,8 +168,7 @@ UNION ALL SELECT 'usuarios', COUNT(*) FROM usuarios
 UNION ALL SELECT 'transportistas', COUNT(*) FROM transportistas
 UNION ALL SELECT 'zonas', COUNT(*) FROM zonas;
 
--- COMMIT;     -- confirma el borrado
--- ROLLBACK;   -- deshace todo, no se borra nada
+-- COMMIT;     -- descomentar para confirmar, en la misma ejecución (paso 3)
 
 
 -- ---------------------------------------------------------------------

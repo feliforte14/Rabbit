@@ -80,6 +80,10 @@
     {
       "key": "codigoAutorizacion",
       "value": ""
+    },
+    {
+      "key": "idExternoEspera",
+      "value": ""
     }
   ],
   "item": [
@@ -256,14 +260,14 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"Caja de zapatillas\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 18000,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 2000, CABA\",\n  \"codigoPostalEntrega\": \"1428\"\n}",
+                  "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"Caja de zapatillas\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 18000,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 2000, CABA\",\n  \"codigoPostalEntrega\": \"1428\",\n  \"pesoKg\": 1.2\n}",
                   "options": {
                     "raw": {
                       "language": "json"
                     }
                   }
                 },
-                "description": "Esperado: 201. El stock del depósito no cambia."
+                "description": "Esperado: 201. El stock del depósito no cambia.\n\npesoKg (opcional, solo punto de picking): los kilos del pedido, para el límite de carga del repartidor (ADR-032)."
               }
             },
             {
@@ -482,6 +486,107 @@
                 "header": [],
                 "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoStock}}/cancelacion",
                 "description": "ANTES: confirmar en la web (Pedidos → Confirmar) el pedido que creó A1. Como ya avanzó, la API no deja cancelarlo: 409 cancelacion-no-permitida."
+              }
+            }
+          ]
+        },
+        {
+          "name": "A8 · Lista de espera y devolución al depósito (ADR-037)",
+          "description": "Un pedido que se confirma cuando ningún repartidor tiene lugar (o después de la hora de corte, rabbit.ruteo.hora-corte) queda PENDIENTE en la lista de espera, sin cobrar: la API lo muestra con enListaDeEspera = true. Si el repartidor lo devuelve al depósito, el ERP ya no lo puede cancelar.",
+          "item": [
+            {
+              "name": "1. Registrar pedido para la lista de espera → 201",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idExternoEspera\", r.idPedidoExterno);",
+                      "pm.test(\"Devuelve idPedidoExterno\", () => pm.expect(r.idPedidoExterno).to.be.a(\"number\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKey}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"[TEST] Av. Cabildo 1500, CABA\",\n  \"codigoPostalEntrega\": \"1426\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "DESPUÉS: dejar a todos los repartidores sin lugar (o configurar rabbit.ruteo.hora-corte=00:01) y confirmar este pedido en la web (Pedidos → Confirmar): queda \"En espera\"."
+              }
+            },
+            {
+              "name": "2. Consultar → PENDIENTE con enListaDeEspera",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const r = pm.response.json();",
+                      "pm.test(\"Está sincronizado y PENDIENTE\", () => pm.expect(r.estadoPedido).to.eql(\"PENDIENTE\"));",
+                      "pm.test(\"Informa si está en la lista de espera\", () => pm.expect(r.enListaDeEspera).to.be.a(\"boolean\"));",
+                      "pm.test(\"En espera (ANTES: confirmarlo sin repartidores con lugar)\", () => pm.expect(r.enListaDeEspera).to.be.true);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoEspera}}",
+                "description": "ANTES: confirmarlo en la web sin repartidores con lugar. enListaDeEspera solo aparece mientras el pedido está PENDIENTE; mientras no se confirma, es false."
+              }
+            },
+            {
+              "name": "3. Cancelar un pedido devuelto al depósito → 409",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 409\", () => pm.response.to.have.status(409));",
+                      "pm.test(\"Es cancelacion-no-permitida\", () => pm.expect(pm.response.text()).to.include(\"cancelacion-no-permitida\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoEspera}}/cancelacion",
+                "description": "ANTES: liberar lugar para que el pedido se asigne solo y, como el repartidor, devolverlo desde Mis entregas (\"Devolver a depósito\"). Vuelve a PENDIENTE pero ya salió a reparto: la API no deja cancelarlo y tampoco ofrece el link _links.cancelar."
               }
             }
           ]
@@ -799,6 +904,53 @@
           "protocolProfileBehavior": {
             "followRedirects": false
           }
+        },
+        {
+          "name": "8. Peso en stock consignado → 422",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"pesoKg\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Con stock consignado el peso lo calcula Rabbit con el peso de cada ítem (ADR-032): informarlo es una regla de negocio violada, 422."
+          }
         }
       ],
       "auth": {
@@ -838,7 +990,7 @@
             "method": "GET",
             "header": [],
             "url": "{{baseUrl}}/api/v1/seguimiento/{{codigoSeguimiento}}",
-            "description": "Usa el codigoSeguimiento que guardó la consulta de A1. Solo devuelve el estado: nada de importes ni datos del comercio. También se puede ver en {{baseUrl}}/seguimiento.xhtml."
+            "description": "Usa el codigoSeguimiento que guardó la consulta de A1. Solo devuelve el estado: nada de importes ni datos del comercio. También se puede ver en {{baseUrl}}/seguimiento.xhtml.\n\nMientras el pedido está EN_CAMINO con un repartidor de Rabbit que comparte su ubicación, la respuesta trae ubicacionRepartidor {latitud, longitud, actualizada} (ADR-035)."
           }
         },
         {

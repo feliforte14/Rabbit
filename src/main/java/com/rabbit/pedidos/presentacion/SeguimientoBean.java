@@ -18,7 +18,10 @@ import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.ValidacionException;
 import jakarta.enterprise.context.RequestScoped;
+import com.rabbit.repartidores.dto.UbicacionDTO;
+import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import jakarta.inject.Inject;
+import jakarta.json.Json;
 import jakarta.inject.Named;
 import java.util.List;
 
@@ -31,6 +34,12 @@ public class SeguimientoBean {
 
     @Inject
     private ISeguimientoPedido seguimiento;
+
+    // Dónde está el repartidor que lleva el pedido (ADR-035).
+    @Inject
+    private IGestionRepartidores repartidores;
+
+    private UbicacionDTO ubicacion;
 
     private String codigo;
     private PedidoDTO pedido;
@@ -46,7 +55,32 @@ public class SeguimientoBean {
             pedido = seguimiento.consultarSeguimiento(codigo);
         } catch (ValidacionException e) {
             noEncontrado = true;
+            return;
         }
+        // Solo mientras va en camino con un repartidor de Rabbit: antes no
+        // salió, y después no hay nada que seguir.
+        if ("EN_CAMINO".equals(pedido.estado) && pedido.idRepartidor != null) {
+            ubicacion = repartidores.ubicacionParaPedido(pedido.idRepartidor, pedido.id);
+        }
+    }
+
+    /** El punto del repartidor para mapa.js, o null si no hay ubicación reciente. */
+    public String getPuntosJson() {
+        if (ubicacion == null) {
+            return null;
+        }
+        return Json.createArrayBuilder().add(Json.createObjectBuilder()
+                .add("lat", ubicacion.getLatitud())
+                .add("lng", ubicacion.getLongitud())
+                .add("titulo", "Tu pedido")
+                .add("detalle", "Ubicación de las " + ubicacion.getHora())).build().toString();
+    }
+
+    public UbicacionDTO getUbicacion() { return ubicacion; }
+
+    /** Mientras va en camino, la página se recarga sola para mover el mapa. */
+    public boolean isEnCamino() {
+        return pedido != null && "EN_CAMINO".equals(pedido.estado);
     }
 
     public boolean isCancelado() {

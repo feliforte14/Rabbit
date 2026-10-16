@@ -23,6 +23,7 @@ public class PedidoDTO {
     public Long idPuntoPicking;
     public List<LineaPedidoDTO> lineas;
     public BigDecimal importe;
+    public BigDecimal pesoKg;
     public MedioPago medioPago;
     public Long idRepartidor;
     public String estado;
@@ -31,6 +32,14 @@ public class PedidoDTO {
     public String direccionEntrega;
     public String codigoPostalEntrega;
     public String codigoSeguimiento;
+    public String fechaEntrega;
+    public String entregadoPor;
+    public boolean conRemito;
+    // Lista de espera y devolución al depósito (ADR-037).
+    public boolean enEspera;
+    public String enEsperaDesde;
+    public String motivoEspera;
+    public String motivoDevolucion;
 
     // Convierte una entidad Pedido en un DTO listo para mostrar en la vista.
     public static PedidoDTO desde(Pedido p) {
@@ -40,6 +49,7 @@ public class PedidoDTO {
         dto.origen = p.getOrigen();
         dto.idPuntoPicking = p.getIdPuntoPicking();
         dto.importe = p.getImporte();
+        dto.pesoKg = p.getPesoKg();
         dto.medioPago = p.getMedioPago();
         dto.idRepartidor = p.getIdRepartidor();
         dto.lineas = p.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
@@ -49,6 +59,13 @@ public class PedidoDTO {
         dto.direccionEntrega = p.getDireccionEntrega();
         dto.codigoPostalEntrega = p.getCodigoPostalEntrega();
         dto.codigoSeguimiento = p.getCodigoSeguimiento();
+        dto.fechaEntrega = p.getFechaEntrega() != null ? p.getFechaEntrega().format(FORMATO) : null;
+        dto.entregadoPor = p.getEntregadoPor();
+        dto.conRemito = p.isConRemito();
+        dto.enEspera = p.isEnEspera();
+        dto.enEsperaDesde = p.getEnEsperaDesde() != null ? p.getEnEsperaDesde().format(FORMATO) : null;
+        dto.motivoEspera = p.getMotivoEspera();
+        dto.motivoDevolucion = p.getMotivoDevolucion();
         return dto;
     }
 
@@ -70,6 +87,7 @@ public class PedidoDTO {
     public Long getIdPuntoPicking() { return idPuntoPicking; }
     public List<LineaPedidoDTO> getLineas() { return lineas; }
     public BigDecimal getImporte() { return importe; }
+    public BigDecimal getPesoKg() { return pesoKg; }
     public MedioPago getMedioPago() { return medioPago; }
     public Long getIdRepartidor() { return idRepartidor; }
     public String getEstado() { return estado; }
@@ -78,4 +96,11 @@ public class PedidoDTO {
     public String getDireccionEntrega() { return direccionEntrega; }
     public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
     public String getCodigoSeguimiento() { return codigoSeguimiento; }
+    public String getFechaEntrega() { return fechaEntrega; }
+    public String getEntregadoPor() { return entregadoPor; }
+    public boolean isConRemito() { return conRemito; }
+    public boolean isEnEspera() { return enEspera; }
+    public String getEnEsperaDesde() { return enEsperaDesde; }
+    public String getMotivoEspera() { return motivoEspera; }
+    public String getMotivoDevolucion() { return motivoDevolucion; }
 }

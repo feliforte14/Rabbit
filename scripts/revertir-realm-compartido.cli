@@ -1,0 +1,22 @@
+# =====================================================================
+# Rabbit: deshacer configurar-realm-compartido.cli
+# =====================================================================
+# Deja ApplicationDomain como viene en WildFly (solo los archivos de
+# add-user.sh) y borra los dos realms que agregó el otro script:
+#
+#   $WILDFLY_HOME/bin/jboss-cli.sh --connect --file=scripts/revertir-realm-compartido.cli
+#
+# Ojo: las cuentas creadas desde la app después de ADR-031 solo tienen
+# contraseña en la base, así que dejan de poder entrar.
+# =====================================================================
+
+batch
+
+/subsystem=elytron/security-domain=ApplicationDomain:write-attribute(name=realms, value=[{realm=ApplicationRealm, role-decoder=groups-to-roles}, {realm=local}])
+/subsystem=elytron/security-domain=ApplicationDomain:write-attribute(name=default-realm, value=ApplicationRealm)
+/subsystem=elytron/distributed-realm=RabbitRealmCompartido:remove
+/subsystem=elytron/jdbc-realm=RabbitRealmBase:remove
+
+run-batch
+
+reload

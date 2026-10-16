@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <!--
     VISTA (Facelet) - Capa de Presentacion.
-    Alta, listado y baja de usuarios. Se bindea a usuarioBean
+    Alta, listado, baja, eliminacion, reactivacion y cambio de contrasena de usuarios. Se bindea a usuarioBean
     (UsuarioBean.java). Solo ADMINISTRADOR: no hay alta publica de cuentas.
 
     Cada cuenta es de un tipo (rol): personal de Rabbit (Administrador u
@@ -15,6 +15,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
                  template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirAdministrador}" />
@@ -49,6 +50,9 @@
                     <f:facet name="header">Estado</f:facet>
                     <h:outputText value="#{u.activo ? 'Activo' : 'Dado de baja'}"
                                   styleClass="badge #{u.activo ? 'badge-verde' : 'badge-gris'}" />
+                    <h:outputText value="Solo en una máquina" styleClass="badge badge-naranja"
+                                  rendered="#{u.activo and not u.claveCompartida}"
+                                  title="Creada antes de que las cuentas pasaran a la base: restablecé su contraseña para que entre desde cualquier máquina" />
                 </h:column>
                 <h:column styleClass="acciones">
                     <f:facet name="header">Acciones</f:facet>
@@ -56,11 +60,46 @@
                                      action="#{usuarioBean.darDeBaja(u.id)}"
                                      rendered="#{u.activo and u.username != sesionBean.usuarioActual}"
                                      onclick="return confirm('¿Dar de baja este usuario? Deja de poder entrar.');" />
+                    <h:commandButton value="Eliminar" styleClass="btn btn-danger"
+                                     action="#{usuarioBean.eliminar(u.id)}"
+                                     rendered="#{u.username != sesionBean.usuarioActual}"
+                                     onclick="return confirm('¿Eliminar la cuenta #{u.username}? Se borra para siempre y no se puede reactivar.');" />
                 </h:column>
             </h:dataTable>
         </h:form>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty usuarioBean.usuarios}">
             Todavía no hay usuarios creados desde la aplicación.
+        </h:panelGroup>
+
+        <h:panelGroup rendered="#{not empty usuarioBean.activos}">
+            <h2>Restablecer contraseña</h2>
+            <h:form id="formRestablecer" styleClass="formulario">
+                <p class="ayuda">
+                    La cuenta pasa a entrar con la contraseña nueva desde la máquina de cualquier
+                    integrante del equipo.
+                    <h:outputText rendered="#{usuarioBean.pendientesDeMigrar gt 0}"
+                                  value="Las marcadas «Solo en una máquina» se crearon antes de que las cuentas pasaran a la base: hasta que les cambies la contraseña acá, solo entran en la máquina donde se crearon." />
+                </p>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" for="cuentaRestablecer" value="Cuenta" />
+                    <h:selectOneMenu id="cuentaRestablecer" value="#{usuarioBean.idARestablecer}" required="true"
+                                     label="Cuenta" requiredMessage="Elegí la cuenta">
+                        <f:selectItem itemLabel="— Elegí una cuenta —" itemValue="#{null}" />
+                        <f:selectItems value="#{usuarioBean.activos}" var="u" itemValue="#{u.id}"
+                                       itemLabel="#{u.username} (#{etiquetas.rol(u.rol)})#{u.claveCompartida ? '' : ' · solo en una máquina'}" />
+                    </h:selectOneMenu>
+                    <h:message for="cuentaRestablecer" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" for="passwordRestablecida" value="Contraseña nueva" />
+                    <h:inputSecret id="passwordRestablecida" value="#{usuarioBean.passwordRestablecida}" required="true"
+                                   label="Contraseña nueva" requiredMessage="Ingresá la contraseña nueva" />
+                    <h:message for="passwordRestablecida" styleClass="error-campo" />
+                </div>
+                <div class="form-acciones">
+                    <h:commandButton value="Cambiar contraseña" styleClass="btn btn-primary" action="#{usuarioBean.restablecer}" />
+                </div>
+            </h:form>
         </h:panelGroup>
 
         <h:panelGroup rendered="#{not empty usuarioBean.dadosDeBaja}">
@@ -72,7 +111,7 @@
                     el repartidor no tenga otra cuenta activa.
                 </p>
                 <div class="campo">
-                    <h:outputLabel for="cuenta" value="Cuenta" />
+                    <h:outputLabel styleClass="obligatorio" for="cuenta" value="Cuenta" />
                     <h:selectOneMenu id="cuenta" value="#{usuarioBean.idAReactivar}" required="true"
                                      label="Cuenta" requiredMessage="Elegí la cuenta a reactivar">
                         <f:selectItem itemLabel="— Elegí una cuenta —" itemValue="#{null}" />
@@ -82,7 +121,7 @@
                     <h:message for="cuenta" styleClass="error-campo" />
                 </div>
                 <div class="campo">
-                    <h:outputLabel for="passwordNueva" value="Contraseña nueva" />
+                    <h:outputLabel styleClass="obligatorio" for="passwordNueva" value="Contraseña nueva" />
                     <h:inputSecret id="passwordNueva" value="#{usuarioBean.passwordReactivacion}" required="true"
                                    label="Contraseña nueva" requiredMessage="Ingresá la contraseña nueva" />
                     <h:message for="passwordNueva" styleClass="error-campo" />
@@ -96,16 +135,18 @@
         <h2>Crear usuario</h2>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel for="username" value="Usuario" />
+                <h:outputLabel styleClass="obligatorio" for="username" value="Usuario" />
                 <h:inputText id="username" value="#{usuarioBean.nuevoUsuario.username}"
                              required="true" label="Usuario" maxlength="30"
-                             requiredMessage="Ingresá el nombre de usuario" />
+                             requiredMessage="Ingresá el nombre de usuario"
+                             pt:pattern="[A-Za-z0-9._\-]{3,30}"
+                             pt:title="Entre 3 y 30 caracteres, sin espacios: letras, números, punto, guion o guion bajo" />
                 <h:message for="username" styleClass="error-campo" />
-                <p class="ayuda">Entre 3 y 30 caracteres: letras, números, punto, guion o guion bajo.</p>
+                <p class="ayuda">Entre 3 y 30 caracteres, sin espacios: letras, números, punto, guion o guion bajo.</p>
             </div>
 
             <div class="campo">
-                <h:outputLabel for="password" value="Contraseña" />
+                <h:outputLabel styleClass="obligatorio" for="password" value="Contraseña" />
                 <h:inputSecret id="password" value="#{usuarioBean.nuevoUsuario.password}"
                                required="true" label="Contraseña"
                                requiredMessage="Ingresá la contraseña" />
@@ -113,7 +154,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="rol" value="Tipo de cuenta" />
+                <h:outputLabel styleClass="obligatorio" for="rol" value="Tipo de cuenta" />
                 <h:selectOneMenu id="rol" value="#{usuarioBean.nuevoUsuario.rol}" required="true" label="Tipo de cuenta">
                     <f:selectItems value="#{usuarioBean.roles}" var="r" itemValue="#{r}" itemLabel="#{etiquetas.rol(r)}" />
                     <f:ajax render="asociacion" />
@@ -124,7 +165,7 @@
             <h:panelGroup id="asociacion" layout="block">
                 <h:panelGroup layout="block" styleClass="campo"
                               rendered="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO' or usuarioBean.nuevoUsuario.rol == 'ERP'}">
-                    <h:outputLabel for="comercio" value="Comercio" />
+                    <h:outputLabel styleClass="obligatorio" for="comercio" value="Comercio" />
                     <h:selectOneMenu id="comercio" value="#{usuarioBean.nuevoUsuario.idComercio}"
                                      required="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO' or usuarioBean.nuevoUsuario.rol == 'ERP'}" label="Comercio"
                                      requiredMessage="Elegí el comercio que representa la cuenta">
@@ -138,7 +179,7 @@
 
                 <h:panelGroup layout="block" styleClass="campo"
                               rendered="#{usuarioBean.nuevoUsuario.rol == 'REPARTIDOR'}">
-                    <h:outputLabel for="repartidor" value="Repartidor" />
+                    <h:outputLabel styleClass="obligatorio" for="repartidor" value="Repartidor" />
                     <h:selectOneMenu id="repartidor" value="#{usuarioBean.nuevoUsuario.idRepartidor}"
                                      required="#{usuarioBean.nuevoUsuario.rol == 'REPARTIDOR'}" label="Repartidor"
                                      requiredMessage="Elegí el repartidor que representa la cuenta">
@@ -149,6 +190,13 @@
                     <h:message for="repartidor" styleClass="error-campo" />
                 </h:panelGroup>
             </h:panelGroup>
+
+            <!-- Errores del alta, acá y no solo arriba de la página: el
+                 formulario está al final y el aviso global no se veía. -->
+            <h:panelGroup id="avisosAlta" />
+            <h:messages for="avisosAlta" showDetail="false" showSummary="true"
+                        layout="list" styleClass="mensajes"
+                        errorClass="mensaje-error" infoClass="mensaje-info" />
 
             <div class="form-acciones">
                 <h:commandButton value="Crear usuario" styleClass="btn btn-primary" action="#{usuarioBean.registrar}" />

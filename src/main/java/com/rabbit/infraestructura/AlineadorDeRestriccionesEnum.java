@@ -34,6 +34,7 @@ package com.rabbit.infraestructura;
 
 import com.rabbit.inventario.datos.model.EstadoReserva;
 import com.rabbit.pagos.datos.model.EstadoCobro;
+import com.rabbit.pagos.datos.model.EstadoLiquidacion;
 import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
@@ -80,6 +81,7 @@ public class AlineadorDeRestriccionesEnum {
             new ColumnaEnum("usuarios", "rol", Rol.class),
             new ColumnaEnum("cobros", "estado", EstadoCobro.class),
             new ColumnaEnum("cobros", "mediopago", MedioPago.class),
+            new ColumnaEnum("liquidaciones", "estado", EstadoLiquidacion.class),
             new ColumnaEnum("repartidores", "estado", EstadoRepartidor.class),
             new ColumnaEnum("transportistas", "tipointegracion", TipoIntegracion.class),
             new ColumnaEnum("envios", "estado", EstadoEnvio.class),

@@ -8,10 +8,12 @@ package com.rabbit.pedidos.datos;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
+import com.rabbit.pedidos.datos.model.RemitoEntrega;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @ApplicationScoped
@@ -131,6 +133,15 @@ public class PedidoRepository {
                 .getResultList();
     }
 
+    // La lista de espera (ADR-037): pendientes que esperan repartidor, por
+    // orden de llegada a la fila.
+    public List<Long> listarIdsEnEspera() {
+        return em.createQuery("SELECT p.id FROM Pedido p WHERE p.estado = :pendiente AND p.enEsperaDesde IS NOT NULL "
+                        + "ORDER BY p.enEsperaDesde, p.id", Long.class)
+                .setParameter("pendiente", EstadoPedido.PENDIENTE)
+                .getResultList();
+    }
+
     // Pedidos en viaje o por salir (CONFIRMADO o EN_CAMINO): el tablero de entregas.
     public List<Pedido> listarEntregasEnCurso() {
         return em.createQuery(
@@ -143,6 +154,22 @@ public class PedidoRepository {
     // Cuántos pedidos y pedidos del ERP referencian a un comercio (para no
     // dejarlos huérfanos al eliminarlo, ver EliminacionDeComercio).
     // Pedidos del comercio que no están cancelados: en curso o entregados.
+    // Pedidos que el repartidor todavía tiene que llevar (ver
+    // EliminacionDeRepartidor).
+    public long contarPedidosEnCursoDeRepartidor(Long idRepartidor) {
+        return em.createQuery("SELECT COUNT(p) FROM Pedido p WHERE p.idRepartidor = :id AND p.estado IN :enCurso", Long.class)
+                .setParameter("id", idRepartidor)
+                .setParameter("enCurso", List.of(EstadoPedido.CONFIRMADO, EstadoPedido.EN_CAMINO))
+                .getSingleResult();
+    }
+
+    /** Les quita el repartidor a sus pedidos (al eliminarlo). Devuelve cuántos cambió. */
+    public int desvincularRepartidor(Long idRepartidor) {
+        return em.createQuery("UPDATE Pedido p SET p.idRepartidor = NULL WHERE p.idRepartidor = :id")
+                .setParameter("id", idRepartidor)
+                .executeUpdate();
+    }
+
     public long contarPedidosNoCanceladosDeComercio(Long idComercio) {
         return em.createQuery("SELECT COUNT(p) FROM Pedido p WHERE p.idComercio = :id AND p.estado <> :cancelado", Long.class)
                 .setParameter("id", idComercio)
@@ -168,6 +195,11 @@ public class PedidoRepository {
     public long[] eliminarPedidosDeComercio(Long idComercio) {
         List<Pedido> pedidos = em.createQuery("SELECT p FROM Pedido p WHERE p.idComercio = :id", Pedido.class)
                 .setParameter("id", idComercio).getResultList();
+        if (!pedidos.isEmpty()) {
+            em.createQuery("DELETE FROM RemitoEntrega r WHERE r.idPedido IN :ids")
+                    .setParameter("ids", pedidos.stream().map(Pedido::getId).toList())
+                    .executeUpdate();
+        }
         pedidos.forEach(em::remove);
         List<PedidoExterno> externos = em.createQuery("SELECT pe FROM PedidoExterno pe WHERE pe.idComercio = :id", PedidoExterno.class)
                 .setParameter("id", idComercio).getResultList();
@@ -195,6 +227,41 @@ public class PedidoRepository {
         return em.createQuery("SELECT p FROM Pedido p WHERE p.codigoSeguimiento = :codigo", Pedido.class)
                 .setParameter("codigo", codigo)
                 .getResultStream().findFirst().orElse(null);
+    }
+
+    // --- Remitos de entrega (ADR-033) ---
+
+    public void guardarRemito(RemitoEntrega remito) {
+        em.persist(remito);
+    }
+
+    /** El remito del pedido, o null si no tiene. */
+    public RemitoEntrega buscarRemitoDePedido(Long idPedido) {
+        return em.createQuery("SELECT r FROM RemitoEntrega r WHERE r.idPedido = :p", RemitoEntrega.class)
+                .setParameter("p", idPedido)
+                .getResultStream().findFirst().orElse(null);
+    }
+
+    // --- Para la liquidación mensual (ADR-034) ---
+
+    /**
+     * Pedidos entregados entre dos momentos, por comercio: cantidad y kilos
+     * (los de peso desconocido no suman). Los entregados antes de que
+     * existiera fechaEntrega se cuentan por su última actualización, que en
+     * un pedido ENTREGADO es la de la entrega.
+     *
+     * @return filas {idComercio, cantidad (Long), kilos (BigDecimal o null)}
+     */
+    public List<Object[]> resumenEntregas(LocalDateTime desde, LocalDateTime hasta) {
+        return em.createQuery("SELECT p.idComercio, COUNT(p), SUM(p.pesoKg) FROM Pedido p "
+                        + "WHERE p.estado = :entregado "
+                        + "AND COALESCE(p.fechaEntrega, p.fechaActualizacion) >= :desde "
+                        + "AND COALESCE(p.fechaEntrega, p.fechaActualizacion) < :hasta "
+                        + "GROUP BY p.idComercio", Object[].class)
+                .setParameter("entregado", EstadoPedido.ENTREGADO)
+                .setParameter("desde", desde)
+                .setParameter("hasta", hasta)
+                .getResultList();
     }
 
     // --- PedidoExterno (mock del ERP del comercio) ---

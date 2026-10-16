@@ -5,7 +5,7 @@ package com.rabbit.repartidores.datos;
  * explicación completa del patrón, se aplica igual acá.
  */
 
-import com.rabbit.repartidores.datos.model.EstadoRepartidor;
+import com.rabbit.repartidores.datos.model.CargaAsignada;
 import com.rabbit.repartidores.datos.model.Repartidor;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
@@ -33,36 +33,42 @@ public class RepartidorRepository {
     }
 
     /**
-     * El primer repartidor DISPONIBLE, bloqueado (SELECT ... FOR UPDATE)
-     * hasta que termine la transacción. Sin el bloqueo, dos pedidos
-     * confirmados a la vez podrían leer al mismo repartidor como libre y
-     * quedar los dos asignados a él. null si no hay ninguno.
+     * Todos los repartidores, bloqueados (SELECT ... FOR UPDATE) hasta que
+     * termine la transacción, con los de la zona preferida primero. La
+     * asignación elige entre ellos el primero al que le entra el pedido
+     * (ADR-032): con el bloqueo, dos pedidos confirmados a la vez no
+     * pueden llenar de más al mismo repartidor. Son pocas filas.
      */
-    public Repartidor tomarPrimeroDisponible() {
-        List<Repartidor> libres = em.createQuery(
-                        "SELECT r FROM Repartidor r WHERE r.estado = :estado ORDER BY r.id", Repartidor.class)
-                .setParameter("estado", EstadoRepartidor.DISPONIBLE)
+    public List<Repartidor> bloquearCandidatos(Long idZonaPreferida) {
+        return em.createQuery(
+                        "SELECT r FROM Repartidor r "
+                                + "ORDER BY CASE WHEN r.idZona = :zona THEN 0 ELSE 1 END, r.id", Repartidor.class)
+                .setParameter("zona", idZonaPreferida != null ? idZonaPreferida : -1L)
                 .setLockMode(LockModeType.PESSIMISTIC_WRITE)
-                .setMaxResults(1)
                 .getResultList();
-        return libres.isEmpty() ? null : libres.get(0);
     }
 
-    // Primero uno DISPONIBLE de la zona preferida; si no hay, cualquiera
-    // DISPONIBLE. Mismo bloqueo pesimista que tomarPrimeroDisponible.
-    public Repartidor tomarPrimeroDisponible(Long idZonaPreferida) {
-        if (idZonaPreferida == null) {
-            return tomarPrimeroDisponible();
-        }
-        List<Repartidor> libres = em.createQuery(
-                        "SELECT r FROM Repartidor r WHERE r.estado = :estado "
-                                + "ORDER BY CASE WHEN r.idZona = :zona THEN 0 ELSE 1 END, r.id", Repartidor.class)
-                .setParameter("estado", EstadoRepartidor.DISPONIBLE)
-                .setParameter("zona", idZonaPreferida)
-                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
-                .setMaxResults(1)
+    public List<CargaAsignada> listarCargas() {
+        return em.createQuery("SELECT c FROM CargaAsignada c ORDER BY c.fechaAsignacion, c.id", CargaAsignada.class)
                 .getResultList();
-        return libres.isEmpty() ? null : libres.get(0);
+    }
+
+    public List<CargaAsignada> listarCargasDe(Long idRepartidor) {
+        return em.createQuery("SELECT c FROM CargaAsignada c WHERE c.idRepartidor = :r "
+                        + "ORDER BY c.fechaAsignacion, c.id", CargaAsignada.class)
+                .setParameter("r", idRepartidor)
+                .getResultList();
+    }
+
+    public void guardarCarga(CargaAsignada carga) {
+        em.persist(carga);
+    }
+
+    /** Borra la carga del pedido; false si no había (pedido asignado antes de las cargas). */
+    public boolean borrarCargaDePedido(Long idPedido) {
+        return em.createQuery("DELETE FROM CargaAsignada c WHERE c.idPedido = :p")
+                .setParameter("p", idPedido)
+                .executeUpdate() > 0;
     }
 
     public List<Repartidor> listarTodos() {
@@ -71,5 +77,17 @@ public class RepartidorRepository {
 
     public Repartidor actualizar(Repartidor repartidor) {
         return em.merge(repartidor);
+    }
+
+    /** Deja sin zona fija a los repartidores de esa zona. Devuelve cuántos cambió. */
+    public int quitarZona(Long idZona) {
+        return em.createQuery("UPDATE Repartidor r SET r.idZona = NULL WHERE r.idZona = :id")
+                .setParameter("id", idZona)
+                .executeUpdate();
+    }
+
+    /** Borra el repartidor de la BD (baja física). */
+    public void eliminar(Repartidor repartidor) {
+        em.remove(em.contains(repartidor) ? repartidor : em.merge(repartidor));
     }
 }

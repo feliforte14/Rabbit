@@ -8,3 +8,6 @@ target */
 
 # Dependencias del banco legado en Node.js
 node_modules/
+
+# Credenciales de prueba: solo locales (el repositorio es público)
+docs/CREDENCIALES.md

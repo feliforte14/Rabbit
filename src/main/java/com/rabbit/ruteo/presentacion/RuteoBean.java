@@ -20,6 +20,7 @@ import com.rabbit.ruteo.negocio.ValidacionException;
 import com.rabbit.transportistas.dto.TransportistaDTO;
 import com.rabbit.transportistas.negocio.IGestionTransportistas;
 import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJBAccessException;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -100,6 +101,20 @@ public class RuteoBean implements Serializable {
         }
     }
 
+    // Solo administrador: el botón solo se le muestra a él y el EJB lo
+    // exige con @RolesAllowed.
+    public void eliminarZona(Long id) {
+        try {
+            zonas.eliminarZona(id);
+            Mensajes.info("Zona eliminada");
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        } catch (EJBAccessException e) {
+            Mensajes.error("Solo un administrador puede eliminar zonas.");
+        }
+    }
+
     public void reactivarZona(Long id) {
         try {
             zonas.reactivarZona(id);
@@ -123,7 +138,7 @@ public class RuteoBean implements Serializable {
     }
 
     public String nombreTransportista(Long id) {
-        return id == null ? "—" : nombresTransportistas.getOrDefault(id, "Transportista " + id);
+        return id == null ? "—" : nombresTransportistas.getOrDefault(id, "Empresa de logística " + id);
     }
 
     public CoberturaZona[] getCoberturas() { return CoberturaZona.values(); }

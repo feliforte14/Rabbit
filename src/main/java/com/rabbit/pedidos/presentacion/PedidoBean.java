@@ -17,6 +17,7 @@ package com.rabbit.pedidos.presentacion;
  * rechaza al sincronizar.
  */
 
+import com.rabbit.infraestructura.ArchivosSubidos;
 import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.dto.PuntoPickingDTO;
@@ -27,6 +28,7 @@ import com.rabbit.inventario.negocio.IConsultaStock;
 import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
+import com.rabbit.pedidos.dto.LineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
@@ -91,6 +93,9 @@ public class PedidoBean implements Serializable {
 
     private List<PedidoDTO> pedidos;
     private List<PedidoExternoDTO> pedidosExternos;
+    // Nombre de cada ítem de stock que piden los pedidos del ERP: las líneas
+    // de stock consignado traen solo el ID del ítem (ver descripcionLineas).
+    private Map<Long, String> productosPorItem;
     private List<ComercioDTO> listaComercios;
     private List<DepositoDTO> listaDepositos;
     // Datos de otros componentes para mostrar junto a cada pedido. Se cargan
@@ -101,6 +106,10 @@ public class PedidoBean implements Serializable {
     private Map<Long, EnvioDTO> enviosPorPedido;
     private List<TransportistaDTO> listaTransportistas;
     private Long idPedidoADerivar;
+
+    // Formulario "Registrar una entrega" (contingencia del ADMINISTRADOR).
+    private Long idPedidoAEntregar;
+    private transient jakarta.servlet.http.Part fotoRemito;
     private Long idTransportistaElegido;
     // Cotizaciones del último pedido cotizado. Se guarda cuál fue, así
     // "Derivar con este" deriva ESE pedido aunque después se haya elegido
@@ -118,6 +127,11 @@ public class PedidoBean implements Serializable {
     public void cargar() {
         pedidos = seguimiento.listarTodos();
         pedidosExternos = seguimiento.listarPedidosExternos();
+        List<Long> idsItems = pedidosExternos.stream().flatMap(pe -> pe.getLineas().stream())
+                .map(LineaPedidoDTO::getIdItem).filter(java.util.Objects::nonNull).distinct()
+                .collect(Collectors.toList());
+        productosPorItem = idsItems.isEmpty() ? Map.of() : stock.listarItemsPorIds(idsItems).stream()
+                .collect(Collectors.toMap(ItemInventarioDTO::getId, ItemInventarioDTO::getProducto));
         listaComercios = comercios.listarTodos();
         listaDepositos = stock.listarDepositos();
         nombresRepartidores = repartidores.listarTodos().stream()
@@ -153,7 +167,7 @@ public class PedidoBean implements Serializable {
             cotizaciones = gestion.cotizarDerivacion(idPedidoADerivar);
             idPedidoCotizado = idPedidoADerivar;
             if (cotizaciones.isEmpty()) {
-                Mensajes.error("No hay transportistas activos para cotizar");
+                Mensajes.error("No hay empresas de logística activas para cotizar");
             }
         } catch (ValidacionException e) {
             cotizaciones = null;
@@ -178,7 +192,7 @@ public class PedidoBean implements Serializable {
             String codigo = gestion.derivarATransportista(idPedidoADerivar, idTransportistaElegido);
             String transportista = listaTransportistas.stream()
                     .filter(t -> t.getId().equals(idTransportistaElegido))
-                    .map(TransportistaDTO::getNombre).findFirst().orElse("el transportista");
+                    .map(TransportistaDTO::getNombre).findFirst().orElse("la empresa de logística");
             Mensajes.info("Pedido " + idPedidoADerivar + " derivado a " + transportista + " (seguimiento " + codigo + ")");
             idPedidoADerivar = null;
             idTransportistaElegido = null;
@@ -341,11 +355,18 @@ public class PedidoBean implements Serializable {
         }
     }
 
-    // Avanza el pedido de PENDIENTE a CONFIRMADO (ver EstadoPedido).
+    // Avanza el pedido de PENDIENTE a CONFIRMADO (ver EstadoPedido), o lo
+    // deja en la lista de espera si nadie tiene lugar (ADR-037).
     public void confirmar(Long idPedido) {
         try {
-            gestion.confirmarPedido(idPedido);
-            Mensajes.info("Pedido confirmado");
+            Long idRepartidor = gestion.confirmarPedido(idPedido);
+            if (idRepartidor != null) {
+                Mensajes.info("Pedido confirmado");
+            } else {
+                Mensajes.info("Pedido " + idPedido + " en lista de espera: "
+                        + seguimiento.consultarEstadoPedido(idPedido).getMotivoEspera()
+                        + ". No se cobró nada todavía: se asigna solo en cuanto se pueda.");
+            }
             cargar();
         } catch (ValidacionException e) {
             Mensajes.error(e.getMessage());
@@ -371,11 +392,26 @@ public class PedidoBean implements Serializable {
         }
     }
 
-    // El repartidor entregó el pedido: EN_CAMINO → ENTREGADO.
-    public void entregar(Long idPedido) {
+    // Contingencia del ADMINISTRADOR (el repartidor no pudo registrarla):
+    // EN_CAMINO → ENTREGADO, también con la foto del remito (ADR-033).
+    public void entregar() {
+        byte[] foto;
         try {
-            gestion.registrarEntrega(idPedido);
-            Mensajes.info("Pedido entregado");
+            foto = ArchivosSubidos.leer(fotoRemito, 5 * 1024 * 1024);
+        } catch (java.io.IOException e) {
+            Mensajes.error("No se pudo leer la foto del remito. Probá de nuevo.");
+            return;
+        } finally {
+            fotoRemito = null;
+        }
+        if (foto == null) {
+            Mensajes.error("La foto del remito no puede superar los 5 MB");
+            return;
+        }
+        try {
+            gestion.registrarEntrega(idPedidoAEntregar, foto);
+            Mensajes.info("Entrega del pedido " + idPedidoAEntregar + " registrada");
+            idPedidoAEntregar = null;
             cargar();
         } catch (ValidacionException e) {
             Mensajes.error(e.getMessage());
@@ -413,6 +449,15 @@ public class PedidoBean implements Serializable {
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public List<PedidoDTO> getPedidos() { return pedidos; }
     public List<PedidoExternoDTO> getPedidosExternos() { return pedidosExternos; }
+
+    // "Yerba 1kg, Aceite 900ml" en vez de "Ítem 2, Ítem 3"; si el ítem ya
+    // no existe, queda su ID.
+    public String descripcionLineas(PedidoExternoDTO pe) {
+        return pe.getLineas().stream()
+                .map(l -> l.getProducto() != null ? l.getProducto()
+                        : productosPorItem.getOrDefault(l.getIdItem(), "Ítem " + l.getIdItem()))
+                .collect(Collectors.joining(", "));
+    }
     public List<ComercioDTO> getListaComercios() { return listaComercios; }
     public List<DepositoDTO> getListaDepositos() { return listaDepositos; }
     public List<TransportistaDTO> getListaTransportistas() { return listaTransportistas; }
@@ -426,4 +471,16 @@ public class PedidoBean implements Serializable {
     public void setIdDepositoSeleccionado(Long idDepositoSeleccionado) { this.idDepositoSeleccionado = idDepositoSeleccionado; }
     public DatosPedidoExternoDTO getNuevoPedido() { return nuevoPedido; }
     public void setNuevoPedido(DatosPedidoExternoDTO nuevoPedido) { this.nuevoPedido = nuevoPedido; }
+
+    // Pedidos EN_CAMINO con repartidor propio: los que se pueden entregar con remito.
+    public List<PedidoDTO> getEnCaminoConRepartidor() {
+        return pedidos.stream()
+                .filter(p -> "EN_CAMINO".equals(p.getEstado()) && p.getIdRepartidor() != null)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
+    public Long getIdPedidoAEntregar() { return idPedidoAEntregar; }
+    public void setIdPedidoAEntregar(Long idPedidoAEntregar) { this.idPedidoAEntregar = idPedidoAEntregar; }
+    public jakarta.servlet.http.Part getFotoRemito() { return fotoRemito; }
+    public void setFotoRemito(jakarta.servlet.http.Part fotoRemito) { this.fotoRemito = fotoRemito; }
 }
