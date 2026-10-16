@@ -98,6 +98,32 @@ public class LoginBean implements Serializable {
         facesContext.getExternalContext().redirect(request.getContextPath() + "/login.xhtml");
     }
 
+    // Pedido de cuenta: no hay alta abierta (ver UsuarioService), así que
+    // quien no tiene cuenta escribe a Rabbit y un administrador la crea a
+    // mano. La dirección se configura con la system property
+    // rabbit.contacto.mail, como las de AvisosPorMail.
+    public String getContactoMail() {
+        return System.getProperty("rabbit.contacto.mail", "altas_rabbit@gmail.com");
+    }
+
+    // mailto: con asunto y cuerpo ya escritos, para que el primer mail
+    // traiga lo que el administrador necesita para dar el alta.
+    public String getContactoMailto() {
+        String asunto = "Solicitud de cuenta en Rabbit";
+        String cuerpo = "Hola, quiero una cuenta en Rabbit.\n\n"
+                + "Soy (comercio / repartidor):\n"
+                + "Nombre o razón social:\n"
+                + "CUIT / DNI:\n"
+                + "Teléfono:\n";
+        return "mailto:" + getContactoMail() + "?subject=" + codificar(asunto) + "&body=" + codificar(cuerpo);
+    }
+
+    // URLEncoder codifica para formularios (espacio = "+"); en un mailto:
+    // el espacio va como %20.
+    private static String codificar(String texto) {
+        return java.net.URLEncoder.encode(texto, java.nio.charset.StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public String getUsername() { return username; }
     public void setUsername(String username) { this.username = username; }

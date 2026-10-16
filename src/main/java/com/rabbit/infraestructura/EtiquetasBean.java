@@ -164,8 +164,8 @@ public class EtiquetasBean {
 
     public String cobertura(Object cobertura) {
         switch (texto(cobertura)) {
-            case "PROPIA": return "Repartidores propios";
-            case "TRANSPORTISTA": return "Transportista";
+            case "PROPIA": return "Repartidores Rabbit";
+            case "TRANSPORTISTA": return "Logística tercerizada";
             default: return "—";
         }
     }

@@ -80,7 +80,7 @@
                                   value="Las marcadas «Solo en una máquina» se crearon antes de que las cuentas pasaran a la base: hasta que les cambies la contraseña acá, solo entran en la máquina donde se crearon." />
                 </p>
                 <div class="campo">
-                    <h:outputLabel for="cuentaRestablecer" value="Cuenta" />
+                    <h:outputLabel styleClass="obligatorio" for="cuentaRestablecer" value="Cuenta" />
                     <h:selectOneMenu id="cuentaRestablecer" value="#{usuarioBean.idARestablecer}" required="true"
                                      label="Cuenta" requiredMessage="Elegí la cuenta">
                         <f:selectItem itemLabel="— Elegí una cuenta —" itemValue="#{null}" />
@@ -90,7 +90,7 @@
                     <h:message for="cuentaRestablecer" styleClass="error-campo" />
                 </div>
                 <div class="campo">
-                    <h:outputLabel for="passwordRestablecida" value="Contraseña nueva" />
+                    <h:outputLabel styleClass="obligatorio" for="passwordRestablecida" value="Contraseña nueva" />
                     <h:inputSecret id="passwordRestablecida" value="#{usuarioBean.passwordRestablecida}" required="true"
                                    label="Contraseña nueva" requiredMessage="Ingresá la contraseña nueva" />
                     <h:message for="passwordRestablecida" styleClass="error-campo" />
@@ -110,7 +110,7 @@
                     el repartidor no tenga otra cuenta activa.
                 </p>
                 <div class="campo">
-                    <h:outputLabel for="cuenta" value="Cuenta" />
+                    <h:outputLabel styleClass="obligatorio" for="cuenta" value="Cuenta" />
                     <h:selectOneMenu id="cuenta" value="#{usuarioBean.idAReactivar}" required="true"
                                      label="Cuenta" requiredMessage="Elegí la cuenta a reactivar">
                         <f:selectItem itemLabel="— Elegí una cuenta —" itemValue="#{null}" />
@@ -120,7 +120,7 @@
                     <h:message for="cuenta" styleClass="error-campo" />
                 </div>
                 <div class="campo">
-                    <h:outputLabel for="passwordNueva" value="Contraseña nueva" />
+                    <h:outputLabel styleClass="obligatorio" for="passwordNueva" value="Contraseña nueva" />
                     <h:inputSecret id="passwordNueva" value="#{usuarioBean.passwordReactivacion}" required="true"
                                    label="Contraseña nueva" requiredMessage="Ingresá la contraseña nueva" />
                     <h:message for="passwordNueva" styleClass="error-campo" />
@@ -134,7 +134,7 @@
         <h2>Crear usuario</h2>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel for="username" value="Usuario" />
+                <h:outputLabel styleClass="obligatorio" for="username" value="Usuario" />
                 <h:inputText id="username" value="#{usuarioBean.nuevoUsuario.username}"
                              required="true" label="Usuario" maxlength="30"
                              requiredMessage="Ingresá el nombre de usuario" />
@@ -143,7 +143,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="password" value="Contraseña" />
+                <h:outputLabel styleClass="obligatorio" for="password" value="Contraseña" />
                 <h:inputSecret id="password" value="#{usuarioBean.nuevoUsuario.password}"
                                required="true" label="Contraseña"
                                requiredMessage="Ingresá la contraseña" />
@@ -151,7 +151,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="rol" value="Tipo de cuenta" />
+                <h:outputLabel styleClass="obligatorio" for="rol" value="Tipo de cuenta" />
                 <h:selectOneMenu id="rol" value="#{usuarioBean.nuevoUsuario.rol}" required="true" label="Tipo de cuenta">
                     <f:selectItems value="#{usuarioBean.roles}" var="r" itemValue="#{r}" itemLabel="#{etiquetas.rol(r)}" />
                     <f:ajax render="asociacion" />
@@ -162,7 +162,7 @@
             <h:panelGroup id="asociacion" layout="block">
                 <h:panelGroup layout="block" styleClass="campo"
                               rendered="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO' or usuarioBean.nuevoUsuario.rol == 'ERP'}">
-                    <h:outputLabel for="comercio" value="Comercio" />
+                    <h:outputLabel styleClass="obligatorio" for="comercio" value="Comercio" />
                     <h:selectOneMenu id="comercio" value="#{usuarioBean.nuevoUsuario.idComercio}"
                                      required="#{usuarioBean.nuevoUsuario.rol == 'COMERCIO' or usuarioBean.nuevoUsuario.rol == 'ERP'}" label="Comercio"
                                      requiredMessage="Elegí el comercio que representa la cuenta">
@@ -176,7 +176,7 @@
 
                 <h:panelGroup layout="block" styleClass="campo"
                               rendered="#{usuarioBean.nuevoUsuario.rol == 'REPARTIDOR'}">
-                    <h:outputLabel for="repartidor" value="Repartidor" />
+                    <h:outputLabel styleClass="obligatorio" for="repartidor" value="Repartidor" />
                     <h:selectOneMenu id="repartidor" value="#{usuarioBean.nuevoUsuario.idRepartidor}"
                                      required="#{usuarioBean.nuevoUsuario.rol == 'REPARTIDOR'}" label="Repartidor"
                                      requiredMessage="Elegí el repartidor que representa la cuenta">
