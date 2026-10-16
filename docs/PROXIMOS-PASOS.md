@@ -40,6 +40,15 @@ de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
 - [x] Hoja de ruta recomendada con link a Google Maps en tramos; la foto
       del remito se sube en una ventana al tocar "Entregar pedido"
       (ADR-038).
+- [x] Durante la prueba guiada: barra lateral sin scroll en pantallas
+      bajas, motivo de la lista de espera más claro (aclara cuando no
+      vuelve al repartidor que lo devolvió) y errores del alta de
+      usuarios junto al formulario (un nombre con espacios parecía no
+      hacer nada).
+- [ ] **Mejora menor:** una pestaña de "Mis entregas" que quedó abierta
+      desde antes de un redespliegue sigue intentando mandar la
+      ubicación y deja un `ViewExpiredException` en el log cada vez. Se
+      podría hacer que `ubicacion.js` recargue la página en ese caso.
 - [ ] **A definir por el equipo:**
   - si se geocodifican las direcciones para ordenar el recorrido por
     distancia real (hoy, por cercanía de código postal);
@@ -100,15 +109,18 @@ riesgo, sin tocar comportamiento:
       `Mensajes.ejecutar(Runnable accion, String mensajeExito)` que
       envuelva ese try/catch común.
 
-### Cobertura de tests (hoy hay 27 unitarios + 10 de integración)
+### Cobertura de tests (hoy hay 62 unitarios + 10 de integración)
 
-Los tests unitarios de hoy cubren sobre todo Pedidos y Seguridad. Sin
-tests propios todavía:
+Los tests unitarios cubren sobre todo Pedidos, Seguridad, las reglas
+puras de Repartidores (capacidad, a quién se asigna, hora de corte) y de
+Ruteo (orden de la hoja de ruta y links a Google Maps), y la tarifa
+mensual. Sin tests propios todavía:
 
 - [ ] `comercios` (alta, baja/reactivación, eliminación en cascada)
 - [ ] `inventario` (reservar/confirmar/liberar stock, vencimiento)
-- [ ] `repartidores`
-- [ ] `ruteo` (zonas, despacho)
+- [ ] `repartidores` (alta, liberar al entregar; la capacidad, la
+      asignación y el corte ya tienen)
+- [ ] `ruteo` (zonas, despacho; el orden de la hoja de ruta ya tiene)
 - [ ] `transportistas` (cotizar, derivar, seguimiento)
 - [ ] `pagos` (circuit breaker, reversa)
 - [ ] `notificaciones`

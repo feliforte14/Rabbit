@@ -133,11 +133,13 @@ Otros detalles de cada componente:
   cobertura de la zona: con un repartidor propio de la zona, derivados a
   su transportista, o al transportista de respaldo si no hay repartidores
   libres. Cada pedido se despacha en su propia transacción. Los pedidos
-  sin código postal quedan "sin zona" para el despacho manual. Fuera de
-  alcance: viajes con varias paradas y ordenar el recorrido por distancia.
-  La hoja de ruta incluye un link "Ver recorrido en el mapa" (Google
-  Maps, sin clave; lo arma `EnlaceMapa`) para el repartidor y el tablero.
-  Ver ADR-017.
+  sin código postal quedan "sin zona" para el despacho manual. En el
+  tablero del personal, cada hoja de ruta tiene un link "Ver recorrido en
+  el mapa" (Google Maps, sin clave; lo arma `EnlaceMapa`). El repartidor
+  ve una hoja de ruta recomendada con todas sus paradas, ordenadas por
+  cercanía de código postal y no por distancia real (no hay
+  geocodificación), con el recorrido en Google Maps en tramos de hasta 10
+  puntos. Ver ADR-017 y ADR-038.
 
 ### Dependencias entre componentes (implementadas)
 
@@ -208,7 +210,7 @@ el repartidor sale siempre de la identidad autenticada
 |---|---|
 | Personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) | Pedidos (incluye derivar a un transportista), Ruteo por zona (despacho y zonas), Entregas en curso (tablero del Ruteo), Repartidores, Transportistas, Comercios y sus puntos de picking, Depósitos y stock, Reserva de stock, Historial de reservas. Usuarios, solo `ADMINISTRADOR` |
 | `COMERCIO` | Mis pedidos (estado, cobro, repartidor y avisos de Rabbit), Mi stock (consignado en los depósitos), Mis puntos de picking |
-| `REPARTIDOR` | Mis entregas: la hoja de ruta de su entrega actual, los botones "Ya retiré el pedido" y "Entregué el pedido", y su historial. Pensada para el celular |
+| `REPARTIDOR` | Mis entregas: la hoja de ruta recomendada con todas sus paradas (ADR-038), sus entregas en curso con "Ya retiré el pedido", "Entregar pedido" (ventana para la foto del remito) y "Devolver a depósito" (ADR-037), y su historial. Pensada para el celular |
 | `ERP` | Ninguna: solo usa la API REST. Si intenta entrar a la web, el login lo rechaza |
 
 ## Mapa de integración
