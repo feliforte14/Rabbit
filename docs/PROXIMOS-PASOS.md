@@ -32,15 +32,15 @@ de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
 
 - [x] Si el repartidor no tiene lugar, se le asigna a otro; si nadie,
       lista de espera automática, sin cobrar (ADR-037).
-- [x] Hora de corte de la hoja de ruta, configurable sin tocar código
-      (`rabbit.ruteo.hora-corte`, ADR-037).
+- [x] Hora de corte de la hoja de ruta: **21:00**, definida por el
+      equipo; se cambia sin tocar código (`rabbit.ruteo.hora-corte`,
+      ADR-037).
 - [x] "Devolver a depósito" desde Mis entregas: vuelve a la lista de
       espera para otro repartidor, sin cobrar de nuevo (ADR-037).
 - [x] Hoja de ruta recomendada con link a Google Maps en tramos; la foto
       del remito se sube en una ventana al tocar "Entregar pedido"
       (ADR-038).
 - [ ] **A definir por el equipo:**
-  - la hora de corte (hoy sin corte si no se configura; se propuso 9:00);
   - si se geocodifican las direcciones para ordenar el recorrido por
     distancia real (hoy, por cercanía de código postal);
   - la cobranza por almacenamiento: es solo una propuesta, sin

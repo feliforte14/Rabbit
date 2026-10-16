@@ -979,12 +979,13 @@ Propuesta o Reemplazada.
     (`IAsignacionRepartidores.motivoParaEsperar`, sin bloqueo). Si otro se
     queda con el lugar entre esa consulta y la asignación, el banco ya
     cobró y se reversa como antes (`ReversasBancarias`).
-  - **Hora de corte:** system property `rabbit.ruteo.hora-corte` (por
-    ejemplo `09:00`), leída en cada uso (`HoraDeCorte`). Desde esa hora no
-    se suman pedidos a la hoja del día aunque haya lugar: lo que se
-    confirma después va a la lista de espera y se asigna solo al día
-    siguiente, antes del corte. **Sin la propiedad no hay corte**, para no
-    romper demos ni pruebas a la tarde.
+  - **Hora de corte: 21:00**, definida por el equipo el 16/10/2026
+    (`HoraDeCorte.POR_DEFECTO`). Desde esa hora no se suman pedidos a la
+    hoja del día aunque haya lugar: lo que se confirma después va a la
+    lista de espera y se asigna solo al día siguiente, antes del corte. Se
+    cambia con la system property `rabbit.ruteo.hora-corte` (`HH:mm`),
+    leída en cada uso, y con el valor `ninguno` no hay corte (para una
+    demo de noche). Un valor inválido se ignora y rige el de 21:00.
   - **Devolver a depósito:** el repartidor del pedido (o un
     administrador), desde CONFIRMADO o EN_CAMINO, con motivo obligatorio.
     El pedido vuelve a PENDIENTE en la lista de espera, el repartidor deja
@@ -1001,8 +1002,9 @@ Propuesta o Reemplazada.
     sigue siendo "pendiente de asignar".
   - *Cobrar al confirmar aunque quede en espera:* cobra un servicio que
     todavía no tiene fecha, y obliga a reversar si se cancela antes.
-  - *Corte por defecto a las 9:00:* después de esa hora ninguna prueba
-    asignaría pedidos.
+  - *Corte a las 9:00:* se propuso primero, pero después de esa hora
+    ninguna prueba ni demo de la tarde asignaría pedidos. El equipo
+    eligió las 21:00, cuando ya terminó el reparto del día.
 - **Consecuencias:** las columnas nuevas de `pedidos` admiten NULL y las
   crea Hibernate al desplegar (`update`); las versiones anteriores siguen
   funcionando sobre la misma base. La API del ERP agrega `enListaDeEspera`

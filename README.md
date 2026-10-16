@@ -429,14 +429,16 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tari
 
 ### 7b. (Opcional) Hora de corte de la hoja de ruta
 
-Desde esa hora no se suman pedidos a la hoja del día de ningún
-repartidor: lo que se confirma después queda en la lista de espera y se
-asigna solo al día siguiente, antes del corte (ADR-037). Sin la
-propiedad no hay corte. Se lee en cada uso, sin redesplegar:
+Por defecto, **21:00** (la definió el equipo). Desde esa hora no se
+suman pedidos a la hoja del día de ningún repartidor: lo que se confirma
+después queda en la lista de espera y se asigna solo al día siguiente,
+antes del corte (ADR-037). Para cambiarla, sin redesplegar:
 
 ```bash
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=09:00)"
-# para sacarla:
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=18:30)"
+# sin corte (por ejemplo, para una demo después de las 21):
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=ninguno)"
+# volver a las 21:00:
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:remove"
 ```
 
