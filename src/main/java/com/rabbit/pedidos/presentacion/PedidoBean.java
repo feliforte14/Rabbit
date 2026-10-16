@@ -167,7 +167,7 @@ public class PedidoBean implements Serializable {
             cotizaciones = gestion.cotizarDerivacion(idPedidoADerivar);
             idPedidoCotizado = idPedidoADerivar;
             if (cotizaciones.isEmpty()) {
-                Mensajes.error("No hay transportistas activos para cotizar");
+                Mensajes.error("No hay empresas de logística activas para cotizar");
             }
         } catch (ValidacionException e) {
             cotizaciones = null;
@@ -192,7 +192,7 @@ public class PedidoBean implements Serializable {
             String codigo = gestion.derivarATransportista(idPedidoADerivar, idTransportistaElegido);
             String transportista = listaTransportistas.stream()
                     .filter(t -> t.getId().equals(idTransportistaElegido))
-                    .map(TransportistaDTO::getNombre).findFirst().orElse("el transportista");
+                    .map(TransportistaDTO::getNombre).findFirst().orElse("la empresa de logística");
             Mensajes.info("Pedido " + idPedidoADerivar + " derivado a " + transportista + " (seguimiento " + codigo + ")");
             idPedidoADerivar = null;
             idTransportistaElegido = null;

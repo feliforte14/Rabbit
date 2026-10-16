@@ -126,13 +126,13 @@ public class ZonaService implements IZonas {
 
     private void validarTransportista(CoberturaZona cobertura, Long idTransportista) {
         if (cobertura == CoberturaZona.TRANSPORTISTA && idTransportista == null) {
-            throw new ValidacionException("Una zona que cubre un transportista necesita el transportista");
+            throw new ValidacionException("Una zona de logística tercerizada necesita la empresa de logística");
         }
         if (idTransportista != null) {
             boolean activo = transportistas.listarActivos().stream()
                     .map(TransportistaDTO::getId).anyMatch(idTransportista::equals);
             if (!activo) {
-                throw new ValidacionException("El transportista elegido no existe o está dado de baja");
+                throw new ValidacionException("La empresa de logística elegida no existe o está dada de baja");
             }
         }
     }

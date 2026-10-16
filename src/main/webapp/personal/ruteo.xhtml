@@ -22,9 +22,9 @@
 
         <p class="ayuda">
             Cada pedido pendiente cae en la zona de su código postal de entrega. "Despachar" decide
-            solo según la zona: en una zona de repartidores propios lo confirma con un repartidor de
-            la zona (si no hay libres, lo deriva al transportista de respaldo o usa uno de otra
-            zona); en una zona de transportista, se lo deriva. Los pedidos sin zona se despachan a
+            solo según la zona: en una zona de repartidores Rabbit lo confirma con un repartidor de
+            la zona (si no hay libres, lo deriva a la empresa de logística de respaldo o usa uno de
+            otra zona); en una zona de logística tercerizada, se lo deriva a su empresa. Los pedidos sin zona se despachan a
             mano desde&#160;<h:link outcome="/personal/pedidos" value="Pedidos" />.
         </p>
 
@@ -167,20 +167,20 @@
         <h2>Registrar zona</h2>
         <h:form id="formAltaZona" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel for="nombre" value="Nombre" />
+                <h:outputLabel styleClass="obligatorio" for="nombre" value="Nombre" />
                 <h:inputText id="nombre" value="#{ruteoBean.nuevaZona.nombre}" required="true"
                              label="Nombre" requiredMessage="Ingresá el nombre de la zona" />
                 <h:message for="nombre" styleClass="error-campo" />
             </div>
             <div class="campo">
-                <h:outputLabel for="desde" value="Código postal desde" />
+                <h:outputLabel styleClass="obligatorio" for="desde" value="Código postal desde" />
                 <h:inputText id="desde" value="#{ruteoBean.nuevaZona.codigoPostalDesde}" required="true"
                              label="Código postal desde" requiredMessage="Ingresá el primer código postal"
                              converterMessage="El código postal tiene que ser un número de 4 dígitos" />
                 <h:message for="desde" styleClass="error-campo" />
             </div>
             <div class="campo">
-                <h:outputLabel for="hasta" value="Código postal hasta" />
+                <h:outputLabel styleClass="obligatorio" for="hasta" value="Código postal hasta" />
                 <h:inputText id="hasta" value="#{ruteoBean.nuevaZona.codigoPostalHasta}" required="true"
                              label="Código postal hasta" requiredMessage="Ingresá el último código postal"
                              converterMessage="El código postal tiene que ser un número de 4 dígitos" />
@@ -194,14 +194,14 @@
                 </h:selectOneMenu>
             </div>
             <div class="campo">
-                <h:outputLabel for="transportista" value="Transportista" />
+                <h:outputLabel for="transportista" value="Empresa de logística" />
                 <h:selectOneMenu id="transportista" value="#{ruteoBean.nuevaZona.idTransportista}">
-                    <f:selectItem itemLabel="— Ninguno —" itemValue="#{null}" />
+                    <f:selectItem itemLabel="— Ninguna —" itemValue="#{null}" />
                     <f:selectItems value="#{ruteoBean.listaTransportistas}" var="t" itemValue="#{t.id}" itemLabel="#{t.nombre}" />
                 </h:selectOneMenu>
                 <p class="ayuda">
-                    Obligatorio si reparte un transportista. En una zona de repartidores propios es el
-                    respaldo cuando no hay repartidores libres (opcional).
+                    Obligatoria si la zona es de logística tercerizada. En una zona de repartidores Rabbit es
+                    opcional: se le deriva el pedido cuando no hay repartidores libres.
                 </p>
             </div>
             <div class="form-acciones">

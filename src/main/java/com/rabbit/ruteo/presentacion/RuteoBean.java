@@ -138,7 +138,7 @@ public class RuteoBean implements Serializable {
     }
 
     public String nombreTransportista(Long id) {
-        return id == null ? "—" : nombresTransportistas.getOrDefault(id, "Transportista " + id);
+        return id == null ? "—" : nombresTransportistas.getOrDefault(id, "Empresa de logística " + id);
     }
 
     public CoberturaZona[] getCoberturas() { return CoberturaZona.values(); }

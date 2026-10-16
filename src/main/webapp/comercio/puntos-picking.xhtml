@@ -80,7 +80,7 @@
         <h2>Agregar punto de picking</h2>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel for="nombre" value="Nombre" />
+                <h:outputLabel styleClass="obligatorio" for="nombre" value="Nombre" />
                 <h:inputText id="nombre" value="#{puntoPickingBean.nuevoPuntoPicking.nombre}"
                              required="true" label="Nombre"
                              requiredMessage="Ingresá el nombre del punto de picking" />
@@ -88,7 +88,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="direccion" value="Dirección" />
+                <h:outputLabel styleClass="obligatorio" for="direccion" value="Dirección" />
                 <h:inputText id="direccion" value="#{puntoPickingBean.nuevoPuntoPicking.direccion}"
                              required="true" label="Dirección"
                              requiredMessage="Ingresá la dirección del punto de picking" />

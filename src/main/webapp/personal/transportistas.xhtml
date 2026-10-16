@@ -15,13 +15,15 @@
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
 
-    <ui:define name="titulo">Rabbit · Transportistas</ui:define>
+    <ui:define name="titulo">Rabbit · Repartos · Logística tercerizada</ui:define>
 
     <ui:define name="contenido">
-        <h1>Transportistas</h1>
+        <h1>Repartos</h1>
+
+        <ui:include src="/WEB-INF/plantillas/pestanas-repartos.xhtml" />
 
         <p class="ayuda">
-            Empresas de envío externas. Un pedido pendiente se les deriva desde&#160;
+            Empresas de logística externas a Rabbit. Un pedido pendiente se les deriva desde&#160;
             <h:link outcome="/personal/pedidos" value="Pedidos" />; cada una se integra con su propia
             tecnología (API REST o SOAP legado) y Rabbit consulta el estado de sus envíos cada 15 s.
         </p>
@@ -62,7 +64,7 @@
             </h:dataTable>
         </h:form>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty transportistaBean.transportistas}">
-            Todavía no hay transportistas.
+            Todavía no hay empresas de logística.
         </h:panelGroup>
 
         <h2>Envíos derivados</h2>
@@ -74,7 +76,7 @@
                     #{e.idPedido}
                 </h:column>
                 <h:column>
-                    <f:facet name="header">Transportista</f:facet>
+                    <f:facet name="header">Empresa de logística</f:facet>
                     #{e.transportista}
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
@@ -100,12 +102,12 @@
             Todavía no se derivó ningún pedido.
         </h:panelGroup>
 
-        <h2>Registrar transportista</h2>
+        <h2>Registrar empresa de logística</h2>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel for="nombre" value="Nombre" />
+                <h:outputLabel styleClass="obligatorio" for="nombre" value="Nombre" />
                 <h:inputText id="nombre" value="#{transportistaBean.nuevoTransportista.nombre}"
-                             required="true" label="Nombre" requiredMessage="Ingresá el nombre del transportista" />
+                             required="true" label="Nombre" requiredMessage="Ingresá el nombre de la empresa de logística" />
                 <h:message for="nombre" styleClass="error-campo" />
             </div>
             <div class="campo">
@@ -116,10 +118,10 @@
                 </h:selectOneMenu>
             </div>
             <div class="campo">
-                <h:outputLabel for="endpoint" value="Endpoint" />
+                <h:outputLabel styleClass="obligatorio" for="endpoint" value="Endpoint" />
                 <h:inputText id="endpoint" value="#{transportistaBean.nuevoTransportista.endpoint}"
                              required="true" label="Endpoint" maxlength="300"
-                             requiredMessage="Ingresá la URL del transportista" />
+                             requiredMessage="Ingresá la URL de la empresa de logística" />
                 <h:message for="endpoint" styleClass="error-campo" />
                 <p class="ayuda">
                     API REST: la URL base (el simulado:

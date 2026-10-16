@@ -112,7 +112,7 @@
             <h2 id="registrar-entrega">Registrar una entrega</h2>
             <h:form id="formEntrega" enctype="multipart/form-data" styleClass="formulario">
                 <div class="campo">
-                    <h:outputLabel for="pedido" value="Pedido entregado" />
+                    <h:outputLabel styleClass="obligatorio" for="pedido" value="Pedido entregado" />
                     <h:selectOneMenu id="pedido" value="#{misEntregasBean.idPedidoAEntregar}" required="true"
                                      label="Pedido" requiredMessage="Elegí qué pedido entregaste">
                         <f:selectItem itemLabel="— Elegí el pedido —" itemValue="#{null}" />

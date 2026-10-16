@@ -113,7 +113,7 @@
                                   rendered="#{empty pedidoBean.envio(p.id)}" />
                     <h:panelGroup rendered="#{not empty pedidoBean.envio(p.id)}">
                         #{pedidoBean.envio(p.id).transportista}
-                        <span class="dato-secundario">Transportista · #{pedidoBean.envio(p.id).codigoSeguimiento}</span>
+                        <span class="dato-secundario">Logística tercerizada · #{pedidoBean.envio(p.id).codigoSeguimiento}</span>
                     </h:panelGroup>
                 </h:column>
                 <h:column styleClass="acciones">
@@ -147,7 +147,7 @@
                     acá, también con la foto. Con pago contra entrega, registrar la entrega cobra el pedido.
                 </p>
                 <div class="campo">
-                    <h:outputLabel for="pedidoEntrega" value="Pedido en camino" />
+                    <h:outputLabel styleClass="obligatorio" for="pedidoEntrega" value="Pedido en camino" />
                     <h:selectOneMenu id="pedidoEntrega" value="#{pedidoBean.idPedidoAEntregar}" required="true"
                                      label="Pedido" requiredMessage="Elegí el pedido">
                         <f:selectItem itemLabel="— Elegí un pedido —" itemValue="#{null}" />
@@ -170,21 +170,21 @@
             <h:outputScript library="rabbit" name="remito.js" />
         </h:panelGroup>
 
-        <h2>Derivar a un transportista</h2>
+        <h2>Derivar a logística tercerizada</h2>
         <p class="ayuda">
-            En lugar de confirmarlo con un repartidor propio, un pedido pendiente se puede derivar
-            a una empresa de envíos externa: se cobra (si es prepago), se le pide el envío y el
-            transportista lo lleva. Su estado se actualiza solo con lo que informe.
-            Con <strong>Cotizar</strong> se ve antes cuánto cobra y cuánto tarda cada transportista
+            En lugar de confirmarlo con un repartidor Rabbit, un pedido pendiente se puede derivar
+            a una empresa de logística externa: se cobra (si es prepago), se le pide el envío y la
+            empresa lo lleva. Su estado se actualiza solo con lo que informe.
+            Con <strong>Cotizar</strong> se ve antes cuánto cobra y cuánto tarda cada empresa
             (los legados por SOAP no cotizan, pero se les puede derivar igual).
         </p>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.listaTransportistas}">
-            No hay transportistas activos. Se dan de alta en
-            <h:link outcome="/personal/transportistas" value="Transportistas" />.
+            No hay empresas de logística activas. Se dan de alta en
+            <h:link outcome="/personal/transportistas" value="Logística tercerizada" />.
         </h:panelGroup>
         <h:form id="formDerivar" styleClass="formulario" rendered="#{not empty pedidoBean.listaTransportistas}">
             <div class="campo">
-                <h:outputLabel for="pedidoDerivar" value="Pedido" />
+                <h:outputLabel styleClass="obligatorio" for="pedidoDerivar" value="Pedido" />
                 <h:selectOneMenu id="pedidoDerivar" value="#{pedidoBean.idPedidoADerivar}"
                                  required="true" label="Pedido" requiredMessage="Elegí el pedido a derivar">
                     <f:selectItem itemLabel="— Elegí un pedido pendiente —" itemValue="#{null}" />
@@ -193,12 +193,12 @@
                 </h:selectOneMenu>
             </div>
             <div class="campo">
-                <h:outputLabel for="transportista" value="Transportista" />
+                <h:outputLabel styleClass="obligatorio" for="transportista" value="Empresa de logística" />
                 <!-- Obligatorio solo al derivar: para cotizar alcanza con el pedido. -->
                 <h:selectOneMenu id="transportista" value="#{pedidoBean.idTransportistaElegido}"
                                  required="#{not empty param['formDerivar:btnDerivar']}"
-                                 label="Transportista" requiredMessage="Elegí el transportista">
-                    <f:selectItem itemLabel="— Elegí un transportista —" itemValue="#{null}" />
+                                 label="Empresa de logística" requiredMessage="Elegí la empresa de logística">
+                    <f:selectItem itemLabel="— Elegí una empresa de logística —" itemValue="#{null}" />
                     <f:selectItems value="#{pedidoBean.listaTransportistas}" var="t" itemValue="#{t.id}"
                                    itemLabel="#{t.nombre} (#{etiquetas.tipoIntegracion(t.tipoIntegracion)})" />
                 </h:selectOneMenu>
@@ -220,7 +220,7 @@
             <h:dataTable value="#{pedidoBean.cotizaciones}" var="c"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
                 <h:column>
-                    <f:facet name="header">Transportista</f:facet>
+                    <f:facet name="header">Empresa de logística</f:facet>
                     #{c.transportista}
                     <span class="dato-secundario">#{etiquetas.tipoIntegracion(c.tipoIntegracion)}</span>
                 </h:column>
@@ -326,7 +326,7 @@
         </p>
         <h:form id="formAlta" styleClass="formulario formulario-ancho">
             <div class="campo">
-                <h:outputLabel for="comercio" value="Comercio" />
+                <h:outputLabel styleClass="obligatorio" for="comercio" value="Comercio" />
                 <h:selectOneMenu id="comercio" value="#{pedidoBean.nuevoPedido.idComercio}"
                                  required="true" label="Comercio"
                                  requiredMessage="Elegí el comercio del pedido">
@@ -359,7 +359,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="importe" value="Importe" />
+                <h:outputLabel styleClass="obligatorio" for="importe" value="Importe" />
                 <h:inputText id="importe" value="#{pedidoBean.nuevoPedido.importe}"
                              required="true" label="Importe"
                              requiredMessage="Ingresá el importe del pedido"
@@ -374,7 +374,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="direccionEntrega" value="Dirección de entrega" />
+                <h:outputLabel styleClass="obligatorio" for="direccionEntrega" value="Dirección de entrega" />
                 <h:inputText id="direccionEntrega" value="#{pedidoBean.nuevoPedido.direccionEntrega}"
                              required="true" label="Dirección de entrega" maxlength="200"
                              requiredMessage="Ingresá adónde se entrega el pedido" />
@@ -400,7 +400,7 @@
             <h:panelGroup id="camposOrigen" layout="block">
                 <h:panelGroup rendered="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}" layout="block">
                     <div class="campo">
-                        <h:outputLabel for="puntoPicking" value="Punto de picking" />
+                        <h:outputLabel styleClass="obligatorio" for="puntoPicking" value="Punto de picking" />
                         <h:selectOneMenu id="puntoPicking" value="#{pedidoBean.nuevoPedido.idPuntoPicking}"
                                          required="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}"
                                          label="Punto de picking">
@@ -422,7 +422,7 @@
 
                 <h:panelGroup rendered="#{pedidoBean.nuevoPedido.origen != 'PUNTO_PICKING'}" layout="block">
                     <div class="campo">
-                        <h:outputLabel for="deposito" value="Depósito" />
+                        <h:outputLabel styleClass="obligatorio" for="deposito" value="Depósito" />
                         <!--
                             Obligatorio: un pedido de stock consignado tiene
                             que salir de un deposito puntual de Rabbit, no

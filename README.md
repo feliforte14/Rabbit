@@ -59,7 +59,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
   columnas secundarias de cada tabla, en celular las tablas se ven como
   tarjetas con lo esencial y el menú se despliega con un botón (ver
-  `resources/rabbit/1_12/`).
+  `resources/rabbit/1_16/`).
 
 ## Tecnologías
 
@@ -96,7 +96,7 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_12/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+├── resources/rabbit/1_16/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
 │                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas),
 │                               remito.js (achica la foto del remito), ubicacion.js y mapa.js (mapas)
 └── WEB-INF/
@@ -439,6 +439,16 @@ Para probar en local sin un servidor real:
 y `rabbit.mail.smtp.host=localhost`, `rabbit.mail.smtp.port=2525`: cada
 mail se imprime en esa consola. Sin servidor configurado no se intenta
 mandar nada.
+
+**Mail para pedir una cuenta (opcional).** No hay alta abierta: el login
+muestra un mail de contacto (con asunto y datos a completar ya escritos) y
+un `ADMINISTRADOR` crea la cuenta desde **Usuarios** después de hablar con
+el comercio o repartidor. Por defecto es `altas_rabbit@gmail.com`; para
+cambiarlo:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.contacto.mail:add(value=altas@tu-dominio.com)"
+```
 
 ## Tests
 

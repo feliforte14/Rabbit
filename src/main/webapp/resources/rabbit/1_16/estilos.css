@@ -186,17 +186,21 @@ h2 {
    el tamaño, el color y el espacio. */
 .sidebar-logo {
     padding: 1.6rem 1.5rem 1.25rem;
+    text-align: center;
+    border-bottom: 1px solid var(--sidebar-borde);
+    margin-bottom: 0.75rem;
 }
 
-.sidebar-logo .marca {
-    font-family: var(--fuente-titulo);
-    font-style: italic;
-    font-weight: 700;
-    font-size: 1.55rem;
-    line-height: 1;
-    color: var(--naranja);
-    margin: 0;
-    letter-spacing: 0.01em;
+/* El logo (conejo + "rabbit") es un PNG con fondo transparente: se ve
+   igual sobre la barra oscura y sobre la clara del tema claro. */
+.marca-logo {
+    display: block;
+    height: auto;
+    margin: 0 auto;
+}
+
+.sidebar-logo .marca-logo {
+    width: 104px;
 }
 
 .sidebar-logo .slogan {
@@ -595,6 +599,15 @@ h2 {
     color: var(--texto-suave);
     text-transform: uppercase;
     letter-spacing: 0.04em;
+}
+
+/* Campo obligatorio: la etiqueta lleva un asterisco. La marca la clase
+   (styleClass="obligatorio") porque required="true" de JSF valida en el
+   servidor y no deja ningún atributo en el HTML para seleccionar. */
+label.obligatorio::after {
+    content: " *";
+    color: var(--rojo);
+    font-weight: 700;
 }
 
 .campo > input[type="text"],
@@ -1076,23 +1089,112 @@ h2 {
 /* ==================================================================
    Marca en el login (misma tipografía que el menú)
    ================================================================== */
-.login-marca {
-    text-align: center;
-    margin-bottom: 1.5rem;
+.login-acciones {
+    justify-content: center;
 }
 
-.login-marca .marca {
-    font-family: var(--fuente-titulo);
-    font-style: italic;
-    font-weight: 700;
-    font-size: 2.4rem;
-    color: var(--naranja);
-    margin: 0;
-    line-height: 1;
+/* Pestañas de una sección con varias pantallas (Repartos: ver
+   pestanas-repartos.xhtml): botones centrados con la estética de .btn. La
+   activa es naranja (como btn-primary); la otra, como btn-secondary. */
+.pestanas {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    margin: -0.25rem 0 1.75rem;
+}
+
+.pestanas a {
+    display: inline-block;
+    padding: 0.6rem 1.3rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    background: var(--superficie);
+    color: var(--texto-suave);
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.pestanas a:hover {
+    background: var(--fondo);
+    color: var(--texto);
+}
+
+.pestanas a.activa {
+    background: var(--naranja);
+    border-color: var(--naranja);
+    color: var(--sobre-acento);
+}
+
+.pestanas a.activa:hover {
+    background: var(--naranja-oscuro);
+    border-color: var(--naranja-oscuro);
+}
+
+.pestanas a:focus-visible {
+    outline: 2px solid var(--naranja);
+    outline-offset: 2px;
+}
+
+/* En el celular, los dos botones se reparten el ancho (sin scroll) y
+   miden al menos 44 px de alto, como el resto de los botones. */
+@media (max-width: 640px) {
+    .pestanas a {
+        flex: 1;
+        min-height: 44px;
+        padding: 0.6rem 0.5rem;
+        text-align: center;
+        white-space: normal;
+    }
+}
+
+/* El login entra entero en una pantalla de notebook (unos 650 px de alto
+   útil) sin scroll: logo, título y espacios más compactos. */
+body.pagina-sola {
+    padding-top: 1.25rem;
+    padding-bottom: 1.5rem;
+}
+
+body.pagina-sola h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.9rem;
+}
+
+body.pagina-sola .formulario {
+    padding: 1.4rem 1.6rem;
+}
+
+body.pagina-sola .login-acciones {
+    margin-top: 1rem;
+    padding-top: 1rem;
+}
+
+body.pagina-sola .ayuda {
+    margin-top: 0.75rem;
+}
+
+body.pagina-sola .enlace-seguimiento {
+    margin-top: 0.6rem;
+}
+
+body.pagina-sola .tema-selector.tema-pie {
+    margin-top: 0.9rem;
+}
+
+.login-marca {
+    text-align: center;
+    margin-bottom: 1rem;
+}
+
+.login-marca .marca-logo {
+    width: 130px;
 }
 
 .login-marca .slogan {
-    margin: 0.35rem 0 0;
+    margin: 0.6rem 0 0;
     font-size: 0.85rem;
     color: var(--texto-suave);
 }
@@ -1240,6 +1342,13 @@ a.codigo:hover {
         gap: 1rem;
         padding: 0.7rem 1rem;
         text-align: left;
+        margin-bottom: 0;
+        border-bottom: none;
+    }
+
+    .sidebar-logo .marca-logo {
+        width: 60px;
+        margin: 0;
     }
 
     .sidebar-logo .slogan {

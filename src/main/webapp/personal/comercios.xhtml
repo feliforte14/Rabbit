@@ -6,7 +6,7 @@
     uno nuevo. Se bindea al Managed Bean comercioBean (ComercioBean.java)
     via Expression Language: por ejemplo #{comercioBean.comercios}.
 
-    El estilo visual vive aparte, en resources/rabbit/1_12/estilos.css
+    El estilo visual vive aparte, en resources/rabbit/1_16/estilos.css
     (recurso JSF versionado), linkeado desde template.xhtml. Es solo
     CSS: no cambia ningun binding ni ninguna accion de los Managed Beans.
 -->
@@ -109,7 +109,7 @@
         -->
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel for="nombre" value="Nombre" />
+                <h:outputLabel styleClass="obligatorio" for="nombre" value="Nombre" />
                 <h:inputText id="nombre" value="#{comercioBean.nuevoComercio.nombre}"
                              required="true" label="Nombre"
                              requiredMessage="Ingresá el nombre del comercio" />
@@ -117,7 +117,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="razonSocial" value="Razón Social" />
+                <h:outputLabel styleClass="obligatorio" for="razonSocial" value="Razón Social" />
                 <h:inputText id="razonSocial" value="#{comercioBean.nuevoComercio.razonSocial}"
                              required="true" label="Razón Social"
                              requiredMessage="Ingresá la razón social" />
@@ -125,7 +125,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="cuit" value="CUIT" />
+                <h:outputLabel styleClass="obligatorio" for="cuit" value="CUIT" />
                 <h:inputText id="cuit" value="#{comercioBean.nuevoComercio.cuit}"
                              required="true" label="CUIT"
                              requiredMessage="Ingresá el CUIT (formato XX-XXXXXXXX-X)" />

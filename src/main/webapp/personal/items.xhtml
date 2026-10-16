@@ -89,7 +89,7 @@
         </p>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel value="Comercio" for="comercio" />
+                <h:outputLabel styleClass="obligatorio" value="Comercio" for="comercio" />
                 <h:selectOneMenu id="comercio" value="#{itemInventarioBean.nuevoItem.idComercio}"
                                  required="true" label="Comercio"
                                  requiredMessage="Elegí de qué comercio es el stock">
@@ -102,14 +102,14 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel value="Producto" for="producto" />
+                <h:outputLabel styleClass="obligatorio" value="Producto" for="producto" />
                 <h:inputText id="producto" value="#{itemInventarioBean.nuevoItem.producto}" required="true"
                              label="Producto" requiredMessage="Ingresá el producto" />
                 <h:message for="producto" styleClass="error-campo" />
             </div>
 
             <div class="campo">
-                <h:outputLabel value="Cantidad" for="cantidad" />
+                <h:outputLabel styleClass="obligatorio" value="Cantidad" for="cantidad" />
                 <h:inputText id="cantidad" value="#{itemInventarioBean.nuevoItem.cantidadDisponible}" required="true"
                              label="Cantidad" requiredMessage="Ingresá la cantidad"
                              converterMessage="La cantidad tiene que ser un número entero" />
@@ -117,7 +117,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel value="Peso por unidad (kg)" for="peso" />
+                <h:outputLabel styleClass="obligatorio" value="Peso por unidad (kg)" for="peso" />
                 <h:inputText id="peso" value="#{itemInventarioBean.nuevoItem.pesoKg}" required="true"
                              label="Peso por unidad" requiredMessage="Ingresá el peso por unidad"
                              converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
@@ -138,7 +138,7 @@
                     ya creados conservan el peso con el que se calcularon.
                 </p>
                 <div class="campo">
-                    <h:outputLabel value="Producto" for="itemPeso" />
+                    <h:outputLabel styleClass="obligatorio" value="Producto" for="itemPeso" />
                     <h:selectOneMenu id="itemPeso" value="#{itemInventarioBean.idItemPeso}" required="true"
                                      label="Producto" requiredMessage="Elegí el producto">
                         <f:selectItem itemLabel="— Elegí un producto —" itemValue="#{null}" />
@@ -148,7 +148,7 @@
                     <h:message for="itemPeso" styleClass="error-campo" />
                 </div>
                 <div class="campo">
-                    <h:outputLabel value="Peso por unidad (kg)" for="pesoNuevo" />
+                    <h:outputLabel styleClass="obligatorio" value="Peso por unidad (kg)" for="pesoNuevo" />
                     <h:inputText id="pesoNuevo" value="#{itemInventarioBean.pesoNuevo}" required="true"
                                  label="Peso por unidad" requiredMessage="Ingresá el peso por unidad"
                                  converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />

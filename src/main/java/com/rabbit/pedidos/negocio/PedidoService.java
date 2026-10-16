@@ -515,7 +515,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
         if (idTransportista == null) {
-            throw new ValidacionException("Elegí a qué transportista derivar el pedido");
+            throw new ValidacionException("Elegí a qué empresa de logística derivar el pedido");
         }
 
         // Mismo esquema que confirmarPedido, con el transportista en lugar
@@ -603,7 +603,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         exigirRepartidorAsignado(pedido);
         if (pedido.getIdRepartidor() == null) {
             throw new ValidacionException("El pedido " + idPedido
-                    + " lo lleva un transportista externo: su entrega la informa el transportista");
+                    + " lo lleva una empresa de logística tercerizada: su entrega la informa la empresa");
         }
         String usuario = contexto.getCallerPrincipal().getName();
         LocalDateTime ahora = LocalDateTime.now();
