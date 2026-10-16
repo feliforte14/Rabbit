@@ -30,9 +30,17 @@ class HoraDeCorteTest {
     }
 
     @Test
-    void sinCorteConfiguradoSeAsignaACualquierHora() {
-        assertTrue(HoraDeCorte.permiteAsignar(null, LocalTime.of(23, 59)));
+    void porDefectoElCorteEsALas21() {
+        assertEquals(LocalTime.of(21, 0), HoraDeCorte.configurada());
+        assertTrue(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(20, 59)));
+        assertFalse(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(21, 0)));
+    }
+
+    @Test
+    void conNingunoNoHayCorteYSeAsignaACualquierHora() {
+        System.setProperty(HoraDeCorte.PROPIEDAD, "ninguno");
         assertNull(HoraDeCorte.configurada());
+        assertTrue(HoraDeCorte.permiteAsignar(null, LocalTime.of(23, 59)));
     }
 
     @Test
@@ -44,9 +52,9 @@ class HoraDeCorteTest {
     }
 
     @Test
-    void unValorInvalidoEsSinCorte() {
-        assertNull(HoraDeCorte.interpretar("nueve"));
-        assertNull(HoraDeCorte.interpretar("25:00"));
-        assertNull(HoraDeCorte.interpretar(""));
+    void unValorInvalidoUsaElDePorDefecto() {
+        assertEquals(HoraDeCorte.POR_DEFECTO, HoraDeCorte.interpretar("nueve"));
+        assertEquals(HoraDeCorte.POR_DEFECTO, HoraDeCorte.interpretar("25:00"));
+        assertEquals(HoraDeCorte.POR_DEFECTO, HoraDeCorte.interpretar(""));
     }
 }

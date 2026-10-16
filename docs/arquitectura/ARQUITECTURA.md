@@ -105,7 +105,7 @@ Otros detalles de cada componente:
   pesimista para que dos confirmaciones simultáneas no carguen de más al
   mismo repartidor. Se libera al entregar, cancelar o devolver el pedido.
 - **Lista de espera (ADR-037):** si no le entra a nadie o ya pasó la hora
-  de corte (`HoraDeCorte`, system property `rabbit.ruteo.hora-corte`), el
+  de corte (`HoraDeCorte`: 21:00 por defecto, `rabbit.ruteo.hora-corte` la cambia), el
   pedido queda PENDIENTE con `enEsperaDesde`, sin cobrar.
   `AsignadorDeEspera` (`@Singleton`, `@RunAs("OPERADOR")`) recorre la
   fila cada minuto y apenas un pedido se entrega, cancela o devuelve

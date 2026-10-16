@@ -513,8 +513,11 @@ cargados) y pedidos `[PRUEBA]` de 1 y 2 kg.
 2. **Hora de corte:** `cli --command="/system-property=rabbit.ruteo.hora-corte:add(value=00:01)"`
    y confirmar uno de 1 kg aunque Juan tenga lugar → en espera, "Ya pasó
    la hora de corte (00:01): se asigna mañana". En Ruteo por zona,
-   "Despachar" muestra "En espera". Al quitar la propiedad, en menos de un
-   minuto se asigna solo. **Quitarla al terminar.**
+   "Despachar" muestra "En espera". Al quitar la propiedad vuelve el corte
+   de las 21:00 y, si es antes de esa hora, en menos de un minuto se
+   asigna solo. **Quitarla al terminar.** Si probás después de las 21,
+   todo queda en espera aunque no configures nada: para probar de noche,
+   `value=ninguno`.
 3. **Devolver a depósito:** como el repartidor, en un pedido Confirmado o
    En camino → "Devolver a depósito" → motivo ("Otro" pide el detalle).
    El pedido sale de su lista, vuelve a Pendiente en espera y en unos
@@ -548,7 +551,7 @@ cargados) y pedidos `[PRUEBA]` de 1 y 2 kg.
 | Eliminar un comercio dado de baja | Con pedidos en curso o entregados, stock o cuentas: rechazado. Con solo pedidos cancelados: se borra junto con ese historial, sin dejar nada huérfano |
 | Eliminar usuario / repartidor / zona (admin) | Se borra; un repartidor con cuenta o entregas en curso se rechaza; el operador no ve el botón |
 | Capacidad del repartidor | Si el primero no tiene lugar, se le asigna a otro; si nadie, queda en lista de espera sin cobrar y se asigna solo al liberarse uno |
-| Hora de corte (`rabbit.ruteo.hora-corte`) | Después del corte, lo que se confirma queda en espera para el día siguiente; sin la propiedad, no hay corte |
+| Hora de corte (21:00, `rabbit.ruteo.hora-corte`) | Después del corte, lo que se confirma queda en espera para el día siguiente; con `ninguno`, no hay corte |
 | Devolver a depósito (repartidor) | Vuelve a Pendiente en espera y se reasigna a otro repartidor, sin cobrar de nuevo |
 | Hoja de ruta recomendada | Retiros primero, entregas por CP, link a Google Maps en tramos de hasta 9 paradas |
 | Navegar un rato largo (más de 30 min) y después derivar o abrir Entregas en curso | Funciona: las consultas de stock no dependen de una instancia stateful que vence (ADR-027) |
