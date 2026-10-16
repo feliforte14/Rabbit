@@ -88,7 +88,8 @@ Pedidos no conoce a los suscriptores: se puede agregar otro sin tocarlo.
 | `EstadoPedidoCambiado` | Evento CDI que dispara `PedidoService` en cada cambio de estado |
 | `PublicadorEstadosPedido` | Productor JMS + declaración del tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`, igual que la cola) |
 | `SuscriptorPagosEstadoPedido` | MDB de Pagos, filtra `estado = 'ENTREGADO'` |
-| `SuscriptorNotificacionesEstadoPedido` | MDB de Notificaciones, recibe todos los cambios |
+| `SuscriptorNotificacionesEstadoPedido` | MDB de Notificaciones, recibe todos los cambios (a un pedido devuelto al depósito le avisa "volvió al depósito") |
+| `AvisosDeEspera` | No es del tópico: observa el mismo evento CDI (`AFTER_SUCCESS`) dentro de Rabbit y, si un pedido se entregó, canceló o devolvió, programa una pasada de la lista de espera (ADR-037) |
 
 **Mensaje:** `TextMessage` con body
 `{"idPedido", "idComercio", "estado", "fechaCambio"}` y propiedades JMS

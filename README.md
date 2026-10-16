@@ -64,7 +64,8 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
   columnas secundarias de cada tabla, en celular las tablas se ven como
   tarjetas con lo esencial y el menú se despliega con un botón (ver
-  `resources/rabbit/1_17/`).
+  `resources/rabbit/1_17/`). En la compu, la barra lateral entra entera
+  sin scroll propio también en pantallas bajas (notebooks de 13").
 
 ## Tecnologías
 
@@ -473,14 +474,16 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.cont
 ## Tests
 
 ```bash
-mvn test                       # 43 tests unitarios (JUnit 5), sin servidor
+mvn test                       # 62 tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos
 postales y de seguimiento, huella de idempotencia, límite de intentos de
 login, reglas del transportista simulado, validación del cuerpo de la
-API, hash de contraseñas, capacidad de los repartidores, validación de la
-foto del remito y tarifa mensual.
+API, hash de contraseñas, capacidad de los repartidores, a quién se le
+asigna un pedido (y la lista de espera), hora de corte, orden de la hoja
+de ruta recomendada y sus links a Google Maps, validación de la foto del
+remito y tarifa mensual.
 
 10 tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:

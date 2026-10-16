@@ -9,10 +9,10 @@ la demo.
 
 | Rol | Qué puede hacer | Dónde se prueba |
 |---|---|---|
-| `ADMINISTRADOR` | Todo lo del personal, **más** dar de alta/baja usuarios, eliminar (no solo dar de baja) comercios, usuarios, repartidores y zonas, liquidar el mes, registrar una entrega con remito como contingencia y anular el cobro de un pedido ya `CONFIRMADO` en adelante | 1, 2, 5, 6, 6b, 6c, 7b, 9, 10 |
-| `OPERADOR` | Todo lo del personal **salvo** esas operaciones — no ve los botones y el EJB las rechaza con `EJBAccessException` | 1b, 10 |
-| `COMERCIO` | Solo lo suyo: sus pedidos (con el remito de cada entrega), su stock (solo lectura), sus puntos de picking y sus liquidaciones | 3, 7, 10 |
-| `REPARTIDOR` | Solo su hoja de ruta: retirar, entregar con foto del remito y compartir su ubicación | 5 (paso 3), 10 |
+| `ADMINISTRADOR` | Todo lo del personal, **más** dar de alta/baja usuarios, eliminar (no solo dar de baja) comercios, usuarios, repartidores y zonas, liquidar el mes, registrar una entrega con remito como contingencia y anular el cobro de un pedido ya `CONFIRMADO` en adelante | 1, 2, 5, 6, 6b, 6c, 7b, 9, 10, 11 |
+| `OPERADOR` | Todo lo del personal **salvo** esas operaciones — no ve los botones y el EJB las rechaza con `EJBAccessException` | 1b, 10, 11 |
+| `COMERCIO` | Solo lo suyo: sus pedidos (con el remito de cada entrega), su stock (solo lectura), sus puntos de picking y sus liquidaciones (y el aviso cuando un pedido vuelve al depósito) | 3, 7, 10, 11 |
+| `REPARTIDOR` | Solo su hoja de ruta (la recomendada, con todas sus paradas): retirar, entregar con foto del remito, devolver al depósito y compartir su ubicación | 5 (paso 3), 10, 11 |
 | `ERP` | Solo la API REST, solo los pedidos de su comercio | 4 |
 
 Requisitos previos:
