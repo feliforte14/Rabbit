@@ -91,7 +91,7 @@
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">De recibido a entregado</f:facet>
-                    #{empty r.horasPromedio ? '—' : r.horasPromedio += ' h'}
+                    #{r.horasPromedioTexto}
                 </h:column>
             </h:dataTable>
             <h:outputText styleClass="ayuda" rendered="#{empty indicadoresBean.tablero.porRepartidor}"

@@ -11,8 +11,12 @@ package com.rabbit.ruteo.negocio;
  * de margen", redondeada a cuartos de hora para no prometer minutos que no
  * se pueden cumplir:
  *
- *   desde = ahora + paradasAntes x minutos            (hacia abajo)
+ *   desde = ahora + paradasAntes x minutos            (hacia abajo, nunca antes de ahora)
  *   hasta = ahora + (paradasAntes + 2) x minutos      (hacia arriba)
+ *
+ * "Nunca antes de ahora": redondear hacia abajo la próxima parada daba una
+ * franja que empezaba en el pasado ("entre las 20:15..." a las 20:27). Ahí
+ * el desde es la hora actual redondeada a 5 minutos hacia arriba.
  *
  * Los minutos por parada se configuran con una system property de WildFly,
  * leída en cada uso:
@@ -79,7 +83,8 @@ final class EstimacionDeLlegada {
         LlegadaEstimadaDTO llegada = new LlegadaEstimadaDTO();
         llegada.numeroParada = indice + 1;
         llegada.totalParadas = paradas.size();
-        llegada.desde = haciaAbajo(ahora.plusMinutes((long) indice * minutosPorParada)).toLocalTime();
+        LocalDateTime desde = haciaAbajo(ahora.plusMinutes((long) indice * minutosPorParada));
+        llegada.desde = (desde.isBefore(ahora) ? cincoMinutosArriba(ahora) : desde).toLocalTime();
         llegada.hasta = haciaArriba(ahora.plusMinutes((long) (indice + 2) * minutosPorParada)).toLocalTime();
         return llegada;
     }
@@ -87,6 +92,12 @@ final class EstimacionDeLlegada {
     private static LocalDateTime haciaAbajo(LocalDateTime hora) {
         LocalDateTime t = hora.truncatedTo(ChronoUnit.MINUTES);
         return t.minusMinutes(t.getMinute() % 15);
+    }
+
+    private static LocalDateTime cincoMinutosArriba(LocalDateTime hora) {
+        LocalDateTime t = hora.truncatedTo(ChronoUnit.MINUTES);
+        int resto = t.getMinute() % 5;
+        return resto == 0 && t.equals(hora) ? t : t.plusMinutes(5 - resto);
     }
 
     private static LocalDateTime haciaArriba(LocalDateTime hora) {
