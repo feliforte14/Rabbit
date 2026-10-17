@@ -3,6 +3,10 @@
     personal/indicadores.xhtml y comercio/mis-indicadores.xhtml con
     <ui:param name="t" value="\#{indicadoresBean.tablero}" />. Esta en
     WEB-INF: no se puede pedir por URL.
+
+    Arriba, la fila de KPIs; abajo, los graficos (indicadores.js). Cada
+    grafico trae sus datos en data-datos y tiene leyenda, tooltip y vista
+    de tabla, asi ningun valor depende solo del color o del mouse.
 -->
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                 xmlns:h="jakarta.faces.html"
@@ -18,11 +22,17 @@
         <div class="stat-card">
             <p class="stat-label">Entregados a tiempo</p>
             <p class="stat-valor">#{indicadoresBean.porcentaje(t.porcentajeATiempo)}</p>
+            <ui:fragment rendered="#{not empty t.porcentajeATiempo}">
+                <div class="viz-medidor" aria-hidden="true"><span style="width: #{t.porcentajeATiempo}%"></span></div>
+            </ui:fragment>
             <p class="stat-nota">#{t.entregadosATiempo} de #{t.entregadosConPromesa} con fecha prometida</p>
         </div>
         <div class="stat-card">
             <p class="stat-label">Entregados al primer intento</p>
             <p class="stat-valor">#{indicadoresBean.porcentaje(t.porcentajePrimerIntento)}</p>
+            <ui:fragment rendered="#{not empty t.porcentajePrimerIntento}">
+                <div class="viz-medidor" aria-hidden="true"><span style="width: #{t.porcentajePrimerIntento}%"></span></div>
+            </ui:fragment>
             <p class="stat-nota">#{t.alPrimerIntento} de #{t.terminados} que terminaron el reparto</p>
         </div>
         <div class="stat-card">
@@ -42,19 +52,29 @@
         </div>
     </div>
 
-    <h2>Por qué fallaron las visitas</h2>
-    <h:dataTable value="#{t.motivosFallidos}" var="m"
-                 styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
-                 rendered="#{not empty t.motivosFallidos}">
-        <h:column>
-            <f:facet name="header">Motivo</f:facet>
-            #{m.descripcion}
-        </h:column>
-        <h:column>
-            <f:facet name="header">Pedidos</f:facet>
-            #{m.cantidad}
-        </h:column>
-    </h:dataTable>
-    <h:outputText styleClass="ayuda" rendered="#{empty t.motivosFallidos}"
-                  value="Ninguna visita fallida en el período." />
+    <div class="viz-tablero">
+        <figure class="viz-tarjeta viz-ancha">
+            <figcaption class="viz-titulo">Entregas por día
+                <span class="viz-subtitulo">Según si llegaron el día prometido o antes</span>
+            </figcaption>
+            <div class="viz-grafico" data-grafico="columnas-apiladas" data-datos="#{indicadoresBean.jsonPorDia}"
+                 data-vacio="No hubo entregas en el período."></div>
+        </figure>
+        <figure class="viz-tarjeta">
+            <figcaption class="viz-titulo">Pedidos por estado
+                <span class="viz-subtitulo">Los recibidos en el período, según cómo están hoy</span>
+            </figcaption>
+            <div class="viz-grafico" data-grafico="barras" data-datos="#{indicadoresBean.jsonEstados}"
+                 data-vacio="No se recibieron pedidos en el período."></div>
+        </figure>
+        <figure class="viz-tarjeta">
+            <figcaption class="viz-titulo">Por qué fallaron las visitas
+                <span class="viz-subtitulo">El motivo de la última visita fallida de cada pedido</span>
+            </figcaption>
+            <div class="viz-grafico" data-grafico="barras" data-datos="#{indicadoresBean.jsonMotivos}"
+                 data-vacio="Ninguna visita fallida en el período."></div>
+        </figure>
+        <ui:insert name="graficosExtra" />
+    </div>
+    <h:outputScript library="rabbit" name="indicadores.js" />
 </ui:composition>

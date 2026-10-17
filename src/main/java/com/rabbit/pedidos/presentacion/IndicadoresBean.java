@@ -11,6 +11,13 @@ package com.rabbit.pedidos.presentacion;
  *
  * @RequestScoped: el período y el comercio llegan por la URL
  * (?dias=30&comercio=3), así el enlace se puede compartir tal cual.
+ *
+ * GRÁFICOS: cada uno recibe sus datos en un atributo data-datos, como JSON
+ * con un formato común que dibuja indicadores.js:
+ *   {"series": ["A tiempo", ...], "filas": [{"etiqueta", "detalle", "valores": [..]}],
+ *    "formato": "entero" | "porcentaje", "columnasExtra": [..] (solo tabla)}
+ * Los nombres (comercios, repartidores, motivos) los pone el script como
+ * texto, nunca como HTML.
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
@@ -26,6 +33,11 @@ import jakarta.enterprise.context.RequestScoped;
 import jakarta.faces.context.FacesContext;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
+import jakarta.json.Json;
+import jakarta.json.JsonArrayBuilder;
+import jakarta.json.JsonObjectBuilder;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.YearMonth;
@@ -110,6 +122,88 @@ public class IndicadoresBean {
         if (dias == null || !IIndicadores.PERIODOS.contains(dias)) {
             dias = DIAS_POR_DEFECTO;
         }
+    }
+
+    // ===============================================================
+    // Datos de los gráficos
+    // ===============================================================
+
+    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM");
+    private static final DateTimeFormatter DIA_LARGO =
+            DateTimeFormatter.ofPattern("EEEE dd/MM", Locale.forLanguageTag("es-AR"));
+
+    /** Entregas de cada día: a tiempo, fuera de término y sin fecha prometida. */
+    public String getJsonPorDia() {
+        JsonArrayBuilder filas = Json.createArrayBuilder();
+        for (IndicadoresDTO.Dia d : tablero.porDia) {
+            filas.add(fila(d.fecha.format(DIA), d.fecha.format(DIA_LARGO), d.aTiempo, d.fueraDeTermino, d.sinPromesa));
+        }
+        return grafico(List.of("A tiempo", "Fuera de término", "Sin fecha prometida"), filas, "entero", null);
+    }
+
+    /** Pedidos recibidos en el período, según cómo están hoy. */
+    public String getJsonEstados() {
+        JsonArrayBuilder filas = Json.createArrayBuilder()
+                .add(fila("Entregados", null, tablero.entregados))
+                .add(fila("En reparto", null, tablero.enCurso))
+                .add(fila("Pendientes", null, tablero.pendientes))
+                .add(fila("Devueltos al comercio", null, tablero.devueltos))
+                .add(fila("Cancelados", null, tablero.cancelados));
+        return grafico(List.of("Pedidos"), filas, "entero", null);
+    }
+
+    /** Por qué fallaron las visitas (el último motivo de cada pedido). */
+    public String getJsonMotivos() {
+        JsonArrayBuilder filas = Json.createArrayBuilder();
+        tablero.motivosFallidos.forEach(m -> filas.add(fila(m.descripcion, null, m.cantidad)));
+        return grafico(List.of("Pedidos"), filas, "entero", null);
+    }
+
+    /** % a tiempo y % al primer intento de cada repartidor; entregas y horas, solo en la tabla. */
+    public String getJsonRepartidores() {
+        JsonArrayBuilder filas = Json.createArrayBuilder();
+        for (IndicadoresDTO.PorRepartidor r : tablero.porRepartidor) {
+            JsonArrayBuilder valores = Json.createArrayBuilder();
+            agregar(valores, r.getPorcentajeATiempo());
+            agregar(valores, r.getPorcentajePrimerIntento());
+            filas.add(Json.createObjectBuilder()
+                    .add("etiqueta", r.nombre)
+                    .add("valores", valores)
+                    .add("extra", Json.createArrayBuilder().add(String.valueOf(r.entregas)).add(r.getHorasPromedioTexto())));
+        }
+        return grafico(List.of("A tiempo", "Al primer intento"), filas, "porcentaje",
+                List.of("Entregas", "De recibido a entregado"));
+    }
+
+    private static JsonObjectBuilder fila(String etiqueta, String detalle, int... valores) {
+        JsonArrayBuilder lista = Json.createArrayBuilder();
+        for (int v : valores) {
+            lista.add(v);
+        }
+        JsonObjectBuilder fila = Json.createObjectBuilder().add("etiqueta", etiqueta).add("valores", lista);
+        if (detalle != null) {
+            fila.add("detalle", detalle);
+        }
+        return fila;
+    }
+
+    private static void agregar(JsonArrayBuilder valores, Integer valor) {
+        if (valor == null) {
+            valores.addNull();
+        } else {
+            valores.add(valor);
+        }
+    }
+
+    private static String grafico(List<String> series, JsonArrayBuilder filas, String formato, List<String> columnasExtra) {
+        JsonObjectBuilder json = Json.createObjectBuilder()
+                .add("series", Json.createArrayBuilder(series))
+                .add("filas", filas)
+                .add("formato", formato);
+        if (columnasExtra != null) {
+            json.add("columnasExtra", Json.createArrayBuilder(columnasExtra));
+        }
+        return json.build().toString();
     }
 
     /** "87 %" o "—" si no hay con qué calcularlo. */

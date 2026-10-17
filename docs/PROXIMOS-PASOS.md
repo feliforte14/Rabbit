@@ -134,7 +134,7 @@ riesgo, sin tocar comportamiento:
       `Mensajes.ejecutar(Runnable accion, String mensajeExito)` que
       envuelva ese try/catch común.
 
-### Cobertura de tests (hoy hay 99 unitarios + 10 de integración)
+### Cobertura de tests (hoy hay 100 unitarios + 10 de integración)
 
 Los tests unitarios cubren sobre todo Pedidos (incluidos destinatario,
 intentos e indicadores), Seguridad, las reglas puras de Repartidores

@@ -51,6 +51,26 @@ public class IndicadoresDTO {
 
     public List<Motivo> motivosFallidos = new ArrayList<>();
     public List<PorRepartidor> porRepartidor = new ArrayList<>();
+    // Entregas de cada día del período, para el gráfico de columnas (un
+    // elemento por día, también los que no tuvieron entregas).
+    public List<Dia> porDia = new ArrayList<>();
+
+    /** Entregas de un día, según si cumplieron la fecha prometida. */
+    public static class Dia {
+        public LocalDate fecha;
+        public int aTiempo;
+        public int fueraDeTermino;
+        public int sinPromesa;
+
+        public Dia(LocalDate fecha) {
+            this.fecha = fecha;
+        }
+
+        public LocalDate getFecha() { return fecha; }
+        public int getATiempo() { return aTiempo; }
+        public int getFueraDeTermino() { return fueraDeTermino; }
+        public int getSinPromesa() { return sinPromesa; }
+    }
 
     /** Cuántas visitas fallaron por cada motivo (el último de cada pedido). */
     public static class Motivo {
@@ -121,4 +141,5 @@ public class IndicadoresDTO {
     public BigDecimal getCostoPorEnvio() { return costoPorEnvio; }
     public List<Motivo> getMotivosFallidos() { return motivosFallidos; }
     public List<PorRepartidor> getPorRepartidor() { return porRepartidor; }
+    public List<Dia> getPorDia() { return porDia; }
 }

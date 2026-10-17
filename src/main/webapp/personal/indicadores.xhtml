@@ -29,7 +29,7 @@
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
         <!-- GET comun: el filtro queda en la URL y el enlace se puede compartir. -->
-        <form method="get" action="#{request.contextPath}/personal/indicadores.xhtml" class="formulario formulario-ancho">
+        <form method="get" action="#{request.contextPath}/personal/indicadores.xhtml" class="viz-filtros">
             <div class="campo">
                 <label for="comercio">Comercio</label>
                 <select id="comercio" name="comercio">
@@ -64,38 +64,19 @@
 
         <h:panelGroup rendered="#{not empty indicadoresBean.tablero}">
             <h2>#{indicadoresBean.nombreComercio(indicadoresBean.idComercio)}</h2>
-            <ui:include src="/WEB-INF/plantillas/indicadores.xhtml">
+            <ui:decorate template="/WEB-INF/plantillas/indicadores.xhtml">
                 <ui:param name="t" value="#{indicadoresBean.tablero}" />
-            </ui:include>
-
-            <h2>Por repartidor</h2>
-            <p class="ayuda">Repartidores propios que terminaron algún pedido del período (entregado o devuelto al comercio).</p>
-            <h:dataTable value="#{indicadoresBean.tablero.porRepartidor}" var="r"
-                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
-                         rendered="#{not empty indicadoresBean.tablero.porRepartidor}">
-                <h:column>
-                    <f:facet name="header">Repartidor</f:facet>
-                    #{r.nombre}
-                </h:column>
-                <h:column>
-                    <f:facet name="header">Entregas</f:facet>
-                    #{r.entregas}
-                </h:column>
-                <h:column>
-                    <f:facet name="header">A tiempo</f:facet>
-                    #{indicadoresBean.porcentaje(r.porcentajeATiempo)}
-                </h:column>
-                <h:column>
-                    <f:facet name="header">Al primer intento</f:facet>
-                    #{indicadoresBean.porcentaje(r.porcentajePrimerIntento)}
-                </h:column>
-                <h:column styleClass="col-p2" headerClass="col-p2">
-                    <f:facet name="header">De recibido a entregado</f:facet>
-                    #{r.horasPromedioTexto}
-                </h:column>
-            </h:dataTable>
-            <h:outputText styleClass="ayuda" rendered="#{empty indicadoresBean.tablero.porRepartidor}"
-                          value="Ningún repartidor propio terminó pedidos en el período." />
+                <!-- Solo el personal: los indicadores de cada repartidor. -->
+                <ui:define name="graficosExtra">
+                    <figure class="viz-tarjeta viz-ancha">
+                        <figcaption class="viz-titulo">Por repartidor
+                            <span class="viz-subtitulo">Repartidores propios que terminaron algún pedido del período (entregado o devuelto al comercio)</span>
+                        </figcaption>
+                        <div class="viz-grafico" data-grafico="barras" data-datos="#{indicadoresBean.jsonRepartidores}"
+                             data-vacio="Ningún repartidor propio terminó pedidos en el período."></div>
+                    </figure>
+                </ui:define>
+            </ui:decorate>
         </h:panelGroup>
     </ui:define>
 </ui:composition>
