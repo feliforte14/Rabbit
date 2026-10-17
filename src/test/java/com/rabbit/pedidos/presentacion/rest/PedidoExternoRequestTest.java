@@ -80,4 +80,15 @@ class PedidoExternoRequestTest {
         r.emailDestinatario = "ana.correo.com";
         assertEquals(Set.of("emailDestinatario"), camposConError(r));
     }
+
+    @Test
+    void losEspaciosDeMasNoHacenInvalidoAlEmail() {
+        PedidoExternoRequest r = valido();
+        r.emailDestinatario = "  Ana@Correo.com ";
+        r.nombreDestinatario = "   ";
+        r.normalizar();
+        assertTrue(validador.validate(r).isEmpty());
+        assertEquals("Ana@Correo.com", r.emailDestinatario);
+        assertNull(r.nombreDestinatario);
+    }
 }
