@@ -486,7 +486,7 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.cont
 ## Tests
 
 ```bash
-mvn test                       # 100 tests unitarios (JUnit 5), sin servidor
+mvn test                       # 104 tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos
@@ -495,9 +495,11 @@ login, reglas del transportista simulado, validación del cuerpo de la
 API, hash de contraseñas, capacidad de los repartidores, a quién se le
 asigna un pedido (y la lista de espera), hora de corte, orden de la hoja
 de ruta recomendada y sus links a Google Maps, validación de la foto del
-remito y tarifa mensual.
+remito, tarifa mensual, datos de quien recibe, intentos de entrega, fecha
+prometida, horario estimado, textos de los avisos al cliente e
+indicadores (con la comparación contra el período anterior).
 
-10 tests de integración de la API REST (REST Assured), contra Rabbit ya
+16 tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:
 
 ```bash
@@ -505,7 +507,9 @@ mvn verify -Pintegracion -Drabbit.erp.usuario=<erp> -Drabbit.erp.clave=<clave> -
 ```
 
 Prueban alta, idempotencia, errores en Problem Details, pertenencia,
-cancelación y seguimiento público. Los pedidos que crean llevan
+cancelación y seguimiento público (`ApiRestIT`), y los datos de quien
+recibe, la fecha prometida y que el seguimiento no exponga a quien recibe
+(`MejorasUltimaMillaIT`). Los pedidos que crean llevan
 `[TEST]` en la dirección. Conviene correrlos contra una base local, no contra la
 compartida del equipo: los pedidos de prueba quedan guardados.
 

@@ -2256,8 +2256,13 @@ line.viz-base {
     flex: none;
 }
 
-.viz-boton-tabla {
+.viz-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.25rem;
     margin-top: 0.6rem;
+}
+.viz-boton-tabla {
     padding: 0.25rem 0;
     background: none;
     border: none;
@@ -2298,6 +2303,21 @@ line.viz-base {
     margin: 1.5rem 0;
     color: var(--texto-suave);
     text-align: center;
+}
+
+/* Diferencia contra el periodo anterior: flecha y texto (no solo color). */
+.viz-delta {
+    margin: 0.35rem 0 0;
+    font-size: 0.75rem;
+    color: var(--texto-suave);
+}
+.viz-delta-mejor {
+    color: var(--exito-texto);
+    font-weight: 600;
+}
+.viz-delta-peor {
+    color: var(--error-texto);
+    font-weight: 600;
 }
 
 /* Medidor de las tarjetas de porcentaje: la pista es un paso mas claro de
