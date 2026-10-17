@@ -52,8 +52,16 @@ public class IndicadoresService implements IIndicadores {
         }
         LocalDate hasta = LocalDate.now();
         LocalDate desde = hasta.minusDays(dias - 1L);
-        return CalculoDeIndicadores.calcular(
-                repository.listarRecibidosDesde(desde.atStartOfDay(), idComercio), desde, hasta,
-                repository.contarEnEspera(idComercio));
+        long enEspera = repository.contarEnEspera(idComercio);
+        IndicadoresDTO tablero = CalculoDeIndicadores.calcular(
+                repository.listarRecibidosEntre(desde.atStartOfDay(), hasta.plusDays(1).atStartOfDay(), idComercio),
+                desde, hasta, enEspera);
+        // El período anterior, del mismo largo, para comparar.
+        LocalDate hastaAnterior = desde.minusDays(1);
+        LocalDate desdeAnterior = hastaAnterior.minusDays(dias - 1L);
+        tablero.anterior = CalculoDeIndicadores.calcular(
+                repository.listarRecibidosEntre(desdeAnterior.atStartOfDay(), desde.atStartOfDay(), idComercio),
+                desdeAnterior, hastaAnterior, enEspera);
+        return tablero;
     }
 }

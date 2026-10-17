@@ -166,13 +166,20 @@ public class IndicadoresBean {
             JsonArrayBuilder valores = Json.createArrayBuilder();
             agregar(valores, r.getPorcentajeATiempo());
             agregar(valores, r.getPorcentajePrimerIntento());
+            // Números, no textos: así el CSV se puede sumar en Excel.
+            JsonArrayBuilder extra = Json.createArrayBuilder().add(r.entregas);
+            if (r.horasPromedio == null) {
+                extra.addNull();
+            } else {
+                extra.add(r.horasPromedio);
+            }
             filas.add(Json.createObjectBuilder()
                     .add("etiqueta", r.nombre)
                     .add("valores", valores)
-                    .add("extra", Json.createArrayBuilder().add(String.valueOf(r.entregas)).add(r.getHorasPromedioTexto())));
+                    .add("extra", extra));
         }
         return grafico(List.of("A tiempo", "Al primer intento"), filas, "porcentaje",
-                List.of("Entregas", "De recibido a entregado"));
+                List.of("Entregas", "Horas de recibido a entregado"));
     }
 
     private static JsonObjectBuilder fila(String etiqueta, String detalle, int... valores) {
@@ -204,6 +211,36 @@ public class IndicadoresBean {
             json.add("columnasExtra", Json.createArrayBuilder(columnasExtra));
         }
         return json.build().toString();
+    }
+
+    /**
+     * La diferencia contra el período anterior, como la muestra la tarjeta:
+     * "▲ 6 pts vs. período anterior", "▼ 1,5 h ...", "= sin cambios". Flecha
+     * y texto, así no depende del
+     * color. Vacío si no hay con qué comparar.
+     */
+    public String delta(Number valor, String unidad) {
+        if (valor == null) {
+            return "";
+        }
+        double v = valor.doubleValue();
+        if (Math.abs(v) < 0.05) {
+            return "= sin cambios";
+        }
+        String numero = valor instanceof BigDecimal b
+                ? new java.text.DecimalFormat("0.0", java.text.DecimalFormatSymbols.getInstance(
+                        Locale.forLanguageTag("es-AR"))).format(b.abs())
+                : String.valueOf(Math.abs(valor.intValue()));
+        return (v > 0 ? "▲ " : "▼ ") + numero + " " + unidad + " vs. período anterior";
+    }
+
+    /** Verde si mejoró, rojo si empeoró: depende de si subir es bueno. */
+    public String claseDelta(Number valor, boolean subirEsBueno) {
+        if (valor == null || Math.abs(valor.doubleValue()) < 0.05) {
+            return "viz-delta";
+        }
+        boolean mejoro = valor.doubleValue() > 0 == subirEsBueno;
+        return "viz-delta " + (mejoro ? "viz-delta-mejor" : "viz-delta-peor");
     }
 
     /** "87 %" o "—" si no hay con qué calcularlo. */

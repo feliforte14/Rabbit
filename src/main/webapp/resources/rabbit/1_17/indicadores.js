@@ -12,7 +12,9 @@
  * repartidores, motivos) se ponen con textContent, nunca como HTML.
  *
  * Cada grafico tiene leyenda (con 2 o mas series), tooltip al pasar el
- * mouse o al enfocar con el teclado, y un boton para verlo como tabla.
+ * mouse o al enfocar con el teclado, un boton para verlo como tabla y otro
+ * para descargarlo en CSV (separado por ";" y en UTF-8, como lo abre Excel
+ * en castellano).
  */
 var RabbitGraficos = (function () {
     var NS = 'http://www.w3.org/2000/svg';
@@ -260,9 +262,40 @@ var RabbitGraficos = (function () {
             var tr = html('tr', null, cuerpo);
             html('th', null, tr, fila.detalle || fila.etiqueta).setAttribute('scope', 'row');
             fila.valores.forEach(function (v) { html('td', 'viz-numero', tr, formatear(v, datos.formato)); });
-            (fila.extra || []).forEach(function (v) { html('td', 'viz-numero', tr, v); });
+            (fila.extra || []).forEach(function (v) {
+                html('td', 'viz-numero', tr, v == null ? '—' : typeof v === 'number' ? NUMERO.format(v) : v);
+            });
         });
         return contenedor;
+    }
+
+    // CSV con los mismos datos que la tabla. Los porcentajes y cantidades
+    // van como numeros (sin " %" ni separador de miles), para poder
+    // calcular con ellos; los textos, entre comillas.
+    function csv(datos) {
+        var celda = function (v) {
+            if (v == null) { return ''; }
+            if (typeof v === 'number') { return String(v).replace('.', ','); }
+            return '"' + String(v).replace(/"/g, '""') + '"';
+        };
+        var unidad = datos.formato === 'porcentaje' ? ' (%)' : '';
+        var filas = [[''].concat(datos.series.map(function (s) { return s + unidad; }), datos.columnasExtra || [])];
+        datos.filas.forEach(function (f) {
+            filas.push([f.detalle || f.etiqueta].concat(f.valores, f.extra || []));
+        });
+        return '\uFEFF' + filas.map(function (f) { return f.map(celda).join(';'); }).join('\r\n');
+    }
+
+    function descargar(datos, titulo) {
+        var nombre = 'rabbit-' + (titulo || 'grafico').toLowerCase().normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+            + '-' + new Date().toISOString().slice(0, 10) + '.csv';
+        var enlace = document.createElement('a');
+        enlace.href = URL.createObjectURL(new Blob([csv(datos)], {type: 'text/csv;charset=utf-8'}));
+        enlace.download = nombre;
+        document.body.appendChild(enlace);
+        enlace.click();
+        setTimeout(function () { URL.revokeObjectURL(enlace.href); enlace.remove(); }, 0);
     }
 
     function dibujar(lienzo) {
@@ -294,10 +327,16 @@ var RabbitGraficos = (function () {
             tarjeta.insertBefore(leyenda(datos, tipo), lienzo);
         }
         var titulo = tarjeta.querySelector('.viz-titulo');
-        var vista = tabla(datos, titulo ? titulo.textContent : '');
+        // Solo el titulo, sin el subtitulo que va adentro del figcaption.
+        var nombre = titulo ? titulo.firstChild.textContent.trim() : '';
+        var vista = tabla(datos, nombre);
         vista.hidden = true;
         tarjeta.appendChild(vista);
-        var boton = html('button', 'viz-boton-tabla', tarjeta, 'Ver como tabla');
+        var acciones = html('div', 'viz-acciones', tarjeta);
+        var boton = html('button', 'viz-boton-tabla', acciones, 'Ver como tabla');
+        var botonCsv = html('button', 'viz-boton-tabla', acciones, 'Descargar CSV');
+        botonCsv.type = 'button';
+        botonCsv.addEventListener('click', function () { descargar(datos, nombre); });
         boton.type = 'button';
         boton.setAttribute('aria-pressed', 'false');
         boton.addEventListener('click', function () {
@@ -335,5 +374,5 @@ var RabbitGraficos = (function () {
     } else {
         dibujarTodos();
     }
-    return {dibujarTodos: dibujarTodos};
+    return {dibujarTodos: dibujarTodos, csv: csv};
 })();

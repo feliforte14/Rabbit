@@ -1207,9 +1207,14 @@ Propuesta o Reemplazada.
     de término / sin fecha prometida), pedidos por estado, motivos de las
     visitas fallidas y, para el personal, barras agrupadas por
     repartidor. Cada gráfico tiene leyenda, tooltip (también con el
-    teclado) y "Ver como tabla"; los filtros van en una fila arriba. La
-    paleta (azul, naranja, aqua) se validó contra el fondo de cada tema,
-    también daltonismo, y sigue el tema elegido sin redibujar.
+    teclado), "Ver como tabla" y "Descargar CSV" (separado por ";" y en
+    UTF-8, como lo abre Excel en castellano); los filtros van en una fila
+    arriba. La paleta (azul, naranja, aqua) se validó contra el fondo de
+    cada tema, también daltonismo, y sigue el tema elegido sin redibujar.
+  - **Comparación con el período anterior** del mismo largo en cada KPI
+    ("▲ 6 pts vs. período anterior"), con flecha y texto además del
+    color, que depende de si subir es bueno (más horas hasta la entrega
+    es peor).
 - **Alternativas descartadas:**
   - *Consultas agregadas en SQL:* más rápidas con millones de filas, pero
     reparten cada regla entre JPQL y Java y no se prueban sin base.

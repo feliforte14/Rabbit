@@ -51,6 +51,11 @@ public class IndicadoresDTO {
 
     public List<Motivo> motivosFallidos = new ArrayList<>();
     public List<PorRepartidor> porRepartidor = new ArrayList<>();
+    // Los mismos indicadores en el período anterior de igual largo (los 30
+    // días antes de estos 30), para mostrar si se mejoró o empeoró. Null en
+    // el propio período anterior.
+    public IndicadoresDTO anterior;
+
     // Entregas de cada día del período, para el gráfico de columnas (un
     // elemento por día, también los que no tuvieron entregas).
     public List<Dia> porDia = new ArrayList<>();
@@ -120,6 +125,39 @@ public class IndicadoresDTO {
         return total == 0 ? null : (int) Math.round(parte * 100.0 / total);
     }
 
+    // --- Diferencias contra el período anterior (null si falta un dato) ---
+
+    /** Puntos porcentuales de diferencia en "a tiempo". */
+    public Integer getDeltaATiempo() {
+        return anterior == null ? null : resta(getPorcentajeATiempo(), anterior.getPorcentajeATiempo());
+    }
+
+    /** Puntos porcentuales de diferencia en "al primer intento". */
+    public Integer getDeltaPrimerIntento() {
+        return anterior == null ? null : resta(getPorcentajePrimerIntento(), anterior.getPorcentajePrimerIntento());
+    }
+
+    /** Horas de diferencia en el promedio de recibido a entregado. */
+    public BigDecimal getDeltaHoras() {
+        if (anterior == null || horasPromedioEntrega == null || anterior.horasPromedioEntrega == null) {
+            return null;
+        }
+        return horasPromedioEntrega.subtract(anterior.horasPromedioEntrega);
+    }
+
+    /** Variación porcentual de los pedidos recibidos; null si antes no hubo ninguno. */
+    public Integer getDeltaRecibidos() {
+        if (anterior == null || anterior.recibidos == 0) {
+            return null;
+        }
+        return (int) Math.round((recibidos - anterior.recibidos) * 100.0 / anterior.recibidos);
+    }
+
+    private static Integer resta(Integer actual, Integer previo) {
+        return actual == null || previo == null ? null : actual - previo;
+    }
+
+    public IndicadoresDTO getAnterior() { return anterior; }
     public int getTerminados() { return entregados + devueltos; }
     public Integer getPorcentajeATiempo() { return porcentaje(entregadosATiempo, entregadosConPromesa); }
     public Integer getPorcentajePrimerIntento() { return porcentaje(alPrimerIntento, getTerminados()); }

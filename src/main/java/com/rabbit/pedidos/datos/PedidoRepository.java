@@ -157,12 +157,14 @@ public class PedidoRepository {
         return consulta.getSingleResult();
     }
 
-    // Pedidos recibidos desde una fecha, de un comercio o de toda la red
+    // Pedidos recibidos en [desde, hasta), de un comercio o de toda la red
     // (idComercio null), sin las líneas: el tablero de indicadores no las usa.
-    public List<Pedido> listarRecibidosDesde(LocalDateTime desde, Long idComercio) {
+    public List<Pedido> listarRecibidosEntre(LocalDateTime desde, LocalDateTime hasta, Long idComercio) {
         TypedQuery<Pedido> consulta = em.createQuery("SELECT p FROM Pedido p WHERE p.fechaCreacion >= :desde"
+                        + " AND p.fechaCreacion < :hasta"
                         + (idComercio != null ? " AND p.idComercio = :comercio" : ""), Pedido.class)
-                .setParameter("desde", desde);
+                .setParameter("desde", desde)
+                .setParameter("hasta", hasta);
         if (idComercio != null) {
             consulta.setParameter("comercio", idComercio);
         }
