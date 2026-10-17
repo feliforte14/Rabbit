@@ -39,6 +39,10 @@ final class CalculoDeIndicadores {
         Map<Long, IndicadoresDTO.PorRepartidor> porRepartidor = new LinkedHashMap<>();
         Map<Long, long[]> minutosPorRepartidor = new LinkedHashMap<>();
         Map<String, Integer> motivos = new TreeMap<>();
+        Map<LocalDate, IndicadoresDTO.Dia> dias = new LinkedHashMap<>();
+        for (LocalDate d = desde; !d.isAfter(hasta); d = d.plusDays(1)) {
+            dias.put(d, new IndicadoresDTO.Dia(d));
+        }
         long minutosTotales = 0;
         long entregasConDuracion = 0;
 
@@ -76,6 +80,17 @@ final class CalculoDeIndicadores {
                         dto.entregadosConPromesa++;
                         dto.entregadosATiempo += aTiempo ? 1 : 0;
                     }
+                    IndicadoresDTO.Dia dia = p.getFechaEntrega() == null ? null
+                            : dias.get(p.getFechaEntrega().toLocalDate());
+                    if (dia != null) {
+                        if (aTiempo == null) {
+                            dia.sinPromesa++;
+                        } else if (aTiempo) {
+                            dia.aTiempo++;
+                        } else {
+                            dia.fueraDeTermino++;
+                        }
+                    }
                     if (minutos != null) {
                         minutosTotales += minutos;
                         entregasConDuracion++;
@@ -108,6 +123,7 @@ final class CalculoDeIndicadores {
         filas.removeIf(f -> f.terminados == 0);
         filas.sort(Comparator.comparingInt((IndicadoresDTO.PorRepartidor f) -> f.entregas).reversed());
         dto.porRepartidor = filas;
+        dto.porDia = new ArrayList<>(dias.values());
         motivos.forEach((descripcion, cantidad) -> dto.motivosFallidos.add(new IndicadoresDTO.Motivo(descripcion, cantidad)));
         dto.motivosFallidos.sort(Comparator.comparingInt(IndicadoresDTO.Motivo::getCantidad).reversed());
         return dto;

@@ -82,6 +82,22 @@ class CalculoDeIndicadoresTest {
     }
 
     @Test
+    void lasEntregasSeCuentanPorDiaSegunLaPromesa() {
+        Pedido mismoDia = entregado(1L, LUNES.atTime(18, 0), 0);
+        Pedido alOtroDia = entregado(1L, LUNES.plusDays(1).atTime(9, 0), 0);
+        Pedido sinPromesa = entregado(1L, LUNES.plusDays(1).atTime(12, 0), 0);
+        sinPromesa.setFechaPrometida(null);
+
+        IndicadoresDTO t = CalculoDeIndicadores.calcular(List.of(mismoDia, alOtroDia, sinPromesa), LUNES, HASTA, 0);
+
+        assertEquals(5, t.porDia.size(), "un elemento por día del período, aunque no tenga entregas");
+        assertEquals(1, t.porDia.get(0).aTiempo);
+        assertEquals(1, t.porDia.get(1).fueraDeTermino);
+        assertEquals(1, t.porDia.get(1).sinPromesa);
+        assertEquals(0, t.porDia.get(4).aTiempo + t.porDia.get(4).fueraDeTermino + t.porDia.get(4).sinPromesa);
+    }
+
+    @Test
     void horasPromedioDeRecibidoAEntregado() {
         Pedido ocho = entregado(1L, LUNES.atTime(18, 0), 0);       // 8 h
         Pedido cuatro = entregado(1L, LUNES.atTime(14, 0), 0);     // 4 h

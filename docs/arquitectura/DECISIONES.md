@@ -1201,11 +1201,23 @@ Propuesta o Reemplazada.
     dividida por los envíos, que la vista toma de Pagos.
   Se calcula en memoria (`CalculoDeIndicadores`) sobre los pedidos del
   período: no hay tablas ni columnas de agregados.
+  - **Visualización, estilo tablero de BI:** fila de KPIs (con medidor
+    en los porcentajes) y gráficos en SVG propios (`indicadores.js`, sin
+    librerías): entregas por día en columnas apiladas (a tiempo / fuera
+    de término / sin fecha prometida), pedidos por estado, motivos de las
+    visitas fallidas y, para el personal, barras agrupadas por
+    repartidor. Cada gráfico tiene leyenda, tooltip (también con el
+    teclado) y "Ver como tabla"; los filtros van en una fila arriba. La
+    paleta (azul, naranja, aqua) se validó contra el fondo de cada tema,
+    también daltonismo, y sigue el tema elegido sin redibujar.
 - **Alternativas descartadas:**
   - *Consultas agregadas en SQL:* más rápidas con millones de filas, pero
     reparten cada regla entre JPQL y Java y no se prueban sin base.
   - *Medir desde la confirmación:* no hay fecha de confirmación guardada;
     "desde que se recibió" es lo que ve el cliente.
+  - *Una librería de gráficos (Chart.js) o Power BI embebido:* una
+    librería suma una dependencia externa para cuatro gráficos simples, y
+    Power BI exige licencias y sacar los datos de Rabbit.
 - **Consecuencias:** los porcentajes salen como "—" si no hay base, en
   vez de 0 %. Los pedidos anteriores a ADR-042 no tienen promesa y no
   cuentan en "a tiempo".

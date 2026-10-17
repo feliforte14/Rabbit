@@ -590,9 +590,13 @@ suscripción (ADR-041).
    `llegadaEstimada`. El número coincide con la hoja de ruta recomendada
    del repartidor. Si la estimación falla, la página se ve igual, sin
    horario (y queda un aviso en el log).
-6. **Indicadores (ADR-044):** Personal → Indicadores: a tiempo, al primer
-   intento, horas de recibido a entregado, en espera, costo por envío,
-   motivos de las visitas fallidas y la tabla por repartidor; filtrar por
+6. **Indicadores (ADR-044):** Personal → Indicadores: los KPIs (a tiempo y
+   al primer intento con su medidor, horas de recibido a entregado, en
+   espera, costo por envío) y los gráficos de entregas por día, pedidos
+   por estado, motivos de las visitas fallidas y por repartidor. Pasar el
+   mouse (o Tab) por una columna muestra el detalle; "Ver como tabla"
+   muestra los mismos datos en una tabla; cambiar de tema recolorea sin
+   recargar; filtrar por
    comercio y por 7, 30 o 90 días (queda en la URL). Como comercio →
    Mis indicadores: lo mismo, solo lo suyo y sin la tabla por
    repartidor. Sin entregas en el período, los porcentajes dicen "—".
