@@ -133,6 +133,7 @@ public class PedidosExternosResource {
                     "Falta o es inválido el header Idempotency-Key",
                     "Mandá un identificador único por pedido (por ejemplo un UUID), y el mismo si reintentás").respuesta();
         }
+        pedido.normalizar();
         Set<ConstraintViolation<PedidoExternoRequest>> errores = validador.validate(pedido);
         if (!errores.isEmpty()) {
             return datosConFormatoInvalido(errores);

@@ -86,6 +86,21 @@ public class PedidoExternoRequest {
         public int cantidad;
     }
 
+    /**
+     * Saca los espacios de más de los datos de quien recibe antes de validar
+     * el formato: " ana@correo.com " es el mismo email (el negocio también lo
+     * normaliza, ver Destinatarios) y no tiene que dar 400. Vacío = no vino.
+     */
+    void normalizar() {
+        nombreDestinatario = limpiar(nombreDestinatario);
+        telefonoDestinatario = limpiar(telefonoDestinatario);
+        emailDestinatario = limpiar(emailDestinatario);
+    }
+
+    private static String limpiar(String valor) {
+        return valor == null || valor.isBlank() ? null : valor.trim();
+    }
+
     DatosPedidoExternoDTO aDatos() {
         DatosPedidoExternoDTO datos = new DatosPedidoExternoDTO();
         datos.origen = origen;
