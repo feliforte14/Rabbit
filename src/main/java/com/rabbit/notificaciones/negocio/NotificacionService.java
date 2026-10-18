@@ -88,7 +88,8 @@ public class NotificacionService implements INotificaciones {
         if (fallido != null) {
             texto = TextosAlComercio.entregaFallida(idPedido, estado, fallido.motivoEntregaFallida,
                     fallido.motivoDevolucion, fallido.ultimaFallaContoComoVisita, fallido.intentosFallidos,
-                    IntentosDeEntrega.maximo());
+                    IntentosDeEntrega.maximo(),
+                    fallido.origen == com.rabbit.pedidos.datos.model.OrigenPedido.STOCK_CONSIGNADO);
         } else {
             texto = "Tu pedido #" + idPedido + " " + describir(estado) + extra(idPedido, estado);
         }

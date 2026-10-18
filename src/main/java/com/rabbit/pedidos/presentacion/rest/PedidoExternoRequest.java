@@ -62,14 +62,16 @@ public class PedidoExternoRequest {
     @Digits(integer = 7, fraction = 3, message = "El peso admite hasta 7 enteros y 3 decimales")
     public BigDecimal pesoKg;
 
-    // Quién recibe (ADR-039). Opcionales: un ERP que no los manda sigue
-    // funcionando igual, solo que Rabbit no le puede avisar al cliente.
+    // Quién recibe (ADR-039). El email es obligatorio desde el 18/10/2026:
+    // es por donde Rabbit le avisa al cliente cada novedad. Nombre y
+    // teléfono siguen opcionales.
     @Size(max = 100, message = "El nombre de quien recibe no puede superar los 100 caracteres")
     public String nombreDestinatario;
 
     @Size(max = 30, message = "El teléfono de quien recibe no puede superar los 30 caracteres")
     public String telefonoDestinatario;
 
+    @NotBlank(message = "Falta el email de quien recibe: es obligatorio porque Rabbit le avisa por mail cada novedad del pedido")
     @Email(message = "El email de quien recibe no es válido")
     @Size(max = 120, message = "El email de quien recibe no puede superar los 120 caracteres")
     public String emailDestinatario;

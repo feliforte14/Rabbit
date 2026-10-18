@@ -6,11 +6,14 @@ package com.rabbit.repartidores.negocio;
  * confirma después queda en la lista de espera y se asigna solo al día
  * siguiente, antes del corte (ver AsignadorDeEspera).
  *
- * La definió el equipo: 21:00 (16/10/2026). Se cambia con una system
+ * La definió el equipo: 07:00 (18/10/2026; antes era 21:00). A las 7 se
+ * cierra la hoja del día, así hay tiempo de preparar los pedidos y salir
+ * a la calle a las 9. Todo lo que se confirma durante el día queda en la
+ * lista de espera para el día siguiente. Se cambia con una system
  * property de WildFly, sin tocar el código ni redesplegar (se lee cada
  * vez):
- *   rabbit.ruteo.hora-corte   por ejemplo 18:30, o "ninguno" para no
- *                             tener corte (una demo de noche)
+ *   rabbit.ruteo.hora-corte   por ejemplo 08:30, o "ninguno" para no
+ *                             tener corte (demos y pruebas durante el día)
  * Un valor inválido se ignora y se usa el de por defecto.
  */
 
@@ -25,7 +28,7 @@ public final class HoraDeCorte {
     public static final String PROPIEDAD = "rabbit.ruteo.hora-corte";
 
     /** La que definió el equipo. */
-    public static final LocalTime POR_DEFECTO = LocalTime.of(21, 0);
+    public static final LocalTime POR_DEFECTO = LocalTime.of(7, 0);
 
     /** Valor de la propiedad para no tener corte. */
     public static final String SIN_CORTE = "ninguno";
@@ -42,7 +45,7 @@ public final class HoraDeCorte {
 
     /**
      * "18:30" o "9:00" → esa hora; "ninguno" → null (sin corte); sin
-     * definir, vacío o inválido → la de por defecto (21:00).
+     * definir, vacío o inválido → la de por defecto (07:00).
      */
     static LocalTime interpretar(String valor) {
         if (valor == null || valor.isBlank()) {
@@ -66,7 +69,7 @@ public final class HoraDeCorte {
 
     /**
      * Si a esa hora todavía se pueden sumar pedidos a la hoja del día. El
-     * corte es exclusivo: con 21:00, a las 20:59 sí y a las 21:00 ya no.
+     * corte es exclusivo: con 07:00, a las 06:59 sí y a las 07:00 ya no.
      */
     public static boolean permiteAsignar(LocalTime corte, LocalTime ahora) {
         return corte == null || ahora.isBefore(corte);

@@ -40,6 +40,8 @@ public class PedidoDTO {
     public boolean conRemito;
     // Lista de espera y devolución al depósito (ADR-037).
     public boolean enEspera;
+    // Si alguna vez salió a reparto: ya no se puede cancelar (ReglaDeCancelacion).
+    public boolean salioAReparto;
     public String enEsperaDesde;
     public String motivoEspera;
     public String motivoDevolucion;
@@ -80,6 +82,7 @@ public class PedidoDTO {
         dto.entregadoPor = p.getEntregadoPor();
         dto.conRemito = p.isConRemito();
         dto.enEspera = p.isEnEspera();
+        dto.salioAReparto = p.isSalioAReparto();
         dto.enEsperaDesde = p.getEnEsperaDesde() != null ? p.getEnEsperaDesde().format(FORMATO) : null;
         dto.motivoEspera = p.getMotivoEspera();
         dto.motivoDevolucion = p.getMotivoDevolucion();
@@ -130,6 +133,7 @@ public class PedidoDTO {
     public String getEntregadoPor() { return entregadoPor; }
     public boolean isConRemito() { return conRemito; }
     public boolean isEnEspera() { return enEspera; }
+    public boolean isSalioAReparto() { return salioAReparto; }
     public String getEnEsperaDesde() { return enEsperaDesde; }
     public String getMotivoEspera() { return motivoEspera; }
     public String getMotivoDevolucion() { return motivoDevolucion; }

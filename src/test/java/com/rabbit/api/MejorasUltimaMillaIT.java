@@ -55,6 +55,7 @@ class MejorasUltimaMillaIT {
         p.put("medioPago", "CONTRA_ENTREGA");
         p.put("direccionEntrega", "[TEST] Av. Siempreviva 742, CABA");
         p.put("codigoPostalEntrega", "1043");
+        p.put("emailDestinatario", "cliente@correo.test");
         return p;
     }
 
@@ -107,6 +108,17 @@ class MejorasUltimaMillaIT {
                 .statusCode(400)
                 .contentType(PROBLEMA)
                 .body("errores.campo", hasItem("emailDestinatario"));
+    }
+
+    @Test
+    void sinEmailDeQuienRecibeEs400ConElCampo() {
+        Map<String, Object> p = pedido();
+        p.remove("emailDestinatario");
+        alta(p, UUID.randomUUID().toString()).then()
+                .statusCode(400)
+                .contentType(PROBLEMA)
+                .body("errores.campo", hasItem("emailDestinatario"))
+                .body("errores.mensaje", hasItem(containsString("obligatorio")));
     }
 
     @Test

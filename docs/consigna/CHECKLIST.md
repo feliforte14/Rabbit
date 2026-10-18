@@ -22,7 +22,7 @@ rápido en la defensa.
 
 | Desafío | Estado |
 |---|---|
-| Al menos 2 ADR | Cumple: 47 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md) |
+| Al menos 2 ADR | Cumple: 48 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md) |
 | Resiliencia ante fallas | Cumple ([DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)): Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
 | Heterogeneidad tecnológica | Cumple, en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad) (ADR-030): el banco legado implementado también en Node.js, que Rabbit consume por el mismo WSDL, y el transportista moderno en Python, por REST. `main` queda con el sistema interno solo |
 | Prueba de escalabilidad | Cumple: el consumidor de la cola escala con `rabbit.cola.consumidores`; con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido). Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) |

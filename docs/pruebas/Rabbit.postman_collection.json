@@ -135,7 +135,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -204,7 +204,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -338,7 +338,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 9999\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 9999\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -418,7 +418,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -534,7 +534,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"[TEST] Av. Cabildo 1500, CABA\",\n  \"codigoPostalEntrega\": \"1426\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"[TEST] Av. Cabildo 1500, CABA\",\n  \"codigoPostalEntrega\": \"1426\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -635,7 +635,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -728,7 +728,7 @@
             "url": "{{baseUrl}}/api/v1/pedidos-externos",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -774,7 +774,7 @@
             "url": "{{baseUrl}}/api/v1/pedidos-externos",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"12\"\n}",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"12\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -942,7 +942,7 @@
             "url": "{{baseUrl}}/api/v1/pedidos-externos",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"pesoKg\": 2\n}",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"pesoKg\": 2,\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -950,6 +950,56 @@
               }
             },
             "description": "Con stock consignado el peso lo calcula Rabbit con el peso de cada ítem (ADR-032): informarlo es una regla de negocio violada, 422."
+          }
+        },
+        {
+          "name": "9. Sin email de quien recibe → 400",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idempotencyKey\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"Indica el campo emailDestinatario\", () => pm.expect(r.errores.map(e => e.campo)).to.include(\"emailDestinatario\"));",
+                  "pm.test(\"Explica que es obligatorio\", () => pm.expect(JSON.stringify(r.errores)).to.include(\"obligatorio\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idempotencyKey}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "El email de quien recibe es obligatorio desde el 18/10/2026 (Rabbit le avisa por mail cada novedad). Sin él, 400 con el campo emailDestinatario en \"errores\"."
           }
         }
       ],
@@ -1061,7 +1111,7 @@
             "url": "{{baseUrl}}/api/v1/pedidos-externos",
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 600000,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\"\n}",
+              "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 600000,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1115,7 +1165,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Thames 1500, Palermo\",\n  \"codigoPostalEntrega\": \"1414\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Thames 1500, Palermo\",\n  \"codigoPostalEntrega\": \"1414\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1164,7 +1214,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 1000, Belgrano\",\n  \"codigoPostalEntrega\": \"1426\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Av. Cabildo 1000, Belgrano\",\n  \"codigoPostalEntrega\": \"1426\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1213,7 +1263,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Calle 12 1846, Adrogué (1846)\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Calle 12 1846, Adrogué (1846)\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1262,7 +1312,7 @@
                 "url": "{{baseUrl}}/api/v1/pedidos-externos",
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Ruta 3 km 50\"\n}",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"Ruta 3 km 50\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"

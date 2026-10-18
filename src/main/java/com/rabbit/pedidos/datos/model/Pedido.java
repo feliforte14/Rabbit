@@ -168,6 +168,12 @@ public class Pedido {
     // la reasignación, y no lo descarta por viejo.
     private LocalDateTime fechaUltimaFalla;
 
+    // Si alguna vez salió a reparto (pasó a EN_CAMINO). No se apaga: un
+    // pedido que salió y volvió al depósito para otra visita ya no se
+    // puede cancelar (ver ReglaDeCancelacion). Boolean y no boolean: las
+    // filas anteriores quedan en NULL.
+    private Boolean salioAReparto;
+
     public Pedido() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -237,4 +243,13 @@ public class Pedido {
     public void setUltimaFallaContoComoVisita(boolean conto) { this.ultimaFallaContoComoVisita = conto; }
     public LocalDateTime getFechaUltimaFalla() { return fechaUltimaFalla; }
     public void setFechaUltimaFalla(LocalDateTime fechaUltimaFalla) { this.fechaUltimaFalla = fechaUltimaFalla; }
+    /**
+     * Si alguna vez estuvo EN_CAMINO. Para los pedidos anteriores a la
+     * marca: una visita fallida solo cuenta si había salido.
+     */
+    public boolean isSalioAReparto() {
+        return Boolean.TRUE.equals(salioAReparto) || estado == EstadoPedido.EN_CAMINO
+                || (intentosFallidos != null && intentosFallidos > 0);
+    }
+    public void setSalioAReparto(boolean salioAReparto) { this.salioAReparto = salioAReparto; }
 }

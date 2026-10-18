@@ -980,13 +980,15 @@ Propuesta o Reemplazada.
     (`IAsignacionRepartidores.motivoParaEsperar`, sin bloqueo). Si otro se
     queda con el lugar entre esa consulta y la asignación, el banco ya
     cobró y se reversa como antes (`ReversasBancarias`).
-  - **Hora de corte: 21:00**, definida por el equipo el 16/10/2026
-    (`HoraDeCorte.POR_DEFECTO`). Desde esa hora no se suman pedidos a la
-    hoja del día aunque haya lugar: lo que se confirma después va a la
-    lista de espera y se asigna solo al día siguiente, antes del corte. Se
-    cambia con la system property `rabbit.ruteo.hora-corte` (`HH:mm`),
-    leída en cada uso, y con el valor `ninguno` no hay corte (para una
-    demo de noche). Un valor inválido se ignora y rige el de 21:00.
+  - **Hora de corte: 07:00**, definida por el equipo el 18/10/2026
+    (`HoraDeCorte.POR_DEFECTO`; del 16 al 18/10 fue 21:00). A las 7 se
+    cierra la hoja del día, así hay tiempo de preparar los pedidos y salir
+    a la calle a las 9. Desde esa hora no se suman pedidos a la hoja del
+    día aunque haya lugar: lo que se confirma después va a la lista de
+    espera y se asigna solo al día siguiente, antes del corte. Se cambia
+    con la system property `rabbit.ruteo.hora-corte` (`HH:mm`), leída en
+    cada uso, y con el valor `ninguno` no hay corte. Un valor inválido se
+    ignora y rige el de 07:00.
   - **Devolver a depósito:** el repartidor del pedido (o un
     administrador), desde CONFIRMADO o EN_CAMINO, con motivo obligatorio.
     El pedido vuelve a PENDIENTE en la lista de espera, el repartidor deja
@@ -1003,10 +1005,14 @@ Propuesta o Reemplazada.
     sigue siendo "pendiente de asignar".
   - *Cobrar al confirmar aunque quede en espera:* cobra un servicio que
     todavía no tiene fecha, y obliga a reversar si se cancela antes.
-  - *Corte a las 9:00:* se propuso primero, pero después de esa hora
-    ninguna prueba ni demo de la tarde asignaría pedidos. El equipo
-    eligió las 21:00, cuando ya terminó el reparto del día.
-- **Consecuencias:** las columnas nuevas de `pedidos` admiten NULL y las
+  - *Corte a las 21:00* (el que rigió primero): seguía sumando pedidos a
+    la hoja durante todo el día, y el repartidor no podía planificar su
+    recorrido antes de salir.
+  - *Corte a las 9:00:* deja sin margen para preparar los pedidos antes
+    de salir a la calle a esa hora.
+- **Consecuencias:** con el corte a las 07:00, durante el día todo lo
+  que se confirma queda en espera para el día siguiente: para una demo o
+  una prueba hay que configurar `ninguno` (README, paso 7b). Las columnas nuevas de `pedidos` admiten NULL y las
   crea Hibernate al desplegar (`update`); las versiones anteriores siguen
   funcionando sobre la misma base. La API del ERP agrega `enListaDeEspera`
   y no ofrece el link de cancelar un pedido devuelto.
@@ -1067,6 +1073,25 @@ Propuesta o Reemplazada.
   de idempotencia suma estos datos solo si vienen: un reintento de antes
   de este cambio da la misma huella. Son datos personales: se borran con
   el pedido cuando se elimina su comercio.
+- **Actualización (18/10/2026): el email pasa a ser obligatorio.** El
+  equipo lo pidió porque es por donde se le avisa al cliente (ADR-040).
+  - **Alta de pedidos nuevos:** la API responde **400** si falta
+    (`datos-con-formato-invalido`, con `emailDestinatario` en `errores` y
+    el motivo "es obligatorio porque Rabbit le avisa por mail…"); la
+    pantalla "Simular un pedido del ERP" lo marca obligatorio; y el negocio
+    lo vuelve a exigir (`Destinatarios.emailObligatorio`), así ningún
+    camino lo saltea. Nombre y teléfono siguen opcionales.
+  - **Lo que ya existía no se toca:** los pedidos y los pedidos del ERP
+    dados de alta antes, sin email, siguen funcionando igual (se
+    sincronizan, se reparten y se entregan) y solo no reciben avisos. La
+    columna sigue admitiendo NULL y no hay migración de datos.
+  - **ERP ya integrados:** tienen que empezar a mandar el email; hasta
+    entonces sus altas nuevas reciben 400 con el campo indicado. Se
+    descartó una perilla para seguir aceptando altas sin email: los únicos
+    clientes de la API hoy son los nuestros (simulador, tests, Postman y
+    la prueba de carga), y se actualizaron todos. Caso borde: reintentar
+    con la misma clave un alta enviada antes del cambio, sin email, ahora
+    da 400 (antes devolvía el pedido ya creado).
 
 ## ADR-040: Avisos a quien recibe, con un tercer suscriptor del tópico
 
@@ -1135,6 +1160,16 @@ Propuesta o Reemplazada.
   Artemis recree esa suscripción durable al desplegar: conviene desplegar
   sin cobros contra entrega pendientes de acreditar. Los pedidos devueltos
   no entran en la liquidación mensual (solo cuenta ENTREGADO).
+
+- **Textos de los avisos revisados (18/10/2026):** todos los avisos de
+  entrega fallida siguen la misma forma, qué pasó (con el motivo), qué
+  sigue con el pedido y qué conviene hacer, en frases cortas y sin
+  mayúsculas ni "visita(s)" (`TextosAlComercio`, `TextosAlDestinatario`).
+  Al comercio no se le dice que "el stock vuelve" si el pedido salió de un
+  punto de picking (no hay stock en Rabbit). Ninguno pasa de 255
+  caracteres, el largo de la columna del portal.
+- **Cancelar (ADR-048):** un pedido que salió a reparto ya no se cancela;
+  el único final si no se entrega es DEVUELTO_AL_COMERCIO.
 
 ## ADR-042: Fecha prometida con la hora de corte
 
@@ -1341,3 +1376,37 @@ Propuesta o Reemplazada.
   Gmail, con verificación en dos pasos y una contraseña de aplicación).
   Gmail limita a unos 500 envíos por día. El envío sigue siendo después
   del commit: un correo caído no frena ni deshace nada.
+
+## ADR-048: Un pedido que salió a reparto no se cancela
+
+- **Estado:** Aceptada (18/10/2026). Pedido del equipo (Trello).
+- **Contexto:** la máquina de estados ya impedía cancelar un pedido
+  EN_CAMINO, pero un pedido que salió, falló la visita y volvió al
+  depósito para otra (PENDIENTE en la lista de espera, ADR-041) se podía
+  cancelar desde Pedidos. Además, si alguien forzaba la cancelación de uno
+  en camino, el mensaje era el técnico ("está EN_CAMINO y no puede pasar a
+  CANCELADO").
+- **Decisión:** una vez que el pedido **salió a reparto**, Rabbit no lo
+  cancela: solo queda entregarlo. Si no se puede, el repartidor registra
+  la entrega fallida ("Devolver a depósito") y Rabbit lo reintenta; al
+  agotar las visitas, con un rechazo o con el paquete dañado, termina
+  DEVUELTO_AL_COMERCIO, y la devolución con el cliente la gestiona el
+  comercio.
+  - `Pedido.salioAReparto` se prende la primera vez que pasa a EN_CAMINO
+    (en `cambiarEstado`) y no se apaga. Para las filas anteriores, un
+    pedido con visitas fallidas cuenta como salido (solo se cuentan si
+    estaba EN_CAMINO).
+  - `ReglaDeCancelacion` decide, igual para el personal (web) y para el
+    ERP (API, 409 `cancelacion-no-permitida`), con un mensaje claro: "ya
+    salió a reparto y no se puede cancelar: solo queda entregarlo. Si no se
+    puede entregar, vuelve al comercio…".
+  - En Pedidos no se muestra el botón Cancelar en esos pedidos, y en su
+    lugar dice "Ya salió a reparto: no se puede cancelar".
+  - Un pedido devuelto **sin haber salido** (por ejemplo, no entraba en el
+    vehículo, desde CONFIRMADO) se sigue pudiendo cancelar.
+- **Cómo encaja con la entrega fallida:** "Devolver a depósito" no es una
+  cancelación: es registrar una visita que no se pudo completar. El único
+  final para un pedido que salió y no se entrega es DEVUELTO_AL_COMERCIO.
+- **Consecuencias:** la columna nueva admite NULL (`update`). El personal
+  ya no puede "cortar por lo sano" un pedido que salió: tiene que pasar
+  por la entrega fallida, que deja la visita, el motivo y la evidencia.
