@@ -871,7 +871,7 @@ Propuesta o Reemplazada.
   - Cada comercio va en sus propias transacciones (crear, después cobrar):
     el banco no se deshace con un rollback, así que la liquidación existe
     antes de llamarlo.
-  - Pantalla "Liquidaciones mensuales" (personal): lo cobrado por mes, el
+  - Pantalla "Liquidaciones" (personal): lo cobrado por mes, el
     botón para liquidar un mes cerrado (administrador) y una **vista
     previa del mes en curso**, que calcula sin guardar ni cobrar. El
     comercio ve las suyas en "Mis liquidaciones", también con la vista

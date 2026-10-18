@@ -85,9 +85,14 @@ responde `EMAXCONNSESSION`, hay más de 15 conexiones abiertas en todo el
 proyecto (por ejemplo, dos integrantes con WildFly prendido y la prueba de
 escalabilidad corriendo): apagar alguno.
 
-Para dejar la base vacía después de ensayar:
-`Rabbit-limpieza-datos-de-prueba.sql` (fuera del repo, pedíselo al equipo),
-en el SQL Editor de Supabase.
+Para limpiar la base después de ensayar:
+[`scripts/Rabbit-limpieza-datos-de-prueba.sql`](../../scripts/Rabbit-limpieza-datos-de-prueba.sql),
+en el SQL Editor de Supabase. Tiene tres opciones: **A**, solo los pedidos
+de las pruebas automáticas (`[TEST]` y `[CARGA]`); **C**, todo menos las
+cuentas (conserva los usuarios y los comercios, repartidores y zonas a los
+que apuntan); **B**, vaciar todo, cuentas incluidas. Cada una corre primero
+como ensayo y se confirma con el `COMMIT` del final. La base es compartida:
+avisar al equipo antes de la C o la B.
 
 ### Colección de Postman
 

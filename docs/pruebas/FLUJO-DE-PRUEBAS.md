@@ -481,7 +481,7 @@ los borra después.
    (permitir la ubicación), el personal ve al repartidor en "Mapa de
    repartidores", el cliente en `seguimiento.xhtml?codigo=RB-...` y la API
    `GET /api/v1/seguimiento/{codigo}` trae `ubicacionRepartidor`.
-5. **Liquidación:** en "Liquidaciones mensuales", el mes en curso es una
+5. **Liquidación:** en "Liquidaciones", el mes en curso es una
    vista previa (abono + envíos + kilos). Un mes cerrado: "Liquidar y
    cobrar este mes" → COBRADA con código de autorización del banco (el
    botón solo aparece en meses cerrados). El comercio ve en "Mis
@@ -551,8 +551,8 @@ suscripción (ADR-041).
    cargar nombre, teléfono y un email propio. En la tabla, debajo de la
    dirección, "Recibe: …" y "Prometido para el dd/MM". Por la API, mandar
    `nombreDestinatario`, `telefonoDestinatario` y `emailDestinatario`; un
-   email sin @ responde 400 con el campo. Sin esos campos, el alta sigue
-   igual que antes. El repartidor ve "Recibe: … · teléfono" (el teléfono
+   email sin @ responde 400 con el campo. El email es obligatorio desde
+   el 18/10: sin él, también 400. El nombre y el teléfono son opcionales. El repartidor ve "Recibe: … · teléfono" (el teléfono
    abre la llamada en el celular). El seguimiento público **no** los
    muestra.
 2. **Avisos a quien recibe (ADR-040):** con el email cargado, cada cambio
