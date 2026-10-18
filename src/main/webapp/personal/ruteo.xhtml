@@ -61,7 +61,7 @@
                         <h3 class="hoja-ruta-titulo">
                             #{empty g.zona ? 'Sin zona' : g.zona.nombre}
                             <h:outputText rendered="#{not empty g.zona}"
-                                          value=" · CP #{g.zona.codigoPostalDesde}-#{g.zona.codigoPostalHasta}" />
+                                          value="&#160;· CP #{g.zona.codigoPostalDesde}-#{g.zona.codigoPostalHasta}" />
                         </h3>
                         <h:outputText value="#{g.pedidos.size()} #{g.pedidos.size() == 1 ? 'pendiente' : 'pendientes'}"
                                       styleClass="badge #{empty g.pedidos ? 'badge-gris' : 'badge-naranja'}" />
@@ -71,9 +71,9 @@
                         <h:panelGroup rendered="#{not empty g.zona}">
                             <span>Reparte: <b>#{etiquetas.cobertura(g.zona.cobertura)}</b></span>
                             <h:outputText rendered="#{g.zona.cobertura == 'PROPIA'}"
-                                          value=" · #{g.repartidoresLibres == 0 ? 'ningún repartidor libre' : (g.repartidoresLibres == 1 ? '1 repartidor libre' : g.repartidoresLibres.toString().concat(' repartidores libres'))} en la zona" />
+                                          value="&#160;· #{g.repartidoresLibres == 0 ? 'ningún repartidor libre' : (g.repartidoresLibres == 1 ? '1 repartidor libre' : g.repartidoresLibres.toString().concat(' repartidores libres'))} en la zona" />
                             <h:outputText rendered="#{not empty g.transportista}"
-                                          value="#{g.zona.cobertura == 'PROPIA' ? ' · respaldo: ' : ' · '}#{g.transportista}" />
+                                          value="#{g.zona.cobertura == 'PROPIA' ? '&#160;· respaldo: ' : '&#160;· '}#{g.transportista}" />
                         </h:panelGroup>
                         <h:panelGroup rendered="#{empty g.zona}">
                             <span>Sin código postal o fuera de toda zona: se confirman o derivan a mano.</span>

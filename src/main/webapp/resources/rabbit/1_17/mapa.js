@@ -9,7 +9,7 @@
  * muestra la Ciudad de Buenos Aires.
  */
 var RabbitMapa = (function () {
-    var CENTRO_POR_DEFECTO = [-34.6037, -58.3816];
+    var CENTRO_POR_DEFECTO = [-34.6158, -58.4333];
 
     function puntos(elemento) {
         try {

@@ -223,7 +223,7 @@
             (los legados por SOAP no cotizan, pero se les puede derivar igual).
         </p>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.listaTransportistas}">
-            No hay empresas de logística activas. Se dan de alta en
+            No hay empresas de logística activas. Se dan de alta en#{' '}
             <h:link outcome="/personal/transportistas" value="Logística tercerizada" />.
         </h:panelGroup>
         <h:form id="formDerivar" styleClass="formulario" rendered="#{not empty pedidoBean.listaTransportistas}">
@@ -354,7 +354,7 @@
             (<code>POST /api/v1/pedidos-externos</code>) y los convierte en pedidos reales por la cola
             JMS. Acá se ve qué llegó y cómo terminó cada uno.
         </p>
-        <h:form id="formExternos" styleClass="tabla-scroll">
+        <h:form id="formExternos" styleClass="tabla-scroll" rendered="#{not empty pedidoBean.pedidosExternos}">
             <h:dataTable value="#{pedidoBean.pedidosExternos}" var="pe"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
                 <h:column styleClass="col-p2" headerClass="col-p2">
@@ -390,6 +390,9 @@
                 </h:column>
             </h:dataTable>
         </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.pedidosExternos}">
+            Todavía no llegó ningún pedido del ERP.
+        </h:panelGroup>
 
         <h2>Simular un pedido del ERP</h2>
         <p class="ayuda">

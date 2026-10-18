@@ -538,7 +538,7 @@ h2 {
     box-shadow: var(--sombra);
     padding: 1.75rem;
     max-width: 480px;
-    margin: 0 auto;
+    margin: 0 0 1.75rem;
 }
 
 /* Variante para formularios con una tabla de líneas adentro (ver
@@ -611,7 +611,11 @@ label.obligatorio::after {
 }
 
 .campo > input[type="text"],
-.campo > input[type="password"] {
+.campo > input[type="password"],
+.campo > input[type="tel"],
+.campo > input[type="email"],
+.campo > input[type="number"],
+.campo > input[type="date"] {
     display: block;
     width: 100%;
     padding: 0.65rem 0.85rem;
@@ -625,7 +629,11 @@ label.obligatorio::after {
 }
 
 .campo > input[type="text"]:focus,
-.campo > input[type="password"]:focus {
+.campo > input[type="password"]:focus,
+.campo > input[type="tel"]:focus,
+.campo > input[type="email"]:focus,
+.campo > input[type="number"]:focus,
+.campo > input[type="date"]:focus {
     outline: none;
     border-color: var(--naranja);
     background: var(--superficie);
@@ -652,12 +660,22 @@ label.obligatorio::after {
 /* Campo invalido: borde rojo. Se resuelve 100% en CSS, sin tocar JSF.
    <h:message> no renderiza nada cuando el campo esta OK, asi que
    :has(.error-campo) solo matchea cuando ESE campo tiene un error. */
-.campo:has(.error-campo) > input[type="text"] {
+.campo:has(.error-campo) > input[type="text"],
+.campo:has(.error-campo) > input[type="password"],
+.campo:has(.error-campo) > input[type="tel"],
+.campo:has(.error-campo) > input[type="email"],
+.campo:has(.error-campo) > input[type="number"],
+.campo:has(.error-campo) > input[type="date"] {
     border-color: var(--rojo);
     background: var(--rojo-suave);
 }
 
-.campo:has(.error-campo) > input[type="text"]:focus {
+.campo:has(.error-campo) > input[type="text"]:focus,
+.campo:has(.error-campo) > input[type="password"]:focus,
+.campo:has(.error-campo) > input[type="tel"]:focus,
+.campo:has(.error-campo) > input[type="email"]:focus,
+.campo:has(.error-campo) > input[type="number"]:focus,
+.campo:has(.error-campo) > input[type="date"]:focus {
     box-shadow: 0 0 0 3px var(--anillo-error);
 }
 
@@ -856,7 +874,7 @@ label.obligatorio::after {
    solo las esenciales. Lo oculto sigue disponible en la pantalla de
    detalle o en una pantalla más grande.
    ================================================================== */
-@media (max-width: 1366px) {
+@media (max-width: 1280px) {
     .tabla th.col-p3,
     .tabla td.col-p3 {
         display: none;
@@ -1098,7 +1116,7 @@ label.obligatorio::after {
    activa es naranja (como btn-primary); la otra, como btn-secondary. */
 .pestanas {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     flex-wrap: wrap;
     gap: 0.6rem;
     margin: -0.25rem 0 1.75rem;
@@ -2367,4 +2385,101 @@ line.viz-base {
     border-radius: var(--radio-chico);
     border: 1px solid var(--borde);
     display: block;
+}
+
+
+/* ==================================================================
+   Ajustes de la revisión responsive (18/10)
+   ================================================================== */
+
+/* El texto de una celda de acciones ("Ya salió a reparto: no se puede
+   cancelar") corta línea; los botones siguen en fila. */
+.acciones .dato-secundario {
+    white-space: normal;
+}
+
+/* Tres contadores: de a tres desde tablet. Seis: 3 × 2 en escritorio. */
+@media (min-width: 641px) {
+    .stat-grid:has(> .stat-card:nth-child(3):last-child) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (min-width: 861px) {
+    .stat-grid:has(> .stat-card:nth-child(6):last-child) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+/* En el celular (de a dos), el último de una cantidad impar ocupa la fila. */
+@media (max-width: 640px) {
+    .stat-grid > .stat-card:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+}
+
+/* Los gráficos nunca empujan la página de costado. */
+.viz-grafico {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Filtros del Historial: barra horizontal, como los de Indicadores. */
+.formulario.formulario-filtros {
+    max-width: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    align-items: end;
+    gap: 0.75rem 1rem;
+}
+.formulario-filtros .campo {
+    margin: 0;
+}
+.formulario-filtros .form-acciones {
+    margin: 0;
+    padding: 0;
+    border: none;
+    grid-column: 1 / -1;
+}
+
+/* Mapa en el tema oscuro: mosaicos oscurecidos (los marcadores no). */
+html[data-tema="oscuro"] .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+}
+
+@media (max-width: 860px) {
+    /* Las tarjetas muestran todos los datos: tienen lugar hacia abajo. */
+    .tabla-tarjetas td.col-p2,
+    .tabla-tarjetas td.col-p3 {
+        display: block;
+    }
+
+    /* Botones y enlaces chicos: 44 px de alto para tocar con el dedo. */
+    .enlace-volver,
+    .tabla-tarjetas td a,
+    .viz-boton-tabla,
+    .leaflet-touch .leaflet-bar a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+    }
+    .leaflet-touch .leaflet-bar a {
+        justify-content: center;
+        min-width: 44px;
+    }
+
+    /* Eliminar: borde rojo, no un bloque rojo a lo ancho de cada tarjeta. */
+    .tabla-tarjetas td .btn-danger {
+        background: transparent;
+        color: var(--rojo-oscuro);
+        border: 1px solid var(--rojo);
+    }
+    .tabla-tarjetas td .btn-danger:hover {
+        background: var(--rojo-suave);
+    }
+}
+
+/* Tablet: si hay una sola tarjeta, ocupa todo el ancho. */
+@media (min-width: 641px) and (max-width: 860px) {
+    .tabla-tarjetas tbody:has(> tr:only-child) {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
