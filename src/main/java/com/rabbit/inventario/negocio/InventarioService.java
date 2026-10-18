@@ -323,9 +323,17 @@ public class InventarioService implements IReservaStock, Serializable {
         }
 
         ItemInventario item = reserva.getItem();
-        item.setCantidadDisponible(item.getCantidadDisponible() + reserva.getCantidad());
-        repository.actualizarItem(item);
-        escribirStock(item);
+        if (item == null) {
+            // El ítem se eliminó (solo se puede sin pedidos en curso que lo
+            // usen, así que no debería pasar): la reserva se cierra igual y
+            // la mercadería se vuelve a cargar a mano.
+            LOG.warning("[Inventario] La reserva " + idReserva + " (" + reserva.getCantidad() + " x "
+                    + reserva.getProducto() + ") vuelve, pero su ítem ya no existe: cargar el stock a mano");
+        } else {
+            item.setCantidadDisponible(item.getCantidadDisponible() + reserva.getCantidad());
+            repository.actualizarItem(item);
+            escribirStock(item);
+        }
 
         reserva.setEstado(EstadoReserva.DEVUELTA);
         reserva.setFechaCierre(LocalDateTime.now());

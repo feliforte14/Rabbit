@@ -166,7 +166,7 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (48 ADRs)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (49 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
@@ -514,7 +514,7 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.cont
 ## Tests
 
 ```bash
-mvn test                       # 148 tests unitarios (JUnit 5), sin servidor
+mvn test                       # 151 tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos
@@ -525,7 +525,8 @@ asigna un pedido (y la lista de espera), hora de corte, orden de la hoja
 de ruta recomendada y sus links a Google Maps, validación de la foto del
 remito, tarifa mensual, datos de quien recibe, intentos de entrega, fecha
 prometida, horario estimado, textos de los avisos al cliente y al
-comercio, cuándo no se puede cancelar un pedido (ADR-048) e
+comercio, cuándo no se puede cancelar un pedido (ADR-048), cuánto se
+puede corregir o eliminar del stock de un depósito (ADR-049) e
 indicadores (con la comparación contra el período anterior).
 
 17 tests de integración de la API REST (REST Assured), contra Rabbit ya
