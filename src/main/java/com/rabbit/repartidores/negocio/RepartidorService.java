@@ -296,6 +296,16 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
         return loLleva ? ubicacion(repartidor, 0) : null;
     }
 
+    // Sin rol: la llama PedidoService con la identidad del repartidor.
+    @Override
+    public UbicacionDTO ultimaUbicacion(Long idRepartidor) {
+        Repartidor repartidor = idRepartidor != null ? repository.buscarPorId(idRepartidor) : null;
+        if (repartidor == null || repartidor.getLatitud() == null || repartidor.getFechaUbicacion() == null) {
+            return null;
+        }
+        return ubicacion(repartidor, 0);
+    }
+
     private static boolean esReciente(Repartidor r) {
         return r.getLatitud() != null && r.getFechaUbicacion() != null
                 && r.getFechaUbicacion().isAfter(LocalDateTime.now().minusMinutes(MINUTOS_UBICACION_VIGENTE));

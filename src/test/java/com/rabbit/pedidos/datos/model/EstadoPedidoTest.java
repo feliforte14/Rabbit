@@ -32,11 +32,12 @@ class EstadoPedidoTest {
     }
 
     @Test
-    void soloVuelveAlComercioUnPedidoQueYaSalio() {
+    void vuelveAlComercioUnPedidoQueYaTieneRepartidor() {
         // ADR-041: al agotar las visitas (o con un rechazo) desde EN_CAMINO.
         assertTrue(EN_CAMINO.puedePasarA(DEVUELTO_AL_COMERCIO));
+        // ADR-045: paquete dañado al retirarlo.
+        assertTrue(CONFIRMADO.puedePasarA(DEVUELTO_AL_COMERCIO));
         assertFalse(PENDIENTE.puedePasarA(DEVUELTO_AL_COMERCIO));
-        assertFalse(CONFIRMADO.puedePasarA(DEVUELTO_AL_COMERCIO));
     }
 
     @Test

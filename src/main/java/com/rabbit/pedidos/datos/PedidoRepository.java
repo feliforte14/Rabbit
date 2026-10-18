@@ -9,6 +9,8 @@ import com.rabbit.pedidos.datos.model.EstadoPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
 import com.rabbit.pedidos.datos.model.RemitoEntrega;
+import com.rabbit.pedidos.datos.model.FotoIntentoEntrega;
+import com.rabbit.pedidos.datos.model.IntentoEntrega;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
@@ -225,9 +227,12 @@ public class PedidoRepository {
         List<Pedido> pedidos = em.createQuery("SELECT p FROM Pedido p WHERE p.idComercio = :id", Pedido.class)
                 .setParameter("id", idComercio).getResultList();
         if (!pedidos.isEmpty()) {
-            em.createQuery("DELETE FROM RemitoEntrega r WHERE r.idPedido IN :ids")
-                    .setParameter("ids", pedidos.stream().map(Pedido::getId).toList())
-                    .executeUpdate();
+            List<Long> ids = pedidos.stream().map(Pedido::getId).toList();
+            for (String entidad : List.of("RemitoEntrega", "FotoIntentoEntrega", "IntentoEntrega")) {
+                em.createQuery("DELETE FROM " + entidad + " x WHERE x.idPedido IN :ids")
+                        .setParameter("ids", ids)
+                        .executeUpdate();
+            }
         }
         pedidos.forEach(em::remove);
         List<PedidoExterno> externos = em.createQuery("SELECT pe FROM PedidoExterno pe WHERE pe.idComercio = :id", PedidoExterno.class)
@@ -269,6 +274,43 @@ public class PedidoRepository {
         return em.createQuery("SELECT r FROM RemitoEntrega r WHERE r.idPedido = :p", RemitoEntrega.class)
                 .setParameter("p", idPedido)
                 .getResultStream().findFirst().orElse(null);
+    }
+
+    // --- Visitas fallidas y sus fotos (ADR-045) ---
+
+    public void guardarIntento(IntentoEntrega intento) {
+        em.persist(intento);
+    }
+
+    public void guardarFotoDeIntento(FotoIntentoEntrega foto) {
+        em.persist(foto);
+    }
+
+    /** Las visitas fallidas del pedido, de la más vieja a la más nueva. */
+    public List<IntentoEntrega> listarIntentosDePedido(Long idPedido) {
+        return em.createQuery("SELECT i FROM IntentoEntrega i WHERE i.idPedido = :p ORDER BY i.fecha, i.id",
+                        IntentoEntrega.class)
+                .setParameter("p", idPedido)
+                .getResultList();
+    }
+
+    /**
+     * Los IDs de las fotos de esas visitas, en orden: [idIntento, idFoto].
+     * Sin la imagen, que se lee recién al mostrarla.
+     */
+    public List<Object[]> listarIdsDeFotos(List<Long> idsIntento) {
+        if (idsIntento.isEmpty()) {
+            return List.of();
+        }
+        return em.createQuery("SELECT f.idIntento, f.id FROM FotoIntentoEntrega f WHERE f.idIntento IN :ids"
+                        + " ORDER BY f.idIntento, f.orden", Object[].class)
+                .setParameter("ids", idsIntento)
+                .getResultList();
+    }
+
+    /** La foto, o null si no existe. */
+    public FotoIntentoEntrega buscarFotoDeIntento(Long idFoto) {
+        return em.find(FotoIntentoEntrega.class, idFoto);
     }
 
     // --- Para la liquidación mensual (ADR-034) ---

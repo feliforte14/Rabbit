@@ -105,6 +105,14 @@
                 <h:panelGroup rendered="#{p.intentosFallidos > 0}">
                     <span class="dato-secundario">#{p.intentosFallidos} visita(s) fallida(s)#{empty p.motivoDevolucion ? '' : ': ' += p.motivoDevolucion}</span>
                 </h:panelGroup>
+                <!-- Evidencia de cada visita: fotos, comentario y ubicación (ADR-045). -->
+                <h:panelGroup rendered="#{not empty p.motivoEntregaFallida}">
+                    <span class="dato-secundario">
+                        <h:link outcome="/comercio/visitas" value="Ver visitas">
+                            <f:param name="pedido" value="#{p.id}" />
+                        </h:link>
+                    </span>
+                </h:panelGroup>
                 <h:panelGroup rendered="#{p.conRemito}">
                     <span class="dato-secundario">
                         <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>

@@ -75,6 +75,18 @@ contra la base compartida.
       franja (ADR-043).
 - [x] Tablero de indicadores para el personal y el comercio (ADR-044).
 - [x] Probar en WildFly (sección 12), con una base local.
+- [x] Evidencia de la visita fallida (17/10/2026): motivos nuevos (paquete
+      dañado, nadie habilitado, domicilio cerrado, problema del
+      repartidor), comentario, hasta 3 fotos y la ubicación del
+      repartidor, "Ver visitas" para el personal y el comercio, y avisos
+      por motivo (ADR-045, sección 13). Arregla que el comercio no
+      recibiera el aviso de la visita fallida si el pedido se reasignaba
+      enseguida.
+- [ ] Siguiente etapa de la entrega fallida: pausar el pedido para que el
+      comercio corrija la dirección, retiro en un punto y reprogramar en
+      una franja horaria.
+- [x] Hoja de ruta por distancia real con OpenStreetMap (ADR-046, sección 14). Antes, por cercanía de código
+      postal.
 - [ ] Decidir si se mergea a `main` y desplegar contra la base compartida.
 - [ ] Prioridad media y baja de la comparación (webhooks al ERP, orden de
       ingreso de mercadería, retiro en depósito, etiquetas con QR, etc.):

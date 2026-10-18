@@ -458,14 +458,29 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.rute
 ### 8. (Opcional) Avisos por mail
 
 Los avisos a los comercios siempre quedan en su portal. Para que además
-salgan por mail (al email que cargó el comercio), configurar un servidor
-SMTP con system properties y redesplegar:
+salgan por mail (al email que cargó el comercio y al de quien recibe),
+configurar el servidor de correo con system properties. Se leen en cada
+envío: no hace falta redesplegar (ADR-047).
+
+**Con Gmail** (llega a casillas reales). Hace falta una cuenta de Gmail
+para Rabbit con verificación en dos pasos y una **contraseña de
+aplicación** (Cuenta de Google → Seguridad → Contraseñas de aplicaciones):
+no la contraseña normal. Esa contraseña **no va al repositorio**; cada
+integrante la carga en su WildFly:
 
 ```bash
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.host:add(value=smtp.ejemplo.com)"
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.port:add(value=25)"
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.remitente:add(value=avisos@rabbit.example)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.host:add(value=smtp.gmail.com)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.usuario:add(value=CUENTA@gmail.com)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.password:add(value=CONTRASEÑA_DE_APLICACION)"
 ```
+
+Con usuario y contraseña usa STARTTLS por el puerto 587, y el remitente
+es la misma cuenta (Gmail no deja mandar como otra). Otro proveedor:
+`rabbit.mail.smtp.port`, `rabbit.mail.smtp.seguridad` (`starttls`, `ssl`
+para el 465, o `ninguna`) y `rabbit.mail.remitente`. Gmail permite unos
+500 mails por día desde una cuenta común. Si un mail no sale, el log dice
+`[Notificaciones][Mail] No se pudo mandar el aviso…` con el motivo, y el
+aviso igual queda en Rabbit.
 
 Para probar en local sin un servidor real:
 `python3 -m smtpd -n -c DebuggingServer localhost:2525` (Python hasta 3.11)
@@ -486,7 +501,7 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.cont
 ## Tests
 
 ```bash
-mvn test                       # 104 tests unitarios (JUnit 5), sin servidor
+mvn test                       # 142 tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos

@@ -9,7 +9,9 @@ package com.rabbit.pedidos.negocio;
  * Una visita cuenta como intento si el pedido estaba EN_CAMINO (el
  * repartidor ya lo había retirado) y el motivo es de los que implican ir a
  * la dirección (ver MotivoEntregaFallida). Al llegar al máximo, o si el
- * cliente lo rechazó, el pedido pasa a DEVUELTO_AL_COMERCIO.
+ * cliente lo rechazó, el pedido pasa a DEVUELTO_AL_COMERCIO. Un paquete
+ * dañado vuelve al comercio aunque no haya salido (ADR-045): no se
+ * reintenta la entrega de algo roto.
  *
  * El máximo por defecto son 2 visitas (como Andreani antes de mandarlo a
  * sucursal). Se cambia con una system property de WildFly, leída en cada
@@ -67,7 +69,9 @@ public final class IntentosDeEntrega {
     static Desenlace evaluar(boolean estabaEnCamino, MotivoEntregaFallida motivo, int intentosPrevios, int maximo) {
         boolean visita = estabaEnCamino && motivo.isCuentaComoVisita();
         int intentos = intentosPrevios + (visita ? 1 : 0);
-        boolean devolver = visita && (motivo.isDevuelveAlComercio() || intentos >= maximo);
+        // Un rechazo necesita haber ido; un paquete dañado (no es visita) no.
+        boolean sinSentidoReintentar = motivo.isDevuelveAlComercio() && (visita || !motivo.isCuentaComoVisita());
+        boolean devolver = sinSentidoReintentar || (visita && intentos >= maximo);
         return new Desenlace(intentos, devolver);
     }
 }

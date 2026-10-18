@@ -24,8 +24,9 @@ package com.rabbit.ruteo.negocio;
  * Un repartidor con capacidad cargada lleva varios pedidos a la vez
  * (ADR-032): el despacho por zona se fija a quién le entra cada pedido, no
  * solo quién está libre. El orden recomendado de las paradas es por
- * cercanía de código postal, no por distancia real (no hay geocodificación
- * de las direcciones, ver OrdenDeRecorrido).
+ * distancia en línea recta entre las direcciones ya ubicadas en el mapa
+ * (OpenStreetMap, ADR-046) y por cercanía de código postal las que todavía
+ * no (ver OrdenDeRecorrido).
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
@@ -107,6 +108,10 @@ public class RuteoService implements IRuteo {
     @Inject
     private IGestionTransportistas transportistas;
 
+    // Coordenadas de las direcciones, para ordenar por distancia (ADR-046).
+    @Inject
+    private CacheDeCoordenadas coordenadas;
+
     @Override
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<HojaDeRutaDTO> listarEntregasEnCurso() {
@@ -173,9 +178,46 @@ public class RuteoService implements IRuteo {
         Map<Long, ItemInventarioDTO> itemsPorId = stock.listarItemsPorIds(idsItems).stream()
                 .collect(Collectors.toMap(i -> i.id, Function.identity()));
 
-        return lista.stream()
+        List<HojaDeRutaDTO> hojas = lista.stream()
                 .map(p -> armar(p, comerciosPorId, repartidoresPorId, depositosPorId, itemsPorId))
                 .collect(Collectors.toList());
+        ubicar(hojas);
+        return hojas;
+    }
+
+    // Les pone a las paradas las coordenadas que ya están en la caché
+    // (ADR-046), con una sola consulta. Lo que falta lo ubica Geocodificador
+    // en segundo plano; mientras tanto, esa parada se ordena por CP.
+    private void ubicar(List<HojaDeRutaDTO> hojas) {
+        List<String> claves = new ArrayList<>();
+        for (HojaDeRutaDTO hoja : hojas) {
+            hoja.paradasRetiro.forEach(r -> claves.add(Nominatim.clave(r.direccion, r.codigoPostal)));
+            if (hoja.direccionEntrega != null) {
+                claves.add(Nominatim.clave(hoja.direccionEntrega, hoja.codigoPostalEntrega));
+            }
+        }
+        Map<String, double[]> ubicadas;
+        try {
+            ubicadas = coordenadas.encontradas(claves);
+        } catch (RuntimeException e) {
+            LOG.warning("[Ruteo] No se pudo leer la caché de coordenadas: " + e.getMessage());
+            return;
+        }
+        for (HojaDeRutaDTO hoja : hojas) {
+            for (ParadaDTO retiro : hoja.paradasRetiro) {
+                double[] c = ubicadas.get(Nominatim.clave(retiro.direccion, retiro.codigoPostal));
+                if (c != null) {
+                    retiro.latitud = c[0];
+                    retiro.longitud = c[1];
+                }
+            }
+            double[] c = hoja.direccionEntrega != null
+                    ? ubicadas.get(Nominatim.clave(hoja.direccionEntrega, hoja.codigoPostalEntrega)) : null;
+            if (c != null) {
+                hoja.latitudEntrega = c[0];
+                hoja.longitudEntrega = c[1];
+            }
+        }
     }
 
     private HojaDeRutaDTO armar(PedidoDTO p, Map<Long, ComercioDTO> comerciosPorId,

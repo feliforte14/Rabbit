@@ -93,8 +93,14 @@ import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
 import com.rabbit.pedidos.datos.model.RemitoEntrega;
+import com.rabbit.pedidos.datos.model.FotoIntentoEntrega;
+import com.rabbit.pedidos.datos.model.IntentoEntrega;
 import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
+import com.rabbit.pedidos.dto.EntregaFallidaDTO;
+import com.rabbit.pedidos.dto.FotoDeVisitaDTO;
+import com.rabbit.pedidos.dto.IntentoEntregaDTO;
+import com.rabbit.repartidores.dto.UbicacionDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import com.rabbit.pedidos.dto.RemitoDTO;
@@ -603,14 +609,15 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "REPARTIDOR"})
-    public void devolverADeposito(Long idPedido, MotivoEntregaFallida motivo, String detalle) {
+    public void devolverADeposito(Long idPedido, EntregaFallidaDTO datos) {
+        MotivoEntregaFallida motivo = datos != null ? datos.motivo : null;
         if (motivo == null) {
             throw new ValidacionException("Elegí por qué no se pudo entregar el pedido");
         }
-        String texto = detalle == null ? "" : detalle.trim();
-        if (motivo == MotivoEntregaFallida.OTRO && texto.isEmpty()) {
-            throw new ValidacionException("Contá qué pasó");
-        }
+        // Evidencia (ADR-045): se valida antes de tocar nada.
+        String comentario = EvidenciaDeVisita.comentario(motivo, datos.comentario);
+        List<EvidenciaDeVisita.Foto> fotos = EvidenciaDeVisita.fotos(motivo, datos.fotos);
+        String texto = comentario == null ? "" : comentario;
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         exigirRepartidorAsignado(pedido);
         if (pedido.getEstado() != EstadoPedido.CONFIRMADO && pedido.getEstado() != EstadoPedido.EN_CAMINO) {
@@ -624,11 +631,15 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         Long idRepartidor = pedido.getIdRepartidor();
         String descripcion = aTexto300(texto.isEmpty() ? motivo.getDescripcion()
                 : (motivo == MotivoEntregaFallida.OTRO ? texto : motivo.getDescripcion() + ": " + texto));
+        int intentosPrevios = pedido.getIntentosFallidos();
         IntentosDeEntrega.Desenlace desenlace = IntentosDeEntrega.evaluar(
-                pedido.getEstado() == EstadoPedido.EN_CAMINO, motivo, pedido.getIntentosFallidos(),
+                pedido.getEstado() == EstadoPedido.EN_CAMINO, motivo, intentosPrevios,
                 IntentosDeEntrega.maximo());
+        registrarVisita(pedido, idRepartidor, motivo, comentario, fotos, datos,
+                desenlace.intentos() > intentosPrevios ? desenlace.intentos() : 0, desenlace.devolverAlComercio());
         repartidores.liberarRepartidor(idRepartidor, idPedido);
 
+        pedido.setUltimaFallaContoComoVisita(desenlace.intentos() > intentosPrevios);
         pedido.setIntentosFallidos(desenlace.intentos());
         pedido.setMotivoEntregaFallida(motivo);
         pedido.setMotivoDevolucion(descripcion);
@@ -637,11 +648,16 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setCobroRegistrado(true);
 
         if (desenlace.devolverAlComercio()) {
-            // ADR-041: se agotaron las visitas o el cliente lo rechazó. Conserva
-            // el repartidor, para saber quién lo devolvió. El cobro lo anula
-            // Pagos al recibir el cambio de estado por el tópico.
-            devolverStock(pedido);
+            // ADR-041: se agotaron las visitas, el cliente lo rechazó o el
+            // paquete está dañado. Conserva el repartidor, para saber quién
+            // lo devolvió. El cobro lo anula Pagos al recibir el cambio de
+            // estado por el tópico. La mercadería dañada no vuelve al stock
+            // (ADR-045): el comercio decide qué hacer con ella.
+            if (motivo != MotivoEntregaFallida.PAQUETE_DANADO) {
+                devolverStock(pedido);
+            }
             cambiarEstado(pedido, EstadoPedido.DEVUELTO_AL_COMERCIO);
+            pedido.setFechaUltimaFalla(pedido.getFechaActualizacion());
             LOG.info("[Pedidos] Pedido " + idPedido + " devuelto al comercio después de " + desenlace.intentos()
                     + " visita(s): " + descripcion);
             return;
@@ -652,8 +668,90 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setEnEsperaDesde(LocalDateTime.now());
         pedido.setMotivoEspera(aTexto300("Devuelto al depósito: " + descripcion));
         cambiarEstado(pedido, EstadoPedido.PENDIENTE);
+        // Entidad bloqueada y administrada: se guarda al confirmar la transacción.
+        pedido.setFechaUltimaFalla(pedido.getFechaActualizacion());
         LOG.info("[Pedidos] Pedido " + idPedido + " devuelto al depósito por el repartidor " + idRepartidor
                 + " (visita " + desenlace.intentos() + " de " + IntentosDeEntrega.maximo() + "): " + descripcion);
+    }
+
+    // Guarda la visita fallida con su evidencia (ADR-045). numeroVisita es 0
+    // si no contó como visita.
+    private void registrarVisita(Pedido pedido, Long idRepartidor, MotivoEntregaFallida motivo, String comentario,
+                                 List<EvidenciaDeVisita.Foto> fotos, EntregaFallidaDTO datos, int numeroVisita,
+                                 boolean devueltoAlComercio) {
+        LocalDateTime ahora = LocalDateTime.now();
+        UbicacionDTO ultima = repartidores.ultimaUbicacion(idRepartidor);
+        EvidenciaDeVisita.Ubicacion ubicacion = EvidenciaDeVisita.ubicacion(datos.latitud, datos.longitud,
+                datos.precisionMetros,
+                ultima != null ? ultima.latitud : null, ultima != null ? ultima.longitud : null,
+                ultima != null ? ultima.fecha : null, ahora);
+
+        IntentoEntrega intento = new IntentoEntrega();
+        intento.setIdPedido(pedido.getId());
+        intento.setIdRepartidor(idRepartidor);
+        intento.setRegistradoPor(aTexto(contexto.getCallerPrincipal().getName(), 30));
+        intento.setFecha(ahora);
+        intento.setMotivo(motivo);
+        intento.setComentario(comentario);
+        intento.setNumeroVisita(numeroVisita);
+        intento.setDevueltoAlComercio(devueltoAlComercio);
+        if (ubicacion != null) {
+            intento.setLatitud(ubicacion.latitud());
+            intento.setLongitud(ubicacion.longitud());
+            intento.setPrecisionMetros(ubicacion.precisionMetros());
+            intento.setOrigenUbicacion(ubicacion.origen());
+            intento.setFechaUbicacion(ubicacion.fecha());
+        }
+        intento.setCantidadFotos(fotos.size());
+        repository.guardarIntento(intento);
+
+        for (int i = 0; i < fotos.size(); i++) {
+            FotoIntentoEntrega foto = new FotoIntentoEntrega();
+            foto.setIdIntento(intento.getId());
+            foto.setIdPedido(pedido.getId());
+            foto.setOrden(i + 1);
+            foto.setTipoContenido(fotos.get(i).tipo());
+            foto.setImagen(fotos.get(i).imagen());
+            foto.setTamanoBytes(fotos.get(i).imagen().length);
+            repository.guardarFotoDeIntento(foto);
+        }
+    }
+
+    private static String aTexto(String texto, int maximo) {
+        return texto == null || texto.length() <= maximo ? texto : texto.substring(0, maximo);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.SUPPORTS)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
+    public List<IntentoEntregaDTO> listarIntentosDeEntrega(Long idPedido) {
+        Pedido pedido = idPedido != null ? repository.buscarPedidoPorId(idPedido) : null;
+        if (pedido == null || !puedeVerRemito(pedido)) {
+            throw new PedidoNoEncontradoException("Pedido no encontrado: " + idPedido);
+        }
+        List<IntentoEntregaDTO> intentos = repository.listarIntentosDePedido(idPedido).stream()
+                .map(IntentoEntregaDTO::desde)
+                .collect(Collectors.toList());
+        Map<Long, IntentoEntregaDTO> porId = intentos.stream()
+                .collect(Collectors.toMap(IntentoEntregaDTO::getId, i -> i));
+        for (Object[] fila : repository.listarIdsDeFotos(new ArrayList<>(porId.keySet()))) {
+            porId.get((Long) fila[0]).idsFotos.add((Long) fila[1]);
+        }
+        return intentos;
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.SUPPORTS)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
+    public FotoDeVisitaDTO obtenerFotoDeVisita(Long idFoto) {
+        FotoIntentoEntrega foto = idFoto != null ? repository.buscarFotoDeIntento(idFoto) : null;
+        Pedido pedido = foto != null ? repository.buscarPedidoPorId(foto.getIdPedido()) : null;
+        // Mismo criterio que el remito; sin REPARTIDOR en @RolesAllowed: al
+        // devolverlo deja de tenerlo asignado.
+        if (pedido == null || !puedeVerRemito(pedido)) {
+            throw new PedidoNoEncontradoException("No existe la foto " + idFoto);
+        }
+        return new FotoDeVisitaDTO(foto.getId(), foto.getIdPedido(), foto.getTipoContenido(), foto.getImagen());
     }
 
     // Las columnas de la espera y la devolución son de 300.

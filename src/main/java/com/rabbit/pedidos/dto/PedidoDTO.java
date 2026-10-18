@@ -53,6 +53,10 @@ public class PedidoDTO {
     // Visitas fallidas y el motivo de la última (ADR-041).
     public int intentosFallidos;
     public MotivoEntregaFallida motivoEntregaFallida;
+    // Si la última falla le contó una visita al cliente (ADR-045).
+    public boolean ultimaFallaContoComoVisita;
+    // Cuándo cambió de estado por esa falla: identifica su aviso (ADR-045).
+    public java.time.LocalDateTime fechaUltimaFalla;
 
     // Convierte una entidad Pedido en un DTO listo para mostrar en la vista.
     public static PedidoDTO desde(Pedido p) {
@@ -85,6 +89,8 @@ public class PedidoDTO {
         dto.fechaPrometida = p.getFechaPrometida();
         dto.intentosFallidos = p.getIntentosFallidos();
         dto.motivoEntregaFallida = p.getMotivoEntregaFallida();
+        dto.ultimaFallaContoComoVisita = p.isUltimaFallaContoComoVisita();
+        dto.fechaUltimaFalla = p.getFechaUltimaFalla();
         return dto;
     }
 

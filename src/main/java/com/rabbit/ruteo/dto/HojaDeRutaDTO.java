@@ -31,6 +31,9 @@ public class HojaDeRutaDTO {
     // con su dirección y CP, y el CP de entrega.
     public List<ParadaDTO> paradasRetiro;
     public String codigoPostalEntrega;
+    // Dónde queda la entrega, según OpenStreetMap (ADR-046); null si no se ubicó.
+    public Double latitudEntrega;
+    public Double longitudEntrega;
     // Recorrido en Google Maps (retiros → entrega); null sin dirección de entrega.
     public String urlMapa;
     // Importe a cobrar al entregar; null si el pedido ya está pagado.
