@@ -24,8 +24,19 @@ final class Remitos {
         if (imagen == null || imagen.length == 0) {
             throw new ValidacionException("Sacale una foto al remito firmado para registrar la entrega");
         }
+        return tipoDeImagen(imagen, "La foto del remito");
+    }
+
+    /**
+     * Lo mismo para cualquier foto (también las de una visita fallida,
+     * ADR-045). nombre va al principio del mensaje: "La foto 2".
+     */
+    static String tipoDeImagen(byte[] imagen, String nombre) {
+        if (imagen == null || imagen.length == 0) {
+            throw new ValidacionException(nombre + " está vacía");
+        }
         if (imagen.length > TAMANO_MAXIMO) {
-            throw new ValidacionException("La foto del remito no puede superar los 5 MB");
+            throw new ValidacionException(nombre + " no puede superar los 5 MB");
         }
         if (empiezaCon(imagen, 0, 0xFF, 0xD8, 0xFF)) {
             return "image/jpeg";
@@ -36,7 +47,7 @@ final class Remitos {
         if (empiezaCon(imagen, 0, 'R', 'I', 'F', 'F') && empiezaCon(imagen, 8, 'W', 'E', 'B', 'P')) {
             return "image/webp";
         }
-        throw new ValidacionException("La foto del remito tiene que ser una imagen JPG, PNG o WEBP");
+        throw new ValidacionException(nombre + " tiene que ser una imagen JPG, PNG o WEBP");
     }
 
     private static boolean empiezaCon(byte[] datos, int desde, int... firma) {

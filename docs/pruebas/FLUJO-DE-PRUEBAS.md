@@ -572,7 +572,7 @@ suscripción (ADR-041).
    servidor de prueba puede quedar escuchando solo en IPv6 y WildFly no
    llega.
 4. **Entrega fallida con intentos (ADR-041):** como repartidor, con un
-   pedido En camino → "Devolver a depósito" → "Cliente ausente". Vuelve a
+   pedido En camino → "Devolver pedido" → "Cliente ausente". Vuelve a
    la espera; en Pedidos dice "1 visita(s) fallida(s)" y el cliente recibe
    "No pudimos entregar tu pedido". Al reasignarlo, la tarjeta del
    repartidor dice "Visita 2 de 2: la anterior falló (Cliente ausente)".
@@ -601,6 +601,63 @@ suscripción (ADR-041).
    Mis indicadores: lo mismo, solo lo suyo y sin la tabla por
    repartidor. Sin entregas en el período, los porcentajes dicen "—".
 
+## 13. Evidencia de la visita fallida (ADR-045)
+
+Misma rama. Probado el 17/10/2026 en WildFly 41 con la base local.
+Como repartidor, con un pedido Confirmado o En camino → **Devolver
+pedido**. Al abrir la ventana, el celular pide permiso para la ubicación
+(en una computadora, el navegador también la puede dar).
+
+1. **Lista de motivos:** Cliente ausente, Dirección incorrecta o
+   inexistente, Nadie habilitado para recibir, Local o domicilio cerrado,
+   Zona inaccesible o insegura, El cliente rechazó el pedido, Paquete
+   dañado, No entra en el vehículo, Problema del repartidor y Otro. Al
+   elegir uno, debajo dice qué va a pasar ("Cuenta como visita 1 de 2…",
+   "El pedido vuelve al comercio…", "No le cuenta una visita al
+   cliente…").
+2. **Comentario y fotos:** con "El cliente rechazó" u "Otro", el
+   comentario es obligatorio; con "Paquete dañado", al menos una foto.
+   Hasta 3 fotos (la segunda aparece al cargar la primera). Una cuarta o
+   un archivo que no es imagen se rechaza con mensaje.
+3. **Ubicación:** debajo dice "Ubicación tomada (±N m)". Sin permiso, "se
+   usa la última que compartiste".
+4. **Ver la evidencia:** como personal (Pedidos) o como el comercio dueño
+   (Mis pedidos) → **Ver visitas**: cada visita con motivo, comentario,
+   quién la registró, ubicación con link a Google Maps y las fotos. Otro
+   comercio o un repartidor no la pueden abrir (`/foto-visita` responde
+   404).
+5. **Paquete dañado:** desde Confirmado (sin retirarlo) → pasa a
+   Devuelto al comercio sin gastar visita, el cobro se anula y el stock
+   **no** vuelve. El comercio recibe "INCIDENCIA: paquete dañado…"; el
+   cliente, "Tu pedido se dañó… coordinar un reemplazo".
+6. **Problema del repartidor:** con un pedido En camino → vuelve a la
+   espera sin sumar visita; el cliente recibe "Tu pedido … se demora un
+   poco" y no "No pudimos entregar".
+7. **Avisos por motivo:** con "Dirección incorrecta", el cliente recibe
+   "Comunicate con … para confirmarla" y el comercio "Revisá la dirección
+   con tu cliente". En la visita 1 de 2, los dos avisos dicen que la
+   próxima es la última. En Notificaciones (portal del comercio) aparece
+   el aviso de la visita fallida aunque el pedido se haya reasignado al
+   instante (antes se perdía).
+
+## 14. Hoja de ruta por distancia (ADR-046)
+
+Misma rama. Necesita salida a internet (OpenStreetMap).
+
+1. Confirmar dos o tres pedidos del mismo repartidor a direcciones reales
+   (por ejemplo, en barrios distintos de CABA). Dentro del minuto, en el
+   log: `[Ruteo][Mapa] Av. … -> -34.…, -58.…` por cada dirección y por el
+   depósito.
+2. Como repartidor → Mis entregas → "Hoja de ruta recomendada": primero
+   el retiro y después la entrega más cercana al depósito, y así. Puede no
+   coincidir con el orden de los códigos postales.
+3. Retirar los pedidos (En camino): el orden de las entregas no cambia;
+   sigue arrancando desde el depósito.
+4. Una dirección que no existe: en el log, "no se encontró"; esa parada
+   va al final, por código postal.
+5. Con `rabbit.geocodificacion=ninguna` (system property), no consulta
+   nada y el orden vuelve a ser por código postal.
+
 ## Checklist rápido
 
 | Ítem | Resultado esperado |
@@ -620,12 +677,13 @@ suscripción (ADR-041).
 | Eliminar usuario / repartidor / zona (admin) | Se borra; un repartidor con cuenta o entregas en curso se rechaza; el operador no ve el botón |
 | Capacidad del repartidor | Si el primero no tiene lugar, se le asigna a otro; si nadie, queda en lista de espera sin cobrar y se asigna solo al liberarse uno |
 | Hora de corte (21:00, `rabbit.ruteo.hora-corte`) | Después del corte, lo que se confirma queda en espera para el día siguiente; con `ninguno`, no hay corte |
-| Devolver a depósito (repartidor) | Vuelve a Pendiente en espera y se reasigna a otro repartidor, sin cobrar de nuevo |
-| Hoja de ruta recomendada | Retiros primero, entregas por CP, link a Google Maps en tramos de hasta 9 paradas |
+| Devolver pedido (repartidor) | Vuelve a Pendiente en espera y se reasigna a otro repartidor, sin cobrar de nuevo |
+| Hoja de ruta recomendada | Retiros primero y después la entrega más cercana (OpenStreetMap; las no ubicadas, por CP); link a Google Maps en tramos de hasta 9 paradas |
 | Quién recibe (opcional) | Se ve en Pedidos, Mis pedidos y Mis entregas; no en el seguimiento público. Email inválido: 400 |
 | Avisos a quien recibe | Una fila por cambio de estado en "Avisos a destinatarios" (y mail si hay SMTP); sin email, nada |
 | Fecha prometida | Viene en el 201 del alta; hoy antes del corte, mañana después |
 | Visitas fallidas | La primera vuelve a la espera; la segunda (o un rechazo) pasa a Devuelto al comercio, con stock devuelto y cobro anulado |
+| Evidencia de la visita fallida | Motivo de la lista, comentario, hasta 3 fotos y ubicación; "Ver visitas" para el personal y el comercio dueño; paquete dañado sin stock devuelto |
 | Horario en el seguimiento | En camino: "parada N de M" y una franja; si falla, sin horario y sin error |
 | Indicadores | Personal (red o comercio, por repartidor) y comercio (lo suyo); "—" sin base |
 | Navegar un rato largo (más de 30 min) y después derivar o abrir Entregas en curso | Funciona: las consultas de stock no dependen de una instancia stateful que vence (ADR-027) |

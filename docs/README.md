@@ -10,8 +10,15 @@ docs/
 ├── integraciones/   ← mensajería con otros sistemas y contrato de la API
 ├── seguridad/       ← autenticación, roles y protección de la API
 ├── pruebas/         ← recorrido de prueba y demo
-└── consigna/        ← cumplimiento de la consigna, desafíos y uso de IA
+├── consigna/        ← cumplimiento de la consigna, desafíos y uso de IA
+└── entregas/        ← lo que se presenta en cada entrega parcial, con sus diagramas
 ```
+
+### [entregas/](entregas/)
+
+| Documento | Qué justifica |
+|---|---|
+| [ENTREGA-PARCIAL-2.md](entregas/ENTREGA-PARCIAL-2.md) | Entrega del 19/10: diagrama de arquitectura de integración (SOA), clasificación de cada integración y el proceso asincrónico de punta a punta. Las imágenes (PNG y SVG) están en [entregas/diagramas/](entregas/diagramas/) |
 
 ### [arquitectura/](arquitectura/)
 

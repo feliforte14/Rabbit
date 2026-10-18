@@ -28,6 +28,12 @@ import java.util.Set;
  *
  *       [EN_CAMINO] --- intentos agotados o rechazo ---> [DEVUELTO_AL_COMERCIO]
  *
+ * Paquete dañado (ADR-045): vuelve al comercio sin reintentar, también
+ * desde CONFIRMADO (lo detectó al retirarlo). Ahí el stock NO vuelve: la
+ * mercadería está dañada.
+ *
+ *       [CONFIRMADO] --- paquete dañado ---> [DEVUELTO_AL_COMERCIO]
+ *
  * Una vez EN_CAMINO el pedido ya salió con el repartidor: no se puede
  * cancelar desde Rabbit (la mercadería no está en el depósito para
  * devolver el stock). ENTREGADO, CANCELADO y DEVUELTO_AL_COMERCIO son
@@ -60,7 +66,8 @@ public enum EstadoPedido {
     public boolean puedePasarA(EstadoPedido destino) {
         return switch (this) {
             case PENDIENTE -> Set.of(CONFIRMADO, CANCELADO).contains(destino);
-            case CONFIRMADO -> Set.of(EN_CAMINO, CANCELADO, PENDIENTE).contains(destino);
+            // DEVUELTO_AL_COMERCIO desde CONFIRMADO: paquete dañado al retirarlo (ADR-045).
+            case CONFIRMADO -> Set.of(EN_CAMINO, CANCELADO, PENDIENTE, DEVUELTO_AL_COMERCIO).contains(destino);
             case EN_CAMINO -> Set.of(ENTREGADO, PENDIENTE, DEVUELTO_AL_COMERCIO).contains(destino);
             case ENTREGADO, CANCELADO, DEVUELTO_AL_COMERCIO -> false;
         };

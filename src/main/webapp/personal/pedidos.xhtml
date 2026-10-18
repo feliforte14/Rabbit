@@ -119,6 +119,14 @@
                     <h:panelGroup rendered="#{p.estado == 'PENDIENTE' and p.intentosFallidos > 0}">
                         <span class="dato-secundario">#{p.intentosFallidos} visita(s) fallida(s)</span>
                     </h:panelGroup>
+                    <!-- Evidencia de cada visita: fotos, comentario y ubicación (ADR-045). -->
+                    <h:panelGroup rendered="#{not empty p.motivoEntregaFallida}">
+                        <span class="dato-secundario">
+                            <h:link outcome="/comercio/visitas" value="Ver visitas">
+                                <f:param name="pedido" value="#{p.id}" />
+                            </h:link>
+                        </span>
+                    </h:panelGroup>
                     <h:panelGroup layout="block" styleClass="espera-detalle"
                                   rendered="#{p.estado == 'PENDIENTE' and (not empty p.motivoEspera or not empty p.motivoDevolucion)}">
                         <h:panelGroup rendered="#{p.enEspera}">

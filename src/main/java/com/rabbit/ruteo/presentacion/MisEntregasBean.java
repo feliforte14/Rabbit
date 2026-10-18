@@ -16,6 +16,7 @@ package com.rabbit.ruteo.presentacion;
 import com.rabbit.infraestructura.ArchivosSubidos;
 import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
+import com.rabbit.pedidos.dto.EntregaFallidaDTO;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
 import com.rabbit.pedidos.negocio.IntentosDeEntrega;
 import com.rabbit.pedidos.negocio.ValidacionException;
@@ -63,10 +64,18 @@ public class MisEntregasBean implements Serializable {
     private Long idPedidoAEntregar;
     private transient Part fotoRemito;
 
-    // Ventana "Devolver a depósito", mismo esquema.
+    // Ventana "No se pudo entregar", mismo esquema. Con la evidencia de la
+    // visita (ADR-045): comentario, hasta 3 fotos y la ubicación que tomó
+    // el celular al abrir la ventana (entrega-fallida.js).
     private Long idPedidoADevolver;
     private MotivoEntregaFallida motivoDevolucion;
     private String detalleDevolucion;
+    private transient Part foto1;
+    private transient Part foto2;
+    private transient Part foto3;
+    private Double latitudVisita;
+    private Double longitudVisita;
+    private Double precisionVisita;
 
     // Los manda ubicacion.js por ajax (ver compartirUbicacion).
     private Double latitud;
@@ -118,36 +127,63 @@ public class MisEntregasBean implements Serializable {
 
     // No lo pudo entregar: vuelve al depósito y se le asigna a otro
     // (ADR-037), o, si se agotaron las visitas, vuelve al comercio (ADR-041).
+    // Queda registrada la visita con su evidencia (ADR-045).
     public void devolver() {
         Long idPedido = idPedidoADevolver;
+        EntregaFallidaDTO datos = new EntregaFallidaDTO(motivoDevolucion, detalleDevolucion);
+        datos.latitud = latitudVisita;
+        datos.longitud = longitudVisita;
+        datos.precisionMetros = precisionVisita;
+        try {
+            for (Part foto : new Part[] { foto1, foto2, foto3 }) {
+                byte[] leida = ArchivosSubidos.leer(foto, TAMANO_MAXIMO_FOTO);
+                if (leida == null) {
+                    Mensajes.error("Cada foto puede pesar hasta 5 MB");
+                    return;
+                }
+                datos.fotos.add(leida);
+            }
+        } catch (IOException e) {
+            Mensajes.error("No se pudieron leer las fotos. Probá sacarlas de nuevo.");
+            return;
+        } finally {
+            foto1 = null;
+            foto2 = null;
+            foto3 = null;
+        }
         if (idPedido == null) {
-            Mensajes.error("Elegí qué pedido devolvés");
+            Mensajes.error("Elegí qué pedido no pudiste entregar");
             return;
         }
-        if (motivoDevolucion == null) {
+        if (datos.motivo == null) {
             Mensajes.error("Elegí por qué no se pudo entregar");
             return;
         }
-        MotivoEntregaFallida motivo = motivoDevolucion;
-        String detalle = detalleDevolucion;
-        ejecutar(() -> gestion.devolverADeposito(idPedido, motivo, detalle),
-                "Pedido " + idPedido + " devuelto. Si le quedan visitas, Rabbit se lo asigna a otro repartidor;"
-                        + " si no, vuelve al comercio.");
-        idPedidoADevolver = null;
-        motivoDevolucion = null;
-        detalleDevolucion = null;
+        if (ejecutar(() -> gestion.devolverADeposito(idPedido, datos),
+                "Pedido " + idPedido + " registrado como no entregado. Llevalo de vuelta adonde lo retiraste:"
+                        + " Rabbit le avisa al comercio y al cliente.")) {
+            idPedidoADevolver = null;
+            motivoDevolucion = null;
+            detalleDevolucion = null;
+            latitudVisita = null;
+            longitudVisita = null;
+            precisionVisita = null;
+        }
     }
 
-    private void ejecutar(Runnable accion, String exito) {
+    /** @return si salió bien */
+    private boolean ejecutar(Runnable accion, String exito) {
         try {
             accion.run();
             Mensajes.info(exito);
             cargar();
+            return true;
         } catch (ValidacionException e) {
             Mensajes.error(e.getMessage());
         } catch (EJBException e) {
             Mensajes.error("No se pudo registrar el cambio. Intentá de nuevo.");
         }
+        return false;
     }
 
     // Lo llama ubicacion.js cada tanto mientras la pantalla está abierta y
@@ -181,6 +217,18 @@ public class MisEntregasBean implements Serializable {
     public void setMotivoDevolucion(MotivoEntregaFallida motivoDevolucion) { this.motivoDevolucion = motivoDevolucion; }
     public String getDetalleDevolucion() { return detalleDevolucion; }
     public void setDetalleDevolucion(String detalleDevolucion) { this.detalleDevolucion = detalleDevolucion; }
+    public Part getFoto1() { return foto1; }
+    public void setFoto1(Part foto1) { this.foto1 = foto1; }
+    public Part getFoto2() { return foto2; }
+    public void setFoto2(Part foto2) { this.foto2 = foto2; }
+    public Part getFoto3() { return foto3; }
+    public void setFoto3(Part foto3) { this.foto3 = foto3; }
+    public Double getLatitudVisita() { return latitudVisita; }
+    public void setLatitudVisita(Double latitudVisita) { this.latitudVisita = latitudVisita; }
+    public Double getLongitudVisita() { return longitudVisita; }
+    public void setLongitudVisita(Double longitudVisita) { this.longitudVisita = longitudVisita; }
+    public Double getPrecisionVisita() { return precisionVisita; }
+    public void setPrecisionVisita(Double precisionVisita) { this.precisionVisita = precisionVisita; }
     public Long getIdPedidoAEntregar() { return idPedidoAEntregar; }
     public void setIdPedidoAEntregar(Long idPedidoAEntregar) { this.idPedidoAEntregar = idPedidoAEntregar; }
     public Part getFotoRemito() { return fotoRemito; }

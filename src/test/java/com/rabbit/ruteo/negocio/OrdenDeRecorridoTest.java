@@ -54,7 +54,7 @@ class OrdenDeRecorridoTest {
         List<String> desdeElCentro = OrdenDeRecorrido.encadenar(paradas, 1280).stream()
                 .map(ParadaDTO::getDireccion).collect(Collectors.toList());
         assertEquals(List.of("c", "a", "b", "d"), desdeElCentro);
-        List<String> sinPartida = OrdenDeRecorrido.encadenar(paradas, null).stream()
+        List<String> sinPartida = OrdenDeRecorrido.encadenar(paradas, (Integer) null).stream()
                 .map(ParadaDTO::getDireccion).collect(Collectors.toList());
         assertEquals(List.of("b", "c", "a", "d"), sinPartida);
     }
@@ -95,6 +95,60 @@ class OrdenDeRecorridoTest {
         assertTrue(links.get(2).contains("origin=Parada+18%2C"));
         assertTrue(links.get(2).contains("destination=Parada+20%2C"));
         assertTrue(links.get(2).contains("waypoints=Parada+19%2C"));
+    }
+
+    // ADR-046: con coordenadas, por distancia real y no por número de CP.
+    private static HojaDeRutaDTO ubicada(long id, String estado, String direccion, String cp, double lat, double lon,
+                                         String retiro, double latRetiro, double lonRetiro) {
+        HojaDeRutaDTO h = hoja(id, estado, direccion, cp, retiro);
+        h.latitudEntrega = lat;
+        h.longitudEntrega = lon;
+        h.paradasRetiro.get(0).latitud = latRetiro;
+        h.paradasRetiro.get(0).longitud = lonRetiro;
+        return h;
+    }
+
+    @Test
+    void conCoordenadasVaDelDepositoALaEntregaMasCercanaAunqueElCpDigaOtraCosa() {
+        // Depósito en Almagro. Por CP iría primero a 1416 (Paternal, ~4 km);
+        // por distancia, primero Boedo (1225, ~1,5 km), después Balvanera
+        // (1096, cerca de Boedo) y al final Paternal.
+        String deposito = "Deposito|1414";
+        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+                ubicada(1, "CONFIRMADO", "Paternal", "1416", -34.5985, -58.4690, deposito, -34.6037, -58.4200),
+                ubicada(2, "CONFIRMADO", "Boedo", "1225", -34.6187, -58.4182, deposito, -34.6037, -58.4200),
+                ubicada(3, "CONFIRMADO", "Balvanera", "1096", -34.6095, -58.4020, deposito, -34.6037, -58.4200)));
+        assertEquals(List.of("Deposito", "Boedo", "Balvanera", "Paternal"), direcciones(r));
+    }
+
+    @Test
+    void siYaRetiroTodoArrancaDesdeDondeLoRetiro() {
+        // En camino: no hay retiro en la lista, pero el punto de partida es el depósito.
+        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+                ubicada(1, "EN_CAMINO", "Lejos", "1000", -34.5500, -58.4500, "Deposito|1414", -34.6037, -58.4200),
+                ubicada(2, "EN_CAMINO", "Cerca", "1499", -34.6050, -58.4210, "Deposito|1414", -34.6037, -58.4200)));
+        assertEquals(List.of("Cerca", "Lejos"), direcciones(r));
+    }
+
+    @Test
+    void lasQueNoSeUbicaronVanDespuesPorCodigoPostal() {
+        HojaDeRutaDTO sinUbicar = hoja(3, "EN_CAMINO", "Sin ubicar", "1100", "Deposito|1414");
+        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+                sinUbicar,
+                ubicada(1, "EN_CAMINO", "Ubicada", "1425", -34.59, -58.41, "Deposito|1414", -34.6037, -58.4200)));
+        assertEquals(List.of("Ubicada", "Sin ubicar"), direcciones(r));
+    }
+
+    @Test
+    void laDistanciaEnLineaRectaEsLaEsperable() {
+        ParadaDTO obelisco = new ParadaDTO(ParadaDTO.Tipo.ENTREGA, "", "", null, 1L);
+        obelisco.latitud = -34.6037;
+        obelisco.longitud = -58.3816;
+        ParadaDTO congreso = new ParadaDTO(ParadaDTO.Tipo.ENTREGA, "", "", null, 2L);
+        congreso.latitud = -34.6097;
+        congreso.longitud = -58.3926;
+        double km = OrdenDeRecorrido.distanciaKm(obelisco, congreso);
+        assertTrue(km > 1.0 && km < 1.3, "Obelisco-Congreso: " + km);
     }
 
     @Test

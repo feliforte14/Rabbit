@@ -158,6 +158,16 @@ public class Pedido {
     @Enumerated(EnumType.STRING)
     private MotivoEntregaFallida motivoEntregaFallida;
 
+    // Si esa última falla le contó una visita al cliente (ADR-045): no
+    // alcanza con el motivo, porque desde CONFIRMADO ninguno cuenta. Los
+    // avisos cambian según esto. Boolean: las filas anteriores quedan en NULL.
+    private Boolean ultimaFallaContoComoVisita;
+
+    // El momento del cambio de estado de esa última falla (ADR-045): con
+    // esto Notificaciones reconoce su aviso aunque llegue después del de
+    // la reasignación, y no lo descarta por viejo.
+    private LocalDateTime fechaUltimaFalla;
+
     public Pedido() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -223,4 +233,8 @@ public class Pedido {
     public void setIntentosFallidos(int intentosFallidos) { this.intentosFallidos = intentosFallidos; }
     public MotivoEntregaFallida getMotivoEntregaFallida() { return motivoEntregaFallida; }
     public void setMotivoEntregaFallida(MotivoEntregaFallida motivoEntregaFallida) { this.motivoEntregaFallida = motivoEntregaFallida; }
+    public boolean isUltimaFallaContoComoVisita() { return Boolean.TRUE.equals(ultimaFallaContoComoVisita); }
+    public void setUltimaFallaContoComoVisita(boolean conto) { this.ultimaFallaContoComoVisita = conto; }
+    public LocalDateTime getFechaUltimaFalla() { return fechaUltimaFalla; }
+    public void setFechaUltimaFalla(LocalDateTime fechaUltimaFalla) { this.fechaUltimaFalla = fechaUltimaFalla; }
 }

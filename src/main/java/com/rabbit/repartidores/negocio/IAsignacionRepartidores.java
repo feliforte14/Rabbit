@@ -59,4 +59,12 @@ public interface IAsignacionRepartidores {
      * @param idPedido pedido que deja de llevar
      */
     void liberarRepartidor(Long idRepartidor, Long idPedido);
+
+    /**
+     * La última ubicación que compartió el repartidor (ADR-035), sea de
+     * cuando sea, o null si nunca compartió. Pedidos la usa como respaldo
+     * de la ubicación de una visita fallida (ADR-045) y decide si es
+     * reciente.
+     */
+    com.rabbit.repartidores.dto.UbicacionDTO ultimaUbicacion(Long idRepartidor);
 }

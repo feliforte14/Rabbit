@@ -2336,3 +2336,35 @@ line.viz-base {
     border-radius: 3px;
     background: var(--viz-s1);
 }
+
+/* Visitas fallidas (ADR-045): las fotos en la ventana del repartidor y
+   las miniaturas en la pagina de visitas del pedido. */
+.fotos-visita {
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.fotos-visita legend {
+    font-weight: 600;
+    padding: 0 0.25rem;
+}
+.fotos-visita input[type="file"][hidden] {
+    display: none;
+}
+.fotos-visita-lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+.fotos-visita-lista img {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: var(--radio-chico);
+    border: 1px solid var(--borde);
+    display: block;
+}

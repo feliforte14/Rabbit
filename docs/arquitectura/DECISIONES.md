@@ -1226,3 +1226,118 @@ Propuesta o Reemplazada.
 - **Consecuencias:** los porcentajes salen como "—" si no hay base, en
   vez de 0 %. Los pedidos anteriores a ADR-042 no tienen promesa y no
   cuentan en "a tiempo".
+
+## ADR-045: Evidencia de la visita fallida y un motivo para cada caso
+
+- **Estado:** Propuesta (17/10/2026), misma rama.
+- **Contexto:** ADR-041 dejó motivos fijos e intentos, pero comparado con
+  la tabla de casos típicos de una entrega fallida faltaban varios
+  (paquete dañado, nadie habilitado para recibir, domicilio cerrado,
+  problema del repartidor), no se guardaba ninguna prueba de la visita y
+  un problema del repartidor ya en camino (moto rota, lluvia) solo podía
+  cargarse como "Otro", que **le gastaba una visita al cliente**.
+- **Decisión:**
+  - **Motivos:** se suman `NADIE_HABILITADO`, `DOMICILIO_CERRADO`
+    (cuentan como visita), `PAQUETE_DANADO` (vuelve al comercio sin
+    reintentar, también desde Confirmado si lo detecta al retirarlo, y
+    **sin devolver el stock**: la mercadería está dañada) y
+    `PROBLEMA_DEL_REPARTIDOR` (no cuenta como visita, se reasigna). Cada
+    motivo dice si cuenta como visita, si devuelve al comercio y qué
+    evidencia pide (`MotivoEntregaFallida`).
+  - **Evidencia** (`IntentoEntrega` y `FotoIntentoEntrega`, tablas
+    `intentos_entrega` y `fotos_intento_entrega`): cada vez queda el
+    motivo, un comentario de hasta 500 caracteres (obligatorio con un
+    rechazo o "Otro"), hasta 3 fotos (al menos una con un paquete dañado;
+    JPEG/PNG/WEBP de hasta 5 MB, que el celular achica antes de subir) y
+    dónde estaba el repartidor. Las ven el personal y el comercio dueño en
+    "Ver visitas" (`comercio/visitas.xhtml`, `/foto-visita`); el
+    repartidor no, porque deja de tener el pedido.
+  - **Ubicación:** al abrir la ventana, el celular da la posición del
+    momento (`entrega-fallida.js`, `getCurrentPosition`). Si no la da (sin
+    permiso, sin señal), se usa la última que compartió mientras repartía
+    (ADR-035) si es de los últimos 10 minutos, marcada como aproximada. Si
+    no hay ninguna, la visita se registra igual (`EvidenciaDeVisita`).
+  - **Avisos:** al cliente, un texto por motivo con lo que puede hacer
+    (dejar a alguien mayor con DNI, revisar la dirección con la tienda...),
+    avisando cuando la próxima es la última visita; si el problema fue del
+    reparto, "se demora" sin culparlo. Nunca el comentario del repartidor.
+    Al comercio, el motivo con el comentario, la visita N de M, qué hacer y
+    dónde ver las fotos; un paquete dañado es una INCIDENCIA. El aviso de
+    la falla ya no se descarta si llega después del de la reasignación
+    (pasa en menos de un segundo): se reconoce por `fechaUltimaFalla`
+    (`AvisosDeFalla`). Antes, el comercio no se enteraba.
+  - El botón del repartidor dice "Devolver pedido" (puede haber salido de
+    un depósito o de un punto de picking).
+- **Alternativas descartadas:**
+  - *Fotos y ubicación obligatorias siempre:* sin señal o sin permiso el
+    repartidor no podría cerrar la visita y el pedido quedaría trabado.
+  - *Guardar las fotos en disco:* cada integrante tiene su WildFly; como
+    el remito (ADR-033), van a la base.
+  - *Pausar el pedido para que el comercio corrija la dirección, retiro
+    en un punto y franjas horarias:* quedan para una etapa siguiente
+    (necesitan pantallas y estados nuevos).
+- **Consecuencias:** el aviso del portal al comercio se recorta a 255
+  caracteres (largo de la columna); el mail lleva el texto completo. Un
+  paquete dañado no devuelve stock: lo resuelve el comercio con Rabbit.
+
+## ADR-046: Hoja de ruta por distancia, con OpenStreetMap
+
+- **Estado:** Propuesta (17/10/2026), misma rama.
+- **Contexto:** la hoja de ruta recomendada (ADR-038) arrancaba por los
+  retiros y seguía por la entrega de código postal más cercano: sin
+  coordenadas, el número de CP era la única forma de aproximar la
+  distancia, y a veces mandaba al repartidor lejos (CP vecinos que no son
+  barrios vecinos).
+- **Decisión:** ubicar las direcciones en el mapa con **Nominatim
+  (OpenStreetMap)** y ordenar por distancia en línea recta:
+  - **En segundo plano** (`Geocodificador`, timer cada minuto): toma las
+    direcciones de entrega y de retiro (depósito o punto de picking) de
+    los pedidos en curso que no estén en la caché y las consulta, como
+    mucho una por segundo y 20 por pasada, con un User-Agent propio (las
+    reglas de uso del servicio). Si falla, reintenta al minuto siguiente.
+  - **Caché** (`CoordenadaDireccion`, tabla `coordenadas_direcciones`):
+    cada dirección (normalizada, con su CP) se consulta una sola vez; las
+    no encontradas se reintentan a los 7 días.
+  - **Orden** (`OrdenDeRecorrido`): retiros pendientes primero; las
+    entregas, desde el último retiro o, si ya retiró todo, desde el
+    depósito o punto de picking de donde salieron, siempre a la más
+    cercana (haversine). Las que todavía no se ubicaron van después, por
+    CP como antes. La hoja de ruta solo lee la caché: nunca espera a un
+    servicio externo.
+  - `rabbit.geocodificacion=ninguna` lo apaga (todo por CP);
+    `rabbit.geocodificacion.url` usa otro servidor Nominatim.
+- **Alternativas descartadas:**
+  - *Google Maps (Geocoding y Directions):* más preciso y con calles
+    reales, pero exige una clave con facturación.
+  - *Geocodificar al dar de alta el pedido:* el alta llegaría a depender
+    de un servicio externo lento o caído.
+  - *Optimizar el recorrido completo (problema del viajante) o por
+    calles:* para 5 a 15 paradas, el vecino más cercano en línea recta
+    alcanza; ruteo por calles necesitaría un servicio de rutas.
+- **Consecuencias:** las direcciones de entrega y retiro (solo dirección y
+  CP, nunca quién recibe) salen hacia OpenStreetMap. Un pedido recién
+  confirmado puede ordenarse por CP hasta la pasada siguiente (menos de un
+  minuto). Una dirección mal cargada puede ubicarse en otro lugar: el
+  orden es una recomendación, el repartidor puede seguir otro.
+
+## ADR-047: Mails reales por SMTP con login y TLS (Gmail)
+
+- **Estado:** Propuesta (17/10/2026), misma rama.
+- **Contexto:** los avisos por mail (al comercio y a quien recibe, ADR-040)
+  solo sabían hablar con un servidor SMTP sin login ni cifrado: servían
+  para un servidor de prueba local, no para que lleguen a casillas reales.
+  Gmail y cualquier proveedor real exigen usuario, contraseña y TLS.
+- **Decisión:** `ConfiguracionSmtp` arma la conexión con system
+  properties leídas en cada envío: host, puerto, usuario, contraseña,
+  seguridad (`starttls` por defecto con usuario; `ssl` para el 465;
+  `ninguna`) y remitente (con login, por defecto la misma cuenta, que es
+  lo que exige Gmail). Sin usuario se comporta como antes.
+- **Por qué system properties y no un recurso `mail-session` de
+  WildFly:** es el mismo mecanismo que el resto de la configuración de
+  Rabbit (banco, hora de corte, tarifa) y se cambia sin redesplegar. Las
+  credenciales quedan en la configuración de cada WildFly, como las de la
+  base, nunca en el repositorio público.
+- **Consecuencias:** hace falta una cuenta de correo para Rabbit (en
+  Gmail, con verificación en dos pasos y una contraseña de aplicación).
+  Gmail limita a unos 500 envíos por día. El envío sigue siendo después
+  del commit: un correo caído no frena ni deshace nada.

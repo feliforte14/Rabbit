@@ -49,7 +49,9 @@ final class CalculoDeIndicadores {
         for (Pedido p : pedidos) {
             dto.recibidos++;
             EstadoPedido estado = p.getEstado();
-            if (p.getMotivoEntregaFallida() != null && p.getIntentosFallidos() > 0) {
+            // Con visitas fallidas, o devuelto al comercio sin visita (paquete dañado, ADR-045).
+            if (p.getMotivoEntregaFallida() != null
+                    && (p.getIntentosFallidos() > 0 || estado == EstadoPedido.DEVUELTO_AL_COMERCIO)) {
                 motivos.merge(p.getMotivoEntregaFallida().getDescripcion(), 1, Integer::sum);
             }
             IndicadoresDTO.PorRepartidor fila = p.getIdRepartidor() == null ? null

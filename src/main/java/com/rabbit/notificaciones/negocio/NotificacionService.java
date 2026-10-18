@@ -18,7 +18,9 @@ package com.rabbit.notificaciones.negocio;
 import com.rabbit.notificaciones.datos.NotificacionRepository;
 import com.rabbit.notificaciones.datos.model.Notificacion;
 import com.rabbit.notificaciones.dto.NotificacionDTO;
+import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
+import com.rabbit.pedidos.negocio.IntentosDeEntrega;
 import com.rabbit.seguridad.negocio.IContextoUsuario;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
@@ -66,22 +68,27 @@ public class NotificacionService implements INotificaciones {
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public boolean avisarCambioDeEstado(Long idPedido, Long idComercio, String estado, LocalDateTime fechaCambio) {
         LocalDateTime ultima = repository.ultimaFechaCambio(idPedido);
-        if (ultima != null && !fechaCambio.isAfter(ultima)) {
+        // El aviso de una visita fallida no se descarta aunque llegue después
+        // del de la reasignación (pasa en menos de un segundo): es un hecho,
+        // no el estado actual (ADR-045).
+        if (ultima != null && !fechaCambio.isAfter(ultima) && !esAvisoDeFalla(idPedido, estado, fechaCambio)) {
             LOG.info("[Notificaciones] Descartado " + estado + " del pedido " + idPedido
                     + ": ya se avisó un cambio más nuevo");
             return false;
         }
 
-        String devolucion = "PENDIENTE".equals(estado) || "DEVUELTO_AL_COMERCIO".equals(estado)
-                ? motivoDevolucion(idPedido) : null;
+        PedidoDTO fallido = "PENDIENTE".equals(estado) || "DEVUELTO_AL_COMERCIO".equals(estado)
+                ? pedidoConEntregaFallida(idPedido) : null;
+        // Un PENDIENTE de alta que llega tarde (después de una falla) no es la falla.
+        if (fallido != null && "PENDIENTE".equals(estado)
+                && !AvisosDeFalla.esDeLaFalla(fechaCambio, fallido.fechaUltimaFalla)) {
+            fallido = null;
+        }
         String texto;
-        if ("DEVUELTO_AL_COMERCIO".equals(estado)) {
-            // ADR-041: se agotaron las visitas o el cliente lo rechazó.
-            texto = "Tu pedido #" + idPedido + " no se pudo entregar" + (devolucion != null ? " (" + devolucion + ")" : "")
-                    + " y vuelve a tu comercio: el stock consignado vuelve a tu stock y el cobro se anula";
-        } else if (devolucion != null) {
-            texto = "Tu pedido #" + idPedido + " volvió al depósito (" + devolucion
-                    + "): Rabbit se lo asigna a otro repartidor";
+        if (fallido != null) {
+            texto = TextosAlComercio.entregaFallida(idPedido, estado, fallido.motivoEntregaFallida,
+                    fallido.motivoDevolucion, fallido.ultimaFallaContoComoVisita, fallido.intentosFallidos,
+                    IntentosDeEntrega.maximo());
         } else {
             texto = "Tu pedido #" + idPedido + " " + describir(estado) + extra(idPedido, estado);
         }
@@ -91,7 +98,9 @@ public class NotificacionService implements INotificaciones {
         notificacion.setEstadoPedido(estado);
         notificacion.setFechaCambio(fechaCambio);
         notificacion.setFechaAviso(LocalDateTime.now());
-        notificacion.setMensaje(texto);
+        // La columna es de 255 (hbm2ddl update no la agranda): en el portal
+        // va recortado; el mail lleva el texto completo.
+        notificacion.setMensaje(texto.length() <= 255 ? texto : texto.substring(0, 252) + "...");
         repository.guardar(notificacion);
         LOG.info("[Notificaciones] Aviso al comercio " + idComercio + ": " + texto);
         avisoRegistrado.fire(new AvisoRegistrado(idComercio, emailDe(idComercio), idPedido, texto));
@@ -142,12 +151,26 @@ public class NotificacionService implements INotificaciones {
         return "";
     }
 
-    // Un PENDIENTE que ya tiene motivo de devolución no es un pedido
-    // recibido: es uno que el repartidor devolvió al depósito (ADR-037). Con
-    // DEVUELTO_AL_COMERCIO, el motivo de la última visita (ADR-041).
-    private String motivoDevolucion(Long idPedido) {
+    // Si este cambio es el de la última visita fallida del pedido.
+    private boolean esAvisoDeFalla(Long idPedido, String estado, LocalDateTime fechaCambio) {
+        if (!"PENDIENTE".equals(estado)) {
+            return false;
+        }
         try {
-            return pedidos.consultarEstadoPedido(idPedido).getMotivoDevolucion();
+            return AvisosDeFalla.esDeLaFalla(fechaCambio, pedidos.consultarEstadoPedido(idPedido).fechaUltimaFalla);
+        } catch (RuntimeException e) {
+            return false;
+        }
+    }
+
+    // Un PENDIENTE que ya tiene motivo de entrega fallida no es un pedido
+    // recibido: es uno que el repartidor devolvió al depósito (ADR-037). Con
+    // DEVUELTO_AL_COMERCIO, el motivo de la última visita (ADR-041). Null si
+    // no es el caso o no se pudo leer.
+    private PedidoDTO pedidoConEntregaFallida(Long idPedido) {
+        try {
+            PedidoDTO pedido = pedidos.consultarEstadoPedido(idPedido);
+            return pedido.motivoEntregaFallida != null ? pedido : null;
         } catch (RuntimeException e) {
             LOG.warning("[Notificaciones] No se pudo leer el pedido " + idPedido + ": " + e.getMessage());
             return null;

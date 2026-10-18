@@ -80,7 +80,8 @@ solo se justificaría si el consumidor exigiera un contrato WSDL o WS-\*.
 | 5 | Pedir, seguir y cancelar envíos en un transportista moderno | Saliente (Rabbit → transportista) | **Sí** | **No** | **REST** |
 | 6 | Recibir pedidos del ERP de cada comercio | Entrante (ERP → Rabbit) | **Sí** (el ERP necesita saber si se aceptó) | **No** (partner moderno) | **REST** (y adentro, cola) |
 | 7 | Seguimiento público del pedido | Entrante (cliente → Rabbit) | **Sí** (quiere ver el estado ya) | **No** | **REST** |
-| 8 | Avisar al comercio por mail | Saliente (Rabbit → servidor de correo) | **No** (sale después del commit) | — | **SMTP** (Jakarta Mail) |
+| 8 | Avisar al comercio y a quien recibe por mail | Saliente (Rabbit → Gmail) | **No** (sale después del commit) | — | **SMTP** con login y STARTTLS (Jakarta Mail, ADR-047) |
+| 9 | Ubicar direcciones para ordenar la hoja de ruta (ADR-046) | Saliente (Rabbit → OpenStreetMap) | **Sí** (para guardar la coordenada), pero desde un timer: el usuario no espera | **No** (API pública JSON) | **REST/HTTP** (Nominatim) |
 
 Un mismo pedido, de punta a punta, pasa por las tres tecnologías (ver la
 sección 4): **no se elige una sola mensajería para todo el sistema; se

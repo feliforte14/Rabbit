@@ -26,8 +26,10 @@ import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.notificaciones.datos.NotificacionRepository;
 import com.rabbit.notificaciones.datos.model.AvisoDestinatario;
 import com.rabbit.notificaciones.dto.AvisoDestinatarioDTO;
+import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
+import com.rabbit.pedidos.negocio.IntentosDeEntrega;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
@@ -69,12 +71,6 @@ public class AvisoDestinatarioService implements IAvisosAlDestinatario {
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     public boolean avisar(Long idPedido, Long idComercio, String estado, LocalDateTime fechaCambio) {
-        LocalDateTime ultima = repository.ultimaFechaCambioAvisadaAlDestinatario(idPedido);
-        if (ultima != null && !fechaCambio.isAfter(ultima)) {
-            LOG.info("[Notificaciones] Descartado " + estado + " del pedido " + idPedido
-                    + " para el destinatario: ya se avisó un cambio más nuevo");
-            return false;
-        }
         PedidoDTO pedido;
         try {
             pedido = pedidos.consultarEstadoPedido(idPedido);
@@ -82,17 +78,27 @@ public class AvisoDestinatarioService implements IAvisosAlDestinatario {
             // El pedido ya no existe (se eliminó su comercio): no hay a quién avisar.
             return false;
         }
+        // La visita fallida se avisa aunque llegue después de la reasignación (ADR-045).
+        boolean esLaFalla = "PENDIENTE".equals(estado) && AvisosDeFalla.esDeLaFalla(fechaCambio, pedido.fechaUltimaFalla);
+        LocalDateTime ultima = repository.ultimaFechaCambioAvisadaAlDestinatario(idPedido);
+        if (ultima != null && !fechaCambio.isAfter(ultima) && !esLaFalla) {
+            LOG.info("[Notificaciones] Descartado " + estado + " del pedido " + idPedido
+                    + " para el destinatario: ya se avisó un cambio más nuevo");
+            return false;
+        }
         if (pedido.emailDestinatario == null) {
             return false;
         }
 
-        // Una visita fallida vuelve a PENDIENTE con su motivo (ADR-041).
-        String motivo = "PENDIENTE".equals(estado) || "DEVUELTO_AL_COMERCIO".equals(estado)
-                ? pedido.motivoDevolucion : null;
+        // Una visita fallida vuelve a PENDIENTE con su motivo (ADR-041); el
+        // texto depende del motivo y de cuántas visitas quedan (ADR-045).
+        MotivoEntregaFallida motivo = esLaFalla || "DEVUELTO_AL_COMERCIO".equals(estado)
+                ? pedido.motivoEntregaFallida : null;
         LocalDateTime ahora = LocalDateTime.now();
         TextosAlDestinatario.Datos datos = new TextosAlDestinatario.Datos(estado, pedido.nombreDestinatario,
                 nombreComercio(idComercio), pedido.codigoSeguimiento, enlaceSeguimiento(pedido.codigoSeguimiento),
-                pedido.fechaPrometida, ahora.toLocalDate(), motivo);
+                pedido.fechaPrometida, ahora.toLocalDate(), motivo, pedido.ultimaFallaContoComoVisita,
+                pedido.intentosFallidos, IntentosDeEntrega.maximo());
         String asunto = TextosAlDestinatario.asunto(datos);
         String texto = TextosAlDestinatario.cuerpo(datos);
 

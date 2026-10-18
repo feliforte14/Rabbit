@@ -51,6 +51,43 @@ class IntentosDeEntregaTest {
     }
 
     @Test
+    void unPaqueteDanadoVuelveAlComercioSinGastarVisita() {
+        // ADR-045: aunque lo detecte al retirarlo (sin haber salido).
+        IntentosDeEntrega.Desenlace alRetirar = IntentosDeEntrega.evaluar(false, PAQUETE_DANADO, 0, 2);
+        assertEquals(0, alRetirar.intentos());
+        assertTrue(alRetirar.devolverAlComercio());
+        IntentosDeEntrega.Desenlace enCamino = IntentosDeEntrega.evaluar(true, PAQUETE_DANADO, 1, 2);
+        assertEquals(1, enCamino.intentos());
+        assertTrue(enCamino.devolverAlComercio());
+    }
+
+    @Test
+    void unProblemaDelRepartidorNoLeCuentaVisitaAlCliente() {
+        // Aunque ya estuviera en camino y fuera su última visita.
+        IntentosDeEntrega.Desenlace d = IntentosDeEntrega.evaluar(true, PROBLEMA_DEL_REPARTIDOR, 1, 2);
+        assertEquals(1, d.intentos());
+        assertFalse(d.devolverAlComercio());
+    }
+
+    @Test
+    void unRechazoSinHaberSalidoNoDevuelve() {
+        // No se puede rechazar algo que no llegó: vuelve a la espera.
+        IntentosDeEntrega.Desenlace d = IntentosDeEntrega.evaluar(false, RECHAZADO, 0, 2);
+        assertEquals(0, d.intentos());
+        assertFalse(d.devolverAlComercio());
+    }
+
+    @Test
+    void losMotivosNuevosDelClienteCuentanComoVisita() {
+        for (var motivo : new com.rabbit.pedidos.datos.model.MotivoEntregaFallida[] {
+                NADIE_HABILITADO, DOMICILIO_CERRADO, ZONA_PELIGROSA }) {
+            IntentosDeEntrega.Desenlace d = IntentosDeEntrega.evaluar(true, motivo, 0, 2);
+            assertEquals(1, d.intentos(), motivo.name());
+            assertFalse(d.devolverAlComercio(), motivo.name());
+        }
+    }
+
+    @Test
     void elMaximoPorDefectoSonDosYSeConfigura() {
         assertEquals(2, IntentosDeEntrega.maximo());
         System.setProperty(IntentosDeEntrega.PROPIEDAD, " 3 ");
