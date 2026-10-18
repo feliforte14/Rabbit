@@ -289,8 +289,8 @@ stateDiagram-v2
 
 `importe`, `medioPago` (`PREPAGO` / `CONTRA_ENTREGA`) y
 `direccionEntrega` llegan en el pedido externo y pasan tal cual al
-`Pedido` al sincronizar. También, opcionales, el nombre, el teléfono y el
-email de quien recibe (ADR-039). La fecha prometida la calcula Rabbit al
+`Pedido` al sincronizar. También el email de quien recibe (obligatorio
+desde el 18/10) y, opcionales, su nombre y su teléfono (ADR-039). La fecha prometida la calcula Rabbit al
 recibirlo, con la hora de corte (ADR-042). La dirección es obligatoria: es el destino de la
 hoja de ruta. Rabbit no
 calcula precios: ver ADR-004 en [DECISIONES.md](DECISIONES.md).

@@ -16,7 +16,7 @@ rápido en la defensa.
 | Transacciones declarativas en 1 flujo crítico de varios pasos | Cumple | `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla. Ver [TRANSACCIONES.md](../arquitectura/TRANSACCIONES.md) |
 | Stack consistente y justificado | Cumple | Jakarta EE 10 sobre WildFly 41 |
 | Repositorio Git con historial incremental | Cumple | Commits desde agosto, de varios integrantes |
-| Tests automatizados (no lo exige la consigna) | Hay | 142 tests unitarios (JUnit 5) en cada build y 16 tests de integración de la API con REST Assured (`mvn verify -Pintegracion`). Ver el README |
+| Tests automatizados (no lo exige la consigna) | Hay | 148 tests unitarios (JUnit 5) en cada build y 17 tests de integración de la API con REST Assured (`mvn verify -Pintegracion`). Ver el README |
 
 ## Desafíos opcionales
 
@@ -31,5 +31,5 @@ rápido en la defensa.
 
 | Requisito | Estado | Dónde |
 |---|---|---|
-| Diseño responsive (obligatorio para una web app) | Cumple | Escritorio, tablet y celular, probado en 10 tamaños de 360 a 1920 px **sin ningún scroll horizontal**. A menor pantalla, menos información: cada tabla marca sus columnas secundarias (`col-p3`, detalle, se oculta por debajo de 1366 px; `col-p2`, complementaria, por debajo de 1100 px) y en el celular las tablas se ven como tarjetas con solo lo esencial (`tablas.js`). Hasta 860 px el menú lateral pasa a una barra con botón "Menú" (`menu.js`); en tablet las tarjetas van de a dos. Objetivos táctiles de 44 px en el menú y en los botones de acción del celular (los del repartidor, a lo ancho). Revisado con las cuentas de comercio y repartidor el 14/10 |
+| Diseño responsive (obligatorio para una web app) | Cumple | Escritorio, tablet y celular, probado en 320, 390, 768, 1024, 1366 y 1440 px, con los temas oscuro y normal, **sin ningún scroll horizontal**. En pantallas más angostas la tabla muestra menos columnas: cada tabla marca sus columnas secundarias (`col-p3`, detalle, se oculta por debajo de 1280 px; `col-p2`, complementaria, por debajo de 1100 px) y en el celular y la tablet las tablas se ven como tarjetas con todos los datos (`tablas.js`). Hasta 860 px el menú lateral pasa a una barra con botón "Menú" (`menu.js`); en tablet las tarjetas van de a dos (una sola ocupa todo el ancho). Objetivos táctiles de 44 px en el menú, los botones de acción, los enlaces de las tarjetas y el zoom del mapa. Revisado con las cuentas de comercio y repartidor el 14/10 y en todas las pantallas del personal el 18/10 |
 | Temas claro, oscuro y normal (opcional, puntos extra) | Cumple | Se cambian en tiempo real, sin recargar, desde el menú lateral o el pie del login, el seguimiento y la página de error (`tema.js`). Cada tema solo redefine las variables de color de `estilos.css`; la elección queda guardada en el navegador y se aplica antes de pintar la página, sin parpadeo. En el tema claro el naranja de acento se oscurece (`#c2410c`) para llegar al contraste 4,5:1 de WCAG AA sobre blanco |

@@ -61,8 +61,8 @@ En la rama `feature/mejoras-lideres-ultima-milla`, **sin mergear**. Salen
 de comparar Rabbit con Mercado Libre Full/Flex, Andreani, Moova, DHL,
 Amazon, Onfleet, Bringg y ShipBob: son las seis de prioridad alta.
 Probadas de punta a punta en WildFly con una base local (sección 12 de
-[FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)); falta desplegarlas
-contra la base compartida.
+[FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)) y, desde el 18/10,
+también desplegadas contra la base compartida.
 
 - [x] Datos de quien recibe: nombre y teléfono opcionales; el email, obligatorio desde el 18/10 (ADR-039).
 - [x] Avisos por mail a quien recibe en cada cambio, con un tercer
@@ -87,10 +87,35 @@ contra la base compartida.
       una franja horaria.
 - [x] Hoja de ruta por distancia real con OpenStreetMap (ADR-046, sección 14). Antes, por cercanía de código
       postal.
-- [ ] Decidir si se mergea a `main` y desplegar contra la base compartida.
-- [ ] Prioridad media y baja de la comparación (webhooks al ERP, orden de
-      ingreso de mercadería, retiro en depósito, etiquetas con QR, etc.):
-      sin empezar.
+- [x] Mails reales por SMTP con login y TLS (ADR-047).
+- [x] Pedidos del equipo del 18/10 (Trello): hora de corte a las 07:00,
+      email de quien recibe obligatorio en la web y en la API (400 si
+      falta), avisos de entrega fallida al comercio reescritos y un pedido
+      que salió a reparto ya no se cancela, ni por la web ni por la API
+      (409; ADR-048).
+- [x] Revisión responsive del 18/10, en todas las pantallas del personal
+      de 320 a 1440 px: campos de teléfono y email con estilo, estados
+      vacíos, tarjetas con todos los datos, contadores sin tarjetas
+      sueltas, formularios alineados, filtros del Historial en barra,
+      mapa oscuro en el tema oscuro, botones de 44 px en el celular.
+- [x] Script de limpieza con la opción C: borra todo menos las cuentas.
+- [ ] Decidir si se mergea a `main`. Antes, pasar a "Aceptada" los
+      ADR-039 a 047, que siguen como "Propuesta".
+
+### Tarjetas de la lista "To do" de Trello (revisadas en el código el 18/10)
+
+- **Hechas, para pasar a testing:** fecha prometida (ADR-042) y horario
+  estimado en el seguimiento (ADR-043).
+- **A medias:** prueba de entrega más fuerte. Está la foto del remito
+  (ADR-033); faltan el código de 4 dígitos en el mail de "en camino",
+  validarlo al entregar y guardar la ubicación del repartidor al
+  entregar (hoy solo se guarda en las visitas fallidas, ADR-045).
+- **Sin empezar:** calificación de la entrega, etiqueta con QR por
+  bulto, retiro en depósito, opciones para quien recibe desde el
+  seguimiento (reprogramar, instrucciones, autorizar a otro), cobro por
+  almacenamiento (solo la propuesta), orden de ingreso de mercadería,
+  webhooks al ERP y envíos prioritarios (la tarjeta no tiene
+  descripción: falta definir qué es).
 
 ## 1. Revisar en el código
 
@@ -146,13 +171,13 @@ riesgo, sin tocar comportamiento:
       `Mensajes.ejecutar(Runnable accion, String mensajeExito)` que
       envuelva ese try/catch común.
 
-### Cobertura de tests (hoy hay 104 unitarios + 16 de integración)
+### Cobertura de tests (hoy hay 148 unitarios + 17 de integración)
 
 Los tests unitarios cubren sobre todo Pedidos (incluidos destinatario,
-intentos e indicadores), Seguridad, las reglas puras de Repartidores
+intentos, regla de cancelación e indicadores), Seguridad, las reglas puras de Repartidores
 (capacidad, a quién se asigna, hora de corte y fecha prometida) y de
 Ruteo (orden de la hoja de ruta, links a Google Maps y horario estimado),
-los textos de los avisos a quien recibe y la tarifa mensual. Sin tests
+los textos de los avisos a quien recibe y al comercio, y la tarifa mensual. Sin tests
 propios todavía:
 
 - [ ] `comercios` (alta, baja/reactivación, eliminación en cascada)
@@ -163,7 +188,7 @@ propios todavía:
 - [ ] `transportistas` (cotizar, derivar, seguimiento)
 - [ ] `pagos` (circuit breaker, reversa)
 - [ ] `notificaciones` (servicios y orden de llegada; los textos al
-      destinatario ya tienen)
+      destinatario y al comercio ya tienen)
 
 No hace falta levantar WildFly para esto: son tests unitarios con mocks,
 como los que ya existen en `src/test/java/com/rabbit/pedidos/negocio/`

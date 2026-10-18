@@ -77,7 +77,7 @@ componente le interesa, por motivos distintos:
 | Suscriptor | Qué hace | Por qué |
 |---|---|---|
 | Notificaciones (comercio) | Avisa al comercio del cambio: en su portal y, si hay servidor de correo configurado, por mail (`AvisosPorMail`, después del commit, timeout de 5 s) | Seguimiento del pedido |
-| Notificaciones (quien recibe, ADR-040) | Si el ERP mandó el email de quien recibe, le avisa por mail con el link al seguimiento ("recibimos tu pedido, llega hoy", "en camino", "no pudimos entregarlo"...) | Los líderes le avisan al cliente final, no solo a la tienda |
+| Notificaciones (quien recibe, ADR-040) | Le avisa a quien recibe (el email es obligatorio en el alta desde el 18/10; los pedidos anteriores sin email no reciben avisos) por mail con el link al seguimiento ("recibimos tu pedido, llega hoy", "en camino", "no pudimos entregarlo"...) | Los líderes le avisan al cliente final, no solo a la tienda |
 | Pagos y Cobranzas | Con `ENTREGADO` y `CONTRA_ENTREGA`, acredita el cobro; con `DEVUELTO_AL_COMERCIO`, lo anula (ADR-041) | El repartidor cobra al entregar; si no se entregó, no hay nada que cobrar |
 
 **Por qué Topic y no Queue:** el mismo evento lo necesitan tres
