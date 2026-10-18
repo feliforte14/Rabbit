@@ -81,4 +81,11 @@ public interface ISeguimientoPedido {
 
     /** Pedidos que tuvo o tiene asignados el repartidor que llama (rol REPARTIDOR). */
     List<PedidoDTO> listarPedidosDelRepartidorActual();
+
+    /**
+     * Lo que un repartidor tiene en curso (CONFIRMADO o EN_CAMINO), en el
+     * orden en que se le asignó: lo mismo que ve él en "Mis entregas". Solo
+     * el personal (el seguimiento público entra con @RunAs, ADR-043).
+     */
+    List<PedidoDTO> listarEntregasEnCursoDeRepartidor(Long idRepartidor);
 }

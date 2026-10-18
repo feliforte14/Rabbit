@@ -148,6 +148,22 @@ public class PagoService implements IRegistroCobros, IConsultaCobros {
         }
     }
 
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public void anularCobroPorDevolucion(Long idPedido) {
+        Cobro cobro = repository.buscarPorPedidoParaActualizar(idPedido);
+        // Idempotente: el mismo evento puede llegar más de una vez.
+        if (cobro == null || cobro.getEstado() == EstadoCobro.ANULADO) {
+            return;
+        }
+        cobro.setEstado(EstadoCobro.ANULADO);
+        repository.actualizar(cobro);
+        LOG.info("[Pagos] Cobro del pedido " + idPedido + " anulado: el pedido volvió al comercio sin entregarse");
+        if (cobro.getCodigoAutorizacion() != null) {
+            cobroAnulado.fire(new CobroAnulado(idPedido, cobro.getCodigoAutorizacion()));
+        }
+    }
+
     // Llamada sincrónica: sin la respuesta del banco no se puede confirmar.
     private String autorizarEnBanco(Long idPedido, BigDecimal importe) {
         ResultadoAutorizacion resultado = banco.autorizar(idPedido, importe);

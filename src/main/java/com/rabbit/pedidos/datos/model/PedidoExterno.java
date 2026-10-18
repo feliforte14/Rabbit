@@ -21,6 +21,7 @@ package com.rabbit.pedidos.datos.model;
 import com.rabbit.pagos.dto.MedioPago;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -115,6 +116,20 @@ public class PedidoExterno {
     // y las filas anteriores a este cambio quedan en null (= no cancelado).
     private Boolean cancelado;
 
+    // Quién recibe (ADR-039), opcionales: viajan tal cual al Pedido.
+    @Column(length = 100)
+    private String nombreDestinatario;
+
+    @Column(length = 30)
+    private String telefonoDestinatario;
+
+    @Column(length = 120)
+    private String emailDestinatario;
+
+    // Se promete al recibirlo, no al sincronizar: así el ERP la tiene en la
+    // respuesta del alta (ADR-042).
+    private LocalDate fechaPrometida;
+
     public PedidoExterno() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -151,4 +166,12 @@ public class PedidoExterno {
     public void setHuellaSolicitud(String huellaSolicitud) { this.huellaSolicitud = huellaSolicitud; }
     public boolean isCancelado() { return Boolean.TRUE.equals(cancelado); }
     public void setCancelado(boolean cancelado) { this.cancelado = cancelado; }
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
+    public String getTelefonoDestinatario() { return telefonoDestinatario; }
+    public void setTelefonoDestinatario(String telefonoDestinatario) { this.telefonoDestinatario = telefonoDestinatario; }
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
+    public LocalDate getFechaPrometida() { return fechaPrometida; }
+    public void setFechaPrometida(LocalDate fechaPrometida) { this.fechaPrometida = fechaPrometida; }
 }

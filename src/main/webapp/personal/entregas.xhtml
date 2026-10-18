@@ -90,6 +90,7 @@
 
         <h2>Repartidores</h2>
         <h:dataTable value="#{entregasBean.listaRepartidores}" var="r"
+                     rendered="#{not empty entregasBean.listaRepartidores}"
                      styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
             <h:column>
                 <f:facet name="header">Nombre</f:facet>
@@ -110,5 +111,8 @@
                 <h:outputText value="—" rendered="#{r.pedidosEnCurso eq 0}" />
             </h:column>
         </h:dataTable>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty entregasBean.listaRepartidores}">
+            Todavía no hay repartidores.
+        </h:panelGroup>
     </ui:define>
 </ui:composition>

@@ -34,6 +34,10 @@ final class HuellaDePedido {
         if (datos.pesoKg != null) {
             texto.append("|peso:").append(datos.pesoKg.stripTrailingZeros().toPlainString());
         }
+        // Lo mismo con quien recibe (ADR-039), ya normalizado.
+        agregarSiVino(texto, "nombre", Destinatarios.nombre(datos.nombreDestinatario));
+        agregarSiVino(texto, "telefono", Destinatarios.telefono(datos.telefonoDestinatario));
+        agregarSiVino(texto, "email", Destinatarios.email(datos.emailDestinatario));
         for (DatosLineaPedidoDTO linea : datos.lineas) {
             texto.append('|').append(linea.idItem).append(':')
                     .append(linea.producto != null ? linea.producto.trim() : null).append(':')
@@ -45,6 +49,12 @@ final class HuellaDePedido {
         } catch (NoSuchAlgorithmException e) {
             // Todo JRE trae SHA-256 (lo exige la especificación de Java).
             throw new IllegalStateException(e);
+        }
+    }
+
+    private static void agregarSiVino(StringBuilder texto, String campo, String valor) {
+        if (valor != null) {
+            texto.append('|').append(campo).append(':').append(valor);
         }
     }
 }

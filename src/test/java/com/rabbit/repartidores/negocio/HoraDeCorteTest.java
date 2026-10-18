@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -30,10 +32,12 @@ class HoraDeCorteTest {
     }
 
     @Test
-    void porDefectoElCorteEsALas21() {
-        assertEquals(LocalTime.of(21, 0), HoraDeCorte.configurada());
-        assertTrue(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(20, 59)));
-        assertFalse(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(21, 0)));
+    void porDefectoElCorteEsALas7() {
+        assertEquals(LocalTime.of(7, 0), HoraDeCorte.configurada());
+        assertTrue(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(6, 59)));
+        assertFalse(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(7, 0)));
+        // Durante el día ya pasó el corte: lo que se confirma sale mañana.
+        assertFalse(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(15, 0)));
     }
 
     @Test
@@ -49,6 +53,16 @@ class HoraDeCorteTest {
         assertEquals(NUEVE, HoraDeCorte.configurada());
         System.setProperty(HoraDeCorte.PROPIEDAD, " 18:30 ");
         assertEquals(LocalTime.of(18, 30), HoraDeCorte.configurada());
+    }
+
+    @Test
+    void laFechaPrometidaEsHoySiLlegaAntesDelCorteYMananaSiNo() {
+        LocalDate hoy = LocalDate.of(2026, 10, 16);
+        LocalTime corte = HoraDeCorte.POR_DEFECTO;
+        assertEquals(hoy, HoraDeCorte.diaDeEntrega(corte, hoy.atTime(6, 59)));
+        assertEquals(hoy.plusDays(1), HoraDeCorte.diaDeEntrega(corte, hoy.atTime(7, 0)));
+        assertEquals(hoy.plusDays(1), HoraDeCorte.diaDeEntrega(corte, hoy.atTime(14, 30)));
+        assertEquals(hoy, HoraDeCorte.diaDeEntrega(null, LocalDateTime.of(2026, 10, 16, 23, 30)));
     }
 
     @Test

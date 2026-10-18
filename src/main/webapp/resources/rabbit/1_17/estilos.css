@@ -538,7 +538,7 @@ h2 {
     box-shadow: var(--sombra);
     padding: 1.75rem;
     max-width: 480px;
-    margin: 0 auto;
+    margin: 0 0 1.75rem;
 }
 
 /* Variante para formularios con una tabla de líneas adentro (ver
@@ -611,7 +611,11 @@ label.obligatorio::after {
 }
 
 .campo > input[type="text"],
-.campo > input[type="password"] {
+.campo > input[type="password"],
+.campo > input[type="tel"],
+.campo > input[type="email"],
+.campo > input[type="number"],
+.campo > input[type="date"] {
     display: block;
     width: 100%;
     padding: 0.65rem 0.85rem;
@@ -625,7 +629,11 @@ label.obligatorio::after {
 }
 
 .campo > input[type="text"]:focus,
-.campo > input[type="password"]:focus {
+.campo > input[type="password"]:focus,
+.campo > input[type="tel"]:focus,
+.campo > input[type="email"]:focus,
+.campo > input[type="number"]:focus,
+.campo > input[type="date"]:focus {
     outline: none;
     border-color: var(--naranja);
     background: var(--superficie);
@@ -652,12 +660,22 @@ label.obligatorio::after {
 /* Campo invalido: borde rojo. Se resuelve 100% en CSS, sin tocar JSF.
    <h:message> no renderiza nada cuando el campo esta OK, asi que
    :has(.error-campo) solo matchea cuando ESE campo tiene un error. */
-.campo:has(.error-campo) > input[type="text"] {
+.campo:has(.error-campo) > input[type="text"],
+.campo:has(.error-campo) > input[type="password"],
+.campo:has(.error-campo) > input[type="tel"],
+.campo:has(.error-campo) > input[type="email"],
+.campo:has(.error-campo) > input[type="number"],
+.campo:has(.error-campo) > input[type="date"] {
     border-color: var(--rojo);
     background: var(--rojo-suave);
 }
 
-.campo:has(.error-campo) > input[type="text"]:focus {
+.campo:has(.error-campo) > input[type="text"]:focus,
+.campo:has(.error-campo) > input[type="password"]:focus,
+.campo:has(.error-campo) > input[type="tel"]:focus,
+.campo:has(.error-campo) > input[type="email"]:focus,
+.campo:has(.error-campo) > input[type="number"]:focus,
+.campo:has(.error-campo) > input[type="date"]:focus {
     box-shadow: 0 0 0 3px var(--anillo-error);
 }
 
@@ -856,7 +874,7 @@ label.obligatorio::after {
    solo las esenciales. Lo oculto sigue disponible en la pantalla de
    detalle o en una pantalla más grande.
    ================================================================== */
-@media (max-width: 1366px) {
+@media (max-width: 1280px) {
     .tabla th.col-p3,
     .tabla td.col-p3 {
         display: none;
@@ -1098,7 +1116,7 @@ label.obligatorio::after {
    activa es naranja (como btn-primary); la otra, como btn-secondary. */
 .pestanas {
     display: flex;
-    justify-content: center;
+    justify-content: flex-start;
     flex-wrap: wrap;
     gap: 0.6rem;
     margin: -0.25rem 0 1.75rem;
@@ -1643,6 +1661,18 @@ a.codigo:hover {
     color: var(--texto-suave);
 }
 
+/* Dia prometido (ADR-042) y parada/franja en camino (ADR-043): lo que mas
+   le importa al cliente, un poco mas marcado que el detalle. */
+.seguimiento-promesa {
+    margin: 0.8rem 0 0;
+    padding: 0.55rem 0.8rem;
+    border-left: 3px solid var(--naranja);
+    background: var(--naranja-suave);
+    border-radius: 0 var(--radio) var(--radio) 0;
+    color: var(--titulo);
+    font-weight: 600;
+}
+
 /* Linea de tiempo: un punto por paso, unidos por una linea. Hecho =
    naranja lleno; actual = naranja con aro; pendiente = gris. */
 .linea-tiempo {
@@ -2045,3 +2075,411 @@ html[data-tema="oscuro"] textarea {
     }
 }
 
+
+/* ==================================================================
+   Tablero de indicadores (ADR-044): graficos de indicadores.js
+   ================================================================== */
+/* Series: paleta categorica validada (validate_palette.js) contra la
+   superficie de cada tema; el orden es parte de la validacion, no se
+   cambia. El aqua queda bajo 3:1 sobre blanco: por eso cada grafico
+   lleva leyenda y vista de tabla. */
+:root {
+    --viz-s1: #2a78d6;
+    --viz-s2: #eb6834;
+    --viz-s3: #1baf7a;
+    --viz-medidor-pista: #cde2fb;
+}
+html[data-tema="oscuro"] {
+    --viz-s1: #3987e5;
+    --viz-s2: #d95926;
+    --viz-s3: #199e70;
+    --viz-medidor-pista: #184f95;
+}
+
+/* Filtros: una sola fila arriba de todo lo que filtran. */
+.viz-filtros {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.75rem 1rem;
+    margin: 0 0 1.5rem;
+}
+.viz-filtros .campo {
+    margin: 0;
+    min-width: 12rem;
+}
+.viz-filtros .form-acciones {
+    margin: 0;
+    padding: 0;
+    border: none;
+}
+
+.viz-tablero {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.viz-ancha {
+    grid-column: 1 / -1;
+}
+@media (max-width: 1100px) {
+    .viz-tablero {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+.viz-tarjeta {
+    margin: 0;
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio);
+    box-shadow: var(--sombra);
+    padding: 1.1rem 1.25rem 0.9rem;
+    min-width: 0;
+}
+.viz-titulo {
+    font-weight: 600;
+    color: var(--titulo);
+    margin-bottom: 0.15rem;
+}
+.viz-subtitulo {
+    display: block;
+    font-weight: 400;
+    font-size: 0.82rem;
+    color: var(--texto-suave);
+}
+.viz-grafico {
+    margin-top: 0.6rem;
+    min-height: 2rem;
+}
+.viz-grafico svg {
+    display: block;
+    overflow: visible;
+}
+
+.viz-f1 { fill: var(--viz-s1); }
+.viz-f2 { fill: var(--viz-s2); }
+.viz-f3 { fill: var(--viz-s3); }
+.viz-b1 { background: var(--viz-s1); }
+.viz-b2 { background: var(--viz-s2); }
+.viz-b3 { background: var(--viz-s3); }
+
+/* Grilla y ejes: lineas finas y solidas, un paso del fondo. */
+line.viz-grilla {
+    stroke: var(--borde);
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+line.viz-base {
+    stroke: var(--texto-suave);
+    stroke-opacity: 0.45;
+    stroke-width: 1;
+    shape-rendering: crispEdges;
+}
+.viz-eje, .viz-etiqueta, .viz-valor {
+    font: 11px system-ui, -apple-system, "Segoe UI", sans-serif;
+    fill: var(--texto-suave);
+    font-variant-numeric: tabular-nums;
+}
+.viz-etiqueta {
+    font-size: 12px;
+    fill: var(--texto);
+}
+.viz-valor {
+    font-size: 12px;
+    fill: var(--texto);
+    font-weight: 600;
+}
+
+/* La marca bajo el puntero (o el foco) se aclara: responde sin moverse. */
+.viz-columna path, .viz-columna rect {
+    transition: opacity 0.12s;
+}
+.viz-activa path, .viz-activa rect {
+    opacity: 0.72;
+}
+.viz-zona {
+    cursor: default;
+    outline: none;
+}
+.viz-zona:focus-visible {
+    stroke: var(--naranja);
+    stroke-width: 2;
+}
+
+.viz-leyenda {
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 1rem;
+    margin: 0.5rem 0 0;
+    padding: 0;
+    font-size: 0.82rem;
+    color: var(--texto-suave);
+}
+.viz-leyenda li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+.viz-clave {
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    flex: none;
+}
+
+.viz-tooltip {
+    position: fixed;
+    z-index: 1000;
+    display: none;
+    pointer-events: none;
+    min-width: 9rem;
+    max-width: 18rem;
+    padding: 0.55rem 0.7rem;
+    background: var(--superficie);
+    color: var(--texto);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    box-shadow: var(--sombra-media);
+    font-size: 0.82rem;
+}
+.viz-tooltip-titulo {
+    color: var(--texto-suave);
+    margin-bottom: 0.3rem;
+}
+.viz-tooltip-fila {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    line-height: 1.5;
+}
+.viz-tooltip-fila strong {
+    font-variant-numeric: tabular-nums;
+    color: var(--titulo);
+}
+.viz-tooltip-serie {
+    color: var(--texto-suave);
+}
+.viz-tooltip-total {
+    border-top: 1px solid var(--borde);
+    margin-top: 0.25rem;
+    padding-top: 0.25rem;
+}
+.viz-linea {
+    width: 12px;
+    height: 2px;
+    border-radius: 1px;
+    flex: none;
+}
+
+.viz-acciones {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0 1.25rem;
+    margin-top: 0.6rem;
+}
+.viz-boton-tabla {
+    padding: 0.25rem 0;
+    background: none;
+    border: none;
+    color: var(--naranja);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+.viz-boton-tabla:hover {
+    text-decoration: underline;
+}
+.viz-tabla {
+    margin-top: 0.6rem;
+}
+.viz-numero {
+    font-variant-numeric: tabular-nums;
+}
+/* El nombre de cada fila es un th (para lectores de pantalla), pero se ve
+   como una celda comun, no como la cabecera. */
+.viz-tabla tbody th {
+    background: none;
+    color: var(--texto);
+    font-weight: 500;
+    font-size: inherit;
+    text-transform: none;
+    letter-spacing: normal;
+    white-space: normal;
+}
+.viz-oculto {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+.viz-vacio {
+    margin: 1.5rem 0;
+    color: var(--texto-suave);
+    text-align: center;
+}
+
+/* Diferencia contra el periodo anterior: flecha y texto (no solo color). */
+.viz-delta {
+    margin: 0.35rem 0 0;
+    font-size: 0.75rem;
+    color: var(--texto-suave);
+}
+.viz-delta-mejor {
+    color: var(--exito-texto);
+    font-weight: 600;
+}
+.viz-delta-peor {
+    color: var(--error-texto);
+    font-weight: 600;
+}
+
+/* Medidor de las tarjetas de porcentaje: la pista es un paso mas claro de
+   la misma rampa que el relleno. */
+.viz-medidor {
+    height: 6px;
+    margin: 0.6rem auto 0;
+    max-width: 10rem;
+    border-radius: 3px;
+    background: var(--viz-medidor-pista);
+    overflow: hidden;
+}
+.viz-medidor span {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: var(--viz-s1);
+}
+
+/* Visitas fallidas (ADR-045): las fotos en la ventana del repartidor y
+   las miniaturas en la pagina de visitas del pedido. */
+.fotos-visita {
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    padding: 0.75rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+.fotos-visita legend {
+    font-weight: 600;
+    padding: 0 0.25rem;
+}
+.fotos-visita input[type="file"][hidden] {
+    display: none;
+}
+.fotos-visita-lista {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+}
+.fotos-visita-lista img {
+    width: 140px;
+    height: 140px;
+    object-fit: cover;
+    border-radius: var(--radio-chico);
+    border: 1px solid var(--borde);
+    display: block;
+}
+
+
+/* ==================================================================
+   Ajustes de la revisión responsive (18/10)
+   ================================================================== */
+
+/* El texto de una celda de acciones ("Ya salió a reparto: no se puede
+   cancelar") corta línea; los botones siguen en fila. */
+.acciones .dato-secundario {
+    white-space: normal;
+}
+
+/* Tres contadores: de a tres desde tablet. Seis: 3 × 2 en escritorio. */
+@media (min-width: 641px) {
+    .stat-grid:has(> .stat-card:nth-child(3):last-child) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+@media (min-width: 861px) {
+    .stat-grid:has(> .stat-card:nth-child(6):last-child) {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+/* En el celular (de a dos), el último de una cantidad impar ocupa la fila. */
+@media (max-width: 640px) {
+    .stat-grid > .stat-card:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+}
+
+/* Los gráficos nunca empujan la página de costado. */
+.viz-grafico {
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* Filtros del Historial: barra horizontal, como los de Indicadores. */
+.formulario.formulario-filtros {
+    max-width: none;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    align-items: end;
+    gap: 0.75rem 1rem;
+}
+.formulario-filtros .campo {
+    margin: 0;
+}
+.formulario-filtros .form-acciones {
+    margin: 0;
+    padding: 0;
+    border: none;
+    grid-column: 1 / -1;
+}
+
+/* Mapa en el tema oscuro: mosaicos oscurecidos (los marcadores no). */
+html[data-tema="oscuro"] .leaflet-tile-pane {
+    filter: invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9);
+}
+
+@media (max-width: 860px) {
+    /* Las tarjetas muestran todos los datos: tienen lugar hacia abajo. */
+    .tabla-tarjetas td.col-p2,
+    .tabla-tarjetas td.col-p3 {
+        display: block;
+    }
+
+    /* Botones y enlaces chicos: 44 px de alto para tocar con el dedo. */
+    .enlace-volver,
+    .tabla-tarjetas td a,
+    .viz-boton-tabla,
+    .leaflet-touch .leaflet-bar a {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+    }
+    .leaflet-touch .leaflet-bar a {
+        justify-content: center;
+        min-width: 44px;
+    }
+
+    /* Eliminar: borde rojo, no un bloque rojo a lo ancho de cada tarjeta. */
+    .tabla-tarjetas td .btn-danger {
+        background: transparent;
+        color: var(--rojo-oscuro);
+        border: 1px solid var(--rojo);
+    }
+    .tabla-tarjetas td .btn-danger:hover {
+        background: var(--rojo-suave);
+    }
+}
+
+/* Tablet: si hay una sola tarjeta, ocupa todo el ancho. */
+@media (min-width: 641px) and (max-width: 860px) {
+    .tabla-tarjetas tbody:has(> tr:only-child) {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

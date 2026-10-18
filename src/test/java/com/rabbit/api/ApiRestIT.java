@@ -49,7 +49,8 @@ class ApiRestIT {
         return Map.of("origen", "PUNTO_PICKING", "idPuntoPicking", punto,
                 "lineas", java.util.List.of(Map.of("producto", "[TEST] Caja", "cantidad", 1)),
                 "importe", importe, "medioPago", "CONTRA_ENTREGA",
-                "direccionEntrega", "[TEST] Av. Siempreviva 742, CABA");
+                "direccionEntrega", "[TEST] Av. Siempreviva 742, CABA",
+                "emailDestinatario", "cliente@correo.test");
     }
 
     private static Response alta(Map<String, Object> cuerpo, String claveIdempotencia) {

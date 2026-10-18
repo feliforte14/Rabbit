@@ -133,6 +133,7 @@ public class PedidosExternosResource {
                     "Falta o es inválido el header Idempotency-Key",
                     "Mandá un identificador único por pedido (por ejemplo un UUID), y el mismo si reintentás").respuesta();
         }
+        pedido.normalizar();
         Set<ConstraintViolation<PedidoExternoRequest>> errores = validador.validate(pedido);
         if (!errores.isEmpty()) {
             return datosConFormatoInvalido(errores);
@@ -230,6 +231,15 @@ public class PedidosExternosResource {
         }
         if (externo.codigoSeguimiento != null) {
             json.add("codigoSeguimiento", externo.codigoSeguimiento);
+        }
+        // ADR-042: ya en la respuesta del alta, aunque todavía esté Pendiente.
+        if (externo.fechaPrometida != null && !"Descartado".equals(externo.resultado)
+                && !"Cancelado".equals(externo.resultado)) {
+            json.add("fechaPrometida", externo.fechaPrometida.toString());
+        }
+        // ADR-041: visitas que ya fallaron.
+        if (externo.intentosFallidos > 0) {
+            json.add("intentosFallidos", externo.intentosFallidos);
         }
         if ("PENDIENTE".equals(externo.estadoPedido)) {
             // Esperando repartidor (ADR-037): no hay lugar o pasó la hora de corte.

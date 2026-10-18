@@ -6,7 +6,8 @@ package com.rabbit.pedidos.presentacion.rest;
  * comercio para mostrar "tu pedido está en camino").
  *
  * GET /api/v1/seguimiento/{codigoSeguimiento}
- *   → {"codigoSeguimiento", "estado"}
+ *   → {"codigoSeguimiento", "estado", "fechaPrometida"?, "llegadaEstimada"?,
+ *      "ubicacionRepartidor"?}
  *
  * @PermitAll a propósito, sin autenticación: solo expone el estado del
  * pedido, nada de importes, cobros, direcciones ni datos del comercio. Es
@@ -22,8 +23,11 @@ import com.rabbit.infraestructura.Problema;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.PedidoNoEncontradoException;
+import com.rabbit.pedidos.presentacion.SeguimientoBean;
 import com.rabbit.repartidores.dto.UbicacionDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
+import com.rabbit.ruteo.dto.LlegadaEstimadaDTO;
+import com.rabbit.ruteo.negocio.ILlegadaEstimada;
 import jakarta.annotation.security.PermitAll;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
@@ -51,6 +55,9 @@ public class SeguimientoResource {
     @Inject
     private IGestionRepartidores repartidores;
 
+    @Inject
+    private ILlegadaEstimada llegadas;
+
     @GET
     @Path("{codigo}")
     public Response consultar(@PathParam("codigo") String codigo) {
@@ -59,10 +66,24 @@ public class SeguimientoResource {
             JsonObjectBuilder cuerpo = Json.createObjectBuilder()
                     .add("codigoSeguimiento", pedido.codigoSeguimiento)
                     .add("estado", pedido.estado);
+            // El día que Rabbit se comprometió a entregarlo (ADR-042).
+            if (pedido.fechaPrometida != null) {
+                cuerpo.add("fechaPrometida", pedido.fechaPrometida.toString());
+            }
             // Mientras va en camino con un repartidor de Rabbit que comparte
             // su ubicación (ADR-035). Si no, el campo no viene.
             UbicacionDTO ubicacion = "EN_CAMINO".equals(pedido.estado) && pedido.idRepartidor != null
                     ? repartidores.ubicacionParaPedido(pedido.idRepartidor, pedido.id) : null;
+            // En qué parada va y en qué franja llega (ADR-043).
+            LlegadaEstimadaDTO llegada = "EN_CAMINO".equals(pedido.estado) && pedido.idRepartidor != null
+                    ? SeguimientoBean.estimarLlegada(llegadas, pedido) : null;
+            if (llegada != null) {
+                cuerpo.add("llegadaEstimada", Json.createObjectBuilder()
+                        .add("numeroParada", llegada.numeroParada)
+                        .add("totalParadas", llegada.totalParadas)
+                        .add("desde", llegada.getDesdeTexto())
+                        .add("hasta", llegada.getHastaTexto()));
+            }
             if (ubicacion != null) {
                 cuerpo.add("ubicacionRepartidor", Json.createObjectBuilder()
                         .add("latitud", ubicacion.latitud)

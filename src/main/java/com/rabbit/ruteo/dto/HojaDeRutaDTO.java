@@ -31,6 +31,9 @@ public class HojaDeRutaDTO {
     // con su dirección y CP, y el CP de entrega.
     public List<ParadaDTO> paradasRetiro;
     public String codigoPostalEntrega;
+    // Dónde queda la entrega, según OpenStreetMap (ADR-046); null si no se ubicó.
+    public Double latitudEntrega;
+    public Double longitudEntrega;
     // Recorrido en Google Maps (retiros → entrega); null sin dirección de entrega.
     public String urlMapa;
     // Importe a cobrar al entregar; null si el pedido ya está pagado.
@@ -39,6 +42,13 @@ public class HojaDeRutaDTO {
     // Kilos del pedido (null si no se conocen) y si tiene foto del remito.
     public BigDecimal pesoKg;
     public boolean conRemito;
+    // Quién recibe (ADR-039), para que el repartidor pregunte por esa
+    // persona o la llame antes de llegar. Null si el ERP no los mandó.
+    public String nombreDestinatario;
+    public String telefonoDestinatario;
+    // Visitas que ya fallaron y por qué (ADR-041).
+    public int intentosFallidos;
+    public String motivoUltimoIntento;
 
     // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getIdPedido() { return idPedido; }
@@ -58,4 +68,12 @@ public class HojaDeRutaDTO {
     public String getActualizado() { return actualizado; }
     public BigDecimal getPesoKg() { return pesoKg; }
     public boolean isConRemito() { return conRemito; }
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public String getTelefonoDestinatario() { return telefonoDestinatario; }
+    /** El teléfono solo con + y números, para el link tel: del celular. */
+    public String getTelefonoParaLlamar() {
+        return telefonoDestinatario == null ? null : telefonoDestinatario.replaceAll("[^0-9+]", "");
+    }
+    public int getIntentosFallidos() { return intentosFallidos; }
+    public String getMotivoUltimoIntento() { return motivoUltimoIntento; }
 }

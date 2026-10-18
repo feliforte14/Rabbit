@@ -64,6 +64,20 @@ class HuellaDePedidoTest {
     }
 
     @Test
+    void sinDestinatarioLaHuellaEsLaDeAntesYConDestinatarioCambia() {
+        // ADR-039: un ERP que no manda quién recibe sigue con la misma huella.
+        DatosPedidoExternoDTO sinDestinatario = pedido("1500", "Av. Corrientes 1234", "1043");
+        DatosPedidoExternoDTO conEmail = pedido("1500", "Av. Corrientes 1234", "1043");
+        conEmail.emailDestinatario = "ana@correo.com";
+        DatosPedidoExternoDTO mismoEmail = pedido("1500", "Av. Corrientes 1234", "1043");
+        mismoEmail.emailDestinatario = "  Ana@Correo.com ";
+        mismoEmail.nombreDestinatario = "  ";
+        assertEquals(HUELLA_SIN_PESO, huella(sinDestinatario));
+        assertNotEquals(huella(sinDestinatario), huella(conEmail));
+        assertEquals(huella(conEmail), huella(mismoEmail));
+    }
+
+    @Test
     void esUnSha256EnHexadecimal() {
         assertTrue(huella(pedido("1500", "Av. Corrientes 1234", "1043")).matches("[0-9a-f]{64}"));
     }

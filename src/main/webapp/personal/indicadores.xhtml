@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Tablero de indicadores de entrega para el personal (ADR-044): entregas a
+    tiempo, al primer intento, horas de recibido a entregado, lista de
+    espera, costo por envio y el detalle por repartidor. De toda la red o de
+    un comercio, en los ultimos 7, 30 o 90 dias. El filtro va por la URL
+    (?dias=30&amp;comercio=3). Se bindea a indicadoresBean (IndicadoresBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewParam name="dias" value="#{indicadoresBean.dias}" />
+        <f:viewParam name="comercio" value="#{indicadoresBean.idComercio}" />
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+        <f:viewAction action="#{indicadoresBean.cargarPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Indicadores</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Indicadores de entrega</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <!-- GET comun: el filtro queda en la URL y el enlace se puede compartir. -->
+        <form method="get" action="#{request.contextPath}/personal/indicadores.xhtml" class="viz-filtros">
+            <div class="campo">
+                <label for="comercio">Comercio</label>
+                <select id="comercio" name="comercio">
+                    <option value="">Toda la red</option>
+                    <ui:repeat value="#{indicadoresBean.listaComercios}" var="c">
+                        <ui:fragment rendered="#{c.id == indicadoresBean.idComercio}">
+                            <option value="#{c.id}" selected="selected">#{c.nombre}</option>
+                        </ui:fragment>
+                        <ui:fragment rendered="#{c.id != indicadoresBean.idComercio}">
+                            <option value="#{c.id}">#{c.nombre}</option>
+                        </ui:fragment>
+                    </ui:repeat>
+                </select>
+            </div>
+            <div class="campo">
+                <label for="dias">Período</label>
+                <select id="dias" name="dias">
+                    <ui:repeat value="#{indicadoresBean.periodos}" var="d">
+                        <ui:fragment rendered="#{d == indicadoresBean.dias}">
+                            <option value="#{d}" selected="selected">Últimos #{d} días</option>
+                        </ui:fragment>
+                        <ui:fragment rendered="#{d != indicadoresBean.dias}">
+                            <option value="#{d}">Últimos #{d} días</option>
+                        </ui:fragment>
+                    </ui:repeat>
+                </select>
+            </div>
+            <div class="form-acciones">
+                <button type="submit" class="btn btn-primary">Ver</button>
+            </div>
+        </form>
+
+        <h:panelGroup rendered="#{not empty indicadoresBean.tablero}">
+            <h2>#{indicadoresBean.nombreComercio(indicadoresBean.idComercio)}</h2>
+            <ui:decorate template="/WEB-INF/plantillas/indicadores.xhtml">
+                <ui:param name="t" value="#{indicadoresBean.tablero}" />
+                <!-- Solo el personal: los indicadores de cada repartidor. -->
+                <ui:define name="graficosExtra">
+                    <figure class="viz-tarjeta viz-ancha">
+                        <figcaption class="viz-titulo">Por repartidor
+                            <span class="viz-subtitulo">Repartidores propios que terminaron algún pedido del período (entregado o devuelto al comercio)</span>
+                        </figcaption>
+                        <div class="viz-grafico" data-grafico="barras" data-datos="#{indicadoresBean.jsonRepartidores}"
+                             data-vacio="Ningún repartidor propio terminó pedidos en el período."></div>
+                    </figure>
+                </ui:define>
+            </ui:decorate>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>

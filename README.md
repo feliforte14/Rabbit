@@ -20,7 +20,11 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   API REST versionada (`/api/v1`, alta idempotente, consulta y
   cancelación), su sincronización automática con stock y su seguimiento
   (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`), también público por
-  código de seguimiento.
+  código de seguimiento. El ERP puede mandar quién recibe (nombre,
+  teléfono y email, ADR-039), y Rabbit le promete el día de entrega según
+  la hora de corte, ya en la respuesta del alta (ADR-042). En camino, el
+  seguimiento dice en qué parada del repartidor va y en qué franja llega
+  (ADR-043).
 - **Pagos y cobranzas:** un pedido prepago se cobra en el banco legado al
   confirmarlo (con reversa si la confirmación falla después, y un circuit
   breaker si el banco no responde); uno contra entrega se acredita cuando
@@ -32,8 +36,10 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   (ADR-032). Si no le entra a nadie (o ya pasó la hora de corte de la hoja
   de ruta), el pedido queda en una lista de espera, sin cobrar, y se
   asigna solo cuando se libera alguno; el repartidor puede devolver al
-  depósito un pedido que no pudo entregar, y se le asigna a otro
-  (ADR-037). Mientras reparte, su celular comparte la ubicación: el
+  depósito un pedido que no pudo entregar, con un motivo fijo, y se le
+  asigna a otro (ADR-037). Después de 2 visitas fallidas (o si el cliente
+  lo rechaza) el pedido vuelve al comercio: el stock consignado se
+  devuelve y el cobro se anula (ADR-041). Mientras reparte, su celular comparte la ubicación: el
   personal lo ve en un mapa y el cliente, en el seguimiento (ADR-035). Un
   administrador puede eliminar un repartidor sin entregas en curso ni
   cuenta de usuario (ADR-036).
@@ -58,7 +64,13 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
   Todo por HTTPS, con límite de intentos en el login.
 - **Notificaciones:** cada cambio de estado le llega al comercio en su
-  portal y, si hay un servidor de correo configurado, por mail.
+  portal y, si hay un servidor de correo configurado, por mail. A quien
+  recibe también, al email que manda el ERP con cada pedido (obligatorio
+  desde el 18/10), con el link al seguimiento (ADR-039, ADR-040).
+- **Indicadores:** tablero para el personal (toda la red, un comercio y
+  por repartidor) y para cada comercio: entregas a tiempo, al primer
+  intento, horas de recibido a entregado, lista de espera y costo por
+  envío, de los últimos 7, 30 o 90 días (ADR-044).
 - **Interfaz:** tres temas visuales (normal, claro y oscuro) que se
   cambian en el momento desde el menú o el pie de las páginas públicas, y
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
@@ -154,7 +166,7 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (38 ADRs)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (49 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
@@ -428,32 +440,60 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tari
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-kilo:add(value=100)"
 ```
 
-### 7b. (Opcional) Hora de corte de la hoja de ruta
+### 7b. Hora de corte de la hoja de ruta (leer antes de una demo)
 
-Por defecto, **21:00** (la definió el equipo). Desde esa hora no se
-suman pedidos a la hoja del día de ningún repartidor: lo que se confirma
-después queda en la lista de espera y se asigna solo al día siguiente,
-antes del corte (ADR-037). Para cambiarla, sin redesplegar:
+Por defecto, **07:00** (la definió el equipo: a las 7 se cierra la hoja
+del día, así hay tiempo de preparar los pedidos y salir a las 9). Desde
+esa hora no se suman pedidos a la hoja del día de ningún repartidor: lo
+que se confirma después queda **en la lista de espera** y se asigna solo
+al día siguiente, antes de las 7 (ADR-037). La fecha prometida al
+comercio (ADR-042) sigue la misma regla.
+
+> **Ojo:** durante el día ya pasó el corte, así que **todo lo que se
+> confirme va a quedar "En espera"**. Para una demo o para probar a
+> cualquier hora, sacá el corte con `ninguno` antes de empezar y
+> volvé a ponerlo al terminar. Se lee en cada uso: no hace falta
+> redesplegar ni reiniciar.
 
 ```bash
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=18:30)"
-# sin corte (por ejemplo, para una demo después de las 21):
+# sin corte (demos y pruebas durante el día):
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=ninguno)"
-# volver a las 21:00:
+# volver al corte de las 07:00:
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:remove"
+# otra hora (si ya existe la propiedad, primero el remove):
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=08:30)"
 ```
+
+Para ver si está configurada:
+`$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:read-resource"`
+(`failed` = no está definida, rige 07:00).
 
 ### 8. (Opcional) Avisos por mail
 
 Los avisos a los comercios siempre quedan en su portal. Para que además
-salgan por mail (al email que cargó el comercio), configurar un servidor
-SMTP con system properties y redesplegar:
+salgan por mail (al email que cargó el comercio y al de quien recibe),
+configurar el servidor de correo con system properties. Se leen en cada
+envío: no hace falta redesplegar (ADR-047).
+
+**Con Gmail** (llega a casillas reales). Hace falta una cuenta de Gmail
+para Rabbit con verificación en dos pasos y una **contraseña de
+aplicación** (Cuenta de Google → Seguridad → Contraseñas de aplicaciones):
+no la contraseña normal. Esa contraseña **no va al repositorio**; cada
+integrante la carga en su WildFly:
 
 ```bash
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.host:add(value=smtp.ejemplo.com)"
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.port:add(value=25)"
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.remitente:add(value=avisos@rabbit.example)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.host:add(value=smtp.gmail.com)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.usuario:add(value=CUENTA@gmail.com)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.password:add(value=CONTRASEÑA_DE_APLICACION)"
 ```
+
+Con usuario y contraseña usa STARTTLS por el puerto 587, y el remitente
+es la misma cuenta (Gmail no deja mandar como otra). Otro proveedor:
+`rabbit.mail.smtp.port`, `rabbit.mail.smtp.seguridad` (`starttls`, `ssl`
+para el 465, o `ninguna`) y `rabbit.mail.remitente`. Gmail permite unos
+500 mails por día desde una cuenta común. Si un mail no sale, el log dice
+`[Notificaciones][Mail] No se pudo mandar el aviso…` con el motivo, y el
+aviso igual queda en Rabbit.
 
 Para probar en local sin un servidor real:
 `python3 -m smtpd -n -c DebuggingServer localhost:2525` (Python hasta 3.11)
@@ -474,7 +514,7 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.cont
 ## Tests
 
 ```bash
-mvn test                       # 62 tests unitarios (JUnit 5), sin servidor
+mvn test                       # 151 tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos
@@ -483,9 +523,13 @@ login, reglas del transportista simulado, validación del cuerpo de la
 API, hash de contraseñas, capacidad de los repartidores, a quién se le
 asigna un pedido (y la lista de espera), hora de corte, orden de la hoja
 de ruta recomendada y sus links a Google Maps, validación de la foto del
-remito y tarifa mensual.
+remito, tarifa mensual, datos de quien recibe, intentos de entrega, fecha
+prometida, horario estimado, textos de los avisos al cliente y al
+comercio, cuándo no se puede cancelar un pedido (ADR-048), cuánto se
+puede corregir o eliminar del stock de un depósito (ADR-049) e
+indicadores (con la comparación contra el período anterior).
 
-10 tests de integración de la API REST (REST Assured), contra Rabbit ya
+17 tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:
 
 ```bash
@@ -493,9 +537,12 @@ mvn verify -Pintegracion -Drabbit.erp.usuario=<erp> -Drabbit.erp.clave=<clave> -
 ```
 
 Prueban alta, idempotencia, errores en Problem Details, pertenencia,
-cancelación y seguimiento público. Los pedidos que crean llevan
+cancelación y seguimiento público (`ApiRestIT`), y los datos de quien
+recibe (con el email obligatorio), la fecha prometida y que el
+seguimiento no exponga a quien recibe (`MejorasUltimaMillaIT`). Los pedidos que crean llevan
 `[TEST]` en la dirección. Conviene correrlos contra una base local, no contra la
-compartida del equipo: los pedidos de prueba quedan guardados.
+compartida del equipo: los pedidos de prueba quedan guardados (se borran
+con la opción A de `scripts/Rabbit-limpieza-datos-de-prueba.sql`).
 
 Para probar a mano, de punta a punta: [FLUJO-DE-PRUEBAS.md](docs/pruebas/FLUJO-DE-PRUEBAS.md)
 (recorrido guiado por pantalla) y [PRUEBAS-Y-COMANDOS.md](docs/pruebas/PRUEBAS-Y-COMANDOS.md)

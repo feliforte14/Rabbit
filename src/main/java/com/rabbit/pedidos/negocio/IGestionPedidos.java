@@ -13,6 +13,7 @@ package com.rabbit.pedidos.negocio;
  * Implementada por {@link PedidoService}.
  */
 
+import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import com.rabbit.pedidos.dto.RemitoDTO;
@@ -147,14 +148,45 @@ public interface IGestionPedidos {
      * entra en la lista de espera para otro repartidor (ADR-037). Conserva
      * su cobro: al reasignarlo no se cobra de nuevo.
      *
+     * Si estaba EN_CAMINO y el motivo implica haber ido a la dirección,
+     * cuenta como un intento de entrega. Al agotar los intentos
+     * (IntentosDeEntrega), o si el cliente lo rechazó, pasa a
+     * DEVUELTO_AL_COMERCIO: el stock consignado vuelve al comercio y Pagos
+     * anula el cobro (ADR-041).
+     *
+     * Un paquete dañado vuelve al comercio sin reintentar, aunque no haya
+     * salido, y sin devolver el stock (ADR-045).
+     *
+     * Cada vez queda registrada la visita con su evidencia (ADR-045):
+     * motivo, comentario, hasta 3 fotos y dónde estaba el repartidor (ver
+     * EvidenciaDeVisita).
+     *
      * Solo el REPARTIDOR asignado o un ADMINISTRADOR.
      *
      * @param idPedido pedido a devolver
-     * @param motivo por qué no se entregó (obligatorio)
+     * @param datos motivo (obligatorio), comentario, fotos y ubicación
      * @throws ValidacionException si no es suyo, no está en reparto, lo
-     *         lleva un transportista o falta el motivo
+     *         lleva un transportista, falta el motivo o la evidencia que
+     *         pide ese motivo, o una foto no es válida
      */
-    void devolverADeposito(Long idPedido, String motivo);
+    void devolverADeposito(Long idPedido, com.rabbit.pedidos.dto.EntregaFallidaDTO datos);
+
+    /**
+     * Las visitas fallidas de un pedido con su evidencia (ADR-045), de la
+     * más vieja a la más nueva. El personal ve las de cualquier pedido; un
+     * COMERCIO, las de los suyos.
+     *
+     * @throws PedidoNoEncontradoException si no existe o no lo puede ver
+     */
+    java.util.List<com.rabbit.pedidos.dto.IntentoEntregaDTO> listarIntentosDeEntrega(Long idPedido);
+
+    /**
+     * Una foto de una visita fallida (ADR-045), con el mismo criterio que
+     * listarIntentosDeEntrega.
+     *
+     * @throws PedidoNoEncontradoException si no existe o no la puede ver
+     */
+    com.rabbit.pedidos.dto.FotoDeVisitaDTO obtenerFotoDeVisita(Long idFoto);
 
     /**
      * Alternativa a confirmarPedido cuando el pedido no lo lleva un

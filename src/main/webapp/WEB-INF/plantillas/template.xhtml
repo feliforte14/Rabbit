@@ -66,6 +66,8 @@
                         styleClass="#{view.viewId == '/personal/entregas.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/personal/mapa" value="Mapa de repartidores"
                         styleClass="#{view.viewId == '/personal/mapa.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/personal/indicadores" value="Indicadores"
+                        styleClass="#{view.viewId == '/personal/indicadores.xhtml' ? 'activo' : ''}" />
                 <!-- Repartos: Repartidores Rabbit y Logística tercerizada, en pestañas (ver pestanas-repartos.xhtml). -->
                 <h:link outcome="/personal/repartidores" value="Repartos"
                         styleClass="#{view.viewId == '/personal/repartidores.xhtml' or view.viewId == '/personal/transportistas.xhtml' ? 'activo' : ''}" />
@@ -77,7 +79,7 @@
                 <h:link outcome="/personal/historial" value="Historial de reservas"
                         styleClass="#{view.viewId == '/personal/historial.xhtml' ? 'activo' : ''}" />
                 <p class="sidebar-seccion">Cobranza</p>
-                <h:link outcome="/personal/liquidaciones" value="Liquidaciones mensuales"
+                <h:link outcome="/personal/liquidaciones" value="Liquidaciones"
                         styleClass="#{view.viewId == '/personal/liquidaciones.xhtml' ? 'activo' : ''}" />
                 <h:panelGroup rendered="#{sesionBean.admin}">
                     <p class="sidebar-seccion">Administración</p>
@@ -89,6 +91,8 @@
             <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.comercio}">
                 <h:link outcome="/comercio/mis-pedidos" value="Mis pedidos"
                         styleClass="#{view.viewId == '/comercio/mis-pedidos.xhtml' ? 'activo' : ''}" />
+                <h:link outcome="/comercio/mis-indicadores" value="Mis indicadores"
+                        styleClass="#{view.viewId == '/comercio/mis-indicadores.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/comercio/mi-stock" value="Mi stock"
                         styleClass="#{view.viewId == '/comercio/mi-stock.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/comercio/puntos-picking" value="Mis puntos de picking"

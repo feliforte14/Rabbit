@@ -7,8 +7,10 @@ package com.rabbit.pedidos.presentacion;
  *
  * Es la versión para personas de GET /api/v1/seguimiento/{codigo}: usa la
  * misma operación de negocio (ISeguimientoPedido.consultarSeguimiento) y
- * muestra lo mismo, solo el estado. Nada de importes, direcciones ni datos
- * del comercio: la puede abrir cualquiera que tenga el código.
+ * muestra lo mismo: el estado, el día prometido (ADR-042) y, en camino, en
+ * qué parada del repartidor está y en qué franja llega (ADR-043). Nada de
+ * importes, direcciones ni datos de quien recibe: la puede abrir
+ * cualquiera que tenga el código.
  *
  * @RequestScoped: cada consulta es independiente; el código llega por la
  * URL (?codigo=RB-...), así el enlace se puede compartir tal cual.
@@ -18,8 +20,12 @@ import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.ValidacionException;
 import jakarta.enterprise.context.RequestScoped;
+import com.rabbit.infraestructura.Formatos;
 import com.rabbit.repartidores.dto.UbicacionDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
+import com.rabbit.ruteo.dto.LlegadaEstimadaDTO;
+import com.rabbit.ruteo.negocio.ILlegadaEstimada;
+import java.time.LocalDate;
 import jakarta.inject.Inject;
 import jakarta.json.Json;
 import jakarta.inject.Named;
@@ -41,6 +47,12 @@ public class SeguimientoBean {
 
     private UbicacionDTO ubicacion;
 
+    // En qué parada está y cuándo llega (ADR-043).
+    @Inject
+    private ILlegadaEstimada llegadas;
+
+    private LlegadaEstimadaDTO llegada;
+
     private String codigo;
     private PedidoDTO pedido;
     private boolean noEncontrado;
@@ -61,7 +73,46 @@ public class SeguimientoBean {
         // salió, y después no hay nada que seguir.
         if ("EN_CAMINO".equals(pedido.estado) && pedido.idRepartidor != null) {
             ubicacion = repartidores.ubicacionParaPedido(pedido.idRepartidor, pedido.id);
+            llegada = estimarLlegada(llegadas, pedido);
         }
+    }
+
+    public LlegadaEstimadaDTO getLlegada() { return llegada; }
+
+    /**
+     * La estimación nunca rompe el seguimiento: si falla hasta la entrada al
+     * EJB (por ejemplo, la identidad del @RunAs), se muestra sin horario.
+     * También la usa SeguimientoResource.
+     */
+    public static LlegadaEstimadaDTO estimarLlegada(ILlegadaEstimada llegadas, PedidoDTO pedido) {
+        try {
+            return llegadas.estimar(pedido.idRepartidor, pedido.id);
+        } catch (RuntimeException e) {
+            java.util.logging.Logger.getLogger(SeguimientoBean.class.getName())
+                    .warning("[Pedidos] Seguimiento sin horario estimado del pedido " + pedido.id + ": " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * "Llega hoy", "Llega mañana" o "Llega el viernes 17/10", antes de que
+     * salga a reparto (ADR-042). Null si no hay fecha prometida, si ya pasó
+     * o si una visita falló (la promesa original ya no vale).
+     */
+    public String getPromesa() {
+        if (pedido == null || pedido.fechaPrometida == null || pedido.intentosFallidos > 0
+                || !("PENDIENTE".equals(pedido.estado) || "CONFIRMADO".equals(pedido.estado))) {
+            return null;
+        }
+        LocalDate hoy = LocalDate.now();
+        if (pedido.fechaPrometida.isBefore(hoy)) {
+            return null;
+        }
+        return "Llega " + Formatos.diaRelativo(pedido.fechaPrometida, hoy);
+    }
+
+    public boolean isDevuelto() {
+        return pedido != null && "DEVUELTO_AL_COMERCIO".equals(pedido.estado);
     }
 
     /** El punto del repartidor para mapa.js, o null si no hay ubicación reciente. */
@@ -87,6 +138,11 @@ public class SeguimientoBean {
         return pedido != null && "CANCELADO".equals(pedido.estado);
     }
 
+    /** Cancelado o devuelto al comercio: no se dibuja la línea de tiempo. */
+    public boolean isFueraDeCamino() {
+        return isCancelado() || isDevuelto();
+    }
+
     /** "hecho", "actual" o "pendiente", para dibujar cada paso de la línea de tiempo. */
     public String claseDelPaso(String paso) {
         int actual = PASOS.indexOf(pedido.estado);
@@ -104,17 +160,22 @@ public class SeguimientoBean {
             case "EN_CAMINO": return "Tu pedido está en camino";
             case "ENTREGADO": return "¡Tu pedido fue entregado!";
             case "CANCELADO": return "El pedido fue cancelado";
+            case "DEVUELTO_AL_COMERCIO": return "No pudimos entregar tu pedido";
             default: return "Estado: " + pedido.estado;
         }
     }
 
     public String getDetalle() {
         switch (pedido.estado) {
-            case "PENDIENTE": return "La tienda ya nos pasó tu pedido. En breve lo confirmamos y le asignamos quién lo lleva.";
+            case "PENDIENTE": return pedido.intentosFallidos > 0
+                    ? "Pasamos y no pudimos entregarlo. Lo vamos a intentar de nuevo con otro repartidor."
+                    : "La tienda ya nos pasó tu pedido. En breve lo confirmamos y le asignamos quién lo lleva.";
             case "CONFIRMADO": return "Ya tiene quién lo lleve. Lo estamos por retirar.";
             case "EN_CAMINO": return "Ya salió y va hacia la dirección de entrega.";
             case "ENTREGADO": return "Llegó a destino. ¡Gracias por elegirnos!";
             case "CANCELADO": return "Si no lo esperabas, consultá con la tienda donde compraste.";
+            case "DEVUELTO_AL_COMERCIO": return "Después de intentarlo, se lo devolvimos a la tienda. "
+                    + "Comunicate con ella para coordinar otra entrega.";
             default: return "";
         }
     }

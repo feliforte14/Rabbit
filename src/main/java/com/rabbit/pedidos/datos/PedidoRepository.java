@@ -9,10 +9,13 @@ import com.rabbit.pedidos.datos.model.EstadoPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
 import com.rabbit.pedidos.datos.model.RemitoEntrega;
+import com.rabbit.pedidos.datos.model.FotoIntentoEntrega;
+import com.rabbit.pedidos.datos.model.IntentoEntrega;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.LockModeType;
 import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.TypedQuery;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -142,6 +145,34 @@ public class PedidoRepository {
                 .getResultList();
     }
 
+    // Cuántos esperan repartidor ahora, de un comercio o de toda la red
+    // (idComercio null): el tablero de indicadores (ADR-044).
+    // El filtro por comercio se agrega solo si hace falta: un parámetro null
+    // en "(:c IS NULL OR ...)" PostgreSQL no siempre sabe de qué tipo es.
+    public long contarEnEspera(Long idComercio) {
+        TypedQuery<Long> consulta = em.createQuery("SELECT COUNT(p) FROM Pedido p WHERE p.estado = :pendiente"
+                        + " AND p.enEsperaDesde IS NOT NULL" + (idComercio != null ? " AND p.idComercio = :comercio" : ""),
+                Long.class).setParameter("pendiente", EstadoPedido.PENDIENTE);
+        if (idComercio != null) {
+            consulta.setParameter("comercio", idComercio);
+        }
+        return consulta.getSingleResult();
+    }
+
+    // Pedidos recibidos en [desde, hasta), de un comercio o de toda la red
+    // (idComercio null), sin las líneas: el tablero de indicadores no las usa.
+    public List<Pedido> listarRecibidosEntre(LocalDateTime desde, LocalDateTime hasta, Long idComercio) {
+        TypedQuery<Pedido> consulta = em.createQuery("SELECT p FROM Pedido p WHERE p.fechaCreacion >= :desde"
+                        + " AND p.fechaCreacion < :hasta"
+                        + (idComercio != null ? " AND p.idComercio = :comercio" : ""), Pedido.class)
+                .setParameter("desde", desde)
+                .setParameter("hasta", hasta);
+        if (idComercio != null) {
+            consulta.setParameter("comercio", idComercio);
+        }
+        return consulta.getResultList();
+    }
+
     // Pedidos en viaje o por salir (CONFIRMADO o EN_CAMINO): el tablero de entregas.
     public List<Pedido> listarEntregasEnCurso() {
         return em.createQuery(
@@ -177,6 +208,27 @@ public class PedidoRepository {
                 .getSingleResult();
     }
 
+    // IDs de los pedidos que todavía no terminaron (ni entregados, ni
+    // cancelados, ni devueltos al comercio) con una línea de ese ítem de
+    // stock: si se cancelan, el stock vuelve a ese ítem.
+    public List<Long> listarIdsEnCursoConItem(Long idItem) {
+        return em.createQuery("SELECT DISTINCT l.pedido.id FROM LineaPedido l WHERE l.idItem = :idItem"
+                        + " AND l.pedido.estado NOT IN :terminados ORDER BY l.pedido.id", Long.class)
+                .setParameter("idItem", idItem)
+                .setParameter("terminados", List.of(EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO,
+                        EstadoPedido.DEVUELTO_AL_COMERCIO))
+                .getResultList();
+    }
+
+    // Pedidos del ERP sin sincronizar que piden ese ítem: al convertirse
+    // en pedido, lo reservan.
+    public long contarPedidosExternosPendientesConItem(Long idItem) {
+        return em.createQuery("SELECT COUNT(DISTINCT pe) FROM PedidoExterno pe JOIN pe.lineas l"
+                        + " WHERE l.idItem = :idItem AND pe.sincronizado = false"
+                        + " AND (pe.cancelado IS NULL OR pe.cancelado = false)", Long.class)
+                .setParameter("idItem", idItem).getSingleResult();
+    }
+
     // Pedidos del ERP del comercio que todavía esperan sincronizarse (ni
     // sincronizados, ni descartados, ni cancelados).
     public long contarPedidosExternosPendientesDeComercio(Long idComercio) {
@@ -196,9 +248,12 @@ public class PedidoRepository {
         List<Pedido> pedidos = em.createQuery("SELECT p FROM Pedido p WHERE p.idComercio = :id", Pedido.class)
                 .setParameter("id", idComercio).getResultList();
         if (!pedidos.isEmpty()) {
-            em.createQuery("DELETE FROM RemitoEntrega r WHERE r.idPedido IN :ids")
-                    .setParameter("ids", pedidos.stream().map(Pedido::getId).toList())
-                    .executeUpdate();
+            List<Long> ids = pedidos.stream().map(Pedido::getId).toList();
+            for (String entidad : List.of("RemitoEntrega", "FotoIntentoEntrega", "IntentoEntrega")) {
+                em.createQuery("DELETE FROM " + entidad + " x WHERE x.idPedido IN :ids")
+                        .setParameter("ids", ids)
+                        .executeUpdate();
+            }
         }
         pedidos.forEach(em::remove);
         List<PedidoExterno> externos = em.createQuery("SELECT pe FROM PedidoExterno pe WHERE pe.idComercio = :id", PedidoExterno.class)
@@ -240,6 +295,43 @@ public class PedidoRepository {
         return em.createQuery("SELECT r FROM RemitoEntrega r WHERE r.idPedido = :p", RemitoEntrega.class)
                 .setParameter("p", idPedido)
                 .getResultStream().findFirst().orElse(null);
+    }
+
+    // --- Visitas fallidas y sus fotos (ADR-045) ---
+
+    public void guardarIntento(IntentoEntrega intento) {
+        em.persist(intento);
+    }
+
+    public void guardarFotoDeIntento(FotoIntentoEntrega foto) {
+        em.persist(foto);
+    }
+
+    /** Las visitas fallidas del pedido, de la más vieja a la más nueva. */
+    public List<IntentoEntrega> listarIntentosDePedido(Long idPedido) {
+        return em.createQuery("SELECT i FROM IntentoEntrega i WHERE i.idPedido = :p ORDER BY i.fecha, i.id",
+                        IntentoEntrega.class)
+                .setParameter("p", idPedido)
+                .getResultList();
+    }
+
+    /**
+     * Los IDs de las fotos de esas visitas, en orden: [idIntento, idFoto].
+     * Sin la imagen, que se lee recién al mostrarla.
+     */
+    public List<Object[]> listarIdsDeFotos(List<Long> idsIntento) {
+        if (idsIntento.isEmpty()) {
+            return List.of();
+        }
+        return em.createQuery("SELECT f.idIntento, f.id FROM FotoIntentoEntrega f WHERE f.idIntento IN :ids"
+                        + " ORDER BY f.idIntento, f.orden", Object[].class)
+                .setParameter("ids", idsIntento)
+                .getResultList();
+    }
+
+    /** La foto, o null si no existe. */
+    public FotoIntentoEntrega buscarFotoDeIntento(Long idFoto) {
+        return em.find(FotoIntentoEntrega.class, idFoto);
     }
 
     // --- Para la liquidación mensual (ADR-034) ---

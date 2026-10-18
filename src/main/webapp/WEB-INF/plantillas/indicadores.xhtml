@@ -1,0 +1,100 @@
+<!--
+    Fragmento comun del tablero de indicadores (ADR-044): lo incluyen
+    personal/indicadores.xhtml y comercio/mis-indicadores.xhtml con
+    <ui:param name="t" value="\#{indicadoresBean.tablero}" />. Esta en
+    WEB-INF: no se puede pedir por URL.
+
+    Arriba, la fila de KPIs; abajo, los graficos (indicadores.js). Cada
+    grafico trae sus datos en data-datos y tiene leyenda, tooltip y vista
+    de tabla, asi ningun valor depende solo del color o del mouse.
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                xmlns:h="jakarta.faces.html"
+                xmlns:f="jakarta.faces.core"
+                xmlns:ui="jakarta.faces.facelets">
+    <p class="ayuda">
+        Pedidos recibidos del #{t.desdeTexto} al #{t.hastaTexto}: #{t.recibidos}
+        (#{t.entregados} entregados, #{t.enCurso} en reparto, #{t.pendientes} pendientes,
+        #{t.devueltos} devueltos al comercio y #{t.cancelados} cancelados).
+        Las flechas comparan con el período anterior del mismo largo
+        (#{t.anterior.desdeTexto} al #{t.anterior.hastaTexto}).
+    </p>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <p class="stat-label">Pedidos recibidos</p>
+            <p class="stat-valor">#{t.recibidos}</p>
+            <p class="stat-nota">#{t.entregados} entregados en el período</p>
+            <ui:fragment rendered="#{not empty t.deltaRecibidos}">
+                <p class="#{indicadoresBean.claseDelta(t.deltaRecibidos, true)}">#{indicadoresBean.delta(t.deltaRecibidos, '%')}</p>
+            </ui:fragment>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Entregados a tiempo</p>
+            <p class="stat-valor">#{indicadoresBean.porcentaje(t.porcentajeATiempo)}</p>
+            <ui:fragment rendered="#{not empty t.porcentajeATiempo}">
+                <div class="viz-medidor" aria-hidden="true"><span style="width: #{t.porcentajeATiempo}%"></span></div>
+            </ui:fragment>
+            <p class="stat-nota">#{t.entregadosATiempo} de #{t.entregadosConPromesa} con fecha prometida</p>
+            <ui:fragment rendered="#{not empty t.deltaATiempo}">
+                <p class="#{indicadoresBean.claseDelta(t.deltaATiempo, true)}">#{indicadoresBean.delta(t.deltaATiempo, 'pts')}</p>
+            </ui:fragment>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Entregados al primer intento</p>
+            <p class="stat-valor">#{indicadoresBean.porcentaje(t.porcentajePrimerIntento)}</p>
+            <ui:fragment rendered="#{not empty t.porcentajePrimerIntento}">
+                <div class="viz-medidor" aria-hidden="true"><span style="width: #{t.porcentajePrimerIntento}%"></span></div>
+            </ui:fragment>
+            <p class="stat-nota">#{t.alPrimerIntento} de #{t.terminados} que terminaron el reparto</p>
+            <ui:fragment rendered="#{not empty t.deltaPrimerIntento}">
+                <p class="#{indicadoresBean.claseDelta(t.deltaPrimerIntento, true)}">#{indicadoresBean.delta(t.deltaPrimerIntento, 'pts')}</p>
+            </ui:fragment>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">De recibido a entregado</p>
+            <p class="stat-valor">#{t.horasPromedioEntregaTexto}</p>
+            <p class="stat-nota">promedio de los entregados</p>
+            <!-- Menos horas es mejor: bajar se pinta como mejora. -->
+            <ui:fragment rendered="#{not empty t.deltaHoras}">
+                <p class="#{indicadoresBean.claseDelta(t.deltaHoras, false)}">#{indicadoresBean.delta(t.deltaHoras, 'h')}</p>
+            </ui:fragment>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">En lista de espera</p>
+            <p class="stat-valor">#{t.enEsperaAhora}</p>
+            <p class="stat-nota">ahora, esperando repartidor</p>
+        </div>
+        <div class="stat-card">
+            <p class="stat-label">Costo por envío</p>
+            <p class="stat-valor">#{empty t.costoPorEnvio ? '—' : etiquetas.pesos(t.costoPorEnvio)}</p>
+            <p class="stat-nota">mes en curso: abono y cargos / envíos</p>
+        </div>
+    </div>
+
+    <div class="viz-tablero">
+        <figure class="viz-tarjeta viz-ancha">
+            <figcaption class="viz-titulo">Entregas por día
+                <span class="viz-subtitulo">De los pedidos recibidos en el período, según si llegaron el día prometido o antes</span>
+            </figcaption>
+            <div class="viz-grafico" data-grafico="columnas-apiladas" data-datos="#{indicadoresBean.jsonPorDia}"
+                 data-vacio="No hubo entregas en el período."></div>
+        </figure>
+        <figure class="viz-tarjeta">
+            <figcaption class="viz-titulo">Pedidos por estado
+                <span class="viz-subtitulo">Los recibidos en el período, según cómo están hoy</span>
+            </figcaption>
+            <div class="viz-grafico" data-grafico="barras" data-datos="#{indicadoresBean.jsonEstados}"
+                 data-vacio="No se recibieron pedidos en el período."></div>
+        </figure>
+        <figure class="viz-tarjeta">
+            <figcaption class="viz-titulo">Por qué fallaron las visitas
+                <span class="viz-subtitulo">El motivo de la última visita fallida de cada pedido</span>
+            </figcaption>
+            <div class="viz-grafico" data-grafico="barras" data-datos="#{indicadoresBean.jsonMotivos}"
+                 data-vacio="Ninguna visita fallida en el período."></div>
+        </figure>
+        <ui:insert name="graficosExtra" />
+    </div>
+    <h:outputScript library="rabbit" name="indicadores.js" />
+</ui:composition>

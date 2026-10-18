@@ -31,7 +31,18 @@ class PedidoExternoRequestTest {
         r.importe = new BigDecimal("2500");
         r.medioPago = MedioPago.PREPAGO;
         r.direccionEntrega = "Av. Corrientes 1234, CABA";
+        r.emailDestinatario = "cliente@correo.com";
         return r;
+    }
+
+    @Test
+    void sinEmailDeQuienRecibeEs400ConElCampo() {
+        PedidoExternoRequest r = valido();
+        r.emailDestinatario = null;
+        assertEquals(Set.of("emailDestinatario"), camposConError(r));
+        r.emailDestinatario = "   ";
+        r.normalizar();
+        assertEquals(Set.of("emailDestinatario"), camposConError(r));
     }
 
     private static Set<String> camposConError(PedidoExternoRequest r) {
@@ -67,5 +78,28 @@ class PedidoExternoRequestTest {
         assertEquals(1, errores.size());
         assertTrue(errores.iterator().next().getPropertyPath().toString().contains("cantidad"));
         assertEquals("La cantidad debe ser mayor a cero", errores.iterator().next().getMessage());
+    }
+
+    @Test
+    void quienRecibeEsOpcionalPeroElEmailTieneQueSerValido() {
+        // ADR-039: sin destinatario sigue siendo válido (no rompe a los ERP de antes).
+        PedidoExternoRequest r = valido();
+        r.nombreDestinatario = "Ana Pérez";
+        r.telefonoDestinatario = "+54 11 4567-8901";
+        r.emailDestinatario = "ana@correo.com";
+        assertTrue(validador.validate(r).isEmpty());
+        r.emailDestinatario = "ana.correo.com";
+        assertEquals(Set.of("emailDestinatario"), camposConError(r));
+    }
+
+    @Test
+    void losEspaciosDeMasNoHacenInvalidoAlEmail() {
+        PedidoExternoRequest r = valido();
+        r.emailDestinatario = "  Ana@Correo.com ";
+        r.nombreDestinatario = "   ";
+        r.normalizar();
+        assertTrue(validador.validate(r).isEmpty());
+        assertEquals("Ana@Correo.com", r.emailDestinatario);
+        assertNull(r.nombreDestinatario);
     }
 }
