@@ -31,7 +31,18 @@ class PedidoExternoRequestTest {
         r.importe = new BigDecimal("2500");
         r.medioPago = MedioPago.PREPAGO;
         r.direccionEntrega = "Av. Corrientes 1234, CABA";
+        r.emailDestinatario = "cliente@correo.com";
         return r;
+    }
+
+    @Test
+    void sinEmailDeQuienRecibeEs400ConElCampo() {
+        PedidoExternoRequest r = valido();
+        r.emailDestinatario = null;
+        assertEquals(Set.of("emailDestinatario"), camposConError(r));
+        r.emailDestinatario = "   ";
+        r.normalizar();
+        assertEquals(Set.of("emailDestinatario"), camposConError(r));
     }
 
     private static Set<String> camposConError(PedidoExternoRequest r) {

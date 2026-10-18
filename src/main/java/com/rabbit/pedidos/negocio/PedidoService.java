@@ -224,10 +224,11 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         }
         OrigenPedido origen = datos.origen != null ? datos.origen : OrigenPedido.STOCK_CONSIGNADO;
         validarPesoInformado(datos.pesoKg, origen);
-        // Quién recibe (ADR-039): opcionales, pero si vienen tienen que servir.
+        // Quién recibe (ADR-039): el email es obligatorio (por ahí se le
+        // avisa); nombre y teléfono, opcionales, pero si vienen tienen que servir.
         String nombreDestinatario = Destinatarios.nombre(datos.nombreDestinatario);
         String telefonoDestinatario = Destinatarios.telefono(datos.telefonoDestinatario);
-        String emailDestinatario = Destinatarios.email(datos.emailDestinatario);
+        String emailDestinatario = Destinatarios.emailObligatorio(datos.emailDestinatario);
 
         // Idempotencia: si el ERP no recibió la respuesta (timeout) y
         // reintenta, la misma clave con el mismo pedido devuelve el que ya
@@ -950,9 +951,17 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             LOG.info("[Pedidos] Pedido externo " + idPedidoExterno + " cancelado por el ERP antes de sincronizarse");
         } else if (externo.getIdPedido() != null) {
             Pedido pedido = obtenerParaActualizarOFallar(externo.getIdPedido());
-            if (pedido.getEstado() == EstadoPedido.PENDIENTE && pedido.isCobroRegistrado()) {
+            String noSePuede = ReglaDeCancelacion.motivoParaNoCancelar(
+                    pedido.getId(), pedido.getEstado(), pedido.isSalioAReparto());
+            if (pedido.getEstado() == EstadoPedido.CANCELADO) {
+                // Ya cancelado: idempotente, no queda nada que hacer.
+            } else if (noSePuede != null) {
+                throw new CancelacionNoPermitidaException(noSePuede);
+            } else if (pedido.getEstado() == EstadoPedido.PENDIENTE && pedido.isCobroRegistrado()) {
+                // Devuelto sin haber salido (por ejemplo, no entraba en el
+                // vehículo): ya tiene cobro, que solo anula el personal.
                 throw new CancelacionNoPermitidaException("El pedido " + pedido.getId()
-                        + " ya salió a reparto y volvió al depósito: lo puede cancelar el personal de Rabbit.");
+                        + " ya fue confirmado y tiene su cobro: lo puede cancelar el personal de Rabbit.");
             } else if (pedido.getEstado() == EstadoPedido.PENDIENTE) {
                 cancelar(pedido);
                 LOG.info("[Pedidos] Pedido " + pedido.getId() + " cancelado por el ERP");
@@ -981,6 +990,12 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     // personal (cancelarPedido) y el ERP (cancelarPedidoExterno, solo PENDIENTE).
     private void cancelar(Pedido pedido) {
         Long idPedido = pedido.getId();
+        // Ya salió a reparto (o terminó): no se cancela, con un mensaje claro
+        // en lugar del "no puede pasar a CANCELADO" de la máquina de estados.
+        String noSePuede = ReglaDeCancelacion.motivoParaNoCancelar(idPedido, pedido.getEstado(), pedido.isSalioAReparto());
+        if (noSePuede != null) {
+            throw new CancelacionNoPermitidaException(noSePuede);
+        }
         // Se valida antes de devolver el stock: si el pedido ya está
         // EN_CAMINO o ENTREGADO, la mercadería no está para devolverla.
         validarTransicion(pedido, EstadoPedido.CANCELADO);
@@ -1244,6 +1259,10 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             pedido.setEnEsperaDesde(null);
             pedido.setMotivoEspera(null);
             pedido.setIdZonaEspera(null);
+        }
+        if (destino == EstadoPedido.EN_CAMINO) {
+            // Desde acá ya no se puede cancelar (ReglaDeCancelacion).
+            pedido.setSalioAReparto(true);
         }
         pedido.setEstado(destino);
         pedido.setFechaActualizacion(LocalDateTime.now());

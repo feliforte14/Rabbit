@@ -32,9 +32,9 @@ de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
 
 - [x] Si el repartidor no tiene lugar, se le asigna a otro; si nadie,
       lista de espera automática, sin cobrar (ADR-037).
-- [x] Hora de corte de la hoja de ruta: **21:00**, definida por el
-      equipo; se cambia sin tocar código (`rabbit.ruteo.hora-corte`,
-      ADR-037).
+- [x] Hora de corte de la hoja de ruta: **07:00** (el 18/10 el equipo la
+      pasó de 21:00 a 07:00); se cambia sin tocar código
+      (`rabbit.ruteo.hora-corte`, `ninguno` para demos; ADR-037).
 - [x] "Devolver a depósito" desde Mis entregas: vuelve a la lista de
       espera para otro repartidor, sin cobrar de nuevo (ADR-037).
 - [x] Hoja de ruta recomendada con link a Google Maps en tramos; la foto
@@ -64,7 +64,7 @@ Probadas de punta a punta en WildFly con una base local (sección 12 de
 [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)); falta desplegarlas
 contra la base compartida.
 
-- [x] Datos de quien recibe: nombre, teléfono y email, opcionales (ADR-039).
+- [x] Datos de quien recibe: nombre y teléfono opcionales; el email, obligatorio desde el 18/10 (ADR-039).
 - [x] Avisos por mail a quien recibe en cada cambio, con un tercer
       suscriptor del tópico (ADR-040).
 - [x] Entrega fallida con motivo fijo e intentos; al agotarlos, estado

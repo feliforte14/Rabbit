@@ -92,7 +92,7 @@ en el SQL Editor de Supabase.
 ### Colección de Postman
 
 [`Rabbit.postman_collection.json`](Rabbit.postman_collection.json):
-**Import → File** en Postman. Trae 45 requests ordenados por prueba (los
+**Import → File** en Postman. Trae 46 requests ordenados por prueba (los
 códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 
 | Carpeta | Qué prueba |
@@ -124,7 +124,7 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 | `rabbit.transportista.simulador.segundos` | `20` | Cada cuántos segundos avanza un envío simulado. Menos de 15 hace que el pedido salte de Confirmado a Entregado | No |
 | `rabbit.cola.consumidores` | `1` | Consumidores de la cola de pedidos del ERP | Sí |
 | `rabbit.sincronizador.pausado` | sin definir | `true`: pausa el timer de respaldo de la cola (lo usa la prueba de escalabilidad) | No |
-| `rabbit.ruteo.hora-corte` | `21:00` | `HH:mm`: desde esa hora los pedidos que se confirman van a la lista de espera para el día siguiente (ADR-037), y los que llegan reciben fecha prometida para mañana (ADR-042). Para probarlo de día, `00:01`; para una demo después de las 21, `ninguno` | No |
+| `rabbit.ruteo.hora-corte` | `07:00` | `HH:mm`: desde esa hora los pedidos que se confirman van a la lista de espera para el día siguiente (ADR-037), y los que llegan reciben fecha prometida para mañana (ADR-042). Para probarlo de día, `00:01`; para una demo después de las 21, `ninguno` | No |
 | `rabbit.entregas.max-intentos` | `2` | Visitas fallidas antes de devolver el pedido al comercio (ADR-041). Con `1`, la primera visita fallida ya lo devuelve | No |
 | `rabbit.ruteo.minutos-por-parada` | `20` | Minutos por parada para la franja horaria del seguimiento (ADR-043) | No |
 | `rabbit.url-publica` | `https://localhost:8443/Rabbit` | Base del link al seguimiento en los avisos a quien recibe (ADR-040) | No |
@@ -272,12 +272,19 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
   tópico). "Mi stock" muestra lo de A4; "Mis puntos de picking" permite
   agregar, dar de baja y reactivar.
 
+- [ ] **D7. No se cancela lo que salió (ADR-048).** Con un pedido En
+  camino, en Pedidos no está el botón Cancelar ("Ya salió a reparto…").
+  Devolverlo al depósito con "Cliente ausente": vuelve a Pendiente para
+  otra visita y sigue sin poder cancelarse. Por la API, cancelarlo da 409.
+- [ ] **D8. Email obligatorio (ADR-039).** Simular un pedido sin email de
+  quien recibe: la pantalla lo pide. Por la API, 400 con
+  `emailDestinatario` en `errores` (Postman, carpeta 2, paso 9).
 - [ ] **D6. Lista de espera y hora de corte (ADR-037).** Sin lugar en
   ningún repartidor, Confirmar deja el pedido "En espera" sin cobrar; al
   liberarse lugar se asigna solo. Con `rabbit.ruteo.hora-corte=00:01`,
   todo lo que se confirma queda en espera aunque haya lugar; al quitarla
-  (vuelve a las 21:00) se asigna en menos de un minuto. Después de las
-  21 pasa lo mismo sin configurar nada; para probar de noche, `ninguno`.
+  (vuelve a las 07:00) todo sigue en espera hasta el día siguiente, salvo
+  que se pruebe antes de las 7. **Para probar durante el día, `ninguno`.**
 
 ### E. Transportistas (REST y SOAP legado)
 

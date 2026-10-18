@@ -4,10 +4,13 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
- * Datos de quien recibe el pedido (ADR-039): nombre, teléfono y email,
- * todos opcionales para no romper a los ERP que ya integran. Acá se
- * normalizan (sin espacios de más, vacío = null) y se validan, igual para
- * la API y para la pantalla.
+ * Datos de quien recibe el pedido (ADR-039): nombre, teléfono y email.
+ * Desde el 18/10/2026 el email es obligatorio en el alta de un pedido
+ * nuevo (emailObligatorio), porque es por donde Rabbit le avisa cada cambio
+ * de estado; nombre y teléfono siguen opcionales. Los pedidos que ya
+ * existían sin email no se tocan (email() sigue aceptando null para
+ * leerlos y para la huella). Acá se normalizan (sin espacios de más,
+ * vacío = null) y se validan, igual para la API y para la pantalla.
  *
  * El formato es permisivo a propósito: el teléfono admite +, espacios,
  * guiones y paréntesis, como lo escribe la gente ("+54 11 4567-8901"). Un
@@ -55,6 +58,18 @@ final class Destinatarios {
         }
         return email.toLowerCase(Locale.ROOT);
     }
+
+    /** Como email(), pero sin email no se puede dar de alta un pedido nuevo. */
+    static String emailObligatorio(String valor) {
+        String email = email(valor);
+        if (email == null) {
+            throw new ValidacionException(FALTA_EMAIL);
+        }
+        return email;
+    }
+
+    static final String FALTA_EMAIL = "Falta el email de quien recibe: es obligatorio porque Rabbit le avisa"
+            + " por mail cada novedad del pedido (por ejemplo, ana@correo.com)";
 
     // Espacios de más afuera y repetidos adentro; vacío = no vino.
     private static String limpiar(String valor) {

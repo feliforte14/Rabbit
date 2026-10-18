@@ -64,9 +64,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
   Todo por HTTPS, con límite de intentos en el login.
 - **Notificaciones:** cada cambio de estado le llega al comercio en su
-  portal y, si hay un servidor de correo configurado, por mail. Si el ERP
-  mandó el email de quien recibe, a esa persona también, con el link al
-  seguimiento (ADR-040).
+  portal y, si hay un servidor de correo configurado, por mail. A quien
+  recibe también, al email que manda el ERP con cada pedido (obligatorio
+  desde el 18/10), con el link al seguimiento (ADR-039, ADR-040).
 - **Indicadores:** tablero para el personal (toda la red, un comercio y
   por repartidor) y para cada comercio: entregas a tiempo, al primer
   intento, horas de recibido a entregado, lista de espera y costo por
@@ -166,7 +166,7 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (44 ADRs)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (48 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
@@ -440,20 +440,33 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tari
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-kilo:add(value=100)"
 ```
 
-### 7b. (Opcional) Hora de corte de la hoja de ruta
+### 7b. Hora de corte de la hoja de ruta (leer antes de una demo)
 
-Por defecto, **21:00** (la definió el equipo). Desde esa hora no se
-suman pedidos a la hoja del día de ningún repartidor: lo que se confirma
-después queda en la lista de espera y se asigna solo al día siguiente,
-antes del corte (ADR-037). Para cambiarla, sin redesplegar:
+Por defecto, **07:00** (la definió el equipo: a las 7 se cierra la hoja
+del día, así hay tiempo de preparar los pedidos y salir a las 9). Desde
+esa hora no se suman pedidos a la hoja del día de ningún repartidor: lo
+que se confirma después queda **en la lista de espera** y se asigna solo
+al día siguiente, antes de las 7 (ADR-037). La fecha prometida al
+comercio (ADR-042) sigue la misma regla.
+
+> **Ojo:** durante el día ya pasó el corte, así que **todo lo que se
+> confirme va a quedar "En espera"**. Para una demo o para probar a
+> cualquier hora, sacá el corte con `ninguno` antes de empezar y
+> volvé a ponerlo al terminar. Se lee en cada uso: no hace falta
+> redesplegar ni reiniciar.
 
 ```bash
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=18:30)"
-# sin corte (por ejemplo, para una demo después de las 21):
+# sin corte (demos y pruebas durante el día):
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=ninguno)"
-# volver a las 21:00:
+# volver al corte de las 07:00:
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:remove"
+# otra hora (si ya existe la propiedad, primero el remove):
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=08:30)"
 ```
+
+Para ver si está configurada:
+`$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:read-resource"`
+(`failed` = no está definida, rige 07:00).
 
 ### 8. (Opcional) Avisos por mail
 

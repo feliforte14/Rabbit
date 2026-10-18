@@ -108,7 +108,7 @@ Otros detalles de cada componente:
   pesimista para que dos confirmaciones simultáneas no carguen de más al
   mismo repartidor. Se libera al entregar, cancelar o devolver el pedido.
 - **Lista de espera (ADR-037):** si no le entra a nadie o ya pasó la hora
-  de corte (`HoraDeCorte`: 21:00 por defecto, `rabbit.ruteo.hora-corte` la cambia), el
+  de corte (`HoraDeCorte`: 07:00 por defecto, `rabbit.ruteo.hora-corte` la cambia), el
   pedido queda PENDIENTE con `enEsperaDesde`, sin cobrar.
   `AsignadorDeEspera` (`@Singleton`, `@RunAs("OPERADOR")`) recorre la
   fila cada minuto y apenas un pedido se entrega, cancela o devuelve
@@ -266,11 +266,12 @@ stateDiagram-v2
     DEVUELTO_AL_COMERCIO --> [*]
 ```
 
-- **EN_CAMINO no se puede cancelar:** la mercadería ya salió con el
-  repartidor, no está en el depósito para devolver el stock. Lo que sí
-  puede pasar es que el repartidor lo **devuelva al depósito**: vuelve a
-  PENDIENTE en la lista de espera, con su cobro, para otro repartidor
-  (ADR-037).
+- **Un pedido que salió a reparto no se cancela (ADR-048):** ni EN_CAMINO
+  ni después, si volvió al depósito para otra visita (`salioAReparto`,
+  `ReglaDeCancelacion`). Solo queda entregarlo; si no se puede, el
+  repartidor lo **devuelve al depósito** (entrega fallida): vuelve a
+  PENDIENTE en la lista de espera para otra visita (ADR-037) o, sin
+  visitas, termina DEVUELTO_AL_COMERCIO.
 - **Las visitas tienen límite (ADR-041):** cada devolución desde
   EN_CAMINO con un motivo que implica haber ido a la dirección cuenta como
   visita. Con 2 (`rabbit.entregas.max-intentos`) o si el cliente lo

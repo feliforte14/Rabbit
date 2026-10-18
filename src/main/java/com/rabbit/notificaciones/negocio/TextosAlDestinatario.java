@@ -76,16 +76,17 @@ final class TextosAlDestinatario {
                     + "No tenés que hacer nada: lo lleva otro repartidor y te avisamos cuando salga.";
         }
         String queHacer = switch (m) {
-            case CLIENTE_AUSENTE -> "Pasamos a entregar tu pedido y no había nadie. Si no vas a estar, dejá a alguien"
-                    + " que pueda recibirlo.";
+            case CLIENTE_AUSENTE -> "Pasamos a entregar tu pedido y no había nadie para recibirlo. Si no vas a"
+                    + " estar, dejá a alguien que pueda recibirlo.";
             case DIRECCION_INCORRECTA -> "Pasamos a entregar tu pedido y no pudimos encontrar la dirección. Comunicate"
                     + " con " + d.comercio() + " para confirmarla o corregirla.";
             case NADIE_HABILITADO -> "Pasamos a entregar tu pedido pero quien estaba no podía recibirlo. Tiene que"
                     + " recibirlo una persona mayor de edad con DNI (y el código de entrega, si te lo pidieron).";
             case DOMICILIO_CERRADO -> "Pasamos a entregar tu pedido y el lugar estaba cerrado. Si es un local o"
                     + " tiene horario, avisale a " + d.comercio() + " en qué horario se puede entregar.";
-            case ZONA_PELIGROSA -> "Hoy no pudimos llegar a la dirección de forma segura.";
-            default -> "Pasamos a entregar tu pedido y no pudimos.";
+            case ZONA_PELIGROSA -> "Hoy no pudimos llegar a la dirección de forma segura. Si podés recibirlo en otra"
+                    + " dirección u horario, avisale a " + d.comercio() + ".";
+            default -> "Pasamos a entregar tu pedido y no pudimos hacerlo.";
         };
         int siguiente = d.visitas() + 1;
         String despues = siguiente >= d.maximo()
@@ -98,7 +99,7 @@ final class TextosAlDestinatario {
     private static String devuelto(Datos d) {
         MotivoEntregaFallida m = d.motivo();
         if (m == MotivoEntregaFallida.RECHAZADO) {
-            return "Registramos que no recibiste el pedido y se lo devolvimos a " + d.comercio()
+            return "Registramos que no quisiste recibir el pedido y se lo devolvimos a " + d.comercio()
                     + ". Por cualquier consulta, comunicate con la tienda.";
         }
         if (m == MotivoEntregaFallida.PAQUETE_DANADO) {
@@ -106,7 +107,7 @@ final class TextosAlDestinatario {
                     + d.comercio() + ": comunicate con la tienda para coordinar un reemplazo.";
         }
         String veces = d.visitas() > 1 ? " después de " + d.visitas() + " visitas" : "";
-        return "No pudimos entregarlo" + veces + (m != null ? " (" + m.getDescripcion().toLowerCase() + ")" : "")
+        return "No pudimos entregar tu pedido" + veces + (m != null ? " (" + m.getDescripcion().toLowerCase() + ")" : "")
                 + " y se lo devolvimos a " + d.comercio() + ". Comunicate con la tienda para coordinar otra entrega.";
     }
 

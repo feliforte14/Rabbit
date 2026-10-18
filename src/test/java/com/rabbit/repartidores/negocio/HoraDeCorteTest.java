@@ -32,10 +32,12 @@ class HoraDeCorteTest {
     }
 
     @Test
-    void porDefectoElCorteEsALas21() {
-        assertEquals(LocalTime.of(21, 0), HoraDeCorte.configurada());
-        assertTrue(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(20, 59)));
-        assertFalse(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(21, 0)));
+    void porDefectoElCorteEsALas7() {
+        assertEquals(LocalTime.of(7, 0), HoraDeCorte.configurada());
+        assertTrue(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(6, 59)));
+        assertFalse(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(7, 0)));
+        // Durante el día ya pasó el corte: lo que se confirma sale mañana.
+        assertFalse(HoraDeCorte.permiteAsignar(HoraDeCorte.configurada(), LocalTime.of(15, 0)));
     }
 
     @Test
@@ -56,9 +58,10 @@ class HoraDeCorteTest {
     @Test
     void laFechaPrometidaEsHoySiLlegaAntesDelCorteYMananaSiNo() {
         LocalDate hoy = LocalDate.of(2026, 10, 16);
-        LocalTime corte = LocalTime.of(21, 0);
-        assertEquals(hoy, HoraDeCorte.diaDeEntrega(corte, hoy.atTime(20, 59)));
-        assertEquals(hoy.plusDays(1), HoraDeCorte.diaDeEntrega(corte, hoy.atTime(21, 0)));
+        LocalTime corte = HoraDeCorte.POR_DEFECTO;
+        assertEquals(hoy, HoraDeCorte.diaDeEntrega(corte, hoy.atTime(6, 59)));
+        assertEquals(hoy.plusDays(1), HoraDeCorte.diaDeEntrega(corte, hoy.atTime(7, 0)));
+        assertEquals(hoy.plusDays(1), HoraDeCorte.diaDeEntrega(corte, hoy.atTime(14, 30)));
         assertEquals(hoy, HoraDeCorte.diaDeEntrega(null, LocalDateTime.of(2026, 10, 16, 23, 30)));
     }
 

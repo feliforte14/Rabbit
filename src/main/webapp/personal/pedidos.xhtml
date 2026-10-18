@@ -166,10 +166,15 @@
                                      rendered="#{p.estado == 'CONFIRMADO' and empty pedidoBean.envio(p.id)}" />
                     <!-- La entrega la registra el repartidor con la foto del remito
                          (ADR-033); un administrador puede hacerlo abajo, con foto. -->
+                    <!-- Un pedido que ya salio a reparto no se cancela (ReglaDeCancelacion):
+                         solo queda entregarlo o, si no se puede, vuelve al comercio. -->
                     <h:commandButton value="Cancelar" styleClass="btn btn-danger"
                                      action="#{pedidoBean.cancelar(p.id)}"
-                                     rendered="#{p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO'}"
+                                     rendered="#{(p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO') and not p.salioAReparto}"
                                      onclick="return confirm('¿Cancelar el pedido? Si ya estaba cobrado, se le devuelve el pago al cliente.');" />
+                    <h:panelGroup rendered="#{p.salioAReparto and (p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO' or p.estado == 'EN_CAMINO')}">
+                        <span class="dato-secundario">Ya salió a reparto: no se puede cancelar</span>
+                    </h:panelGroup>
                 </h:column>
             </h:dataTable>
         </h:form>
@@ -341,7 +346,7 @@
             </h:column>
         </h:dataTable>
         <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.avisosADestinatarios}"
-                      value="Todavía no se avisó a ningún destinatario (solo se avisa si el ERP manda su email)." />
+                      value="Todavía no se avisó a ningún destinatario. (Los pedidos cargados antes de que el email fuera obligatorio pueden no tenerlo: a esos no se les avisa.)" />
 
         <h2>Recibidos del ERP</h2>
         <p class="ayuda">
@@ -454,8 +459,9 @@
                     ("CP 1414", "(1414)" o "C1414ABC").</p>
             </div>
 
-            <!-- Quien recibe (ADR-039): opcionales, como en la API. Con el email,
-                 Rabbit le avisa cada cambio de estado (ADR-040). -->
+            <!-- Quien recibe (ADR-039): el email es obligatorio, como en la API
+                 (Rabbit le avisa cada cambio de estado, ADR-040); nombre y
+                 telefono, opcionales. -->
             <div class="campo">
                 <h:outputLabel for="nombreDestinatario" value="Quién recibe (opcional)" />
                 <h:inputText id="nombreDestinatario" value="#{pedidoBean.nuevoPedido.nombreDestinatario}"
@@ -467,10 +473,12 @@
                              maxlength="30" pt:type="tel" />
             </div>
             <div class="campo">
-                <h:outputLabel for="emailDestinatario" value="Email de quien recibe (opcional)" />
+                <h:outputLabel styleClass="obligatorio" for="emailDestinatario" value="Email de quien recibe" />
                 <h:inputText id="emailDestinatario" value="#{pedidoBean.nuevoPedido.emailDestinatario}"
-                             maxlength="120" pt:type="email" />
-                <p class="ayuda">Si se carga, Rabbit le avisa cada cambio de estado con el link al seguimiento.</p>
+                             maxlength="120" pt:type="email" required="true" label="Email de quien recibe"
+                             requiredMessage="Ingresá el email de quien recibe: Rabbit le avisa por mail cada novedad del pedido" />
+                <h:message for="emailDestinatario" styleClass="error-campo" />
+                <p class="ayuda">Obligatorio: Rabbit le avisa cada cambio de estado con el link al seguimiento.</p>
             </div>
 
             <div class="campo">

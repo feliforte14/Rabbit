@@ -515,11 +515,11 @@ cargados) y pedidos `[PRUEBA]` de 1 y 2 kg.
 2. **Hora de corte:** `cli --command="/system-property=rabbit.ruteo.hora-corte:add(value=00:01)"`
    y confirmar uno de 1 kg aunque Juan tenga lugar → en espera, "Pasó la
    hora de corte (00:01): se asigna mañana". En Ruteo por zona,
-   "Despachar" muestra "En espera". Al quitar la propiedad vuelve el corte
-   de las 21:00 y, si es antes de esa hora, en menos de un minuto se
-   asigna solo. **Quitarla al terminar.** Si probás después de las 21,
-   todo queda en espera aunque no configures nada: para probar de noche,
-   `value=ninguno`.
+   "Despachar" muestra "En espera". Después, con `value=ninguno`, en menos
+   de un minuto se asigna solo. **Al terminar, quitar la propiedad** (vuelve
+   el corte de las 07:00). Ojo: con el corte de las 07:00, durante el día
+   todo queda en espera aunque no configures nada; para probar cualquier
+   otra cosa, primero `value=ninguno`.
 3. **Devolver a depósito:** como el repartidor, en un pedido Confirmado o
    En camino → "Devolver a depósito" → motivo ("Otro" pide el detalle).
    El pedido sale de su lista, vuelve a Pendiente en espera y en unos
@@ -563,7 +563,7 @@ suscripción (ADR-041).
    email no genera avisos. En el log:
    `[Notificaciones] Aviso al destinatario del pedido N: …`.
 3. **Fecha prometida (ADR-042):** la respuesta del POST ya trae
-   `fechaPrometida` (hoy si es antes de las 21:00). Con
+   `fechaPrometida` (hoy si es antes de las 07:00; durante el día, mañana). Con
    `rabbit.ruteo.hora-corte=00:01`, un pedido nuevo trae la de mañana y el
    seguimiento dice "Llega mañana". Sin código postal, no viene. Quitar la
    propiedad al terminar. Para probar los mails en local:
@@ -676,10 +676,10 @@ Misma rama. Necesita salida a internet (OpenStreetMap).
 | Eliminar un comercio dado de baja | Con pedidos en curso o entregados, stock o cuentas: rechazado. Con solo pedidos cancelados: se borra junto con ese historial, sin dejar nada huérfano |
 | Eliminar usuario / repartidor / zona (admin) | Se borra; un repartidor con cuenta o entregas en curso se rechaza; el operador no ve el botón |
 | Capacidad del repartidor | Si el primero no tiene lugar, se le asigna a otro; si nadie, queda en lista de espera sin cobrar y se asigna solo al liberarse uno |
-| Hora de corte (21:00, `rabbit.ruteo.hora-corte`) | Después del corte, lo que se confirma queda en espera para el día siguiente; con `ninguno`, no hay corte |
+| Hora de corte (07:00, `rabbit.ruteo.hora-corte`) | Después del corte, lo que se confirma queda en espera para el día siguiente; con `ninguno`, no hay corte |
 | Devolver pedido (repartidor) | Vuelve a Pendiente en espera y se reasigna a otro repartidor, sin cobrar de nuevo |
 | Hoja de ruta recomendada | Retiros primero y después la entrega más cercana (OpenStreetMap; las no ubicadas, por CP); link a Google Maps en tramos de hasta 9 paradas |
-| Quién recibe (opcional) | Se ve en Pedidos, Mis pedidos y Mis entregas; no en el seguimiento público. Email inválido: 400 |
+| Quién recibe (email obligatorio) | Se ve en Pedidos, Mis pedidos y Mis entregas; no en el seguimiento público. Sin email o con un email inválido: 400 |
 | Avisos a quien recibe | Una fila por cambio de estado en "Avisos a destinatarios" (y mail si hay SMTP); sin email, nada |
 | Fecha prometida | Viene en el 201 del alta; hoy antes del corte, mañana después |
 | Visitas fallidas | La primera vuelve a la espera; la segunda (o un rechazo) pasa a Devuelto al comercio, con stock devuelto y cobro anulado |
@@ -694,4 +694,6 @@ Misma rama. Necesita salida a internet (OpenStreetMap).
 | Pedido del ERP sin stock o de un comercio dado de baja | 201 y después Descartado, con el motivo |
 | Celular (comercio y repartidor), con los 3 temas | Menú desplegable, tablas como tarjetas, botones de 44 px, nada desborda |
 | Cancelar pedido externo tarde | 409 `cancelacion-no-permitida` (definitivo) o `stock-en-conflicto` (reintentar) |
+| Cancelar un pedido que ya salió a reparto (ADR-048) | En Pedidos no aparece el botón (dice "Ya salió a reparto: no se puede cancelar"), tampoco si volvió al depósito para otra visita; por la API, 409 con el mismo motivo |
+| Alta sin email de quien recibe (ADR-039) | API: 400 con `emailDestinatario` en `errores`; pantalla: "Ingresá el email de quien recibe…" |
 | Cuenta sin comercio asociado | Mensaje amigable, no el interno |

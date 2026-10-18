@@ -73,6 +73,7 @@ paths:
                   importe: 89000.00
                   medioPago: CONTRA_ENTREGA
                   direccionEntrega: Lima 775, CABA
+                  emailDestinatario: cliente@correo.com
                   pesoKg: 1.2
       responses:
         '201':
@@ -306,7 +307,7 @@ components:
   schemas:
     PedidoExternoRequest:
       type: object
-      required: [lineas, importe, medioPago, direccionEntrega]
+      required: [lineas, importe, medioPago, direccionEntrega, emailDestinatario]
       properties:
         origen:
           type: string
@@ -353,7 +354,8 @@ components:
           type: string
           format: email
           maxLength: 120
-          description: Opcional. Si viene, Rabbit le avisa por mail cada cambio de estado con el link al seguimiento (ADR-040).
+          description: |
+            Obligatorio desde el 18/10/2026: Rabbit le avisa por mail a quien recibe cada cambio de estado, con el link al seguimiento (ADR-040). Si falta, responde 400 con el campo `emailDestinatario` en `errores`. Los pedidos dados de alta antes de ese día pueden no tenerlo.
     LineaPedido:
       type: object
       required: [cantidad]
@@ -390,7 +392,7 @@ components:
           format: date
           description: |
             Día en que Rabbit se compromete a entregarlo (ADR-042): hoy si llegó
-            antes de la hora de corte (21:00), mañana si no. Viene desde la
+            antes de la hora de corte (07:00), mañana si no. Viene desde la
             respuesta del alta. No viene si el pedido no tiene código postal.
         intentosFallidos:
           type: integer

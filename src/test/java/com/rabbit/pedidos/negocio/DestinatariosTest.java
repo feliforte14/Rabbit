@@ -41,6 +41,16 @@ class DestinatariosTest {
     }
 
     @Test
+    void elEmailEsObligatorioParaUnPedidoNuevo() {
+        ValidacionException e = assertThrows(ValidacionException.class, () -> Destinatarios.emailObligatorio(null));
+        assertTrue(e.getMessage().startsWith("Falta el email de quien recibe"));
+        assertThrows(ValidacionException.class, () -> Destinatarios.emailObligatorio("   "));
+        assertEquals("ana@correo.com", Destinatarios.emailObligatorio(" Ana@Correo.com "));
+        // Los pedidos viejos sin email se siguen pudiendo leer.
+        assertNull(Destinatarios.email(null));
+    }
+
+    @Test
     void unNombreDemasiadoLargoSeRechaza() {
         assertThrows(ValidacionException.class, () -> Destinatarios.nombre("x".repeat(101)));
     }
