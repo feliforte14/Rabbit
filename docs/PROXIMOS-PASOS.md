@@ -99,6 +99,9 @@ también desplegadas contra la base compartida.
       sueltas, formularios alineados, filtros del Historial en barra,
       mapa oscuro en el tema oscuro, botones de 44 px en el celular.
 - [x] Script de limpieza con la opción C: borra todo menos las cuentas.
+- [x] Editar (producto, cantidad y peso) y eliminar el stock de un
+      depósito; eliminar, solo administrador y sin pedidos en curso que
+      lo usen (ADR-049).
 - [ ] Decidir si se mergea a `main`. Antes, pasar a "Aceptada" los
       ADR-039 a 047, que siguen como "Propuesta".
 
@@ -171,7 +174,7 @@ riesgo, sin tocar comportamiento:
       `Mensajes.ejecutar(Runnable accion, String mensajeExito)` que
       envuelva ese try/catch común.
 
-### Cobertura de tests (hoy hay 148 unitarios + 17 de integración)
+### Cobertura de tests (hoy hay 151 unitarios + 17 de integración)
 
 Los tests unitarios cubren sobre todo Pedidos (incluidos destinatario,
 intentos, regla de cancelación e indicadores), Seguridad, las reglas puras de Repartidores

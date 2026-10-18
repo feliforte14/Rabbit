@@ -765,7 +765,7 @@ Propuesta o Reemplazada.
   nada.
 - **Decisión:**
   - **Peso por unidad en el stock** (`ItemInventario.pesoKg`, obligatorio
-    en las altas, con "Corregir peso" para lo ya cargado). Un pedido de
+    en las altas; lo ya cargado se corrige con "Editar", ADR-049). Un pedido de
     stock consignado calcula su peso al sincronizarse: peso por unidad ×
     cantidad. Si algún ítem no tiene peso, el del pedido queda
     desconocido (null): contarlo como 0 lo haría pasar por liviano. La
@@ -1410,3 +1410,39 @@ Propuesta o Reemplazada.
 - **Consecuencias:** la columna nueva admite NULL (`update`). El personal
   ya no puede "cortar por lo sano" un pedido que salió: tiene que pasar
   por la entrega fallida, que deja la visita, el motivo y la evidencia.
+
+## ADR-049: Editar y eliminar el stock de un depósito
+
+- **Estado:** Aceptada (18/10/2026). Pedido del equipo.
+- **Contexto:** en "Depósitos y stock" solo se podía cargar stock y
+  corregir el peso. Un producto mal escrito, una cantidad que no coincidía
+  con lo que había en el galpón o un producto que ya no se guarda no
+  tenían arreglo desde la aplicación.
+- **Decisión:**
+  - **Editar** (personal: administrador y operador): cada fila tiene un
+    botón "Editar" que abre un formulario con el producto, la cantidad en
+    el depósito y el peso por unidad (reemplaza a "Corregir peso"). El
+    comercio dueño no se cambia: sería pasarle mercadería a otro. La
+    cantidad no puede quedar por debajo de lo **reservado** (ya está
+    comprometido con un pedido que se está armando), y el nombre no puede
+    repetir otro producto del mismo comercio en ese depósito. Si alguien
+    reserva del mismo ítem mientras tanto, el bloqueo optimista (`@Version`)
+    rechaza el cambio con un mensaje para volver a abrirlo.
+  - **Eliminar** (solo administrador, como el resto de las eliminaciones,
+    ADR-036): borra el ítem. No se puede si tiene unidades reservadas, si
+    lo usa un pedido **en curso** (ni entregado, ni cancelado, ni devuelto
+    al comercio) o un pedido del ERP sin procesar: si se cancela, el stock
+    tiene que volver a ese ítem. Lo comprueba Pedidos con el evento
+    `EliminacionDeItem`, igual que `EliminacionDeComercio`, así Inventario
+    no depende de Pedidos.
+  - Las reservas del ítem **quedan en el historial**: dejan de apuntarle
+    (`item_id` en NULL) y conservan el nombre del producto, la cantidad y
+    el estado. Los pedidos terminados guardan el nombre en cada línea.
+  - Las reglas de cantidad están en `ReglasDeStock` (con tests).
+- **Alternativa descartada:** dar de baja en vez de borrar (un ítem
+  oculto con stock 0). Obligaba a filtrar los dados de baja en todas las
+  consultas de stock y a decidir qué hacer si volvía mercadería a un ítem
+  oculto. Con las condiciones de arriba, borrar no deja nada colgado.
+- **Consecuencias:** en el Historial, el filtro por depósito no encuentra
+  las reservas de un ítem eliminado (ya no se sabe en qué depósito
+  estaba); con "Todos" siguen apareciendo.

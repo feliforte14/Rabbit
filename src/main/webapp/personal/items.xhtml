@@ -2,7 +2,8 @@
 <!--
     VISTA (Facelet) - Capa de Presentacion.
     Administra el stock de UN deposito puntual, recibido por query param
-    (?idDeposito=X). Se bindea a itemInventarioBean (ItemInventarioBean.java).
+    (?idDeposito=X): cargar, editar (producto, cantidad y peso) y eliminar
+    (solo administrador). Se bindea a itemInventarioBean (ItemInventarioBean.java).
 -->
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                  xmlns:h="jakarta.faces.html"
@@ -43,6 +44,44 @@
             </div>
         </h:form>
 
+        <h:panelGroup rendered="#{not empty itemInventarioBean.itemEnEdicion}">
+            <h2>Editar #{itemInventarioBean.itemEnEdicion.producto}</h2>
+            <h:form id="formEdicion" styleClass="formulario">
+                <p class="ayuda">
+                    Stock de #{itemInventarioBean.nombreComercio(itemInventarioBean.itemEnEdicion.idComercio)}.
+                    La cantidad es la que hay en el depósito; no puede quedar por debajo de lo
+                    reservado (#{itemInventarioBean.itemEnEdicion.cantidadReservada}). Los pedidos ya
+                    creados conservan el nombre y el peso con los que se armaron.
+                </p>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" value="Producto" for="productoEd" />
+                    <h:inputText id="productoEd" value="#{itemInventarioBean.edicion.producto}" required="true"
+                                 label="Producto" requiredMessage="Ingresá el producto" />
+                    <h:message for="productoEd" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" value="Cantidad en el depósito" for="cantidadEd" />
+                    <h:inputText id="cantidadEd" value="#{itemInventarioBean.edicion.cantidadDisponible}" required="true"
+                                 label="Cantidad" requiredMessage="Ingresá la cantidad"
+                                 converterMessage="La cantidad tiene que ser un número entero" />
+                    <h:message for="cantidadEd" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" value="Peso por unidad (kg)" for="pesoEd" />
+                    <h:inputText id="pesoEd" value="#{itemInventarioBean.edicion.pesoKg}" required="true"
+                                 label="Peso por unidad" requiredMessage="Ingresá el peso por unidad"
+                                 converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
+                    <h:message for="pesoEd" styleClass="error-campo" />
+                </div>
+                <div class="form-acciones">
+                    <h:commandButton value="Guardar cambios" styleClass="btn btn-primary"
+                                     action="#{itemInventarioBean.guardarEdicion}" />
+                    <h:commandButton value="Cancelar" styleClass="btn btn-secondary" immediate="true"
+                                     action="#{itemInventarioBean.cancelarEdicion}" />
+                </div>
+            </h:form>
+        </h:panelGroup>
+
         <h:form id="formTabla">
             <h:dataTable value="#{itemInventarioBean.items}" var="i"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
@@ -75,6 +114,15 @@
                     <f:facet name="header">Peso por unidad</f:facet>
                     <h:outputText value="#{etiquetas.kilos(i.pesoKg)}" rendered="#{not empty i.pesoKg}" />
                     <h:outputText value="Sin cargar" styleClass="badge badge-naranja" rendered="#{empty i.pesoKg}" />
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Editar" styleClass="btn btn-secondary"
+                                     action="#{itemInventarioBean.editar(i.id)}" />
+                    <h:commandButton value="Eliminar" styleClass="btn btn-danger"
+                                     action="#{itemInventarioBean.eliminar(i.id)}"
+                                     rendered="#{sesionBean.admin}"
+                                     onclick="return confirm('¿Eliminar este producto del depósito? Se borra con su stock (#{i.cantidadDisponible} u.). Las reservas viejas quedan en el historial.');" />
                 </h:column>
             </h:dataTable>
             <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty itemInventarioBean.items}">
@@ -130,35 +178,6 @@
             </div>
         </h:form>
 
-        <h:panelGroup rendered="#{not empty itemInventarioBean.items}">
-            <h2>Corregir peso</h2>
-            <h:form id="formPeso" styleClass="formulario">
-                <p class="ayuda">
-                    Para el stock cargado antes de que se pidiera el peso, o si se cargó mal. Los pedidos
-                    ya creados conservan el peso con el que se calcularon.
-                </p>
-                <div class="campo">
-                    <h:outputLabel styleClass="obligatorio" value="Producto" for="itemPeso" />
-                    <h:selectOneMenu id="itemPeso" value="#{itemInventarioBean.idItemPeso}" required="true"
-                                     label="Producto" requiredMessage="Elegí el producto">
-                        <f:selectItem itemLabel="— Elegí un producto —" itemValue="#{null}" />
-                        <f:selectItems value="#{itemInventarioBean.items}" var="i" itemValue="#{i.id}"
-                                       itemLabel="#{i.producto} (#{itemInventarioBean.nombreComercio(i.idComercio)})#{empty i.pesoKg ? ' · sin peso' : ''}" />
-                    </h:selectOneMenu>
-                    <h:message for="itemPeso" styleClass="error-campo" />
-                </div>
-                <div class="campo">
-                    <h:outputLabel styleClass="obligatorio" value="Peso por unidad (kg)" for="pesoNuevo" />
-                    <h:inputText id="pesoNuevo" value="#{itemInventarioBean.pesoNuevo}" required="true"
-                                 label="Peso por unidad" requiredMessage="Ingresá el peso por unidad"
-                                 converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
-                    <h:message for="pesoNuevo" styleClass="error-campo" />
-                </div>
-                <div class="form-acciones">
-                    <h:commandButton value="Guardar peso" styleClass="btn btn-primary" action="#{itemInventarioBean.actualizarPeso}" />
-                </div>
-            </h:form>
-        </h:panelGroup>
         </h:panelGroup>
     </ui:define>
 </ui:composition>

@@ -16,13 +16,13 @@ rápido en la defensa.
 | Transacciones declarativas en 1 flujo crítico de varios pasos | Cumple | `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla. Ver [TRANSACCIONES.md](../arquitectura/TRANSACCIONES.md) |
 | Stack consistente y justificado | Cumple | Jakarta EE 10 sobre WildFly 41 |
 | Repositorio Git con historial incremental | Cumple | Commits desde agosto, de varios integrantes |
-| Tests automatizados (no lo exige la consigna) | Hay | 148 tests unitarios (JUnit 5) en cada build y 17 tests de integración de la API con REST Assured (`mvn verify -Pintegracion`). Ver el README |
+| Tests automatizados (no lo exige la consigna) | Hay | 151 tests unitarios (JUnit 5) en cada build y 17 tests de integración de la API con REST Assured (`mvn verify -Pintegracion`). Ver el README |
 
 ## Desafíos opcionales
 
 | Desafío | Estado |
 |---|---|
-| Al menos 2 ADR | Cumple: 48 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md) |
+| Al menos 2 ADR | Cumple: 49 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md) |
 | Resiliencia ante fallas | Cumple ([DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)): Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
 | Heterogeneidad tecnológica | Cumple, en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad) (ADR-030): el banco legado implementado también en Node.js, que Rabbit consume por el mismo WSDL, y el transportista moderno en Python, por REST. `main` queda con el sistema interno solo |
 | Prueba de escalabilidad | Cumple: el consumidor de la cola escala con `rabbit.cola.consumidores`; con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido). Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md) |

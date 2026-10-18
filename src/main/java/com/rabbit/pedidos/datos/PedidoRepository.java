@@ -208,6 +208,27 @@ public class PedidoRepository {
                 .getSingleResult();
     }
 
+    // IDs de los pedidos que todavía no terminaron (ni entregados, ni
+    // cancelados, ni devueltos al comercio) con una línea de ese ítem de
+    // stock: si se cancelan, el stock vuelve a ese ítem.
+    public List<Long> listarIdsEnCursoConItem(Long idItem) {
+        return em.createQuery("SELECT DISTINCT l.pedido.id FROM LineaPedido l WHERE l.idItem = :idItem"
+                        + " AND l.pedido.estado NOT IN :terminados ORDER BY l.pedido.id", Long.class)
+                .setParameter("idItem", idItem)
+                .setParameter("terminados", List.of(EstadoPedido.ENTREGADO, EstadoPedido.CANCELADO,
+                        EstadoPedido.DEVUELTO_AL_COMERCIO))
+                .getResultList();
+    }
+
+    // Pedidos del ERP sin sincronizar que piden ese ítem: al convertirse
+    // en pedido, lo reservan.
+    public long contarPedidosExternosPendientesConItem(Long idItem) {
+        return em.createQuery("SELECT COUNT(DISTINCT pe) FROM PedidoExterno pe JOIN pe.lineas l"
+                        + " WHERE l.idItem = :idItem AND pe.sincronizado = false"
+                        + " AND (pe.cancelado IS NULL OR pe.cancelado = false)", Long.class)
+                .setParameter("idItem", idItem).getSingleResult();
+    }
+
     // Pedidos del ERP del comercio que todavía esperan sincronizarse (ni
     // sincronizados, ni descartados, ni cancelados).
     public long contarPedidosExternosPendientesDeComercio(Long idComercio) {

@@ -458,7 +458,7 @@ sección 11. Con pedidos
 los borra después.
 
 1. **Peso:** en Depósitos y stock → un depósito; "Cargar stock" pide el
-   peso por unidad (obligatorio) y "Corregir peso" lo cambia. La tabla lo
+   peso por unidad (obligatorio) y "Editar", en la fila, lo cambia. La tabla lo
    muestra como "1 kg" / "0,9 kg". Un pedido de stock consignado (por
    ejemplo con "Simular un pedido del ERP") se sincroniza solo y muestra
    su peso en Pedidos ("· 3 kg"); en "Recibidos del ERP" aparece con el
@@ -695,5 +695,6 @@ Misma rama. Necesita salida a internet (OpenStreetMap).
 | Celular (comercio y repartidor), con los 3 temas | Menú desplegable, tablas como tarjetas, botones de 44 px, nada desborda |
 | Cancelar pedido externo tarde | 409 `cancelacion-no-permitida` (definitivo) o `stock-en-conflicto` (reintentar) |
 | Cancelar un pedido que ya salió a reparto (ADR-048) | En Pedidos no aparece el botón (dice "Ya salió a reparto: no se puede cancelar"), tampoco si volvió al depósito para otra visita; por la API, 409 con el mismo motivo |
+| Editar stock por debajo de lo reservado, o eliminar un ítem que usa un pedido en curso (ADR-049) | Error con el motivo (la cantidad mínima, o el número de pedido); un operador no ve "Eliminar" |
 | Alta sin email de quien recibe (ADR-039) | API: 400 con `emailDestinatario` en `errores`; pantalla: "Ingresá el email de quien recibe…" |
 | Cuenta sin comercio asociado | Mensaje amigable, no el interno |

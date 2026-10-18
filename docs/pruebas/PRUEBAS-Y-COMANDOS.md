@@ -284,6 +284,12 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
 - [ ] **D8. Email obligatorio (ADR-039).** Simular un pedido sin email de
   quien recibe: la pantalla lo pide. Por la API, 400 con
   `emailDestinatario` en `errores` (Postman, carpeta 2, paso 9).
+- [ ] **D9. Editar y eliminar stock (ADR-049).** En Depósitos y stock →
+  un depósito, "Editar" en una fila: cambiar el nombre, la cantidad y el
+  peso. Una cantidad menor que la reservada o negativa da error. Con un
+  pedido en curso de ese producto, "Eliminar" (solo administrador) lo
+  impide y nombra el pedido; cancelado el pedido, se elimina y sus
+  reservas siguen en el Historial.
 - [ ] **D6. Lista de espera y hora de corte (ADR-037).** Sin lugar en
   ningún repartidor, Confirmar deja el pedido "En espera" sin cobrar; al
   liberarse lugar se asigna solo. Con `rabbit.ruteo.hora-corte=00:01`,

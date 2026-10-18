@@ -86,6 +86,23 @@ public class InventarioRepository {
         return em.merge(item);
     }
 
+    /** Borra un ítem (ver ConsultaStockService.eliminarItem). */
+    public void eliminarItem(ItemInventario item) {
+        em.remove(em.contains(item) ? item : em.merge(item));
+    }
+
+    /**
+     * Antes de borrar un ítem, sus reservas dejan de apuntarle: quedan en
+     * el historial con el nombre del producto, que cada reserva guarda.
+     *
+     * @return cuántas reservas quedaron sin ítem
+     */
+    public int desvincularReservasDeItem(Long idItem) {
+        return em.createQuery("UPDATE ReservaStock r SET r.item = null WHERE r.item.id = :idItem")
+                .setParameter("idItem", idItem)
+                .executeUpdate();
+    }
+
     /**
      * Fuerza el envio a la base de lo que este pendiente en el contexto de
      * persistencia, sin esperar al commit.

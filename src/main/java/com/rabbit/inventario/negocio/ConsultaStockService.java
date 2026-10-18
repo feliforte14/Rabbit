@@ -33,7 +33,9 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
+import jakarta.persistence.OptimisticLockException;
 
 import java.math.BigDecimal;
 import java.util.Collection;
@@ -59,6 +61,9 @@ public class ConsultaStockService implements IConsultaStock {
 
     @Inject
     private IConsultaComercios comercios;
+
+    @Inject
+    private Event<EliminacionDeItem> eliminacionDeItem;
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
@@ -127,17 +132,62 @@ public class ConsultaStockService implements IConsultaStock {
         return repository.guardarItem(item).getId();
     }
 
-    // Para los ítems cargados antes de que existiera el peso, o si se
-    // cargó mal. No cambia el peso de los pedidos ya creados: ese se
-    // calculó con el valor de ese momento.
+    // Corregir lo que se cargó mal o ajustar la cantidad después de contar
+    // el depósito. El dueño no se cambia: sería pasarle mercadería de un
+    // comercio a otro.
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
-    public void actualizarPesoItem(Long idItem, BigDecimal pesoKg) {
+    public void actualizarItem(Long idItem, DatosItemInventarioDTO datos) {
         ItemInventario item = obtenerItemOFallar(idItem);
-        validarPeso(pesoKg);
-        item.setPesoKg(pesoKg);
-        repository.actualizarItem(item);
+        validarProducto(datos.producto);
+        validarPeso(datos.pesoKg);
+        String motivo = ReglasDeStock.motivoParaNoCambiarCantidad(
+                datos.cantidadDisponible, item.getCantidadReservada());
+        if (motivo != null) {
+            throw new ValidacionException(motivo);
+        }
+        String producto = datos.producto.trim();
+        if (repository.existeProductoEnDeposito(producto, item.getDeposito().getId(),
+                item.getIdComercio(), item.getId())) {
+            throw new ValidacionException("El producto \"" + producto
+                    + "\" ya tiene stock de este comercio cargado en este depósito");
+        }
+        item.setProducto(producto);
+        item.setCantidadDisponible(datos.cantidadDisponible);
+        item.setPesoKg(datos.pesoKg);
+        try {
+            repository.actualizarItem(item);
+            repository.sincronizar();
+        } catch (OptimisticLockException e) {
+            // Alguien reservó o confirmó de este ítem mientras tanto.
+            throw new ValidacionException("El stock de \"" + producto
+                    + "\" cambió recién (se reservó o se despachó). Volvé a abrirlo y guardá de nuevo.");
+        }
+    }
+
+    // Solo el administrador, como el resto de las eliminaciones (ADR-036).
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
+    public void eliminarItem(Long idItem) {
+        ItemInventario item = obtenerItemOFallar(idItem);
+        String motivo = ReglasDeStock.motivoParaNoEliminar(item.getCantidadReservada());
+        if (motivo != null) {
+            throw new ValidacionException(motivo);
+        }
+        EliminacionDeItem evento = new EliminacionDeItem(idItem);
+        eliminacionDeItem.fire(evento);
+        if (!evento.getImpedimentos().isEmpty()) {
+            throw new ValidacionException("No se puede eliminar \"" + item.getProducto() + "\" todavía: "
+                    + String.join("; ", evento.getImpedimentos())
+                    + ". Si se cancela un pedido, el stock tiene que volver a este ítem: se puede eliminar cuando terminen.");
+        }
+        int historial = repository.desvincularReservasDeItem(idItem);
+        repository.eliminarItem(item);
+        java.util.logging.Logger.getLogger(ConsultaStockService.class.getName()).info(
+                "[Inventario] Ítem " + idItem + " (" + item.getProducto() + ") eliminado; "
+                        + historial + " reserva(s) quedan en el historial");
     }
 
     // TODO el stock de un depósito, de todos los comercios — vista de operador.
