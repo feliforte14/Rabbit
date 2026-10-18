@@ -79,9 +79,9 @@ flowchart LR
     WEB --> NEGOCIO
 
     %% Asincrónico por el broker
-    PEDIDOS -- "publica idPedidoExterno" --> COLA
-    COLA -- "MDB PedidoExternoListener<br/>(un consumidor por mensaje)" --> PEDIDOS
-    PEDIDOS -- "publica cada cambio de estado" --> TOPICO
+    PEDIDOS -- "publica" --> COLA
+    COLA -- "MDB consume" --> PEDIDOS
+    PEDIDOS -- "publica estados" --> TOPICO
     TOPICO -- "suscripción durable" --> NOTIF
     TOPICO -- "suscripción durable<br/>(solo ENTREGADO y DEVUELTO)" --> PAGOS
 
@@ -138,7 +138,7 @@ El criterio, en dos preguntas (desarrollado en
 
 | # | Integración | Tipo | Canal | Por qué |
 |---|---|---|---|---|
-| 1 | ERP del comercio → Rabbit: alta, consulta y cancelación de pedidos | Síncrona | **REST** | El ERP necesita saber en el momento si Rabbit aceptó el pedido (201 con fecha prometida, o 400/422 con el campo mal). Es un partner moderno: JSON, OpenAPI, idempotencia por `Idempotency-Key`. |
+| 1 | ERP del comercio → Rabbit: alta, consulta y cancelación de pedidos | Síncrona | **REST** | El ERP necesita saber en el momento si Rabbit aceptó el pedido (201 con fecha prometida, o 400/422 con el campo mal; por ejemplo, 400 si falta el email de quien recibe, que es obligatorio). La cancelación responde 409 si el pedido ya salió a reparto (ADR-048). Es un partner moderno: JSON, OpenAPI, idempotencia por `Idempotency-Key`. |
 | 2 | Cliente final → Rabbit: seguimiento público | Síncrona | **REST** | Quiere ver el estado ya; es una consulta simple, sin contrato formal. |
 | 3 | Rabbit → banco legado: cobrar y reversar | Síncrona | **SOAP** | No se puede confirmar el pedido sin saber si el cobro se aprobó. El banco es un sistema legado que publica WSDL y devuelve faults tipados (fondos insuficientes, tarjeta rechazada). |
 | 4 | Rabbit → transportista legado: pedir, seguir y cancelar envíos | Síncrona | **SOAP** | Hace falta el código de seguimiento para confirmar la derivación. Sistema legado con WSDL. |
