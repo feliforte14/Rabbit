@@ -266,8 +266,8 @@ Postman.
 |---|---|---|---|
 | `POST /api/v1/pedidos-externos` | ERP (HTTP Basic) + header `Idempotency-Key` | Registra un pedido externo de **su** comercio | `201` + `Location` · `400` · `401` · `403` · `422` |
 | `GET /api/v1/pedidos-externos/{id}` | ERP | Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`, `estadoPedido` y `codigoSeguimiento`; si está `PENDIENTE`, también `enListaDeEspera`, ADR-037), `Descartado` (con `motivo`) o `Cancelado` | `200` · `404` |
-| `POST /api/v1/pedidos-externos/{id}/cancelacion` | ERP | Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE`) | `200` · `404` · `409` |
-| `GET /api/v1/seguimiento/{codigo}` | Público | Estado actual del pedido | `200 {"codigoSeguimiento", "estado"}` · `404` |
+| `POST /api/v1/pedidos-externos/{id}/cancelacion` | ERP | Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE` que nunca salió a reparto) | `200` · `404` · `409` |
+| `GET /api/v1/seguimiento/{codigo}` | Público | Estado actual del pedido, día prometido (ADR-042) y, en camino, parada y franja (ADR-043) | `200 {"codigoSeguimiento", "estado", "fechaPrometida"?, "llegadaEstimada"?, "ubicacionRepartidor"?}` · `404` |
 
 Ejemplo de alta desde el ERP:
 
@@ -325,8 +325,10 @@ Ruteo ubica el pedido en su zona (ADR-017).
   El ERP puede cancelar mientras el pedido está pendiente; desde
   `CONFIRMADO` ya tiene cobro y repartidor, y responde `409`: lo cancela
   el personal de Rabbit (anular un cobro exige `ADMINISTRADOR`). Lo
-  mismo con un `PENDIENTE` que el repartidor devolvió al depósito: ya
-  salió a reparto y tiene cobro (ADR-037). Un `409`
+  mismo con un `PENDIENTE` que el repartidor devolvió al depósito, pero
+  ese no lo cancela nadie, ni el personal: ya salió a reparto (ADR-048).
+  Solo queda entregarlo y, si no se puede, vuelve al comercio
+  (`DEVUELTO_AL_COMERCIO`). Un `409`
   también puede salir si devolver el stock de una línea choca con otra
   sesión tocando el mismo ítem al mismo tiempo (`stock-en-conflicto`):
   a diferencia del anterior, este es pasajero — reintentar alcanza.

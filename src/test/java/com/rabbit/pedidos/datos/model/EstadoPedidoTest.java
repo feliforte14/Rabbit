@@ -23,11 +23,21 @@ class EstadoPedidoTest {
     }
 
     @Test
-    void entregadoYCanceladoSonFinales() {
+    void entregadoCanceladoYDevueltoSonFinales() {
         for (EstadoPedido destino : EstadoPedido.values()) {
             assertFalse(ENTREGADO.puedePasarA(destino));
             assertFalse(CANCELADO.puedePasarA(destino));
+            assertFalse(DEVUELTO_AL_COMERCIO.puedePasarA(destino));
         }
+    }
+
+    @Test
+    void vuelveAlComercioUnPedidoQueYaTieneRepartidor() {
+        // ADR-041: al agotar las visitas (o con un rechazo) desde EN_CAMINO.
+        assertTrue(EN_CAMINO.puedePasarA(DEVUELTO_AL_COMERCIO));
+        // ADR-045: paquete dañado al retirarlo.
+        assertTrue(CONFIRMADO.puedePasarA(DEVUELTO_AL_COMERCIO));
+        assertFalse(PENDIENTE.puedePasarA(DEVUELTO_AL_COMERCIO));
     }
 
     @Test

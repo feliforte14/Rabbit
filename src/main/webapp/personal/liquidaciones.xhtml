@@ -89,7 +89,7 @@
                         <span class="dato-secundario">#{l.motivo}</span>
                     </h:panelGroup>
                 </h:column>
-                <h:column styleClass="acciones">
+                <h:column styleClass="acciones" rendered="#{sesionBean.admin and liquidacionBean.hayCobrosParaReintentar}">
                     <f:facet name="header">Acciones</f:facet>
                     <h:commandButton value="Reintentar cobro" styleClass="btn btn-secondary"
                                      action="#{liquidacionBean.reintentar(l.id)}"

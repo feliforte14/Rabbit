@@ -19,6 +19,7 @@ package com.rabbit.pedidos.datos.model;
 import com.rabbit.pagos.dto.MedioPago;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -130,6 +131,49 @@ public class Pedido {
     // Boolean y no boolean: las filas anteriores quedan en NULL.
     private Boolean cobroRegistrado;
 
+    // Quién recibe (ADR-039): los manda el ERP, opcionales. Con el email,
+    // Rabbit le avisa cada cambio de estado (ADR-040); nombre y teléfono
+    // los ve el repartidor. Nunca salen en el seguimiento público.
+    @Column(length = 100)
+    private String nombreDestinatario;
+
+    @Column(length = 30)
+    private String telefonoDestinatario;
+
+    @Column(length = 120)
+    private String emailDestinatario;
+
+    // Día en que Rabbit se compromete a entregarlo (ADR-042): se calcula al
+    // recibirlo con la hora de corte. Es contra lo que se mide "a tiempo"
+    // (ADR-044). Null si no se pudo prometer (sin código postal) o en los
+    // pedidos anteriores a este cambio.
+    private LocalDate fechaPrometida;
+
+    // Visitas al cliente que no terminaron en entrega (ADR-041). Integer y
+    // no int: las filas anteriores quedan en NULL (= ninguna).
+    private Integer intentosFallidos;
+
+    // Por qué falló la última visita (o la devolución), con motivos fijos
+    // para poder contarlos. El detalle libre sigue en motivoDevolucion.
+    @Enumerated(EnumType.STRING)
+    private MotivoEntregaFallida motivoEntregaFallida;
+
+    // Si esa última falla le contó una visita al cliente (ADR-045): no
+    // alcanza con el motivo, porque desde CONFIRMADO ninguno cuenta. Los
+    // avisos cambian según esto. Boolean: las filas anteriores quedan en NULL.
+    private Boolean ultimaFallaContoComoVisita;
+
+    // El momento del cambio de estado de esa última falla (ADR-045): con
+    // esto Notificaciones reconoce su aviso aunque llegue después del de
+    // la reasignación, y no lo descarta por viejo.
+    private LocalDateTime fechaUltimaFalla;
+
+    // Si alguna vez salió a reparto (pasó a EN_CAMINO). No se apaga: un
+    // pedido que salió y volvió al depósito para otra visita ya no se
+    // puede cancelar (ver ReglaDeCancelacion). Boolean y no boolean: las
+    // filas anteriores quedan en NULL.
+    private Boolean salioAReparto;
+
     public Pedido() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -183,4 +227,29 @@ public class Pedido {
     public void setMotivoDevolucion(String motivoDevolucion) { this.motivoDevolucion = motivoDevolucion; }
     public boolean isCobroRegistrado() { return Boolean.TRUE.equals(cobroRegistrado); }
     public void setCobroRegistrado(boolean cobroRegistrado) { this.cobroRegistrado = cobroRegistrado; }
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
+    public String getTelefonoDestinatario() { return telefonoDestinatario; }
+    public void setTelefonoDestinatario(String telefonoDestinatario) { this.telefonoDestinatario = telefonoDestinatario; }
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
+    public LocalDate getFechaPrometida() { return fechaPrometida; }
+    public void setFechaPrometida(LocalDate fechaPrometida) { this.fechaPrometida = fechaPrometida; }
+    public int getIntentosFallidos() { return intentosFallidos == null ? 0 : intentosFallidos; }
+    public void setIntentosFallidos(int intentosFallidos) { this.intentosFallidos = intentosFallidos; }
+    public MotivoEntregaFallida getMotivoEntregaFallida() { return motivoEntregaFallida; }
+    public void setMotivoEntregaFallida(MotivoEntregaFallida motivoEntregaFallida) { this.motivoEntregaFallida = motivoEntregaFallida; }
+    public boolean isUltimaFallaContoComoVisita() { return Boolean.TRUE.equals(ultimaFallaContoComoVisita); }
+    public void setUltimaFallaContoComoVisita(boolean conto) { this.ultimaFallaContoComoVisita = conto; }
+    public LocalDateTime getFechaUltimaFalla() { return fechaUltimaFalla; }
+    public void setFechaUltimaFalla(LocalDateTime fechaUltimaFalla) { this.fechaUltimaFalla = fechaUltimaFalla; }
+    /**
+     * Si alguna vez estuvo EN_CAMINO. Para los pedidos anteriores a la
+     * marca: una visita fallida solo cuenta si había salido.
+     */
+    public boolean isSalioAReparto() {
+        return Boolean.TRUE.equals(salioAReparto) || estado == EstadoPedido.EN_CAMINO
+                || (intentosFallidos != null && intentosFallidos > 0);
+    }
+    public void setSalioAReparto(boolean salioAReparto) { this.salioAReparto = salioAReparto; }
 }

@@ -10,8 +10,15 @@ docs/
 ├── integraciones/   ← mensajería con otros sistemas y contrato de la API
 ├── seguridad/       ← autenticación, roles y protección de la API
 ├── pruebas/         ← recorrido de prueba y demo
-└── consigna/        ← cumplimiento de la consigna, desafíos y uso de IA
+├── consigna/        ← cumplimiento de la consigna, desafíos y uso de IA
+└── entregas/        ← lo que se presenta en cada entrega parcial, con sus diagramas
 ```
+
+### [entregas/](entregas/)
+
+| Documento | Qué justifica |
+|---|---|
+| [ENTREGA-PARCIAL-2.md](entregas/ENTREGA-PARCIAL-2.md) | Entrega del 19/10: diagrama de arquitectura de integración (SOA), clasificación de cada integración y el proceso asincrónico de punta a punta. Las imágenes (PNG y SVG) están en [entregas/diagramas/](entregas/diagramas/) |
 
 ### [arquitectura/](arquitectura/)
 
@@ -20,7 +27,7 @@ docs/
 | [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md) | Capas, componentes, interfaces entre componentes, stateless vs. stateful, máquina de estados del pedido |
 | [PATRONES.md](arquitectura/PATRONES.md) | Cada patrón de diseño: qué problema resuelve, dónde está, qué alternativa se descartó |
 | [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md) | Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo |
-| [DECISIONES.md](arquitectura/DECISIONES.md) | Registro de decisiones de arquitectura (38 ADR) |
+| [DECISIONES.md](arquitectura/DECISIONES.md) | Registro de decisiones de arquitectura (49 ADR) |
 
 ### [integraciones/](integraciones/)
 
@@ -43,7 +50,7 @@ docs/
 |---|---|
 | [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md) | Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo. Los tests automatizados están en `src/test` (ver el README principal) |
 | [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md) | Comandos para prender y apagar cada sistema, perillas de las demos y la lista completa de pruebas para marcar |
-| [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json) | Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos (45 requests) |
+| [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json) | Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos (46 requests) |
 
 ### [consigna/](consigna/)
 

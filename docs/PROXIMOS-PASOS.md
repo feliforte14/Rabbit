@@ -9,8 +9,8 @@ no lo tome otro en paralelo).
 
 ## Hecho: mejoras del tablero (15/10/2026)
 
-Implementadas en la rama `feature/mejoras-trello` (todavía sin mergear a
-`main`), probadas de punta a punta (ver la sección 10 de
+Implementadas en la rama `feature/mejoras-trello` (mergeada a `main` el
+16/10/2026), probadas de punta a punta (ver la sección 10 de
 [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
 
 - [x] Contraseñas centralizadas en la base (ADR-031).
@@ -32,9 +32,9 @@ de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
 
 - [x] Si el repartidor no tiene lugar, se le asigna a otro; si nadie,
       lista de espera automática, sin cobrar (ADR-037).
-- [x] Hora de corte de la hoja de ruta: **21:00**, definida por el
-      equipo; se cambia sin tocar código (`rabbit.ruteo.hora-corte`,
-      ADR-037).
+- [x] Hora de corte de la hoja de ruta: **07:00** (el 18/10 el equipo la
+      pasó de 21:00 a 07:00); se cambia sin tocar código
+      (`rabbit.ruteo.hora-corte`, `ninguno` para demos; ADR-037).
 - [x] "Devolver a depósito" desde Mis entregas: vuelve a la lista de
       espera para otro repartidor, sin cobrar de nuevo (ADR-037).
 - [x] Hoja de ruta recomendada con link a Google Maps en tramos; la foto
@@ -54,6 +54,71 @@ de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
     distancia real (hoy, por cercanía de código postal);
   - la cobranza por almacenamiento: es solo una propuesta, sin
     implementar ([PROPUESTA-COBRANZA-ALMACENAMIENTO.md](PROPUESTA-COBRANZA-ALMACENAMIENTO.md)).
+
+## En prueba: mejoras frente a los líderes de última milla (16/10/2026)
+
+En la rama `feature/mejoras-lideres-ultima-milla`, **sin mergear**. Salen
+de comparar Rabbit con Mercado Libre Full/Flex, Andreani, Moova, DHL,
+Amazon, Onfleet, Bringg y ShipBob: son las seis de prioridad alta.
+Probadas de punta a punta en WildFly con una base local (sección 12 de
+[FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)) y, desde el 18/10,
+también desplegadas contra la base compartida.
+
+- [x] Datos de quien recibe: nombre y teléfono opcionales; el email, obligatorio desde el 18/10 (ADR-039).
+- [x] Avisos por mail a quien recibe en cada cambio, con un tercer
+      suscriptor del tópico (ADR-040).
+- [x] Entrega fallida con motivo fijo e intentos; al agotarlos, estado
+      DEVUELTO_AL_COMERCIO (ADR-041). **A definir por el equipo:** 2 o 3
+      visitas (`rabbit.entregas.max-intentos`, hoy 2).
+- [x] Fecha prometida con la hora de corte, en la API y el seguimiento (ADR-042).
+- [x] Horario estimado en el seguimiento: "sos la parada N de M" y una
+      franja (ADR-043).
+- [x] Tablero de indicadores para el personal y el comercio (ADR-044).
+- [x] Probar en WildFly (sección 12), con una base local.
+- [x] Evidencia de la visita fallida (17/10/2026): motivos nuevos (paquete
+      dañado, nadie habilitado, domicilio cerrado, problema del
+      repartidor), comentario, hasta 3 fotos y la ubicación del
+      repartidor, "Ver visitas" para el personal y el comercio, y avisos
+      por motivo (ADR-045, sección 13). Arregla que el comercio no
+      recibiera el aviso de la visita fallida si el pedido se reasignaba
+      enseguida.
+- [ ] Siguiente etapa de la entrega fallida: pausar el pedido para que el
+      comercio corrija la dirección, retiro en un punto y reprogramar en
+      una franja horaria.
+- [x] Hoja de ruta por distancia real con OpenStreetMap (ADR-046, sección 14). Antes, por cercanía de código
+      postal.
+- [x] Mails reales por SMTP con login y TLS (ADR-047).
+- [x] Pedidos del equipo del 18/10 (Trello): hora de corte a las 07:00,
+      email de quien recibe obligatorio en la web y en la API (400 si
+      falta), avisos de entrega fallida al comercio reescritos y un pedido
+      que salió a reparto ya no se cancela, ni por la web ni por la API
+      (409; ADR-048).
+- [x] Revisión responsive del 18/10, en todas las pantallas del personal
+      de 320 a 1440 px: campos de teléfono y email con estilo, estados
+      vacíos, tarjetas con todos los datos, contadores sin tarjetas
+      sueltas, formularios alineados, filtros del Historial en barra,
+      mapa oscuro en el tema oscuro, botones de 44 px en el celular.
+- [x] Script de limpieza con la opción C: borra todo menos las cuentas.
+- [x] Editar (producto, cantidad y peso) y eliminar el stock de un
+      depósito; eliminar, solo administrador y sin pedidos en curso que
+      lo usen (ADR-049).
+- [ ] Decidir si se mergea a `main`. Antes, pasar a "Aceptada" los
+      ADR-039 a 047, que siguen como "Propuesta".
+
+### Tarjetas de la lista "To do" de Trello (revisadas en el código el 18/10)
+
+- **Hechas, para pasar a testing:** fecha prometida (ADR-042) y horario
+  estimado en el seguimiento (ADR-043).
+- **A medias:** prueba de entrega más fuerte. Está la foto del remito
+  (ADR-033); faltan el código de 4 dígitos en el mail de "en camino",
+  validarlo al entregar y guardar la ubicación del repartidor al
+  entregar (hoy solo se guarda en las visitas fallidas, ADR-045).
+- **Sin empezar:** calificación de la entrega, etiqueta con QR por
+  bulto, retiro en depósito, opciones para quien recibe desde el
+  seguimiento (reprogramar, instrucciones, autorizar a otro), cobro por
+  almacenamiento (solo la propuesta), orden de ingreso de mercadería,
+  webhooks al ERP y envíos prioritarios (la tarjeta no tiene
+  descripción: falta definir qué es).
 
 ## 1. Revisar en el código
 
@@ -109,12 +174,14 @@ riesgo, sin tocar comportamiento:
       `Mensajes.ejecutar(Runnable accion, String mensajeExito)` que
       envuelva ese try/catch común.
 
-### Cobertura de tests (hoy hay 62 unitarios + 10 de integración)
+### Cobertura de tests (hoy hay 151 unitarios + 17 de integración)
 
-Los tests unitarios cubren sobre todo Pedidos, Seguridad, las reglas
-puras de Repartidores (capacidad, a quién se asigna, hora de corte) y de
-Ruteo (orden de la hoja de ruta y links a Google Maps), y la tarifa
-mensual. Sin tests propios todavía:
+Los tests unitarios cubren sobre todo Pedidos (incluidos destinatario,
+intentos, regla de cancelación e indicadores), Seguridad, las reglas puras de Repartidores
+(capacidad, a quién se asigna, hora de corte y fecha prometida) y de
+Ruteo (orden de la hoja de ruta, links a Google Maps y horario estimado),
+los textos de los avisos a quien recibe y al comercio, y la tarifa mensual. Sin tests
+propios todavía:
 
 - [ ] `comercios` (alta, baja/reactivación, eliminación en cascada)
 - [ ] `inventario` (reservar/confirmar/liberar stock, vencimiento)
@@ -123,7 +190,8 @@ mensual. Sin tests propios todavía:
 - [ ] `ruteo` (zonas, despacho; el orden de la hoja de ruta ya tiene)
 - [ ] `transportistas` (cotizar, derivar, seguimiento)
 - [ ] `pagos` (circuit breaker, reversa)
-- [ ] `notificaciones`
+- [ ] `notificaciones` (servicios y orden de llegada; los textos al
+      destinatario y al comercio ya tienen)
 
 No hace falta levantar WildFly para esto: son tests unitarios con mocks,
 como los que ya existen en `src/test/java/com/rabbit/pedidos/negocio/`

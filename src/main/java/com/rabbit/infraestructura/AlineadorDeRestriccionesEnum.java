@@ -37,7 +37,9 @@ import com.rabbit.pagos.datos.model.EstadoCobro;
 import com.rabbit.pagos.datos.model.EstadoLiquidacion;
 import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
+import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
+import com.rabbit.pedidos.datos.model.OrigenUbicacion;
 import com.rabbit.repartidores.datos.model.EstadoRepartidor;
 import com.rabbit.ruteo.datos.model.CoberturaZona;
 import com.rabbit.seguridad.datos.model.Rol;
@@ -75,6 +77,9 @@ public class AlineadorDeRestriccionesEnum {
             new ColumnaEnum("pedidos", "estado", EstadoPedido.class),
             new ColumnaEnum("pedidos", "origen", OrigenPedido.class),
             new ColumnaEnum("pedidos", "mediopago", MedioPago.class),
+            new ColumnaEnum("pedidos", "motivoentregafallida", MotivoEntregaFallida.class),
+            new ColumnaEnum("intentos_entrega", "motivo", MotivoEntregaFallida.class),
+            new ColumnaEnum("intentos_entrega", "origenubicacion", OrigenUbicacion.class),
             new ColumnaEnum("pedidos_externos", "origen", OrigenPedido.class),
             new ColumnaEnum("pedidos_externos", "mediopago", MedioPago.class),
             new ColumnaEnum("reservas_stock", "estado", EstadoReserva.class),

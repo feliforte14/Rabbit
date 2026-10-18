@@ -137,6 +137,11 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
         return motivoDelCorte() == null;
     }
 
+    @Override
+    public java.time.LocalDate diaDeEntregaPara(java.time.LocalDateTime recibido) {
+        return HoraDeCorte.diaDeEntrega(HoraDeCorte.configurada(), recibido);
+    }
+
     private static String motivoDelCorte() {
         LocalTime corte = HoraDeCorte.configurada();
         if (HoraDeCorte.permiteAsignar(corte, LocalTime.now())) {
@@ -289,6 +294,16 @@ public class RepartidorService implements IAsignacionRepartidores, IGestionRepar
                 .anyMatch(c -> c.getIdPedido().equals(idPedido))
                 || idPedido.equals(repartidor.getIdPedidoActual());
         return loLleva ? ubicacion(repartidor, 0) : null;
+    }
+
+    // Sin rol: la llama PedidoService con la identidad del repartidor.
+    @Override
+    public UbicacionDTO ultimaUbicacion(Long idRepartidor) {
+        Repartidor repartidor = idRepartidor != null ? repository.buscarPorId(idRepartidor) : null;
+        if (repartidor == null || repartidor.getLatitud() == null || repartidor.getFechaUbicacion() == null) {
+            return null;
+        }
+        return ubicacion(repartidor, 0);
     }
 
     private static boolean esReciente(Repartidor r) {

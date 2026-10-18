@@ -32,11 +32,12 @@
         <servlet-class>jakarta.faces.webapp.FacesServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
         <!-- Formularios con archivo (h:inputFile): la foto del remito de
-             entrega (ADR-033). El celular la achica antes de subirla
-             (remito.js); 8 MB de tope deja margen si no pudo. -->
+             entrega (ADR-033) y hasta 3 de una visita fallida (ADR-045). El
+             celular las achica antes de subirlas (remito.js); 8 MB por
+             archivo y 26 MB en total dejan margen si no pudo. -->
         <multipart-config>
             <max-file-size>8388608</max-file-size>
-            <max-request-size>9437184</max-request-size>
+            <max-request-size>27262976</max-request-size>
             <file-size-threshold>1048576</file-size-threshold>
         </multipart-config>
     </servlet>

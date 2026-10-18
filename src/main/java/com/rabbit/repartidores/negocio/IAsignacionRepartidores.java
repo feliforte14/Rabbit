@@ -45,6 +45,13 @@ public interface IAsignacionRepartidores {
     boolean antesDelCorte();
 
     /**
+     * En qué hoja de ruta entra un pedido recibido a esa hora: la de ese
+     * día si llegó antes del corte, la del siguiente si no (ADR-042). Pedidos
+     * la usa para la fecha prometida.
+     */
+    java.time.LocalDate diaDeEntregaPara(java.time.LocalDateTime recibido);
+
+    /**
      * Le saca el pedido al repartidor (se entregó o se canceló después de
      * confirmado). Si era el último que llevaba, vuelve a DISPONIBLE.
      *
@@ -52,4 +59,12 @@ public interface IAsignacionRepartidores {
      * @param idPedido pedido que deja de llevar
      */
     void liberarRepartidor(Long idRepartidor, Long idPedido);
+
+    /**
+     * La última ubicación que compartió el repartidor (ADR-035), sea de
+     * cuando sea, o null si nunca compartió. Pedidos la usa como respaldo
+     * de la ubicación de una visita fallida (ADR-045) y decide si es
+     * reciente.
+     */
+    com.rabbit.repartidores.dto.UbicacionDTO ultimaUbicacion(Long idRepartidor);
 }

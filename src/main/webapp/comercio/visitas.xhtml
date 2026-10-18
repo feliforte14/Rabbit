@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Las visitas fallidas de un pedido con su evidencia (ADR-045): motivo,
+    comentario del repartidor, fotos y donde estaba. La comparten el
+    personal (desde Pedidos) y el comercio (desde Mis pedidos, solo los
+    suyos), como puntos-picking.xhtml. El pedido va por la URL
+    (?pedido=ID). Se bindea a visitasBean (VisitasBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonalOComercio}" />
+        <f:viewParam name="pedido" value="#{visitasBean.idPedido}" />
+        <f:viewAction action="#{visitasBean.cargar}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Visitas del pedido</ui:define>
+
+    <ui:define name="contenido">
+        <p>
+            <h:link outcome="/personal/pedidos" value="&#8592; Volver a pedidos" styleClass="enlace-volver"
+                    rendered="#{sesionBean.personal}" />
+            <h:link outcome="/comercio/mis-pedidos" value="&#8592; Volver a mis pedidos" styleClass="enlace-volver"
+                    rendered="#{sesionBean.comercio}" />
+        </p>
+
+        <h1>Visitas del pedido #{visitasBean.idPedido}</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:panelGroup rendered="#{visitasBean.encontrado}">
+            <p class="ayuda">
+                Cada vez que el repartidor no pudo entregar el pedido: qué pasó, sus fotos y dónde estaba en
+                ese momento. Las que dicen "no contó como visita" no fueron culpa de quien recibe (por
+                ejemplo, un problema del repartidor).
+            </p>
+
+            <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty visitasBean.visitas}">
+                Este pedido no tiene visitas fallidas registradas.
+            </h:panelGroup>
+
+            <ui:repeat value="#{visitasBean.visitas}" var="v">
+                <div class="hoja-ruta visita">
+                    <div class="hoja-ruta-encabezado">
+                        <h2 class="hoja-ruta-titulo">
+                            #{v.numeroVisita > 0 ? 'Visita ' += v.numeroVisita : 'No contó como visita'} · #{v.motivo}
+                        </h2>
+                        <h:outputText value="Volvió al comercio" styleClass="badge badge-rojo"
+                                      rendered="#{v.devueltoAlComercio}" />
+                    </div>
+                    <p class="hoja-ruta-datos">
+                        <span>#{v.fechaTexto} · registró #{v.registradoPor}</span>
+                        <h:panelGroup rendered="#{not empty v.comentario}">
+                            <span>Comentario: <b>#{v.comentario}</b></span>
+                        </h:panelGroup>
+                        <span>Ubicación: #{v.ubicacionTexto}
+                            <h:panelGroup rendered="#{v.conUbicacion}">
+                                · <a href="#{v.enlaceMapa}" target="_blank" rel="noopener noreferrer">Ver en el mapa</a>
+                            </h:panelGroup>
+                        </span>
+                    </p>
+                    <h:panelGroup layout="block" styleClass="fotos-visita-lista" rendered="#{not empty v.idsFotos}">
+                        <ui:repeat value="#{v.idsFotos}" var="idFoto" varStatus="st">
+                            <a href="#{request.contextPath}/foto-visita?id=#{idFoto}" target="_blank" rel="noopener noreferrer">
+                                <img src="#{request.contextPath}/foto-visita?id=#{idFoto}" alt="Foto #{st.index + 1} de la visita"
+                                     loading="lazy" />
+                            </a>
+                        </ui:repeat>
+                    </h:panelGroup>
+                </div>
+            </ui:repeat>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>

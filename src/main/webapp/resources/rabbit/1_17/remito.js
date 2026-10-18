@@ -6,6 +6,9 @@
  *
  * Si el navegador no puede achicarla (o no hace falta), se sube tal cual:
  * el servidor igual valida tipo y tamano.
+ *
+ * Vale para cualquier campo con la clase foto-remito: tambien las fotos
+ * de una visita fallida (ADR-045).
  */
 (function () {
     var LADO_MAXIMO = 1600;
@@ -29,7 +32,7 @@
                     return;
                 }
                 var datos = new DataTransfer();
-                datos.items.add(new File([blob], 'remito.jpg', { type: 'image/jpeg' }));
+                datos.items.add(new File([blob], 'foto.jpg', { type: 'image/jpeg' }));
                 input.files = datos.files;
             }, 'image/jpeg', CALIDAD);
         }).catch(function () {

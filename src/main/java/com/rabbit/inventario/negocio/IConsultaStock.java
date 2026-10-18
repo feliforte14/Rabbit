@@ -71,13 +71,26 @@ public interface IConsultaStock {
     Long registrarItem(Long idDeposito, DatosItemInventarioDTO datos);
 
     /**
-     * Carga o corrige el peso por unidad de un ítem (ADR-032).
+     * Corrige un ítem ya cargado: el nombre del producto, la cantidad que
+     * hay en el depósito y el peso por unidad. El comercio dueño no cambia.
      *
      * @param idItem ítem de inventario
-     * @param pesoKg kilos por unidad, mayor a cero
-     * @throws ValidacionException si el ítem no existe o el peso es inválido
+     * @param datos producto, cantidadDisponible y pesoKg nuevos
+     * @throws ValidacionException si el ítem no existe, algún dato es
+     *         inválido, la cantidad queda por debajo de lo reservado o ese
+     *         comercio ya tiene otro ítem con ese nombre en el depósito
      */
-    void actualizarPesoItem(Long idItem, java.math.BigDecimal pesoKg);
+    void actualizarItem(Long idItem, DatosItemInventarioDTO datos);
+
+    /**
+     * Elimina un ítem del depósito. Solo ADMINISTRADOR. Las reservas
+     * cerradas del ítem quedan en el historial (con el nombre del producto).
+     *
+     * @param idItem ítem de inventario
+     * @throws ValidacionException si no existe, tiene unidades reservadas o
+     *         algún pedido en curso lo usa
+     */
+    void eliminarItem(Long idItem);
 
     /**
      * TODO el stock de un deposito, de todos los comercios. Es la vista de

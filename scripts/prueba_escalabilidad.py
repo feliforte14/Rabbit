@@ -90,6 +90,7 @@ def enviar(etiqueta, i):
         "lineas": [{"producto": "[CARGA] Caja", "cantidad": 1}],
         "importe": 100, "medioPago": "CONTRA_ENTREGA",
         "direccionEntrega": f"[CARGA] {etiqueta} #{i}",
+        "emailDestinatario": "carga@correo.test",
     }
     credenciales = base64.b64encode(f"{USUARIO}:{CLAVE}".encode()).decode()
     pedido = urllib.request.Request(

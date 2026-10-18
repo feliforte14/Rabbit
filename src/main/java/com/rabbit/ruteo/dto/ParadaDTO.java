@@ -20,6 +20,9 @@ public class ParadaDTO {
     public String direccion;
     // Para ordenar (ver OrdenDeRecorrido); null si no se conoce.
     public String codigoPostal;
+    // Dónde queda, según OpenStreetMap (ADR-046); null si todavía no se ubicó.
+    public Double latitud;
+    public Double longitud;
     public List<Long> pedidos = new ArrayList<>();
 
     public ParadaDTO() {
@@ -39,6 +42,7 @@ public class ParadaDTO {
     public String getDireccion() { return direccion; }
     public String getCodigoPostal() { return codigoPostal; }
     public List<Long> getPedidos() { return pedidos; }
+    public boolean isUbicada() { return latitud != null && longitud != null; }
 
     /** "#12, #15". */
     public String getPedidosTexto() {

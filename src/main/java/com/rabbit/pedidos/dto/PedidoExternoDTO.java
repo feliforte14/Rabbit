@@ -40,6 +40,11 @@ public class PedidoExternoDTO {
     // Lista de espera y devolución al depósito (ADR-037).
     public boolean enListaDeEspera;
     public boolean devueltoADeposito;
+    // Día prometido (ADR-042): se calcula al recibirlo, así ya viene en la
+    // respuesta del alta. Null si no se pudo prometer.
+    public java.time.LocalDate fechaPrometida;
+    // Visitas fallidas del pedido real (ADR-041).
+    public int intentosFallidos;
 
     // Convierte una entidad PedidoExterno en un DTO listo para la vista.
     public static PedidoExternoDTO desde(PedidoExterno pe) {
@@ -69,6 +74,7 @@ public class PedidoExternoDTO {
             dto.resultado = "Descartado";
         }
         dto.idPedido = pe.getIdPedido();
+        dto.fechaPrometida = pe.getFechaPrometida();
         return dto;
     }
 

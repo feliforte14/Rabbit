@@ -19,6 +19,7 @@ import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -61,6 +62,20 @@ public class PedidoExternoRequest {
     @Digits(integer = 7, fraction = 3, message = "El peso admite hasta 7 enteros y 3 decimales")
     public BigDecimal pesoKg;
 
+    // Quién recibe (ADR-039). El email es obligatorio desde el 18/10/2026:
+    // es por donde Rabbit le avisa al cliente cada novedad. Nombre y
+    // teléfono siguen opcionales.
+    @Size(max = 100, message = "El nombre de quien recibe no puede superar los 100 caracteres")
+    public String nombreDestinatario;
+
+    @Size(max = 30, message = "El teléfono de quien recibe no puede superar los 30 caracteres")
+    public String telefonoDestinatario;
+
+    @NotBlank(message = "Falta el email de quien recibe: es obligatorio porque Rabbit le avisa por mail cada novedad del pedido")
+    @Email(message = "El email de quien recibe no es válido")
+    @Size(max = 120, message = "El email de quien recibe no puede superar los 120 caracteres")
+    public String emailDestinatario;
+
     public static class Linea {
         // STOCK_CONSIGNADO: el ítem consignado en Rabbit.
         public Long idItem;
@@ -73,6 +88,21 @@ public class PedidoExternoRequest {
         public int cantidad;
     }
 
+    /**
+     * Saca los espacios de más de los datos de quien recibe antes de validar
+     * el formato: " ana@correo.com " es el mismo email (el negocio también lo
+     * normaliza, ver Destinatarios) y no tiene que dar 400. Vacío = no vino.
+     */
+    void normalizar() {
+        nombreDestinatario = limpiar(nombreDestinatario);
+        telefonoDestinatario = limpiar(telefonoDestinatario);
+        emailDestinatario = limpiar(emailDestinatario);
+    }
+
+    private static String limpiar(String valor) {
+        return valor == null || valor.isBlank() ? null : valor.trim();
+    }
+
     DatosPedidoExternoDTO aDatos() {
         DatosPedidoExternoDTO datos = new DatosPedidoExternoDTO();
         datos.origen = origen;
@@ -82,6 +112,9 @@ public class PedidoExternoRequest {
         datos.direccionEntrega = direccionEntrega;
         datos.codigoPostalEntrega = codigoPostalEntrega;
         datos.pesoKg = pesoKg;
+        datos.nombreDestinatario = nombreDestinatario;
+        datos.telefonoDestinatario = telefonoDestinatario;
+        datos.emailDestinatario = emailDestinatario;
         for (Linea linea : lineas) {
             DatosLineaPedidoDTO dato = new DatosLineaPedidoDTO();
             dato.idItem = linea.idItem;

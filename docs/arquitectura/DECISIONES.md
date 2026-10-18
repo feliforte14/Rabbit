@@ -765,7 +765,7 @@ Propuesta o Reemplazada.
   nada.
 - **Decisión:**
   - **Peso por unidad en el stock** (`ItemInventario.pesoKg`, obligatorio
-    en las altas, con "Corregir peso" para lo ya cargado). Un pedido de
+    en las altas; lo ya cargado se corrige con "Editar", ADR-049). Un pedido de
     stock consignado calcula su peso al sincronizarse: peso por unidad ×
     cantidad. Si algún ítem no tiene peso, el del pedido queda
     desconocido (null): contarlo como 0 lo haría pasar por liviano. La
@@ -871,7 +871,7 @@ Propuesta o Reemplazada.
   - Cada comercio va en sus propias transacciones (crear, después cobrar):
     el banco no se deshace con un rollback, así que la liquidación existe
     antes de llamarlo.
-  - Pantalla "Liquidaciones mensuales" (personal): lo cobrado por mes, el
+  - Pantalla "Liquidaciones" (personal): lo cobrado por mes, el
     botón para liquidar un mes cerrado (administrador) y una **vista
     previa del mes en curso**, que calcula sin guardar ni cobrar. El
     comercio ve las suyas en "Mis liquidaciones", también con la vista
@@ -954,7 +954,8 @@ Propuesta o Reemplazada.
 ## ADR-037: Lista de espera, hora de corte y devolución al depósito
 
 - **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
-  "Testing NO OK").
+  "Testing NO OK"). La devolución al depósito sin límite la reemplaza
+  ADR-041 (motivos fijos e intentos), propuesta.
 - **Contexto:** si ningún repartidor tenía lugar (ADR-032), confirmar
   fallaba y el pedido quedaba PENDIENTE hasta que alguien lo volviera a
   confirmar a mano. La asignación ya probaba con todos los repartidores,
@@ -979,13 +980,15 @@ Propuesta o Reemplazada.
     (`IAsignacionRepartidores.motivoParaEsperar`, sin bloqueo). Si otro se
     queda con el lugar entre esa consulta y la asignación, el banco ya
     cobró y se reversa como antes (`ReversasBancarias`).
-  - **Hora de corte: 21:00**, definida por el equipo el 16/10/2026
-    (`HoraDeCorte.POR_DEFECTO`). Desde esa hora no se suman pedidos a la
-    hoja del día aunque haya lugar: lo que se confirma después va a la
-    lista de espera y se asigna solo al día siguiente, antes del corte. Se
-    cambia con la system property `rabbit.ruteo.hora-corte` (`HH:mm`),
-    leída en cada uso, y con el valor `ninguno` no hay corte (para una
-    demo de noche). Un valor inválido se ignora y rige el de 21:00.
+  - **Hora de corte: 07:00**, definida por el equipo el 18/10/2026
+    (`HoraDeCorte.POR_DEFECTO`; del 16 al 18/10 fue 21:00). A las 7 se
+    cierra la hoja del día, así hay tiempo de preparar los pedidos y salir
+    a la calle a las 9. Desde esa hora no se suman pedidos a la hoja del
+    día aunque haya lugar: lo que se confirma después va a la lista de
+    espera y se asigna solo al día siguiente, antes del corte. Se cambia
+    con la system property `rabbit.ruteo.hora-corte` (`HH:mm`), leída en
+    cada uso, y con el valor `ninguno` no hay corte. Un valor inválido se
+    ignora y rige el de 07:00.
   - **Devolver a depósito:** el repartidor del pedido (o un
     administrador), desde CONFIRMADO o EN_CAMINO, con motivo obligatorio.
     El pedido vuelve a PENDIENTE en la lista de espera, el repartidor deja
@@ -1002,10 +1005,14 @@ Propuesta o Reemplazada.
     sigue siendo "pendiente de asignar".
   - *Cobrar al confirmar aunque quede en espera:* cobra un servicio que
     todavía no tiene fecha, y obliga a reversar si se cancela antes.
-  - *Corte a las 9:00:* se propuso primero, pero después de esa hora
-    ninguna prueba ni demo de la tarde asignaría pedidos. El equipo
-    eligió las 21:00, cuando ya terminó el reparto del día.
-- **Consecuencias:** las columnas nuevas de `pedidos` admiten NULL y las
+  - *Corte a las 21:00* (el que rigió primero): seguía sumando pedidos a
+    la hoja durante todo el día, y el repartidor no podía planificar su
+    recorrido antes de salir.
+  - *Corte a las 9:00:* deja sin margen para preparar los pedidos antes
+    de salir a la calle a esa hora.
+- **Consecuencias:** con el corte a las 07:00, durante el día todo lo
+  que se confirma queda en espera para el día siguiente: para una demo o
+  una prueba hay que configurar `ninguno` (README, paso 7b). Las columnas nuevas de `pedidos` admiten NULL y las
   crea Hibernate al desplegar (`update`); las versiones anteriores siguen
   funcionando sobre la misma base. La API del ERP agrega `enListaDeEspera`
   y no ofrece el link de cancelar un pedido devuelto.
@@ -1040,3 +1047,402 @@ Propuesta o Reemplazada.
 - **Consecuencias:** el orden es una aproximación (los CP cercanos suelen
   ser barrios vecinos, no siempre). En el navegador de un celular sin la
   app de Google Maps, Google acepta menos paradas por link que en la app.
+
+## ADR-039: Datos de quien recibe el pedido
+
+- **Estado:** Propuesta (16/10/2026), en la rama
+  `feature/mejoras-lideres-ultima-milla`. Sale de la comparación con los
+  líderes de última milla: todos saben a quién le entregan.
+- **Contexto:** el pedido solo tenía dirección y código postal. Rabbit no
+  sabía por quién preguntar en la puerta, no tenía a quién llamar si no
+  encontraba la dirección y no podía avisarle nada al cliente (ADR-040).
+- **Decisión:** tres campos **opcionales** en el alta (API y pantalla),
+  en `PedidoExterno` y en `Pedido`: `nombreDestinatario` (100),
+  `telefonoDestinatario` (30) y `emailDestinatario` (120). Los normaliza y
+  valida `Destinatarios`: vacío es "no vino", el teléfono se acepta como
+  lo escribe la gente (`+54 11 4567-8901`, `(011) 4567-8901`) y el email
+  tiene que tener forma de email porque es para avisar. El repartidor ve
+  nombre y teléfono (con link para llamar); el personal y el comercio, en
+  sus listados. El seguimiento público **no** los muestra.
+- **Alternativas descartadas:**
+  - *Obligatorios:* rompían a todo ERP que ya integra. Con opcionales, un
+    ERP que no los manda sigue igual, solo sin avisos al cliente.
+  - *Una entidad aparte (Destinatario):* para tres columnas que no se
+    reusan entre pedidos, era una tabla y un join más sin beneficio.
+- **Consecuencias:** las columnas nuevas admiten NULL (`update`). La huella
+  de idempotencia suma estos datos solo si vienen: un reintento de antes
+  de este cambio da la misma huella. Son datos personales: se borran con
+  el pedido cuando se elimina su comercio.
+- **Actualización (18/10/2026): el email pasa a ser obligatorio.** El
+  equipo lo pidió porque es por donde se le avisa al cliente (ADR-040).
+  - **Alta de pedidos nuevos:** la API responde **400** si falta
+    (`datos-con-formato-invalido`, con `emailDestinatario` en `errores` y
+    el motivo "es obligatorio porque Rabbit le avisa por mail…"); la
+    pantalla "Simular un pedido del ERP" lo marca obligatorio; y el negocio
+    lo vuelve a exigir (`Destinatarios.emailObligatorio`), así ningún
+    camino lo saltea. Nombre y teléfono siguen opcionales.
+  - **Lo que ya existía no se toca:** los pedidos y los pedidos del ERP
+    dados de alta antes, sin email, siguen funcionando igual (se
+    sincronizan, se reparten y se entregan) y solo no reciben avisos. La
+    columna sigue admitiendo NULL y no hay migración de datos.
+  - **ERP ya integrados:** tienen que empezar a mandar el email; hasta
+    entonces sus altas nuevas reciben 400 con el campo indicado. Se
+    descartó una perilla para seguir aceptando altas sin email: los únicos
+    clientes de la API hoy son los nuestros (simulador, tests, Postman y
+    la prueba de carga), y se actualizaron todos. Caso borde: reintentar
+    con la misma clave un alta enviada antes del cambio, sin email, ahora
+    da 400 (antes devolvía el pedido ya creado).
+
+## ADR-040: Avisos a quien recibe, con un tercer suscriptor del tópico
+
+- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Contexto:** solo se le avisaba al comercio. Onfleet, Bringg, Andreani
+  y DHL le avisan a quien recibe en cada cambio, con el link al
+  seguimiento.
+- **Decisión:** `SuscriptorDestinatarioEstadoPedido`, un **tercer MDB**
+  sobre `topico.pedidos.estado`, con su propia suscripción durable
+  (`rabbit-destinatarios`). Llama a `AvisoDestinatarioService`, que:
+  descarta eventos viejos o repetidos con la `fechaCambio` (igual que los
+  avisos al comercio), no hace nada si el pedido no tiene email, arma el
+  texto (`TextosAlDestinatario`: "Recibimos tu pedido de X, llega hoy",
+  "llega hoy", "no pudimos entregarlo", "entregado"...) con el link
+  público (`rabbit.url-publica`), lo guarda en `avisos_destinatario` y lo
+  manda por mail después del commit con el mismo `AvisosPorMail`.
+- **Alternativas descartadas:**
+  - *Que `NotificacionService` también le avise al cliente:* mezcla dos
+    destinatarios con reglas distintas en el mismo método, y una falla de
+    uno frenaría al otro.
+  - *Llamarlo desde `PedidoService.cambiarEstado`:* acopla Pedidos a
+    Notificaciones y hace esperar al usuario. El tópico existe justo para
+    no tener que tocar Pedidos al sumar un interesado (ADR-006).
+  - *SMS o WhatsApp:* exigen un proveedor pago; el mail ya estaba.
+- **Consecuencias:** sumar el canal no tocó Pedidos ni a los otros dos
+  suscriptores. Sin servidor de correo, los avisos quedan registrados y el
+  personal los ve en Pedidos → "Avisos a destinatarios". El texto usa el
+  motivo de devolución vigente al momento del aviso.
+
+## ADR-041: Entrega fallida con motivo fijo, intentos y devolución al comercio
+
+- **Estado:** Propuesta (16/10/2026), misma rama. Reemplaza en parte a
+  ADR-037 (la devolución al depósito ya no es ilimitada).
+- **Contexto:** "Devolver a depósito" mandaba el pedido a PENDIENTE con
+  texto libre y sin límite: un cliente que nunca estaba hacía dar vueltas
+  al pedido para siempre, y "entrega al primer intento" (el indicador que
+  usa toda la industria) no se podía medir.
+- **Decisión:**
+  - **Motivos fijos** (`MotivoEntregaFallida`): cliente ausente, dirección
+    incorrecta, rechazado, zona peligrosa, no entra en el vehículo y otro
+    (con detalle obligatorio). El texto libre sigue como detalle.
+  - **Visitas:** una devolución cuenta como intento si el pedido estaba
+    EN_CAMINO y el motivo implica haber ido a la dirección ("no entra en
+    el vehículo" no). Se cuentan en `intentosFallidos`.
+  - **Estado final `DEVUELTO_AL_COMERCIO`** (EN_CAMINO → DEVUELTO) al
+    llegar a **2 visitas** (`rabbit.entregas.max-intentos`, de 1 a 10) o
+    enseguida si el cliente **lo rechazó**. El stock consignado vuelve al
+    stock del comercio (como al cancelar), el repartidor queda libre y
+    **Pagos anula el cobro** al recibir el evento por el tópico (su MDB
+    ahora filtra `ENTREGADO` y `DEVUELTO_AL_COMERCIO`): un CONTRA_ENTREGA
+    nunca se cobró, y un PREPAGO se reversa en el banco como al cancelar.
+  - El pedido conserva el repartidor de la última visita, para saber
+    quién lo devolvió.
+- **Alternativas descartadas:**
+  - *Anular el cobro en la misma transacción:* `anularCobro` es solo de
+    ADMINISTRADOR y quien devuelve es el repartidor. Por el tópico, como
+    el cobro contra entrega, el permiso sigue intacto y el cobro se anula
+    aunque Pagos esté caído un rato (suscripción durable).
+  - *3 visitas:* lo hace algún operador, pero en la demo obliga a tres
+    vueltas completas. Con la propiedad se cambia sin tocar código.
+  - *Que el personal decida a mano cuándo devolverlo:* es justo lo que no
+    escala.
+- **Consecuencias:** `EstadoPedido` suma un valor (el CHECK lo realinea
+  `AlineadorDeRestriccionesEnum`) y una columna enum nueva
+  (`motivoentregafallida`). Cambiar el selector del MDB de Pagos hace que
+  Artemis recree esa suscripción durable al desplegar: conviene desplegar
+  sin cobros contra entrega pendientes de acreditar. Los pedidos devueltos
+  no entran en la liquidación mensual (solo cuenta ENTREGADO).
+
+- **Textos de los avisos revisados (18/10/2026):** todos los avisos de
+  entrega fallida siguen la misma forma, qué pasó (con el motivo), qué
+  sigue con el pedido y qué conviene hacer, en frases cortas y sin
+  mayúsculas ni "visita(s)" (`TextosAlComercio`, `TextosAlDestinatario`).
+  Al comercio no se le dice que "el stock vuelve" si el pedido salió de un
+  punto de picking (no hay stock en Rabbit). Ninguno pasa de 255
+  caracteres, el largo de la columna del portal.
+- **Cancelar (ADR-048):** un pedido que salió a reparto ya no se cancela;
+  el único final si no se entrega es DEVUELTO_AL_COMERCIO.
+
+## ADR-042: Fecha prometida con la hora de corte
+
+- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Contexto:** el ERP no sabía si el pedido llegaba hoy o mañana. Mercado
+  Libre Flex promete "llega hoy" según la hora de corte.
+- **Decisión:** al **recibir** el pedido (no al sincronizarlo), Rabbit
+  calcula `fechaPrometida` con la misma hora de corte de la hoja de ruta
+  (ADR-037): antes del corte, hoy; después, mañana
+  (`HoraDeCorte.diaDeEntrega`, expuesta a Pedidos por
+  `IAsignacionRepartidores.diaDeEntregaPara`). Sin código postal no se
+  promete nada (no se sabe la zona). Va en la respuesta del alta y en el
+  GET de la API, en el seguimiento ("Llega hoy") y en los listados.
+- **Alternativas descartadas:**
+  - *Calcularla al sincronizar:* el ERP recibe el 201 antes, sin fecha.
+  - *Hora de corte por zona:* es mejor (una zona lejana no llega a la
+    misma hora), pero exige un dato nuevo por zona. Queda como mejora; el
+    cálculo ya está en un solo lugar.
+  - *Saltear fines de semana y feriados:* Rabbit reparte todos los días;
+    si el equipo define días hábiles, se agrega en `diaDeEntrega`.
+- **Consecuencias:** la promesa no se mueve: es contra lo que se mide
+  "a tiempo" (ADR-044). Si una visita falla, el seguimiento deja de
+  mostrarla en lugar de mostrar una fecha vencida.
+
+## ADR-043: Horario estimado en el seguimiento (parada N de M)
+
+- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Contexto:** el cliente veía el mapa pero no cuándo llegaba. Amazon
+  muestra cuántas paradas faltan; Onfleet, una ETA.
+- **Decisión:** con el pedido EN_CAMINO, el seguimiento (página y API)
+  dice en qué parada de la **hoja de ruta recomendada** del repartidor
+  está (ADR-038) y una franja: desde "ahora + paradas de antes x 20 min"
+  (nunca antes de la hora actual) hasta dos paradas más de margen,
+  redondeada a cuartos de hora; si es la próxima parada, "llega antes de
+  las HH:mm"
+  (`EstimacionDeLlegada`; `rabbit.ruteo.minutos-por-parada`). Armar el
+  recorrido lee direcciones de otros pedidos y depósitos, que solo ve el
+  personal: lo hace `LlegadaEstimadaService` con `@RunAs("OPERADOR")` y
+  devuelve solo números. Si algo falla, el seguimiento se ve sin horario.
+- **Alternativas descartadas:**
+  - *Abrir sin rol `listarItemsPorIds` y la hoja de ruta:* expondría
+    direcciones de terceros a cualquier llamada sin usuario.
+  - *ETA real con tráfico:* exige geocodificar (ADR-017) y una API paga.
+- **Consecuencias:** es una aproximación, igual que el orden por código
+  postal. Coincide con lo que ve el repartidor, porque se arma con el
+  mismo orden de asignación.
+
+## ADR-044: Tablero de indicadores de entrega
+
+- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Contexto:** Rabbit no medía si entregaba a tiempo. ShipBob, Onfleet y
+  Bringg tienen tableros con esos indicadores, para el operador y para
+  el comercio.
+- **Decisión:** "Indicadores" para el personal (toda la red o un comercio,
+  con el detalle por repartidor) y "Mis indicadores" para el comercio,
+  sobre los pedidos recibidos en los últimos 7, 30 o 90 días:
+  - **a tiempo:** entregados el día prometido o antes, sobre los que
+    tenían promesa;
+  - **al primer intento:** entregados sin visitas fallidas, sobre los que
+    terminaron el reparto (entregados + devueltos al comercio);
+  - horas promedio de recibido a entregado, pedidos en espera ahora,
+    motivos de las visitas fallidas;
+  - **costo por envío:** la liquidación del mes en curso (abono + cargos)
+    dividida por los envíos, que la vista toma de Pagos.
+  Se calcula en memoria (`CalculoDeIndicadores`) sobre los pedidos del
+  período: no hay tablas ni columnas de agregados.
+  - **Visualización, estilo tablero de BI:** fila de KPIs (con medidor
+    en los porcentajes) y gráficos en SVG propios (`indicadores.js`, sin
+    librerías): entregas por día en columnas apiladas (a tiempo / fuera
+    de término / sin fecha prometida), pedidos por estado, motivos de las
+    visitas fallidas y, para el personal, barras agrupadas por
+    repartidor. Cada gráfico tiene leyenda, tooltip (también con el
+    teclado), "Ver como tabla" y "Descargar CSV" (separado por ";" y en
+    UTF-8, como lo abre Excel en castellano); los filtros van en una fila
+    arriba. La paleta (azul, naranja, aqua) se validó contra el fondo de
+    cada tema, también daltonismo, y sigue el tema elegido sin redibujar.
+  - **Comparación con el período anterior** del mismo largo en cada KPI
+    ("▲ 6 pts vs. período anterior"), con flecha y texto además del
+    color, que depende de si subir es bueno (más horas hasta la entrega
+    es peor).
+- **Alternativas descartadas:**
+  - *Consultas agregadas en SQL:* más rápidas con millones de filas, pero
+    reparten cada regla entre JPQL y Java y no se prueban sin base.
+  - *Medir desde la confirmación:* no hay fecha de confirmación guardada;
+    "desde que se recibió" es lo que ve el cliente.
+  - *Una librería de gráficos (Chart.js) o Power BI embebido:* una
+    librería suma una dependencia externa para cuatro gráficos simples, y
+    Power BI exige licencias y sacar los datos de Rabbit.
+- **Consecuencias:** los porcentajes salen como "—" si no hay base, en
+  vez de 0 %. Los pedidos anteriores a ADR-042 no tienen promesa y no
+  cuentan en "a tiempo".
+
+## ADR-045: Evidencia de la visita fallida y un motivo para cada caso
+
+- **Estado:** Propuesta (17/10/2026), misma rama.
+- **Contexto:** ADR-041 dejó motivos fijos e intentos, pero comparado con
+  la tabla de casos típicos de una entrega fallida faltaban varios
+  (paquete dañado, nadie habilitado para recibir, domicilio cerrado,
+  problema del repartidor), no se guardaba ninguna prueba de la visita y
+  un problema del repartidor ya en camino (moto rota, lluvia) solo podía
+  cargarse como "Otro", que **le gastaba una visita al cliente**.
+- **Decisión:**
+  - **Motivos:** se suman `NADIE_HABILITADO`, `DOMICILIO_CERRADO`
+    (cuentan como visita), `PAQUETE_DANADO` (vuelve al comercio sin
+    reintentar, también desde Confirmado si lo detecta al retirarlo, y
+    **sin devolver el stock**: la mercadería está dañada) y
+    `PROBLEMA_DEL_REPARTIDOR` (no cuenta como visita, se reasigna). Cada
+    motivo dice si cuenta como visita, si devuelve al comercio y qué
+    evidencia pide (`MotivoEntregaFallida`).
+  - **Evidencia** (`IntentoEntrega` y `FotoIntentoEntrega`, tablas
+    `intentos_entrega` y `fotos_intento_entrega`): cada vez queda el
+    motivo, un comentario de hasta 500 caracteres (obligatorio con un
+    rechazo o "Otro"), hasta 3 fotos (al menos una con un paquete dañado;
+    JPEG/PNG/WEBP de hasta 5 MB, que el celular achica antes de subir) y
+    dónde estaba el repartidor. Las ven el personal y el comercio dueño en
+    "Ver visitas" (`comercio/visitas.xhtml`, `/foto-visita`); el
+    repartidor no, porque deja de tener el pedido.
+  - **Ubicación:** al abrir la ventana, el celular da la posición del
+    momento (`entrega-fallida.js`, `getCurrentPosition`). Si no la da (sin
+    permiso, sin señal), se usa la última que compartió mientras repartía
+    (ADR-035) si es de los últimos 10 minutos, marcada como aproximada. Si
+    no hay ninguna, la visita se registra igual (`EvidenciaDeVisita`).
+  - **Avisos:** al cliente, un texto por motivo con lo que puede hacer
+    (dejar a alguien mayor con DNI, revisar la dirección con la tienda...),
+    avisando cuando la próxima es la última visita; si el problema fue del
+    reparto, "se demora" sin culparlo. Nunca el comentario del repartidor.
+    Al comercio, el motivo con el comentario, la visita N de M, qué hacer y
+    dónde ver las fotos; un paquete dañado es una INCIDENCIA. El aviso de
+    la falla ya no se descarta si llega después del de la reasignación
+    (pasa en menos de un segundo): se reconoce por `fechaUltimaFalla`
+    (`AvisosDeFalla`). Antes, el comercio no se enteraba.
+  - El botón del repartidor dice "Devolver pedido" (puede haber salido de
+    un depósito o de un punto de picking).
+- **Alternativas descartadas:**
+  - *Fotos y ubicación obligatorias siempre:* sin señal o sin permiso el
+    repartidor no podría cerrar la visita y el pedido quedaría trabado.
+  - *Guardar las fotos en disco:* cada integrante tiene su WildFly; como
+    el remito (ADR-033), van a la base.
+  - *Pausar el pedido para que el comercio corrija la dirección, retiro
+    en un punto y franjas horarias:* quedan para una etapa siguiente
+    (necesitan pantallas y estados nuevos).
+- **Consecuencias:** el aviso del portal al comercio se recorta a 255
+  caracteres (largo de la columna); el mail lleva el texto completo. Un
+  paquete dañado no devuelve stock: lo resuelve el comercio con Rabbit.
+
+## ADR-046: Hoja de ruta por distancia, con OpenStreetMap
+
+- **Estado:** Propuesta (17/10/2026), misma rama.
+- **Contexto:** la hoja de ruta recomendada (ADR-038) arrancaba por los
+  retiros y seguía por la entrega de código postal más cercano: sin
+  coordenadas, el número de CP era la única forma de aproximar la
+  distancia, y a veces mandaba al repartidor lejos (CP vecinos que no son
+  barrios vecinos).
+- **Decisión:** ubicar las direcciones en el mapa con **Nominatim
+  (OpenStreetMap)** y ordenar por distancia en línea recta:
+  - **En segundo plano** (`Geocodificador`, timer cada minuto): toma las
+    direcciones de entrega y de retiro (depósito o punto de picking) de
+    los pedidos en curso que no estén en la caché y las consulta, como
+    mucho una por segundo y 20 por pasada, con un User-Agent propio (las
+    reglas de uso del servicio). Si falla, reintenta al minuto siguiente.
+  - **Caché** (`CoordenadaDireccion`, tabla `coordenadas_direcciones`):
+    cada dirección (normalizada, con su CP) se consulta una sola vez; las
+    no encontradas se reintentan a los 7 días.
+  - **Orden** (`OrdenDeRecorrido`): retiros pendientes primero; las
+    entregas, desde el último retiro o, si ya retiró todo, desde el
+    depósito o punto de picking de donde salieron, siempre a la más
+    cercana (haversine). Las que todavía no se ubicaron van después, por
+    CP como antes. La hoja de ruta solo lee la caché: nunca espera a un
+    servicio externo.
+  - `rabbit.geocodificacion=ninguna` lo apaga (todo por CP);
+    `rabbit.geocodificacion.url` usa otro servidor Nominatim.
+- **Alternativas descartadas:**
+  - *Google Maps (Geocoding y Directions):* más preciso y con calles
+    reales, pero exige una clave con facturación.
+  - *Geocodificar al dar de alta el pedido:* el alta llegaría a depender
+    de un servicio externo lento o caído.
+  - *Optimizar el recorrido completo (problema del viajante) o por
+    calles:* para 5 a 15 paradas, el vecino más cercano en línea recta
+    alcanza; ruteo por calles necesitaría un servicio de rutas.
+- **Consecuencias:** las direcciones de entrega y retiro (solo dirección y
+  CP, nunca quién recibe) salen hacia OpenStreetMap. Un pedido recién
+  confirmado puede ordenarse por CP hasta la pasada siguiente (menos de un
+  minuto). Una dirección mal cargada puede ubicarse en otro lugar: el
+  orden es una recomendación, el repartidor puede seguir otro.
+
+## ADR-047: Mails reales por SMTP con login y TLS (Gmail)
+
+- **Estado:** Propuesta (17/10/2026), misma rama.
+- **Contexto:** los avisos por mail (al comercio y a quien recibe, ADR-040)
+  solo sabían hablar con un servidor SMTP sin login ni cifrado: servían
+  para un servidor de prueba local, no para que lleguen a casillas reales.
+  Gmail y cualquier proveedor real exigen usuario, contraseña y TLS.
+- **Decisión:** `ConfiguracionSmtp` arma la conexión con system
+  properties leídas en cada envío: host, puerto, usuario, contraseña,
+  seguridad (`starttls` por defecto con usuario; `ssl` para el 465;
+  `ninguna`) y remitente (con login, por defecto la misma cuenta, que es
+  lo que exige Gmail). Sin usuario se comporta como antes.
+- **Por qué system properties y no un recurso `mail-session` de
+  WildFly:** es el mismo mecanismo que el resto de la configuración de
+  Rabbit (banco, hora de corte, tarifa) y se cambia sin redesplegar. Las
+  credenciales quedan en la configuración de cada WildFly, como las de la
+  base, nunca en el repositorio público.
+- **Consecuencias:** hace falta una cuenta de correo para Rabbit (en
+  Gmail, con verificación en dos pasos y una contraseña de aplicación).
+  Gmail limita a unos 500 envíos por día. El envío sigue siendo después
+  del commit: un correo caído no frena ni deshace nada.
+
+## ADR-048: Un pedido que salió a reparto no se cancela
+
+- **Estado:** Aceptada (18/10/2026). Pedido del equipo (Trello).
+- **Contexto:** la máquina de estados ya impedía cancelar un pedido
+  EN_CAMINO, pero un pedido que salió, falló la visita y volvió al
+  depósito para otra (PENDIENTE en la lista de espera, ADR-041) se podía
+  cancelar desde Pedidos. Además, si alguien forzaba la cancelación de uno
+  en camino, el mensaje era el técnico ("está EN_CAMINO y no puede pasar a
+  CANCELADO").
+- **Decisión:** una vez que el pedido **salió a reparto**, Rabbit no lo
+  cancela: solo queda entregarlo. Si no se puede, el repartidor registra
+  la entrega fallida ("Devolver a depósito") y Rabbit lo reintenta; al
+  agotar las visitas, con un rechazo o con el paquete dañado, termina
+  DEVUELTO_AL_COMERCIO, y la devolución con el cliente la gestiona el
+  comercio.
+  - `Pedido.salioAReparto` se prende la primera vez que pasa a EN_CAMINO
+    (en `cambiarEstado`) y no se apaga. Para las filas anteriores, un
+    pedido con visitas fallidas cuenta como salido (solo se cuentan si
+    estaba EN_CAMINO).
+  - `ReglaDeCancelacion` decide, igual para el personal (web) y para el
+    ERP (API, 409 `cancelacion-no-permitida`), con un mensaje claro: "ya
+    salió a reparto y no se puede cancelar: solo queda entregarlo. Si no se
+    puede entregar, vuelve al comercio…".
+  - En Pedidos no se muestra el botón Cancelar en esos pedidos, y en su
+    lugar dice "Ya salió a reparto: no se puede cancelar".
+  - Un pedido devuelto **sin haber salido** (por ejemplo, no entraba en el
+    vehículo, desde CONFIRMADO) se sigue pudiendo cancelar.
+- **Cómo encaja con la entrega fallida:** "Devolver a depósito" no es una
+  cancelación: es registrar una visita que no se pudo completar. El único
+  final para un pedido que salió y no se entrega es DEVUELTO_AL_COMERCIO.
+- **Consecuencias:** la columna nueva admite NULL (`update`). El personal
+  ya no puede "cortar por lo sano" un pedido que salió: tiene que pasar
+  por la entrega fallida, que deja la visita, el motivo y la evidencia.
+
+## ADR-049: Editar y eliminar el stock de un depósito
+
+- **Estado:** Aceptada (18/10/2026). Pedido del equipo.
+- **Contexto:** en "Depósitos y stock" solo se podía cargar stock y
+  corregir el peso. Un producto mal escrito, una cantidad que no coincidía
+  con lo que había en el galpón o un producto que ya no se guarda no
+  tenían arreglo desde la aplicación.
+- **Decisión:**
+  - **Editar** (personal: administrador y operador): cada fila tiene un
+    botón "Editar" que abre un formulario con el producto, la cantidad en
+    el depósito y el peso por unidad (reemplaza a "Corregir peso"). El
+    comercio dueño no se cambia: sería pasarle mercadería a otro. La
+    cantidad no puede quedar por debajo de lo **reservado** (ya está
+    comprometido con un pedido que se está armando), y el nombre no puede
+    repetir otro producto del mismo comercio en ese depósito. Si alguien
+    reserva del mismo ítem mientras tanto, el bloqueo optimista (`@Version`)
+    rechaza el cambio con un mensaje para volver a abrirlo.
+  - **Eliminar** (solo administrador, como el resto de las eliminaciones,
+    ADR-036): borra el ítem. No se puede si tiene unidades reservadas, si
+    lo usa un pedido **en curso** (ni entregado, ni cancelado, ni devuelto
+    al comercio) o un pedido del ERP sin procesar: si se cancela, el stock
+    tiene que volver a ese ítem. Lo comprueba Pedidos con el evento
+    `EliminacionDeItem`, igual que `EliminacionDeComercio`, así Inventario
+    no depende de Pedidos.
+  - Las reservas del ítem **quedan en el historial**: dejan de apuntarle
+    (`item_id` en NULL) y conservan el nombre del producto, la cantidad y
+    el estado. Los pedidos terminados guardan el nombre en cada línea.
+  - Las reglas de cantidad están en `ReglasDeStock` (con tests).
+- **Alternativa descartada:** dar de baja en vez de borrar (un ítem
+  oculto con stock 0). Obligaba a filtrar los dados de baja en todas las
+  consultas de stock y a decidir qué hacer si volvía mercadería a un ítem
+  oculto. Con las condiciones de arriba, borrar no deja nada colgado.
+- **Consecuencias:** en el Historial, el filtro por depósito no encuentra
+  las reservas de un ítem eliminado (ya no se sabe en qué depósito
+  estaba); con "Todos" siguen apareciendo.

@@ -136,6 +136,12 @@ public class LiquidacionBean implements Serializable {
     public String getPeriodo() { return periodo; }
     public void setPeriodo(String periodo) { this.periodo = periodo; }
     public List<LiquidacionDTO> getFilas() { return filas; }
+
+    // La columna Acciones solo aparece si hay algún cobro para reintentar.
+    public boolean isHayCobrosParaReintentar() {
+        return filas != null && filas.stream().anyMatch(l ->
+                "PENDIENTE".equals(l.getEstado()) || "RECHAZADA".equals(l.getEstado()));
+    }
     public boolean isVistaPrevia() { return vistaPrevia; }
     public TarifaMensual getTarifa() { return tarifa; }
 }

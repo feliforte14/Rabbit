@@ -84,6 +84,13 @@
                     <h:panelGroup rendered="#{not empty p.codigoPostalEntrega}">
                         <span class="dato-secundario">CP #{p.codigoPostalEntrega}</span>
                     </h:panelGroup>
+                    <!-- Quien recibe (ADR-039) y el dia prometido (ADR-042). -->
+                    <h:panelGroup rendered="#{not empty p.nombreDestinatario or not empty p.emailDestinatario}">
+                        <span class="dato-secundario">Recibe: #{empty p.nombreDestinatario ? p.emailDestinatario : p.nombreDestinatario}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty p.fechaPrometida}">
+                        <span class="dato-secundario">Prometido para el #{p.fechaPrometidaTexto}</span>
+                    </h:panelGroup>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Importe</f:facet>
@@ -102,6 +109,22 @@
                     <h:panelGroup rendered="#{p.conRemito}">
                         <span class="dato-secundario">
                             <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>
+                        </span>
+                    </h:panelGroup>
+                    <!-- Visitas fallidas (ADR-041); al agotarlas vuelve al comercio. -->
+                    <h:panelGroup layout="block" styleClass="espera-detalle"
+                                  rendered="#{p.estado == 'DEVUELTO_AL_COMERCIO' and not empty p.motivoDevolucion}">
+                        <span class="espera-linea"><b>#{p.intentosFallidos} visita(s):</b> #{p.motivoDevolucion}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{p.estado == 'PENDIENTE' and p.intentosFallidos > 0}">
+                        <span class="dato-secundario">#{p.intentosFallidos} visita(s) fallida(s)</span>
+                    </h:panelGroup>
+                    <!-- Evidencia de cada visita: fotos, comentario y ubicación (ADR-045). -->
+                    <h:panelGroup rendered="#{not empty p.motivoEntregaFallida}">
+                        <span class="dato-secundario">
+                            <h:link outcome="/comercio/visitas" value="Ver visitas">
+                                <f:param name="pedido" value="#{p.id}" />
+                            </h:link>
                         </span>
                     </h:panelGroup>
                     <h:panelGroup layout="block" styleClass="espera-detalle"
@@ -143,10 +166,15 @@
                                      rendered="#{p.estado == 'CONFIRMADO' and empty pedidoBean.envio(p.id)}" />
                     <!-- La entrega la registra el repartidor con la foto del remito
                          (ADR-033); un administrador puede hacerlo abajo, con foto. -->
+                    <!-- Un pedido que ya salio a reparto no se cancela (ReglaDeCancelacion):
+                         solo queda entregarlo o, si no se puede, vuelve al comercio. -->
                     <h:commandButton value="Cancelar" styleClass="btn btn-danger"
                                      action="#{pedidoBean.cancelar(p.id)}"
-                                     rendered="#{p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO'}"
+                                     rendered="#{(p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO') and not p.salioAReparto}"
                                      onclick="return confirm('¿Cancelar el pedido? Si ya estaba cobrado, se le devuelve el pago al cliente.');" />
+                    <h:panelGroup rendered="#{p.salioAReparto and (p.estado == 'PENDIENTE' or p.estado == 'CONFIRMADO' or p.estado == 'EN_CAMINO')}">
+                        <span class="dato-secundario">Ya salió a reparto: no se puede cancelar</span>
+                    </h:panelGroup>
                 </h:column>
             </h:dataTable>
         </h:form>
@@ -195,7 +223,7 @@
             (los legados por SOAP no cotizan, pero se les puede derivar igual).
         </p>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.listaTransportistas}">
-            No hay empresas de logística activas. Se dan de alta en
+            No hay empresas de logística activas. Se dan de alta en#{' '}
             <h:link outcome="/personal/transportistas" value="Logística tercerizada" />.
         </h:panelGroup>
         <h:form id="formDerivar" styleClass="formulario" rendered="#{not empty pedidoBean.listaTransportistas}">
@@ -293,13 +321,40 @@
         <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.avisosRecientes}"
                       value="Todavía no se enviaron avisos." />
 
+        <!--
+            Avisos a quien recibe cada pedido (ADR-040): los genera un tercer
+            suscriptor del mismo topico. Se mandan por mail si hay servidor de
+            correo configurado; si no, quedan registrados aca.
+        -->
+        <h2>Avisos a destinatarios</h2>
+        <h:dataTable value="#{pedidoBean.avisosADestinatarios}" var="a" id="tablaAvisosDestinatarios"
+                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                     rendered="#{not empty pedidoBean.avisosADestinatarios}">
+            <h:column styleClass="col-p2" headerClass="col-p2">
+                <f:facet name="header">Hora</f:facet>
+                #{a.fechaAviso}
+            </h:column>
+            <h:column styleClass="col-p3" headerClass="col-p3">
+                <f:facet name="header">Para</f:facet>
+                #{a.email}
+                <span class="dato-secundario">Pedido #{a.idPedido}</span>
+            </h:column>
+            <h:column>
+                <f:facet name="header">Aviso</f:facet>
+                <b>#{a.asunto}</b>
+                <span class="dato-secundario">#{a.mensaje}</span>
+            </h:column>
+        </h:dataTable>
+        <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.avisosADestinatarios}"
+                      value="Todavía no se avisó a ningún destinatario. (Los pedidos cargados antes de que el email fuera obligatorio pueden no tenerlo: a esos no se les avisa.)" />
+
         <h2>Recibidos del ERP</h2>
         <p class="ayuda">
             Rabbit no origina pedidos: los recibe del sistema de cada comercio por la API REST
             (<code>POST /api/v1/pedidos-externos</code>) y los convierte en pedidos reales por la cola
             JMS. Acá se ve qué llegó y cómo terminó cada uno.
         </p>
-        <h:form id="formExternos" styleClass="tabla-scroll">
+        <h:form id="formExternos" styleClass="tabla-scroll" rendered="#{not empty pedidoBean.pedidosExternos}">
             <h:dataTable value="#{pedidoBean.pedidosExternos}" var="pe"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
                 <h:column styleClass="col-p2" headerClass="col-p2">
@@ -335,6 +390,9 @@
                 </h:column>
             </h:dataTable>
         </h:form>
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.pedidosExternos}">
+            Todavía no llegó ningún pedido del ERP.
+        </h:panelGroup>
 
         <h2>Simular un pedido del ERP</h2>
         <p class="ayuda">
@@ -402,6 +460,28 @@
                              label="Código postal" maxlength="8" />
                 <p class="ayuda">Define la zona del pedido. Si no se carga, se busca en la dirección
                     ("CP 1414", "(1414)" o "C1414ABC").</p>
+            </div>
+
+            <!-- Quien recibe (ADR-039): el email es obligatorio, como en la API
+                 (Rabbit le avisa cada cambio de estado, ADR-040); nombre y
+                 telefono, opcionales. -->
+            <div class="campo">
+                <h:outputLabel for="nombreDestinatario" value="Quién recibe (opcional)" />
+                <h:inputText id="nombreDestinatario" value="#{pedidoBean.nuevoPedido.nombreDestinatario}"
+                             maxlength="100" />
+            </div>
+            <div class="campo">
+                <h:outputLabel for="telefonoDestinatario" value="Teléfono de quien recibe (opcional)" />
+                <h:inputText id="telefonoDestinatario" value="#{pedidoBean.nuevoPedido.telefonoDestinatario}"
+                             maxlength="30" pt:type="tel" />
+            </div>
+            <div class="campo">
+                <h:outputLabel styleClass="obligatorio" for="emailDestinatario" value="Email de quien recibe" />
+                <h:inputText id="emailDestinatario" value="#{pedidoBean.nuevoPedido.emailDestinatario}"
+                             maxlength="120" pt:type="email" required="true" label="Email de quien recibe"
+                             requiredMessage="Ingresá el email de quien recibe: Rabbit le avisa por mail cada novedad del pedido" />
+                <h:message for="emailDestinatario" styleClass="error-campo" />
+                <p class="ayuda">Obligatorio: Rabbit le avisa cada cambio de estado con el link al seguimiento.</p>
             </div>
 
             <div class="campo">

@@ -3,9 +3,9 @@
     VISTA (Facelet) - Capa de Presentacion.
     La pantalla del repartidor: arriba, la hoja de ruta recomendada con
     todas sus paradas en orden (ADR-038); despues, sus entregas en curso
-    (de donde retira, adonde entrega y cuanto cobrar) con los botones para
-    marcar el retiro, entregar con la foto del remito (ADR-033) o devolver
-    el pedido al deposito (ADR-037), y su historial. Pensada para el
+    (de donde retira, adonde entrega, quien recibe y cuanto cobrar) con los botones para
+    marcar el retiro, entregar con la foto del remito (ADR-033) o registrar
+    que no se pudo entregar con su evidencia (ADR-037, ADR-045), y su historial. Pensada para el
     celular. Mientras tiene entregas en curso, manda su ubicacion a Rabbit
     (ubicacion.js, ADR-035).
     Se bindea a misEntregasBean (MisEntregasBean.java).
@@ -102,6 +102,18 @@
 
                 <p class="hoja-ruta-datos">
                     <span>Llevás: <b>#{e.productos}</b> (#{e.cantidadTotal} u.#{empty e.pesoKg ? '' : ', ' += etiquetas.kilos(e.pesoKg)})</span>
+                    <!-- Quien recibe (ADR-039): para preguntar por esa persona o llamarla. -->
+                    <h:panelGroup rendered="#{not empty e.nombreDestinatario or not empty e.telefonoDestinatario}">
+                        <span>Recibe: <b>#{empty e.nombreDestinatario ? 'sin nombre' : e.nombreDestinatario}</b>
+                            <h:panelGroup rendered="#{not empty e.telefonoDestinatario}">
+                                · <a href="tel:#{e.telefonoParaLlamar}">#{e.telefonoDestinatario}</a>
+                            </h:panelGroup>
+                        </span>
+                    </h:panelGroup>
+                    <!-- Visitas que ya fallaron (ADR-041). -->
+                    <h:panelGroup rendered="#{e.intentosFallidos > 0}">
+                        <span class="cobrar">Visita #{e.intentosFallidos + 1} de #{misEntregasBean.maximoIntentos}: la anterior falló (#{e.motivoUltimoIntento})</span>
+                    </h:panelGroup>
                     <h:panelGroup rendered="#{not empty e.codigoCliente}">
                         <span>Código del cliente: <span class="codigo">#{e.codigoCliente}</span></span>
                     </h:panelGroup>
@@ -121,13 +133,15 @@
                     <div class="form-acciones">
                         <h:commandButton value="Ya retiré el pedido" styleClass="btn btn-primary"
                                          action="#{misEntregasBean.retirar(e.idPedido)}" />
-                        <button type="button" class="btn btn-secondary" data-devolver="#{e.idPedido}">Devolver a depósito</button>
+                        <button type="button" class="btn btn-secondary" data-devolver="#{e.idPedido}"
+                                data-en-camino="false">Devolver pedido</button>
                     </div>
                 </h:form>
 
                 <h:panelGroup layout="block" styleClass="form-acciones" rendered="#{e.estado == 'EN_CAMINO'}">
                     <button type="button" class="btn btn-primary" data-entregar="#{e.idPedido}">Entregar pedido</button>
-                    <button type="button" class="btn btn-secondary" data-devolver="#{e.idPedido}">Devolver a depósito</button>
+                    <button type="button" class="btn btn-secondary" data-devolver="#{e.idPedido}"
+                            data-en-camino="true" data-visitas="#{e.intentosFallidos}">Devolver pedido</button>
                 </h:panelGroup>
             </div>
         </ui:repeat>
@@ -153,27 +167,52 @@
             </h:form>
         </dialog>
 
-        <!-- Devolver a deposito (ADR-037): el pedido vuelve a la lista de
-             espera y Rabbit se lo asigna a otro repartidor. -->
+        <!-- No se pudo entregar (ADR-037, ADR-041, ADR-045): el pedido vuelve
+             a la lista de espera para otro repartidor, o al comercio. Queda
+             registrada la visita con motivo, comentario, hasta 3 fotos y la
+             ubicacion que toma el celular al abrir la ventana
+             (entrega-fallida.js). -->
         <dialog id="dialogoDevolucion" class="dialogo" aria-labelledby="dialogoDevolucionTitulo">
-            <h:form id="formDevolucion" styleClass="formulario">
-                <h2 id="dialogoDevolucionTitulo">Devolver a depósito el pedido <span data-numero-pedido=""></span></h2>
-                <p class="ayuda">Llevalo de vuelta al lugar donde lo retiraste. Rabbit se lo asigna a otro repartidor.</p>
+            <h:form id="formDevolucion" enctype="multipart/form-data" styleClass="formulario">
+                <h2 id="dialogoDevolucionTitulo">Devolver el pedido <span data-numero-pedido=""></span></h2>
                 <h:inputHidden id="pedido" value="#{misEntregasBean.idPedidoADevolver}" />
+                <h:inputHidden id="latitud" value="#{misEntregasBean.latitudVisita}" />
+                <h:inputHidden id="longitud" value="#{misEntregasBean.longitudVisita}" />
+                <h:inputHidden id="precision" value="#{misEntregasBean.precisionVisita}" />
                 <div class="campo">
-                    <h:outputLabel styleClass="obligatorio" for="motivo" value="¿Por qué no se pudo entregar?" />
+                    <h:outputLabel styleClass="obligatorio" for="motivo" value="¿Qué pasó?" />
                     <h:selectOneMenu id="motivo" value="#{misEntregasBean.motivoDevolucion}" pt:required="required">
-                        <f:selectItem itemLabel="— Elegí el motivo —" itemValue="" />
-                        <f:selectItems value="#{misEntregasBean.motivosDevolucion}" />
+                        <f:selectItem itemLabel="— Elegí el motivo —" itemValue="#{null}" noSelectionOption="true" />
+                        <f:selectItems value="#{misEntregasBean.motivosDevolucion}" var="m"
+                                       itemValue="#{m}" itemLabel="#{m.descripcion}" />
                     </h:selectOneMenu>
+                    <!-- Que pide cada motivo y que pasa con el pedido; lo lee entrega-fallida.js. -->
+                    <ui:repeat value="#{misEntregasBean.motivosDevolucion}" var="m">
+                        <span hidden="hidden" data-motivo="#{m}" data-visita="#{m.cuentaComoVisita}"
+                              data-devuelve="#{m.devuelveAlComercio}" data-pide-comentario="#{m.pideComentario}"
+                              data-pide-foto="#{m.pideFoto}"></span>
+                    </ui:repeat>
+                    <p class="ayuda" id="consecuenciaMotivo" aria-live="polite"
+                       data-maximo="#{misEntregasBean.maximoIntentos}"></p>
                 </div>
                 <div class="campo">
-                    <h:outputLabel for="detalle" value="Detalle (obligatorio si elegiste Otro)" />
+                    <h:outputLabel for="detalle" value="Comentario" id="etiquetaComentario" />
                     <h:inputTextarea id="detalle" value="#{misEntregasBean.detalleDevolucion}" rows="3"
-                                     pt:maxlength="200" />
+                                     pt:maxlength="500" pt:placeholder="Ej.: toqué timbre dos veces y llamé al teléfono, no atendió" />
                 </div>
+                <fieldset class="campo fotos-visita">
+                    <legend id="etiquetaFotos">Fotos (hasta 3, opcionales)</legend>
+                    <p class="ayuda">De la puerta, el número de la casa o el paquete. Se achican solas antes de subir.</p>
+                    <h:inputFile id="foto1" value="#{misEntregasBean.foto1}" styleClass="foto-remito"
+                                 pt:accept="image/*" pt:capture="environment" pt:aria-label="Foto 1" />
+                    <h:inputFile id="foto2" value="#{misEntregasBean.foto2}" styleClass="foto-remito"
+                                 pt:accept="image/*" pt:capture="environment" pt:aria-label="Foto 2" />
+                    <h:inputFile id="foto3" value="#{misEntregasBean.foto3}" styleClass="foto-remito"
+                                 pt:accept="image/*" pt:capture="environment" pt:aria-label="Foto 3" />
+                </fieldset>
+                <p class="ayuda" id="ubicacionVisita" aria-live="polite">Tomando tu ubicación…</p>
                 <div class="form-acciones">
-                    <h:commandButton value="Devolver a depósito" styleClass="btn btn-danger"
+                    <h:commandButton value="Devolver pedido" styleClass="btn btn-danger"
                                      action="#{misEntregasBean.devolver}" />
                     <button type="button" class="btn btn-secondary" data-cerrar-dialogo="">Cancelar</button>
                 </div>
@@ -201,6 +240,11 @@
                 document.querySelectorAll('[data-devolver]').forEach(function (boton) {
                     boton.addEventListener('click', function () {
                         abrir('dialogoDevolucion', 'formDevolucion:pedido', boton.getAttribute('data-devolver'));
+                        // entrega-fallida.js: toma la ubicacion y arma las ayudas.
+                        document.dispatchEvent(new CustomEvent('rabbit:entrega-fallida', { detail: {
+                            enCamino: boton.getAttribute('data-en-camino') === 'true',
+                            visitas: parseInt(boton.getAttribute('data-visitas') || '0', 10)
+                        } }));
                     });
                 });
                 document.querySelectorAll('[data-cerrar-dialogo]').forEach(function (boton) {
@@ -251,6 +295,7 @@
                       value="Todavía no terminaste ninguna entrega." />
 
         <h:outputScript library="rabbit" name="remito.js" />
+        <h:outputScript library="rabbit" name="entrega-fallida.js" />
         <h:outputScript library="rabbit" name="ubicacion.js" rendered="#{misEntregasBean.compartirUbicacion}" />
     </ui:define>
 </ui:composition>
