@@ -114,7 +114,7 @@ sequenceDiagram
     PS-)Pub: evento EstadoPedidoCambiado
     Note over PS,Pub: commit, recién después corre el observer (AFTER_SUCCESS)
     Pub->>T: send {idPedido, estado: ENTREGADO, ...}
-    T-)Pag: onMessage (selector estado = 'ENTREGADO')
+    T-)Pag: onMessage (selector estado IN ENTREGADO, DEVUELTO_AL_COMERCIO)
     Pag->>Pag: registrarCobroContraEntrega → ACREDITADO
     T-)Not: onMessage
     Not->>Not: aviso "Tu pedido fue entregado"

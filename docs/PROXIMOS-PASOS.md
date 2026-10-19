@@ -22,7 +22,7 @@ Implementadas en la rama `feature/mejoras-trello` (mergeada a `main` el
 - [x] Ubicación del repartidor en vivo, mapa del personal y del cliente (ADR-035).
 - [x] Eliminar usuarios, repartidores y zonas, solo administrador (ADR-036).
 - [x] Vista previa del mes en curso en "Mis liquidaciones" del comercio.
-- [ ] **Al mergear a `main`:** cada integrante despliega y corre una vez
+- [ ] **Ya está en `main`:** cada integrante despliega y corre una vez
       `scripts/configurar-realm-compartido.cli` (README, paso 5).
 
 ## Hecho: correcciones del equipo (16/10/2026)
@@ -55,9 +55,9 @@ de [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md)):
   - la cobranza por almacenamiento: es solo una propuesta, sin
     implementar ([PROPUESTA-COBRANZA-ALMACENAMIENTO.md](PROPUESTA-COBRANZA-ALMACENAMIENTO.md)).
 
-## En prueba: mejoras frente a los líderes de última milla (16/10/2026)
+## Hecho: mejoras frente a los líderes de última milla (16 a 18/10/2026)
 
-En la rama `feature/mejoras-lideres-ultima-milla`, **sin mergear**. Salen
+En `main` desde el 18/10/2026 (PR #8). Salen
 de comparar Rabbit con Mercado Libre Full/Flex, Andreani, Moova, DHL,
 Amazon, Onfleet, Bringg y ShipBob: son las seis de prioridad alta.
 Probadas de punta a punta en WildFly con una base local (sección 12 de
@@ -102,8 +102,8 @@ también desplegadas contra la base compartida.
 - [x] Editar (producto, cantidad y peso) y eliminar el stock de un
       depósito; eliminar, solo administrador y sin pedidos en curso que
       lo usen (ADR-049).
-- [ ] Decidir si se mergea a `main`. Antes, pasar a "Aceptada" los
-      ADR-039 a 047, que siguen como "Propuesta".
+- [x] Mergeado a `main` (PR #8, 18/10/2026); los ADR-039 a 047 pasaron
+      a "Aceptada".
 
 ### Tarjetas de la lista "To do" de Trello (revisadas en el código el 18/10)
 

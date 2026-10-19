@@ -176,7 +176,7 @@ El detalle y la justificación de cada decisión están en
 
 | Requisito | Cómo |
 |---|---|
-| Mínimo 6 componentes con interfaz explícita | 10 componentes, cada uno con interfaces `@Local` |
+| Mínimo 6 componentes con interfaz explícita | 9 componentes de negocio, cada uno con interfaces `@Local`, más una capa técnica de integración (`integracion`: cliente del banco y adaptadores de transportistas) |
 | 1 componente stateful y 1 stateless | `InventarioService` (`@Stateful`: la reserva de stock es una conversación) y el resto `@Stateless` |
 | Arquitectura en capas | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente |
 | 3 patrones de diseño | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, máquina de estados, transacción compensatoria y Circuit Breaker |

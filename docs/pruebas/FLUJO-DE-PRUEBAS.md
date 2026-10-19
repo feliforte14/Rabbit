@@ -283,7 +283,7 @@ tiempo real`). En **Pedidos → Recibidos del ERP** el pedido aparece como
    "Entregado", con su **código de seguimiento para el cliente** y el
    enlace "Ver lo que ve el cliente" (la API pública), y en "Avisos de
    Rabbit" aparece un aviso por cada cambio de estado. Eso confirma que el tópico `topico.pedidos.estado` distribuye
-   los cambios a sus suscriptores (Notificaciones y Pagos).
+   los cambios a sus tres suscriptores (aviso al comercio, aviso a quien recibe y Pagos).
 
 **Qué mirar:** en **Pedidos** (vista del personal) el pedido pasa por
 Pendiente → Confirmado → En camino → Entregado, y la columna Cobro por
@@ -537,7 +537,7 @@ cargados) y pedidos `[PRUEBA]` de 1 y 2 kg.
 
 ## 12. Mejoras frente a los líderes: destinatario, avisos, intentos, promesa, horario e indicadores
 
-En la rama `feature/mejoras-lideres-ultima-milla` (ADR-039 a 044).
+En `main` desde el 18/10/2026 (ADR-039 a 044).
 Probado de punta a punta el 16/10/2026 en WildFly 41 con una base
 PostgreSQL local (no la compartida), con dos repartidores, un comercio,
 su ERP y un servidor SMTP de prueba. Salieron dos ajustes: la franja

@@ -136,8 +136,12 @@ reaccionar:
   deja en su portal y, si hay un servidor de correo configurado, se lo
   manda por mail (integración 9: después del commit, nadie lo espera; si
   el correo falla, el aviso igual queda en el portal).
+- **Notificaciones** también le avisa por mail a **quien recibe** el
+  pedido, con el link al seguimiento (un segundo suscriptor propio,
+  ADR-040).
 - **Pagos** acredita el cobro cuando un pedido `CONTRA_ENTREGA` llega a
-  `ENTREGADO` (el repartidor cobró al entregar).
+  `ENTREGADO` (el repartidor cobró al entregar) y lo anula cuando el
+  pedido termina `DEVUELTO_AL_COMERCIO` (ADR-041).
 
 **Pregunta 1 — ¿necesito la respuesta para seguir? No.** El repartidor
 que marca "entregado" no tiene por qué esperar a que se mande la
@@ -145,10 +149,11 @@ notificación o se acredite el cobro. Si Notificaciones estuviera caído,
 el pedido igual tiene que quedar entregado.
 
 **Pregunta 1b — ¿cola o tópico? Tópico.** El mismo hecho ("el pedido 42
-pasó a ENTREGADO") lo necesitan **dos** consumidores, cada uno por su
-motivo. Con una cola solo lo recibiría uno de los dos. Además, Pedidos
-publica el hecho sin conocer a los suscriptores: sumar un tercero (por
-ejemplo, facturación) no requiere tocar Pedidos.
+pasó a ENTREGADO") lo necesitan **tres** consumidores, cada uno por su
+motivo. Con una cola solo lo recibiría uno de ellos. Además, Pedidos
+publica el hecho sin conocer a los suscriptores: así se sumó el aviso a
+quien recibe (ADR-040) sin tocar Pedidos, y lo mismo valdría para uno
+nuevo (por ejemplo, facturación).
 
 **Por qué no llamar directo a Notificaciones y a Pagos:** Pedidos
 dependería de los dos, y la caída de cualquiera frenaría el cambio de
@@ -159,9 +164,9 @@ estado.
 | Riesgo | Solución |
 |---|---|
 | Un suscriptor no está activo cuando se publica (por ejemplo, durante un redeploy) | **Suscripciones durables**: el broker le guarda el mensaje y se lo entrega al volver (ADR-009). Probado deteniendo el MDB de Pagos |
-| A Pagos solo le importa `ENTREGADO` | **Selector** `estado = 'ENTREGADO'`: el broker ni siquiera le entrega los demás |
-| El mismo evento llega dos veces | Pagos es idempotente (si ya está `ACREDITADO`, no hace nada); Notificaciones descarta repetidos por `fechaCambio` |
-| Los eventos llegan desordenados | Notificaciones ignora los más viejos que el último que vio; a Pagos no le afecta (`ENTREGADO` es final) |
+| A Pagos solo le importan `ENTREGADO` y `DEVUELTO_AL_COMERCIO` | **Selector** `estado IN ('ENTREGADO', 'DEVUELTO_AL_COMERCIO')`: el broker ni siquiera le entrega los demás |
+| El mismo evento llega dos veces | Pagos es idempotente (si ya está `ACREDITADO` o `ANULADO`, no hace nada); los dos suscriptores de Notificaciones descartan repetidos por `fechaCambio` |
+| Los eventos llegan desordenados | Notificaciones ignora los más viejos que el último que vio; a Pagos no le afecta (`ENTREGADO` y `DEVUELTO_AL_COMERCIO` son finales) |
 
 ### 3.3 SOAP: cobrar y reversar pagos en el banco legado
 

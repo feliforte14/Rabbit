@@ -1222,6 +1222,23 @@ Fuente: `README.md`, "Cómo levantar el sistema" y "Credenciales y cuentas neces
 
 ## 20. Contradicciones a resolver
 
+> **Actualización (18/10/2026, después del relevamiento):** se corrigieron en los `.md`
+> del repo las contradicciones **de documentación**:
+> - 3: ADR-009, `MensajeriaFinal.md`, `MENSAJERIA-ASINCRONICA.md` y `FLUJO-DE-PRUEBAS.md`;
+> - 4: README, CHECKLIST y `ARQUITECTURA.md`;
+> - 7: `ARQUITECTURA.md`;
+> - 9 y 10: estados de ADR-039 a 047;
+> - 11: diagrama de dependencias de `ARQUITECTURA.md`;
+> - 15: `USO-DE-IA.md`;
+> - 16: ADR-030 y `DESAFIOS-OPCIONALES.md`;
+> - 18: `PATRONES.md`.
+>
+> Las referencias a la rama `feature/mejoras-lideres-ultima-milla` pasaron a `main`, y la rama se eliminó.
+>
+> Siguen abiertas, porque están en la documentación funcional (fuera del repo) o en el código:
+> - en la documentación funcional: 6 (texto de la liquidación), 11 (dependencias), 12, 13 y 19;
+> - en el código: 14 (comentario en `PedidoService.java:1280`).
+
 ### Las ocho pedidas
 
 1. **Modelo de integración**
