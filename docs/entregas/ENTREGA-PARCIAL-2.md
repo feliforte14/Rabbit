@@ -117,9 +117,9 @@ flowchart LR
   fueran externos (el banco y el transportista legado, por su WSDL). En la
   rama `desafio-heterogeneidad` el banco corre en Node.js y el
   transportista moderno en Python (ADR-030).
-- La conexión con OpenStreetMap está en la rama
-  `feature/mejoras-lideres-ultima-milla` (ADR-046); el resto, también en
-  `main`.
+- Todo lo del diagrama está en `main`, incluida la conexión con
+  OpenStreetMap (ADR-046), que llegó con el merge de
+  `feature/mejoras-lideres-ultima-milla` (PR #8, 18/10/2026).
 
 Las dependencias internas completas, una por interfaz, están en
 [ARQUITECTURA.md](../arquitectura/ARQUITECTURA.md#dependencias-entre-componentes-implementadas).
@@ -145,7 +145,7 @@ El criterio, en dos preguntas (desarrollado en
 | 5 | Rabbit → transportista moderno: lo mismo | Síncrona | **REST** | Misma necesidad de respuesta; partner moderno con API JSON. |
 | 6 | Alta del pedido externo → sincronización (validar comercio, reservar stock) | Asincrónica | **Cola** `cola.pedidos.externos` | El ERP no tiene por qué esperar la reserva de stock: recibe 201 y el pedido se procesa enseguida. Cada pedido se sincroniza **una sola vez**: con un tópico, varios consumidores reservarían el stock dos veces. |
 | 7 | Cambio de estado del pedido → Notificaciones y Pagos | Asincrónica | **Tópico** `topico.pedidos.estado` | Pedidos no espera a que se mande un aviso o se acredite un cobro. A **varios** les interesa el mismo hecho: cada suscriptor recibe su copia (durable: si está caído, el broker se la guarda). Sumar un suscriptor (el aviso a quien recibe, ADR-040) no tocó Pedidos. |
-| 8 | Rabbit → Gmail: avisos al comercio y a quien recibe | Asincrónica respecto del negocio | **SMTP** (puerto 587, login y STARTTLS) | Sale después del commit: un correo caído no frena ni deshace el cambio de estado; el aviso igual queda en el portal. SMTP es el protocolo estándar para entregar mail a cualquier casilla; Gmail exige cuenta y cifrado (ADR-047). |
+| 8 | Rabbit → Gmail: avisos al comercio y a quien recibe | Asincrónica respecto del negocio | **SMTP** (puerto 587, login y STARTTLS) | Sale después del commit: un correo caído no frena ni deshace el cambio de estado; el aviso igual queda en el portal. SMTP es el protocolo estándar para entregar mail a cualquier casilla; Gmail exige cuenta y cifrado (ADR-047). Como el email de quien recibe es obligatorio en el alta (ADR-039), todo pedido nuevo tiene a quién avisarle. |
 | 9 | Rabbit → OpenStreetMap: ubicar direcciones para ordenar la hoja de ruta | Síncrona, pero fuera del flujo del usuario | **REST/HTTP** (Nominatim) | Es una API pública de consulta; la respuesta hace falta para guardar la coordenada. Se llama desde un timer y se guarda en caché: la pantalla del repartidor nunca espera al servicio (ADR-046). |
 
 ## 3. Proceso de negocio asincrónico de punta a punta
@@ -209,6 +209,14 @@ sequenceDiagram
 - **El mismo pedido dos veces:** la `Idempotency-Key` evita el duplicado
   en el alta; la fila del ERP se lee con bloqueo, así que la cola y el
   timer no la sincronizan dos veces.
+- **Falta el email de quien recibe:** la API responde `400` con
+  `emailDestinatario` en `errores` antes de guardar nada, así que no se
+  publica ningún mensaje (ADR-039).
+- **El ERP cancela un pedido que ya salió a reparto:** `409`
+  `cancelacion-no-permitida`, también si volvió al depósito para otra
+  visita. Solo queda entregarlo; si no se puede, termina
+  `DEVUELTO_AL_COMERCIO` y el tópico se lo avisa a Pagos para anular el
+  cobro (ADR-048).
 
 **Cómo verlo funcionando** (con WildFly levantado; detalle en
 [FLUJO-DE-PRUEBAS.md](../pruebas/FLUJO-DE-PRUEBAS.md)):
