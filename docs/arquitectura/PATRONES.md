@@ -43,6 +43,11 @@ qué alternativa se descartó.
 
 ## Strategy
 
+- **Aclaración:** no hay clases Strategy intercambiables. Los tres
+  casos de abajo se resuelven con un `if`, porque cada uno tiene solo dos
+  variantes. El único punto donde se elige una implementación en tiempo
+  de ejecución es `AdaptadoresTransportista.para(TipoIntegracion)` (ver
+  Adapter), que es lo más cercano a una Strategy real.
 - **Hoy:** el comportamiento según `OrigenPedido` (`STOCK_CONSIGNADO`
   reserva stock; `PUNTO_PICKING` solo valida el punto de picking).
 - **Descartado por ahora:** el cobro según `MedioPago` (`PREPAGO` se
@@ -132,7 +137,8 @@ qué alternativa se descartó.
   dos implementaciones, `AdaptadorRestTransportista` (API REST con JSON) y
   `AdaptadorSoapTransportista` (SOAP legado). Cada una traduce protocolo,
   formato y hasta el vocabulario de estados de su transportista (el legado
-  dice `EN_VIAJE`, Rabbit `EN_TRANSITO`), e incluso si una operación
+  dice `EN_VIAJE`; Rabbit, en el envío, `EN_TRANSITO`, y el pedido pasa a
+  `EN_CAMINO`), e incluso si una operación
   existe: el legado no cotiza, y su adaptador responde "no cotiza" sin
   llamarlo. `AdaptadoresTransportista` elige
   según el `TipoIntegracion` del transportista; `TransportistaService` no

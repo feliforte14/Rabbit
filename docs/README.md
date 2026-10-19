@@ -11,7 +11,8 @@ docs/
 ├── seguridad/       ← autenticación, roles y protección de la API
 ├── pruebas/         ← recorrido de prueba y demo
 ├── consigna/        ← cumplimiento de la consigna, desafíos y uso de IA
-└── entregas/        ← lo que se presenta en cada entrega parcial, con sus diagramas
+├── entregas/        ← lo que se presenta en cada entrega parcial, con sus diagramas
+└── entrega/         ← dossier de contexto verificado contra el código, base de la documentación
 ```
 
 ### [entregas/](entregas/)
@@ -19,6 +20,13 @@ docs/
 | Documento | Qué justifica |
 |---|---|
 | [ENTREGA-PARCIAL-2.md](entregas/ENTREGA-PARCIAL-2.md) | Entrega del 19/10: diagrama de arquitectura de integración (SOA), clasificación de cada integración y el proceso asincrónico de punta a punta. Las imágenes (PNG y SVG) están en [entregas/diagramas/](entregas/diagramas/) |
+
+### [entrega/](entrega/)
+
+| Documento | Qué justifica |
+|---|---|
+| [CONTEXTO-DOCUMENTACION.md](entrega/CONTEXTO-DOCUMENTACION.md) | Relevamiento del estado real del sistema (18/10/2026), con `archivo:línea` para cada dato: componentes, interfaces, modelo de datos, estados, reglas, integraciones, API, SOAP, JMS, resiliencia, patrones, ADR, HU y contradicciones resueltas. Es la fuente para escribir la documentación funcional y de arquitectura |
+| [diagramas/](entrega/diagramas/) | 15 diagramas Mermaid (`.mmd`) generados desde el código: capas, componentes, despliegue, integración, modelo de datos, estados, casos de uso, secuencias, cola, tópico y circuit breaker |
 
 ### [arquitectura/](arquitectura/)
 

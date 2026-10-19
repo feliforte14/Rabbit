@@ -19,6 +19,11 @@ un timer o un MDB.
 
 ## Componentes
 
+Rabbit tiene **9 componentes de negocio**. La fila "Integración banco
+legado" es la capa técnica `integracion` (cliente SOAP del banco y
+adaptadores de transportistas): tiene una interfaz `@Local`
+(`IBancoClient`) pero no es un componente de negocio.
+
 Cada componente expone interfaces `@Local` separadas por uso (lectura vs.
 escritura) y nunca expone sus entidades ni sus excepciones internas a
 otro componente. Las referencias entre componentes se guardan como IDs
@@ -30,10 +35,10 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Inventario | Implementado | `IConsultaStock`, `IReservaStock` | `@Stateful` (`InventarioService`, `IReservaStock`) + `@Stateless` (`ConsultaStockService`, `IConsultaStock`) | La reserva es una conversación: `reservarStock` y `confirmarReserva` operan sobre la misma instancia |
 | Pedidos | Implementado | `IGestionPedidos`, `ISeguimientoPedido`, `IIndicadores` (ADR-044) | `@Stateless` (Facade) | El estado del pedido vive en la base; ninguna operación depende de una llamada anterior |
 | Seguridad | Implementado | `IRegistroUsuarios`, `IConsultaUsuarios`, `IContextoUsuario` | `@Stateless` | Idem Comercios |
-| Integración banco legado | Implementado | `IBancoClient` | `@Stateless` + `@Singleton` (`CircuitBreakerBanco`) | Cliente SOAP sin estado de conversación; el estado del circuit breaker es uno solo, compartido por todas las llamadas |
-| Pagos y Cobranzas | Implementado | `IRegistroCobros`, `IConsultaCobros` | `@Stateless` + `@MessageDriven` (suscriptor) | El cobro queda registrado en la base; se suma a la transacción del llamador |
+| Integración banco legado (capa técnica, no componente de negocio) | Implementado | `IBancoClient` | `@Stateless` + `@Singleton` (`CircuitBreakerBanco`) | Cliente SOAP sin estado de conversación; el estado del circuit breaker es uno solo, compartido por todas las llamadas |
+| Pagos y Cobranzas | Implementado | `IRegistroCobros`, `IConsultaCobros`, `ILiquidaciones` (ADR-034) | `@Stateless` + `@MessageDriven` (suscriptor) + `@Singleton` (`LiquidacionMensual`, timer) | El cobro queda registrado en la base; se suma a la transacción del llamador |
 | Repartidores | Implementado | `IAsignacionRepartidores`, `IGestionRepartidores` | `@Stateless` | La disponibilidad del repartidor es un dato persistido, no de sesión |
-| Notificaciones | Implementado | `INotificaciones`, `IAvisosAlDestinatario` (ADR-040) | `@Stateless` + `@MessageDriven` (dos suscriptores: comercio y destinatario) | Reacciona a eventos del tópico; nadie la llama para avisar |
+| Notificaciones | Implementado | `INotificaciones`, `IAvisosAlDestinatario` (ADR-040) | `@Stateless` + `@MessageDriven` (dos de los tres suscriptores del tópico: comercio y destinatario; el tercero es Pagos) | Reacciona a eventos del tópico; nadie la llama para avisar |
 | Ruteo | Implementado | `IRuteo`, `IZonas`, `ILlegadaEstimada` (ADR-043) | `@Stateless` (`LlegadaEstimadaService` con `@RunAs`) | Arma cada hoja de ruta de cero con lo que está en la base; las zonas son datos persistidos y el despacho no depende de una llamada anterior |
 | Transportistas | Implementado | `IGestionTransportistas`, `IEnvios`, `ISeguimientoEnvios` | `@Stateless` + `@Singleton` (`SeguimientoDeEnvios`, timer) | El estado de cada envío vive en la base; el seguimiento es una sola tarea periódica |
 
@@ -43,9 +48,9 @@ otro componente. Las referencias entre componentes se guardan como IDs
 |---|---|---|---|
 | Comercios | `IRegistroComercios` | `registrarComercio`, `actualizarDatosFiscales`, `darDeBajaComercio`, `reactivarComercio`, `eliminarComercio`, `registrarPuntoPicking`, `darDeBajaPuntoPicking`, `reactivarPuntoPicking` | `ComercioBean`, `PuntoPickingBean` |
 | Comercios | `IConsultaComercios` | `obtenerComercio`, `listarTodos`, `listarPuntosPicking`, `listarPuntosPickingDeComercio`, `validarComercioActivo` | Vistas, Inventario, Pedidos, Ruteo, Seguridad (`UsuarioService`, `SesionBean`) |
-| Inventario | `IConsultaStock` | `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `actualizarItem`, `eliminarItem` (solo administrador, ADR-049), `listarItemsPorDeposito` / `PorComercio` / `PorComercioYDeposito` / `PorIds`, `pesosPorItem` (sin rol, ADR-032), `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas` | `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Pedidos, Ruteo |
+| Inventario | `IConsultaStock` | `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `actualizarItem`, `eliminarItem` (solo administrador, ADR-049), `listarItemsPorDeposito`, `listarItemsPorComercio`, `listarItemsPorComercioYDeposito`, `listarItemsPorIds`, `pesosPorItem` (sin rol, ADR-032), `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas` | `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Pedidos, Ruteo |
 | Inventario | `IReservaStock` | `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion` | `ReservaBean`, Pedidos |
-| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona` (null = quedó en lista de espera), `asignarDesdeEspera`, `sacarDeEspera`, `devolverADeposito` (motivo fijo e intentos: ADR-037 y 041), `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, `RemitoServlet`, Ruteo, MDB, timer |
+| Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona` (null = quedó en lista de espera), `asignarDesdeEspera`, `sacarDeEspera`, `devolverADeposito` (motivo fijo e intentos: ADR-037 y 041), `listarIntentosDeEntrega` y `obtenerFotoDeVisita` (evidencia de cada visita, ADR-045), `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, `RemitoServlet`, Ruteo, MDB, timer |
 | Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `consultarSeguimiento`, `listarPendientes`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual`, `listarEntregasEnCursoDeRepartidor` (ADR-043), `resumenEntregas`, `resumenEntregasDelComercioActual` (ADR-034) | `PedidoBean`, `PortalComercioBean`, Ruteo, Pagos, Notificaciones, API REST |
 | Pedidos | `IIndicadores` | `calcular` (personal: toda la red o un comercio), `calcularDelComercioActual` (ADR-044) | `IndicadoresBean` |
 | Notificaciones | `IAvisosAlDestinatario` | `avisar`, `listarRecientes` (ADR-040) | `SuscriptorDestinatarioEstadoPedido`, `PedidoBean` |
@@ -60,7 +65,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Ruteo | `IZonas` | `registrarZona`, `darDeBajaZona`, `reactivarZona`, `eliminarZona` (ADR-036), `listarTodas`, `zonaDeCodigoPostal` | `RuteoBean`, `RepartidorBean`, `RuteoService` |
 | Pagos | `IRegistroCobros` | `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`), `anularCobroPorDevolucion` (sin rol, ADR-041) | Pedidos, `SuscriptorPagosEstadoPedido` |
 | Pagos | `IConsultaCobros` | `obtenerCobroDePedido`, `listarTodos`, `listarCobrosDelComercioActual` | `PedidoBean`, `PortalComercioBean` |
-| Repartidores | `IAsignacionRepartidores` | `asignarRepartidor` (zona preferida, peso, bultos y repartidor excluido: ADR-032 y 037), `motivoParaEsperar`, `antesDelCorte`, `diaDeEntregaPara` (fecha prometida, ADR-042), `liberarRepartidor` | Pedidos |
+| Repartidores | `IAsignacionRepartidores` | `asignarRepartidor` (zona preferida, peso, bultos y repartidor excluido: ADR-032 y 037), `motivoParaEsperar`, `antesDelCorte`, `diaDeEntregaPara` (fecha prometida, ADR-042), `liberarRepartidor`, `ultimaUbicacion` (ubicación de la visita fallida, ADR-045) | Pedidos |
 | Repartidores | `IGestionRepartidores` | `registrarRepartidor`, `asignarZona`, `actualizarCapacidad`, `eliminarRepartidor` (ADR-036), `listarTodos`, `obtenerRepartidor`, `registrarUbicacion`, `listarUbicacionesRecientes`, `ubicacionParaPedido` (ADR-035) | `RepartidorBean`, `MapaBean`, `MisEntregasBean`, `SeguimientoBean`, `PedidoBean`, Ruteo, Seguridad |
 | Pagos | `ILiquidaciones` | `liquidarMes`, `previsualizar`, `reintentarCobro`, `reintentarPendientes`, `listarDelPeriodo`, `listarPeriodos`, `listarDelComercioActual`, `previsualizarMesEnCursoDelComercioActual`, `tarifaVigente` (ADR-034) | `LiquidacionBean`, `MisLiquidacionesBean`, `LiquidacionMensual` (timer) |
 | Notificaciones | `INotificaciones` | `avisarCambioDeEstado`, `listarRecientes`, `listarDelComercioActual` | `SuscriptorNotificacionesEstadoPedido`, `PedidoBean`, `PortalComercioBean` |
@@ -151,10 +156,12 @@ flowchart LR
     subgraph Rabbit["Rabbit (WildFly)"]
         Pedidos -->|IConsultaComercios| Comercios
         Pedidos -->|"Instance&lt;IReservaStock&gt;"| Inventario
+        Pedidos -->|IConsultaStock| Inventario
         Pedidos -->|IAsignacionRepartidores| Repartidores
         Pedidos -->|IRegistroCobros| Pagos
-        Pedidos -. topico.pedidos.estado .-> Pagos
-        Pedidos -. topico.pedidos.estado .-> Notificaciones
+        Pedidos -. "topico.pedidos.estado" .-> Pagos
+        Pedidos -. "topico.pedidos.estado" .-> Notificaciones
+        Pedidos -. "topico.pedidos.estado (destinatario)" .-> Notificaciones
         Notificaciones -->|ISeguimientoPedido| Pedidos
         Pedidos -->|"ILlegadaEstimada (seguimiento)"| Ruteo
         Inventario -->|IConsultaComercios| Comercios
@@ -168,23 +175,31 @@ flowchart LR
         Pedidos -->|IContextoUsuario| Seguridad
         Inventario -->|IContextoUsuario| Seguridad
         Pagos -->|IContextoUsuario| Seguridad
+        Pagos -->|"ISeguimientoPedido (liquidación)"| Pedidos
+        Pagos -->|IConsultaComercios| Comercios
+        Repartidores -->|IContextoUsuario| Seguridad
+        Inventario -. "EliminacionDeItem" .-> Pedidos
+        Repartidores -. "EliminacionDeRepartidor" .-> Pedidos
+        Repartidores -. "EliminacionDeRepartidor" .-> Seguridad
+        Ruteo -. "ZonaEliminada" .-> Repartidores
         Notificaciones -->|IContextoUsuario| Seguridad
         Notificaciones -->|IConsultaComercios| Comercios
         Comercios -->|IContextoUsuario| Seguridad
         Seguridad -->|IConsultaComercios| Comercios
         Seguridad -->|IGestionRepartidores| Repartidores
-        Comercios -. EliminacionDeComercio .-> Pedidos
-        Comercios -. EliminacionDeComercio .-> Inventario
-        Comercios -. EliminacionDeComercio .-> Seguridad
-        Comercios -. ComercioEliminado .-> Pedidos
-        Comercios -. ComercioEliminado .-> Pagos
-        Comercios -. ComercioEliminado .-> Notificaciones
-        Comercios -. ComercioEliminado .-> Transportistas
+        Comercios -. "EliminacionDeComercio" .-> Pedidos
+        Comercios -. "EliminacionDeComercio" .-> Inventario
+        Comercios -. "EliminacionDeComercio" .-> Seguridad
+        Comercios -. "ComercioEliminado" .-> Pedidos
+        Comercios -. "ComercioEliminado" .-> Pagos
+        Comercios -. "ComercioEliminado" .-> Notificaciones
+        Comercios -. "ComercioEliminado" .-> Transportistas
         Pedidos -->|IEnvios| Transportistas
         Ruteo -->|IEnvios| Transportistas
-        Transportistas -. EstadoEnvioCambiado .-> Pedidos
+        Transportistas -. "EstadoEnvioCambiado" .-> Pedidos
         Transportistas -->|IContextoUsuario| Seguridad
     end
+    Ruteo -->|HTTP/JSON| OSM[(OpenStreetMap<br/>Nominatim)]
     Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
     Transportistas -->|REST/JSON| TransREST[(Transportista REST<br/>simulado)]
     Transportistas -->|SOAP/HTTP| TransSOAP[(Transportista legado<br/>simulado)]
@@ -232,7 +247,7 @@ el repartidor sale siempre de la identidad autenticada
 | Transportistas → transportista moderno | REST/JSON saliente (cliente JAX-RS) | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
 | Transportistas → transportista legado | SOAP saliente | Implementado | [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md) |
 | Notificaciones → comercio y quien recibe (ADR-040) | SMTP (Jakarta Mail), después del commit | Implementado (si se configura el servidor) | [MENSAJERIA-ASINCRONICA.md](../integraciones/MENSAJERIA-ASINCRONICA.md) |
-| Ruteo → OpenStreetMap (ADR-046) | REST/HTTP saliente (Nominatim), desde un timer y con caché | Implementado (rama de mejoras) | [DECISIONES.md](DECISIONES.md#adr-046-hoja-de-ruta-por-distancia-con-openstreetmap) |
+| Ruteo → OpenStreetMap (ADR-046) | REST/HTTP saliente (Nominatim), desde un timer y con caché | Implementado | [DECISIONES.md](DECISIONES.md#adr-046-hoja-de-ruta-por-distancia-con-openstreetmap) |
 | Pedidos → Comercios, Inventario, Pagos, Repartidores, Transportistas | Llamada local EJB | Implementado | No es integración entre sistemas: mismo proceso |
 
 ### Criterio sincrónico vs. asincrónico

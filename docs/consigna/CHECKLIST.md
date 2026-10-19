@@ -5,7 +5,7 @@ rápido en la defensa.
 
 | Requisito | Estado | Dónde |
 |---|---|---|
-| Mínimo 6 componentes de negocio con interfaz explícita y documentada | Cumple (10 implementados) | Comercios, Inventario, Pedidos, Pagos y Cobranzas, Repartidores, Notificaciones, Seguridad, Ruteo, Transportistas e Integración con el banco legado. Interfaces en [ARQUITECTURA.md](../arquitectura/ARQUITECTURA.md) |
+| Mínimo 6 componentes de negocio con interfaz explícita y documentada | Cumple (9 de negocio) | Comercios, Inventario, Pedidos, Pagos y Cobranzas, Repartidores, Notificaciones, Seguridad, Ruteo y Transportistas, más la capa técnica de integración (`integracion`: cliente del banco con su circuit breaker y adaptadores de transportistas), que no es un componente de negocio. Interfaces en [ARQUITECTURA.md](../arquitectura/ARQUITECTURA.md) |
 | Al menos 1 componente stateful y 1 stateless, justificados | Cumple | `InventarioService` (`@Stateful`, la reserva es una conversación) y el resto `@Stateless`, incluidas las consultas de stock (`ConsultaStockService`, ADR-027); `@PostConstruct` / `@PreDestroy` como evidencia del ciclo de vida. Ver [ARQUITECTURA.md](../arquitectura/ARQUITECTURA.md) |
 | Arquitectura en capas en cada componente | Cumple | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente de negocio. La integración con el banco (`integracion.banco`) es un adaptador técnico, no un componente de negocio |
 | Al menos 3 patrones de diseño, aplicados y justificados | Cumple | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, máquina de estados, transacción compensatoria, Circuit Breaker. Ver [PATRONES.md](../arquitectura/PATRONES.md) |

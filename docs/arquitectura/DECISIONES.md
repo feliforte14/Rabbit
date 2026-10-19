@@ -114,11 +114,16 @@ Propuesta o Reemplazada.
 - **Contexto:** si un suscriptor no está activo cuando se publica un
   cambio de estado (por ejemplo durante un redeploy), una suscripción
   común pierde el mensaje. Para Pagos eso es un cobro contra entrega que
-  nunca se acredita. Además, Pagos solo necesita `ENTREGADO`.
-- **Decisión:** las dos suscripciones son durables (`clientId` +
+  nunca se acredita. Además, Pagos solo necesita `ENTREGADO` (y, desde
+  ADR-041, `DEVUELTO_AL_COMERCIO`, para anular el cobro).
+- **Decisión:** las suscripciones son durables (`clientId` +
   `subscriptionName`, con `shareSubscriptions` para el pool del MDB).
-  Pagos usa `messageSelector = "estado = 'ENTREGADO'"` sobre una propiedad
-  JMS del mensaje, así el broker no le entrega el resto.
+  Hoy son tres: Pagos (`rabbit-pagos`), avisos al comercio
+  (`rabbit-notificaciones`) y avisos a quien recibe
+  (`rabbit-destinatarios`, ADR-040). Pagos usa
+  `messageSelector = "estado IN ('ENTREGADO', 'DEVUELTO_AL_COMERCIO')"`
+  sobre una propiedad JMS del mensaje, así el broker no le entrega el
+  resto.
 - **Consecuencias:** ningún cambio de estado se pierde por un suscriptor
   caído (probado con `stop-delivery`/`start-delivery`). A cambio, el
   broker guarda mensajes por cada suscripción hasta que se consumen, y
@@ -702,7 +707,9 @@ Propuesta o Reemplazada.
     `rabbit.banco.wsdl` y el registro de transportistas por endpoint son
     configuración genérica; quedan en `main`.
 - **Consecuencias:** para mostrar la heterogeneidad hay que cambiar de
-  rama y redesplegar. La rama hay que mantenerla al día con `main`.
+  rama y redesplegar. La rama hay que mantenerla al día con `main`: al
+  18/10/2026 quedó atrás (no tiene lo agregado desde el 14/10), así que
+  antes de una demo hay que hacer `git merge main` en ella.
 
 ## ADR-031: Las cuentas, en la base compartida (realm JDBC con bcrypt)
 
@@ -955,7 +962,7 @@ Propuesta o Reemplazada.
 
 - **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
   "Testing NO OK"). La devolución al depósito sin límite la reemplaza
-  ADR-041 (motivos fijos e intentos), propuesta.
+  ADR-041 (motivos fijos e intentos).
 - **Contexto:** si ningún repartidor tenía lugar (ADR-032), confirmar
   fallaba y el pedido quedaba PENDIENTE hasta que alguien lo volviera a
   confirmar a mano. La asignación ya probaba con todos los repartidores,
@@ -1050,13 +1057,14 @@ Propuesta o Reemplazada.
 
 ## ADR-039: Datos de quien recibe el pedido
 
-- **Estado:** Propuesta (16/10/2026), en la rama
-  `feature/mejoras-lideres-ultima-milla`. Sale de la comparación con los
-  líderes de última milla: todos saben a quién le entregan.
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
+  El email pasó a ser obligatorio el 18/10 (ver "Actualización" al final).
+  Sale de la comparación con los líderes de última milla: todos saben a
+  quién le entregan.
 - **Contexto:** el pedido solo tenía dirección y código postal. Rabbit no
   sabía por quién preguntar en la puerta, no tenía a quién llamar si no
   encontraba la dirección y no podía avisarle nada al cliente (ADR-040).
-- **Decisión:** tres campos **opcionales** en el alta (API y pantalla),
+- **Decisión (original):** tres campos **opcionales** en el alta (API y pantalla),
   en `PedidoExterno` y en `Pedido`: `nombreDestinatario` (100),
   `telefonoDestinatario` (30) y `emailDestinatario` (120). Los normaliza y
   valida `Destinatarios`: vacío es "no vino", el teléfono se acepta como
@@ -1095,7 +1103,7 @@ Propuesta o Reemplazada.
 
 ## ADR-040: Avisos a quien recibe, con un tercer suscriptor del tópico
 
-- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
 - **Contexto:** solo se le avisaba al comercio. Onfleet, Bringg, Andreani
   y DHL le avisan a quien recibe en cada cambio, con el link al
   seguimiento.
@@ -1123,7 +1131,7 @@ Propuesta o Reemplazada.
 
 ## ADR-041: Entrega fallida con motivo fijo, intentos y devolución al comercio
 
-- **Estado:** Propuesta (16/10/2026), misma rama. Reemplaza en parte a
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8). Reemplaza en parte a
   ADR-037 (la devolución al depósito ya no es ilimitada).
 - **Contexto:** "Devolver a depósito" mandaba el pedido a PENDIENTE con
   texto libre y sin límite: un cliente que nunca estaba hacía dar vueltas
@@ -1173,7 +1181,7 @@ Propuesta o Reemplazada.
 
 ## ADR-042: Fecha prometida con la hora de corte
 
-- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
 - **Contexto:** el ERP no sabía si el pedido llegaba hoy o mañana. Mercado
   Libre Flex promete "llega hoy" según la hora de corte.
 - **Decisión:** al **recibir** el pedido (no al sincronizarlo), Rabbit
@@ -1196,7 +1204,7 @@ Propuesta o Reemplazada.
 
 ## ADR-043: Horario estimado en el seguimiento (parada N de M)
 
-- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
 - **Contexto:** el cliente veía el mapa pero no cuándo llegaba. Amazon
   muestra cuántas paradas faltan; Onfleet, una ETA.
 - **Decisión:** con el pedido EN_CAMINO, el seguimiento (página y API)
@@ -1219,7 +1227,7 @@ Propuesta o Reemplazada.
 
 ## ADR-044: Tablero de indicadores de entrega
 
-- **Estado:** Propuesta (16/10/2026), misma rama.
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
 - **Contexto:** Rabbit no medía si entregaba a tiempo. ShipBob, Onfleet y
   Bringg tienen tableros con esos indicadores, para el operador y para
   el comercio.
@@ -1264,7 +1272,7 @@ Propuesta o Reemplazada.
 
 ## ADR-045: Evidencia de la visita fallida y un motivo para cada caso
 
-- **Estado:** Propuesta (17/10/2026), misma rama.
+- **Estado:** Aceptada (17/10/2026; en `main` desde el 18/10/2026, PR #8).
 - **Contexto:** ADR-041 dejó motivos fijos e intentos, pero comparado con
   la tabla de casos típicos de una entrega fallida faltaban varios
   (paquete dañado, nadie habilitado para recibir, domicilio cerrado,
@@ -1317,7 +1325,7 @@ Propuesta o Reemplazada.
 
 ## ADR-046: Hoja de ruta por distancia, con OpenStreetMap
 
-- **Estado:** Propuesta (17/10/2026), misma rama.
+- **Estado:** Aceptada (17/10/2026; en `main` desde el 18/10/2026, PR #8).
 - **Contexto:** la hoja de ruta recomendada (ADR-038) arrancaba por los
   retiros y seguía por la entrega de código postal más cercano: sin
   coordenadas, el número de CP era la única forma de aproximar la
@@ -1357,7 +1365,7 @@ Propuesta o Reemplazada.
 
 ## ADR-047: Mails reales por SMTP con login y TLS (Gmail)
 
-- **Estado:** Propuesta (17/10/2026), misma rama.
+- **Estado:** Aceptada (17/10/2026; en `main` desde el 18/10/2026, PR #8).
 - **Contexto:** los avisos por mail (al comercio y a quien recibe, ADR-040)
   solo sabían hablar con un servidor SMTP sin login ni cifrado: servían
   para un servidor de prueba local, no para que lleguen a casillas reales.

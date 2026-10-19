@@ -295,7 +295,8 @@ haya vuelto. Cada servidor tiene su propio circuito.
 
 Está en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad), no en `main` (ADR-030). `main` es el sistema de Rabbit
 solo, con el banco y los transportistas simulados dentro del mismo WAR,
-para que cualquiera del equipo lo levante sin instalar Node ni Python.
+para que cualquiera del equipo lo levante sin instalar Node ni Python. La rama se armó el 14/10/2026 y no tiene lo agregado a `main` después:
+antes de mostrarla, hacer `git merge main` en ella.
 
 La rama suma, como servicios aparte y con el mismo contrato que los
 simulados:
