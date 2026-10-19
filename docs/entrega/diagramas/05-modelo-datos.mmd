@@ -1,0 +1,76 @@
+erDiagram
+    COMERCIOS ||--o{ PUNTOS_PICKING : tiene
+    DEPOSITOS ||--o{ ITEMS_INVENTARIO : guarda
+    ITEMS_INVENTARIO ||--o{ RESERVAS_STOCK : reserva
+    PEDIDOS ||--|{ PEDIDOS_LINEAS : contiene
+    PEDIDOS_EXTERNOS ||--|{ PEDIDOS_EXTERNOS_LINEAS : contiene
+    PEDIDOS_EXTERNOS |o..o| PEDIDOS : "idPedido"
+    PEDIDOS ||..o| REMITOS_ENTREGA : "idPedido"
+    PEDIDOS ||..o{ INTENTOS_ENTREGA : "idPedido"
+    INTENTOS_ENTREGA ||..o{ FOTOS_INTENTO_ENTREGA : "idIntento"
+    PEDIDOS ||..o| COBROS : "idPedido"
+    PEDIDOS ||..o| REPARTIDORES_CARGAS : "idPedido"
+    REPARTIDORES ||..o{ REPARTIDORES_CARGAS : "idRepartidor"
+    TRANSPORTISTAS ||--o{ ENVIOS : realiza
+    PEDIDOS ||..o| ENVIOS : "idPedido"
+    COMERCIOS ||..o{ LIQUIDACIONES : "idComercio"
+    PEDIDOS ||..o{ NOTIFICACIONES : "idPedido"
+    PEDIDOS ||..o{ AVISOS_DESTINATARIO : "idPedido"
+    ZONAS }o..o| TRANSPORTISTAS : "idTransportista"
+    COMERCIOS ||..o{ USUARIOS : "idComercio"
+    REPARTIDORES ||..o{ USUARIOS : "idRepartidor"
+    PEDIDOS {
+        bigint id PK
+        bigint idComercio
+        string estado
+        string origen
+        decimal importe
+        string medioPago
+        decimal pesoKg
+        string codigoSeguimiento UK
+        date fechaPrometida
+        int intentosFallidos
+        timestamp enEsperaDesde
+    }
+    PEDIDOS_EXTERNOS {
+        bigint id PK
+        bigint idComercio
+        string claveIdempotencia
+        string huellaSolicitud
+        boolean sincronizado
+    }
+    ITEMS_INVENTARIO {
+        bigint id PK
+        string producto
+        int cantidadDisponible
+        int cantidadReservada
+        decimal pesoKg
+        bigint version
+    }
+    COBROS {
+        bigint id PK
+        bigint idPedido UK
+        string estado
+        string codigoAutorizacion
+    }
+    LIQUIDACIONES {
+        bigint id PK
+        bigint idComercio
+        string periodo
+        decimal total
+        string estado
+    }
+    USUARIOS {
+        bigint id PK
+        string username UK
+        string rol
+        string hash_clave
+        boolean activo
+    }
+    REPARTIDORES {
+        bigint id PK
+        string estado
+        decimal capacidadKg
+        int capacidadBultos
+        bigint idZona
+    }

@@ -1,0 +1,12 @@
+flowchart LR
+    REG["PedidoService.registrarPedidoExterno<br/>fire PedidoExternoRegistrado"] -->|"AFTER_SUCCESS"| PUB["PublicadorPedidosExternos<br/>NOT_SUPPORTED"]
+    PUB -->|"TextMessage {idPedidoExterno}<br/>propiedad origen"| Q[["cola.pedidos.externos<br/>java:/jms/queue/PedidosExternos"]]
+    Q --> C1["PedidoExternoListener #1"]
+    Q --> C2["PedidoExternoListener #2"]
+    Q --> CN["... maxSession = rabbit.cola.consumidores (15)"]
+    C1 --> SYNC["PedidoService.sincronizarPedidoExterno<br/>REQUIRES_NEW + PESSIMISTIC_WRITE"]
+    C2 --> SYNC
+    CN --> SYNC
+    POLL["SincronizadorDePedidos<br/>@Schedule cada minuto (:30)"] -->|respaldo| SYNC
+    SYNC -->|"ValidacionException"| DESC["descartarPedidoExterno"]
+    SYNC -->|"ConflictoDeStock / RuntimeException"| REDEL["rollback y redelivery"]

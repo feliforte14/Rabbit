@@ -1,0 +1,44 @@
+flowchart LR
+    Pedidos["Pedidos<br/>IGestionPedidos · ISeguimientoPedido · IIndicadores"]
+    Comercios["Comercios<br/>IRegistroComercios · IConsultaComercios"]
+    Inventario["Inventario<br/>IReservaStock · IConsultaStock"]
+    Repartidores["Repartidores<br/>IAsignacionRepartidores · IGestionRepartidores"]
+    Pagos["Pagos y Cobranzas<br/>IRegistroCobros · IConsultaCobros · ILiquidaciones"]
+    Ruteo["Ruteo<br/>IRuteo · IZonas · ILlegadaEstimada"]
+    Notif["Notificaciones<br/>INotificaciones · IAvisosAlDestinatario"]
+    Seg["Seguridad<br/>IRegistroUsuarios · IConsultaUsuarios · IContextoUsuario"]
+    Transp["Transportistas<br/>IGestionTransportistas · IEnvios · ISeguimientoEnvios"]
+    Integ["integracion (capa técnica)<br/>IBancoClient · IAdaptadorTransportista"]
+    Pedidos -->|IConsultaComercios| Comercios
+    Pedidos -->|"IReservaStock, IConsultaStock"| Inventario
+    Pedidos -->|IAsignacionRepartidores| Repartidores
+    Pedidos -->|IRegistroCobros| Pagos
+    Pedidos -->|IEnvios| Transp
+    Pedidos -->|IContextoUsuario| Seg
+    Pagos -->|IBancoClient| Integ
+    Pagos -->|ISeguimientoPedido| Pedidos
+    Pagos -->|IConsultaComercios| Comercios
+    Pagos -->|IContextoUsuario| Seg
+    Notif -->|ISeguimientoPedido| Pedidos
+    Notif -->|IConsultaComercios| Comercios
+    Notif -->|IContextoUsuario| Seg
+    Ruteo -->|"IGestionPedidos, ISeguimientoPedido"| Pedidos
+    Ruteo -->|IConsultaComercios| Comercios
+    Ruteo -->|IConsultaStock| Inventario
+    Ruteo -->|IGestionRepartidores| Repartidores
+    Ruteo -->|"IEnvios, IGestionTransportistas"| Transp
+    Inventario -->|IConsultaComercios| Comercios
+    Inventario -->|IContextoUsuario| Seg
+    Comercios -->|IContextoUsuario| Seg
+    Repartidores -->|IContextoUsuario| Seg
+    Seg -->|IConsultaComercios| Comercios
+    Seg -->|IGestionRepartidores| Repartidores
+    Transp -->|IAdaptadorTransportista| Integ
+    Transp -->|IContextoUsuario| Seg
+    Pedidos -. "topico.pedidos.estado" .-> Pagos
+    Pedidos -. "topico.pedidos.estado" .-> Notif
+    Transp -. "EstadoEnvioCambiado (CDI)" .-> Pedidos
+    Comercios -. "EliminacionDeComercio / ComercioEliminado" .-> Pedidos
+    Repartidores -. "EliminacionDeRepartidor / RepartidorEliminado" .-> Pedidos
+    Ruteo -. "ZonaEliminada" .-> Repartidores
+    Inventario -. "EliminacionDeItem" .-> Pedidos
