@@ -1,0 +1,39 @@
+flowchart LR
+    ERP(["ERP del comercio"])
+    CLI(["Cliente final"])
+    COM(["Comercio"])
+    REP(["Repartidor"])
+    OPE(["Operador"])
+    ADM(["Administrador"])
+    RELOJ(["Reloj del sistema"])
+    subgraph Rabbit
+        U1["Enviar, consultar y cancelar pedido (API)"]
+        U2["Seguir pedido con código"]
+        U3["Recibir avisos por mail"]
+        U4["Ver pedidos, avisos, remitos y visitas"]
+        U5["Ver stock, puntos de picking, liquidaciones e indicadores"]
+        U6["Ver hoja de ruta"]
+        U7["Retirar y entregar con remito"]
+        U8["Registrar entrega fallida"]
+        U9["Cargar comercios, stock, flota, zonas y transportistas"]
+        U10["Confirmar, cancelar, derivar y despachar por zona"]
+        U11["Seguir entregas y mapa · indicadores"]
+        U12["Administrar usuarios · liquidar mes · eliminar"]
+        U13["Sincronizar, asignar espera, seguir envíos, vencer reservas, geocodificar, liquidar"]
+    end
+    ERP --> U1
+    CLI --> U2
+    CLI --> U3
+    COM --> U4
+    COM --> U5
+    REP --> U6
+    REP --> U7
+    REP --> U8
+    OPE --> U9
+    OPE --> U10
+    OPE --> U11
+    ADM --> U9
+    ADM --> U10
+    ADM --> U11
+    ADM --> U12
+    RELOJ --> U13

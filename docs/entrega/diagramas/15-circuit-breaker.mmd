@@ -1,0 +1,8 @@
+stateDiagram-v2
+    [*] --> CERRADO
+    CERRADO --> CERRADO: éxito o PagoRechazado (fallasSeguidas = 0)
+    CERRADO --> ABIERTO: falla n.º 3 seguida (rabbit.banco.cb.umbral)
+    ABIERTO --> ABIERTO: llamada antes de 30 s → SIN_PERMISO (NO_DISPONIBLE inmediato)
+    ABIERTO --> SEMIABIERTO: pasaron 30 s (rabbit.banco.cb.espera.ms) · se deja pasar 1 llamada
+    SEMIABIERTO --> CERRADO: la llamada de prueba responde
+    SEMIABIERTO --> ABIERTO: la llamada de prueba falla

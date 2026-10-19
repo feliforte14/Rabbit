@@ -1,0 +1,15 @@
+stateDiagram-v2
+    [*] --> PENDIENTE: sincronizarPedidoExterno (cola o timer)
+    PENDIENTE --> CONFIRMADO: confirmarPedido / asignarDesdeEspera / derivarATransportista
+    PENDIENTE --> PENDIENTE: sin lugar o pasó el corte (lista de espera, sin cobro)
+    PENDIENTE --> CANCELADO: cancelarPedido / cancelarPedidoExterno (si no salió a reparto)
+    CONFIRMADO --> EN_CAMINO: despacharPedido (repartidor) / envío EN_TRANSITO
+    CONFIRMADO --> CANCELADO: cancelarPedido (anularCobro requiere ADMINISTRADOR)
+    CONFIRMADO --> PENDIENTE: devolverADeposito (no cuenta como visita)
+    CONFIRMADO --> DEVUELTO_AL_COMERCIO: devolverADeposito (PAQUETE_DANADO)
+    EN_CAMINO --> ENTREGADO: registrarEntrega (foto) / registrarEntregaDeTransportista
+    EN_CAMINO --> PENDIENTE: devolverADeposito (quedan visitas)
+    EN_CAMINO --> DEVUELTO_AL_COMERCIO: visitas agotadas / RECHAZADO / PAQUETE_DANADO
+    ENTREGADO --> [*]
+    CANCELADO --> [*]
+    DEVUELTO_AL_COMERCIO --> [*]
