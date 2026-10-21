@@ -1454,3 +1454,34 @@ Propuesta o Reemplazada.
 - **Consecuencias:** en el Historial, el filtro por depósito no encuentra
   las reservas de un ítem eliminado (ya no se sabe en qué depósito
   estaba); con "Todos" siguen apareciendo.
+
+## ADR-050: Logs sin datos personales y HSTS
+
+- **Estado:** Aceptada (21/10/2026). Pendientes de seguridad del tablero
+  (SEC-05 y SEC-09).
+- **Contexto:** dos logs escribían datos personales: `AvisosPorMail` el
+  email completo de a quien se le avisa (en el aviso enviado y en el error) y
+  `SimuladorDeEnvios` la dirección de entrega. El log del servidor lo puede
+  leer más gente que la que ve el pedido y se conserva mucho tiempo. Además,
+  Rabbit exigía HTTPS con `CONFIDENTIAL`, pero esa redirección ocurre después
+  de que el primer pedido por HTTP ya viajó en claro, y no había HSTS.
+- **Decisión:**
+  - **Logs:** se loguea el ID del pedido. El email se enmascara con
+    `DatosPersonales.emailEnmascarado` (primera letra, seis asteriscos fijos y
+    el dominio, para no filtrar el largo del nombre), y los mensajes de error de
+    JavaMail pasan por `DatosPersonales.sinEmails` porque a veces traen la
+    dirección. La dirección de entrega no se escribe.
+  - **HSTS:** `FiltroHsts` manda `Strict-Transport-Security: max-age=31536000`
+    solo en respuestas por HTTPS, configurable con `rabbit.hsts.max.age` (0 la
+    apaga). Sin `includeSubDomains` ni `preload`: Rabbit no controla otros
+    subdominios del dominio donde se publique.
+  - **JMS (SEC-08):** los publicadores arman el cuerpo en `construirPayload`, y
+    un test verifica que solo lleve IDs, estado y fecha.
+- **Consecuencias:** investigar un problema de mail con el log sigue siendo
+  posible (se ve el ID del pedido y el dominio y la inicial del email), pero ya
+  no se puede reconstruir a quién se le avisó. HSTS no tiene efecto con el
+  certificado autofirmado de desarrollo (el navegador la ignora si el
+  certificado no es válido): hay que verificarla en un entorno con certificado
+  reconocido. Las pruebas automáticas de SEC-03 y SEC-04 necesitan dos cuentas
+  extra (un ERP de otro comercio y un usuario con rol `COMERCIO`) y la app
+  desplegada; sin ellas esos tests se saltean.

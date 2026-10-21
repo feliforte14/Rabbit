@@ -117,11 +117,7 @@ public class PublicadorPedidosExternos {
         Long idPedidoExterno = evento.idPedidoExterno();
         OrigenPedido origen = evento.origen();
         try (JMSContext contexto = connectionFactory.createContext()) {
-            String payload = Json.createObjectBuilder()
-                    .add("idPedidoExterno", idPedidoExterno)
-                    .build()
-                    .toString();
-            TextMessage mensaje = contexto.createTextMessage(payload);
+            TextMessage mensaje = contexto.createTextMessage(construirPayload(idPedidoExterno));
             // Property JMS (no forma parte del body): permite en el futuro
             // que un consumidor filtre por tipo de origen sin deserializar
             // el body — mismo concepto de "Properties" visto en la clase.
@@ -137,5 +133,18 @@ public class PublicadorPedidosExternos {
                             + " en la cola; queda pendiente para el polling de SincronizadorDePedidos.",
                     e);
         }
+    }
+
+    /**
+     * Cuerpo del mensaje de la cola. SEC-08: solo lleva el ID del pedido
+     * externo, nada de dirección, email ni importes. El consumidor lee el
+     * resto de la base: el mensaje es solo "hay algo nuevo, andá a mirar".
+     * Está separado del envío para poder probarlo sin un broker.
+     */
+    static String construirPayload(Long idPedidoExterno) {
+        return Json.createObjectBuilder()
+                .add("idPedidoExterno", idPedidoExterno)
+                .build()
+                .toString();
     }
 }

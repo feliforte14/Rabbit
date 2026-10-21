@@ -16,6 +16,7 @@ package com.rabbit.notificaciones.negocio;
  * desarrollo sin correo funciona igual, con los avisos en el portal.
  */
 
+import com.rabbit.infraestructura.DatosPersonales;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.event.TransactionPhase;
@@ -70,10 +71,14 @@ public class AvisosPorMail {
             mail.setText(texto, StandardCharsets.UTF_8.name());
             mail.setSentDate(new Date());
             Transport.send(mail);
-            LOG.info("[Notificaciones][Mail] Aviso del pedido " + idPedido + " enviado a " + destino);
+            // SEC-09: el log lleva el ID del pedido y el email enmascarado, nunca completo.
+            LOG.info("[Notificaciones][Mail] Aviso del pedido " + idPedido + " enviado a "
+                    + DatosPersonales.emailEnmascarado(destino));
         } catch (MessagingException | java.io.UnsupportedEncodingException | RuntimeException e) {
+            // El mensaje de JavaMail a veces incluye la dirección que falló: también se enmascara.
             LOG.warning("[Notificaciones][Mail] No se pudo mandar el aviso del pedido " + idPedido
-                    + " a " + destino + ": " + e.getMessage() + ". Queda registrado en Rabbit.");
+                    + " a " + DatosPersonales.emailEnmascarado(destino) + ": "
+                    + DatosPersonales.sinEmails(e.getMessage()) + ". Queda registrado en Rabbit.");
         }
     }
 }

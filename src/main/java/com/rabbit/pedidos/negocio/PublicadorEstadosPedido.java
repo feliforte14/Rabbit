@@ -66,14 +66,7 @@ public class PublicadorEstadosPedido {
     public void publicarCambioDeEstado(
             @Observes(during = TransactionPhase.AFTER_SUCCESS) EstadoPedidoCambiado evento) {
         try (JMSContext contexto = connectionFactory.createContext()) {
-            String payload = Json.createObjectBuilder()
-                    .add("idPedido", evento.idPedido())
-                    .add("idComercio", evento.idComercio())
-                    .add("estado", evento.estado().name())
-                    .add("fechaCambio", evento.fechaCambio().toString())
-                    .build()
-                    .toString();
-            TextMessage mensaje = contexto.createTextMessage(payload);
+            TextMessage mensaje = contexto.createTextMessage(construirPayload(evento));
             mensaje.setStringProperty("estado", evento.estado().name());
             mensaje.setLongProperty("idPedido", evento.idPedido());
 
@@ -86,5 +79,20 @@ public class PublicadorEstadosPedido {
             LOG.log(Level.WARNING, "[Pedidos] No se pudo publicar el cambio de estado del pedido "
                     + evento.idPedido() + " en el tópico", e);
         }
+    }
+
+    /**
+     * Cuerpo del mensaje del tópico. SEC-08: solo lo mínimo para que cada
+     * suscriptor sepa qué pedido cambió y a qué estado (IDs, estado y fecha);
+     * ningún dato personal ni importe. Separado del envío para probarlo sin broker.
+     */
+    static String construirPayload(EstadoPedidoCambiado evento) {
+        return Json.createObjectBuilder()
+                .add("idPedido", evento.idPedido())
+                .add("idComercio", evento.idComercio())
+                .add("estado", evento.estado().name())
+                .add("fechaCambio", evento.fechaCambio().toString())
+                .build()
+                .toString();
     }
 }

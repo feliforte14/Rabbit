@@ -50,6 +50,14 @@
             <version>5.0.0</version>
             <scope>test</scope>
         </dependency>
+        <!-- Implementación de JSON-P (jakarta.json) para probar el cuerpo de los mensajes JMS
+             sin broker (en el servidor la pone WildFly). Solo tests: no entra al WAR. -->
+        <dependency>
+            <groupId>org.eclipse.parsson</groupId>
+            <artifactId>parsson</artifactId>
+            <version>1.1.7</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Tests de integración de la API contra la app desplegada (perfil "integracion"). -->
         <dependency>
             <groupId>io.rest-assured</groupId>
