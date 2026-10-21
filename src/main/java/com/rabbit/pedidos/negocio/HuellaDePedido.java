@@ -23,12 +23,20 @@ final class HuellaDePedido {
     }
 
     static String de(DatosPedidoExternoDTO datos, OrigenPedido origen) {
+        boolean retiro = ReglaDeRetiro.esRetiro(datos.tipoEntrega);
         StringBuilder texto = new StringBuilder()
                 .append(origen).append('|').append(datos.idPuntoPicking).append('|')
                 .append(datos.importe.stripTrailingZeros().toPlainString()).append('|')
-                .append(datos.medioPago).append('|')
-                .append(datos.direccionEntrega.trim()).append('|')
-                .append(CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega));
+                .append(datos.medioPago).append('|');
+        if (retiro) {
+            // Retiro en depósito (ADR-053): no hay dirección ni código postal. El marcador distingue
+            // un retiro de un pedido a domicilio igual en todo lo demás.
+            texto.append("retiro-en-deposito");
+        } else {
+            // A domicilio, la huella queda igual que antes de que existiera el tipo de entrega.
+            texto.append(datos.direccionEntrega.trim()).append('|')
+                    .append(CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega));
+        }
         // Solo si vino: un pedido sin peso da la misma huella que antes de
         // que existiera el campo.
         if (datos.pesoKg != null) {

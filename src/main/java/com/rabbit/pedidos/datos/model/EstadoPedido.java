@@ -63,6 +63,18 @@ public enum EstadoPedido {
      * operación. También protege contra eventos o clics que llegan fuera
      * de orden (por ejemplo, "entregar" sobre un pedido que se canceló).
      */
+    /**
+     * La misma máquina, sabiendo cómo lo recibe quien compró (ADR-053): un pedido de RETIRO_EN_DEPOSITO
+     * no sale a reparto, así que no pasa por EN_CAMINO y se entrega directo desde CONFIRMADO ("listo
+     * para retirar") cuando quien lo retira muestra el código. Para DOMICILIO es idéntica a la de arriba.
+     */
+    public boolean puedePasarA(EstadoPedido destino, TipoEntrega tipo) {
+        if (tipo == TipoEntrega.RETIRO_EN_DEPOSITO && this == CONFIRMADO) {
+            return Set.of(ENTREGADO, CANCELADO).contains(destino);
+        }
+        return puedePasarA(destino);
+    }
+
     public boolean puedePasarA(EstadoPedido destino) {
         return switch (this) {
             case PENDIENTE -> Set.of(CONFIRMADO, CANCELADO).contains(destino);

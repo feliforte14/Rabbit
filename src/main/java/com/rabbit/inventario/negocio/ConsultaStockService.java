@@ -215,6 +215,14 @@ public class ConsultaStockService implements IConsultaStock {
         return pesos;
     }
 
+    @Override
+    public java.util.Map<Long, Long> depositosPorItem(Collection<Long> idsItems) {
+        java.util.Map<Long, Long> depositos = new java.util.HashMap<>();
+        repository.listarItemsPorIds(idsItems).forEach(item ->
+                depositos.put(item.getId(), item.getDeposito() != null ? item.getDeposito().getId() : null));
+        return depositos;
+    }
+
     // Stock consignado del comercio que representa el usuario que llama.
     @Override
     @RolesAllowed("COMERCIO")

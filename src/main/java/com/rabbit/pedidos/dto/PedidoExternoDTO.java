@@ -8,6 +8,7 @@ package com.rabbit.pedidos.dto;
 
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
+import com.rabbit.pedidos.datos.model.TipoEntrega;
 import com.rabbit.pagos.dto.MedioPago;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
@@ -28,6 +29,8 @@ public class PedidoExternoDTO {
     public MedioPago medioPago;
     public String direccionEntrega;
     public String codigoPostalEntrega;
+    // ADR-053: null = a domicilio.
+    public TipoEntrega tipoEntrega;
     public String fechaPedido;
     public boolean sincronizado;
     public String errorSincronizacion;
@@ -58,6 +61,7 @@ public class PedidoExternoDTO {
         dto.medioPago = pe.getMedioPago();
         dto.direccionEntrega = pe.getDireccionEntrega();
         dto.codigoPostalEntrega = pe.getCodigoPostalEntrega();
+        dto.tipoEntrega = pe.getTipoEntrega();
         dto.lineas = pe.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
         dto.fechaPedido = pe.getFechaPedido() != null ? pe.getFechaPedido().format(FORMATO) : null;
         dto.sincronizado = pe.isSincronizado();
@@ -104,6 +108,8 @@ public class PedidoExternoDTO {
     public MedioPago getMedioPago() { return medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
     public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
+    public TipoEntrega getTipoEntrega() { return tipoEntrega; }
+    public boolean isRetiroEnDeposito() { return tipoEntrega == TipoEntrega.RETIRO_EN_DEPOSITO; }
     public String getFechaPedido() { return fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }

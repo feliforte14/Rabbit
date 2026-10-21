@@ -116,6 +116,11 @@ public class PedidoExterno {
     // y las filas anteriores a este cambio quedan en null (= no cancelado).
     private Boolean cancelado;
 
+    // Cómo recibe quien compró (ADR-053). Null en las filas anteriores: cuenta como DOMICILIO.
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private TipoEntrega tipoEntrega;
+
     // Quién recibe (ADR-039), opcionales: viajan tal cual al Pedido.
     @Column(length = 100)
     private String nombreDestinatario;
@@ -170,6 +175,9 @@ public class PedidoExterno {
     public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
     public String getTelefonoDestinatario() { return telefonoDestinatario; }
     public void setTelefonoDestinatario(String telefonoDestinatario) { this.telefonoDestinatario = telefonoDestinatario; }
+    public TipoEntrega getTipoEntrega() { return tipoEntrega != null ? tipoEntrega : TipoEntrega.DOMICILIO; }
+    public void setTipoEntrega(TipoEntrega tipoEntrega) { this.tipoEntrega = tipoEntrega; }
+    public boolean isRetiroEnDeposito() { return getTipoEntrega() == TipoEntrega.RETIRO_EN_DEPOSITO; }
     public String getEmailDestinatario() { return emailDestinatario; }
     public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
     public LocalDate getFechaPrometida() { return fechaPrometida; }

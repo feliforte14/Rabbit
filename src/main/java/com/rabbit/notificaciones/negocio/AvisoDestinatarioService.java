@@ -98,7 +98,8 @@ public class AvisoDestinatarioService implements IAvisosAlDestinatario {
         TextosAlDestinatario.Datos datos = new TextosAlDestinatario.Datos(estado, pedido.nombreDestinatario,
                 nombreComercio(idComercio), pedido.codigoSeguimiento, enlaceSeguimiento(pedido.codigoSeguimiento),
                 pedido.fechaPrometida, ahora.toLocalDate(), motivo, pedido.ultimaFallaContoComoVisita,
-                pedido.intentosFallidos, IntentosDeEntrega.maximo());
+                pedido.intentosFallidos, IntentosDeEntrega.maximo(),
+                pedido.isRetiroEnDeposito() ? (pedido.depositoRetiro != null ? pedido.depositoRetiro : "el depósito de Rabbit") : null);
         String asunto = TextosAlDestinatario.asunto(datos);
         String texto = TextosAlDestinatario.cuerpo(datos);
 

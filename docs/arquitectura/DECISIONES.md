@@ -1548,3 +1548,37 @@ Propuesta o Reemplazada.
   las pantallas del comercio ni del personal, ni hay un promedio en Indicadores: queda
   como siguiente paso, ahora que el dato existe. Un enlace de seguimiento compartido
   permite calificar a quien lo tenga; es el mismo alcance que tiene ver el estado.
+
+## ADR-053 — Retiro en depósito
+
+- **Estado:** Aceptada (21/10/2026). Pedido del equipo (Trello).
+- **Contexto:** todos los pedidos salían a reparto. Hay compradores que prefieren
+  pasar a buscar el pedido, y si el stock ya está en un depósito de Rabbit no tiene
+  sentido asignarle un repartidor ni armarle una ruta.
+- **Decisión:** el ERP manda `tipoEntrega = RETIRO_EN_DEPOSITO` (por defecto sigue
+  siendo `DOMICILIO`). El pedido no lleva dirección, ni repartidor, ni lista de
+  espera, ni pasa por Ruteo; queda "listo para retirar" al confirmarlo y se entrega
+  mostrando el código de seguimiento.
+  - **Modelo:** enum `TipoEntrega` y columna `tipoEntrega` en `Pedido` y `PedidoExterno`
+    (null = domicilio, para no tocar los pedidos existentes), más `Pedido.idDepositoRetiro`.
+  - **Reglas (`ReglaDeRetiro`):** solo con stock consignado (con punto de picking la
+    mercadería está en el comercio); todos los productos en el mismo depósito (si no,
+    422 explicando por qué); el código se compara sin importar mayúsculas ni espacios.
+    El depósito se determina al sincronizar, antes de reservar, con
+    `IConsultaStock.depositosPorItem`.
+  - **Estados:** `EstadoPedido.puedePasarA(destino, tipo)`: un retiro pasa de CONFIRMADO
+    a ENTREGADO directo y nunca por EN_CAMINO. `confirmarPedido` de un retiro solo cobra
+    (si es prepago) y confirma. `entregarEnDeposito(idPedido, código)` (ADMINISTRADOR u
+    OPERADOR) es la prueba de la entrega; al pasar a ENTREGADO se efectiviza el cobro
+    contra entrega como siempre. Despachar, registrar entrega con remito, derivar,
+    cotizar y devolver al depósito se rechazan con un mensaje claro, y `listarPendientes`
+    (lo que ve Ruteo) excluye los retiros.
+  - **Contrato:** `tipoEntrega` en la solicitud y en la respuesta; `direccionEntrega` pasa a
+    ser obligatoria solo a domicilio (restricción de clase que reporta el error en ese campo).
+    La huella de idempotencia distingue un retiro de un domicilio.
+  - **Quien compró lo ve:** seguimiento con tres pasos (Recibido → Listo para retirar →
+    Retirado), con el depósito y el código; los mails dicen "listo para retirar" en vez de
+    "ya tiene quién lo lleve".
+- **Consecuencias:** un retiro que nadie busca queda CONFIRMADO hasta que se cancele (no
+  hay vencimiento ni cobro por almacenamiento todavía). La prueba de entrega es solo el
+  código, más débil que la foto del remito; el código lo conoce quien tenga el enlace.

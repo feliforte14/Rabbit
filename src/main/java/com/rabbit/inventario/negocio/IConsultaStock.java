@@ -128,6 +128,14 @@ public interface IConsultaStock {
      */
     java.util.Map<Long, java.math.BigDecimal> pesosPorItem(Collection<Long> idsItems);
 
+    /**
+     * En qué depósito está cada ítem (ADR-053), para saber dónde retira un pedido
+     * de retiro en depósito. Un ítem que no existe no aparece. Sin restricción de
+     * rol, igual que pesosPorItem (la sincronización corre sin usuario) y por la
+     * misma razón: no expone nada más que el ID del depósito.
+     */
+    java.util.Map<Long, Long> depositosPorItem(Collection<Long> idsItems);
+
     /** Stock consignado del comercio que representa el usuario que llama (rol COMERCIO). */
     List<ItemInventarioDTO> listarStockDelComercioActual();
 

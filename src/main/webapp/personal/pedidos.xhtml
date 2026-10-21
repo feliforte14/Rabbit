@@ -107,6 +107,9 @@
                          lugar de "Pendiente": sigue PENDIENTE, pero es lo que importa. -->
                     <h:outputText value="#{p.estado == 'PENDIENTE' and p.enEspera ? 'En espera' : etiquetas.estadoPedido(p.estado)}"
                                   styleClass="#{etiquetas.claseEstadoPedido(p.estado)}" />
+                    <h:panelGroup rendered="#{p.retiroEnDeposito}">
+                        <span class="dato-secundario">#{p.estado == 'CONFIRMADO' ? 'Listo para retirar' : 'Retiro en depósito'}</span>
+                    </h:panelGroup>
                     <h:panelGroup rendered="#{p.conRemito}">
                         <span class="dato-secundario">
                             <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>
@@ -150,7 +153,8 @@
                 <h:column styleClass="col-p3" headerClass="col-p3">
                     <f:facet name="header">Repartidor</f:facet>
                     <h:outputText value="#{pedidoBean.nombreRepartidor(p.idRepartidor)}"
-                                  rendered="#{empty pedidoBean.envio(p.id)}" />
+                                  rendered="#{empty pedidoBean.envio(p.id) and not p.retiroEnDeposito}" />
+                    <h:outputText value="Sin repartidor: lo retira en el depósito" rendered="#{p.retiroEnDeposito}" />
                     <h:panelGroup rendered="#{not empty pedidoBean.envio(p.id)}">
                         #{pedidoBean.envio(p.id).transportista}
                         <span class="dato-secundario">Logística tercerizada · #{pedidoBean.envio(p.id).codigoSeguimiento}</span>
@@ -164,7 +168,14 @@
                     <!-- Un pedido derivado lo mueve su transportista (ver SeguimientoDeEnvios). -->
                     <h:commandButton value="Despachar" styleClass="btn btn-secondary"
                                      action="#{pedidoBean.despachar(p.id)}"
-                                     rendered="#{p.estado == 'CONFIRMADO' and empty pedidoBean.envio(p.id)}" />
+                                     rendered="#{p.estado == 'CONFIRMADO' and empty pedidoBean.envio(p.id) and not p.retiroEnDeposito}" />
+                    <!-- Retiro en depósito (ADR-053): quien retira muestra el código de seguimiento. -->
+                    <h:panelGroup rendered="#{p.estado == 'CONFIRMADO' and p.retiroEnDeposito}">
+                        <h:inputText value="#{pedidoBean.codigosDeRetiro[p.id]}" maxlength="20" styleClass="codigo-retiro"
+                                     pt:placeholder="Código que muestra" pt:autocomplete="off" />
+                        <h:commandButton value="Entregar al retirar" styleClass="btn btn-secondary"
+                                         action="#{pedidoBean.entregarEnDeposito(p.id)}" />
+                    </h:panelGroup>
                     <!-- La entrega la registra el repartidor con la foto del remito
                          (ADR-033); un administrador puede hacerlo abajo, con foto. -->
                     <!-- Un pedido que ya salio a reparto no se cancela (ReglaDeCancelacion):

@@ -30,11 +30,24 @@ final class TextosAlDestinatario {
      * Lo que hace falta para escribir el aviso. nombre, fechaPrometida y
      * motivo pueden ser null. contoComoVisita: si la última falla le contó
      * una visita al cliente; visitas: las fallidas hasta ahora; maximo: las
-     * que se intentan antes de devolverlo (IntentosDeEntrega).
+     * que se intentan antes de devolverlo (IntentosDeEntrega). retiro: dónde
+     * retirarlo (ADR-053), o null si se entrega a domicilio.
      */
     record Datos(String estado, String nombre, String comercio, String codigo, String enlace,
                  LocalDate fechaPrometida, LocalDate hoy, MotivoEntregaFallida motivo, boolean contoComoVisita,
-                 int visitas, int maximo) {
+                 int visitas, int maximo, String retiro) {
+
+        /** A domicilio (lo de siempre). */
+        Datos(String estado, String nombre, String comercio, String codigo, String enlace,
+              LocalDate fechaPrometida, LocalDate hoy, MotivoEntregaFallida motivo, boolean contoComoVisita,
+              int visitas, int maximo) {
+            this(estado, nombre, comercio, codigo, enlace, fechaPrometida, hoy, motivo, contoComoVisita,
+                    visitas, maximo, null);
+        }
+
+        boolean esRetiro() {
+            return retiro != null;
+        }
     }
 
     static String asunto(Datos d) {
@@ -43,9 +56,10 @@ final class TextosAlDestinatario {
             case "PENDIENTE" -> d.motivo() == null ? "Recibimos tu pedido" + de
                     : d.contoComoVisita() ? "No pudimos entregar tu pedido" + de
                     : "Tu pedido" + de + " se demora un poco";
-            case "CONFIRMADO" -> "Tu pedido" + de + " ya tiene quién lo lleve";
+            case "CONFIRMADO" -> d.esRetiro() ? "Tu pedido" + de + " está listo para retirar"
+                    : "Tu pedido" + de + " ya tiene quién lo lleve";
             case "EN_CAMINO" -> "¡Tu pedido" + de + " llega hoy!";
-            case "ENTREGADO" -> "Entregamos tu pedido" + de;
+            case "ENTREGADO" -> d.esRetiro() ? "Retiraste tu pedido" + de : "Entregamos tu pedido" + de;
             case "CANCELADO" -> "Tu pedido" + de + " fue cancelado";
             case "DEVUELTO_AL_COMERCIO" -> "Tu pedido" + de + " volvió a la tienda";
             default -> "Novedades de tu pedido" + de;
@@ -56,10 +70,15 @@ final class TextosAlDestinatario {
         String saludo = d.nombre() != null ? "Hola, " + d.nombre() + ". " : "Hola. ";
         String texto = switch (d.estado()) {
             case "PENDIENTE" -> d.motivo() != null ? visitaFallida(d)
+                    : d.esRetiro() ? d.comercio() + " nos pasó tu pedido. Cuando esté listo te avisamos para que lo retires."
                     : d.comercio() + " nos pasó tu pedido y Rabbit lo va a llevar." + cuando(d.fechaPrometida(), d.hoy());
-            case "CONFIRMADO" -> "Ya le asignamos quién lo lleva. Te avisamos cuando salga a reparto.";
+            case "CONFIRMADO" -> d.esRetiro()
+                    ? "Tu pedido ya está listo para retirar por " + d.retiro() + ". Mostrá el código " + d.codigo()
+                            + " para que te lo entreguen."
+                    : "Ya le asignamos quién lo lleva. Te avisamos cuando salga a reparto.";
             case "EN_CAMINO" -> "Tu pedido salió a reparto y llega hoy. En el seguimiento ves por dónde va.";
-            case "ENTREGADO" -> "Tu pedido fue entregado. ¡Gracias!";
+            case "ENTREGADO" -> d.esRetiro() ? "Retiraste tu pedido en el depósito. ¡Gracias!"
+                    : "Tu pedido fue entregado. ¡Gracias!";
             case "CANCELADO" -> "El pedido se canceló. Si no lo esperabas, consultá con " + d.comercio() + ".";
             case "DEVUELTO_AL_COMERCIO" -> devuelto(d);
             default -> "Tu pedido cambió de estado.";

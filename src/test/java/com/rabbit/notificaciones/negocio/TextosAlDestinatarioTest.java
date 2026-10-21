@@ -118,4 +118,27 @@ class TextosAlDestinatarioTest {
         assertEquals("https://rabbit.example.com/Rabbit/seguimiento.xhtml?codigo=RB-X",
                 AvisoDestinatarioService.enlaceSeguimiento("RB-X"));
     }
+
+    private static TextosAlDestinatario.Datos retiro(String estado) {
+        return new TextosAlDestinatario.Datos(estado, "Ana", "Librería Sur", "RB-7KQ2M9XHTA",
+                "https://rabbit.example/seguimiento.xhtml?codigo=RB-7KQ2M9XHTA", HOY, HOY, null, false, 0, 3,
+                "Galpón Norte (Av. Siempreviva 742)");
+    }
+
+    @Test
+    void unRetiroListoLeDiceDondeYConQueCodigo() {
+        TextosAlDestinatario.Datos d = retiro("CONFIRMADO");
+        assertEquals("Tu pedido de Librería Sur está listo para retirar", TextosAlDestinatario.asunto(d));
+        String cuerpo = TextosAlDestinatario.cuerpo(d);
+        assertTrue(cuerpo.contains("Galpón Norte (Av. Siempreviva 742)"));
+        assertTrue(cuerpo.contains("Mostrá el código RB-7KQ2M9XHTA"));
+        assertFalse(cuerpo.contains("quién lo lleva"));
+    }
+
+    @Test
+    void unRetiroNoPrometeReparto() {
+        assertFalse(TextosAlDestinatario.cuerpo(retiro("PENDIENTE")).contains("Llega"));
+        assertTrue(TextosAlDestinatario.cuerpo(retiro("ENTREGADO")).contains("Retiraste"));
+        assertEquals("Retiraste tu pedido de Librería Sur", TextosAlDestinatario.asunto(retiro("ENTREGADO")));
+    }
 }

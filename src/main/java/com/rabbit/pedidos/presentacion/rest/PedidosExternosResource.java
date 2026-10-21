@@ -226,6 +226,7 @@ public class PedidosExternosResource {
         if (externo.idPedido != null) {
             json.add("idPedido", externo.idPedido);
         }
+        json.add("tipoEntrega", externo.tipoEntrega != null ? externo.tipoEntrega.name() : "DOMICILIO");
         if (externo.estadoPedido != null) {
             json.add("estadoPedido", externo.estadoPedido);
         }
