@@ -3,7 +3,8 @@ package com.rabbit.comercios.presentacion;
 /**
  * CAPA DE PRESENTACIÓN (Managed Bean - JSF) — el portal del comercio
  * (mis-pedidos.xhtml y mi-stock.xhtml): sus pedidos con el estado de cada
- * uno, los avisos que le mandó Rabbit y su stock consignado.
+ * uno y su stock consignado. Los avisos que Rabbit le manda ya no se listan
+ * acá: se ven en la campana de la cabecera (CampanaBean).
  *
  * Nunca recibe el ID del comercio: cada servicio lo saca de la identidad
  * autenticada (ver IContextoUsuario), así que un comercio no puede ver
@@ -14,8 +15,6 @@ import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.inventario.dto.DepositoDTO;
 import com.rabbit.inventario.dto.ItemInventarioDTO;
 import com.rabbit.inventario.negocio.IConsultaStock;
-import com.rabbit.notificaciones.dto.NotificacionDTO;
-import com.rabbit.notificaciones.negocio.INotificaciones;
 import com.rabbit.pagos.dto.CobroDTO;
 import com.rabbit.pagos.negocio.IConsultaCobros;
 import com.rabbit.pedidos.dto.PedidoDTO;
@@ -38,13 +37,8 @@ import java.util.stream.Collectors;
 @ViewScoped
 public class PortalComercioBean implements Serializable {
 
-    private static final int AVISOS = 15;
-
     @Inject
     private ISeguimientoPedido seguimiento;
-
-    @Inject
-    private INotificaciones notificaciones;
 
     @Inject
     private IConsultaStock stock;
@@ -62,7 +56,6 @@ public class PortalComercioBean implements Serializable {
     private List<PedidoDTO> pedidos;
     private Map<Long, String> estadosCobro;
     private Map<Long, EnvioDTO> enviosPorPedido;
-    private List<NotificacionDTO> avisos;
     private List<ItemInventarioDTO> items;
     private Map<Long, String> nombresDepositos;
 
@@ -71,14 +64,12 @@ public class PortalComercioBean implements Serializable {
     public void cargarPedidos() {
         try {
             pedidos = seguimiento.listarPedidosDelComercioActual();
-            avisos = notificaciones.listarDelComercioActual(AVISOS);
             estadosCobro = cobros.listarCobrosDelComercioActual().stream()
                     .collect(Collectors.toMap(CobroDTO::getIdPedido, CobroDTO::getEstado));
             enviosPorPedido = envios.listarEnviosDelComercioActual().stream()
                     .collect(Collectors.toMap(EnvioDTO::getIdPedido, Function.identity(), (a, b) -> a));
         } catch (ValidacionException e) {
             pedidos = List.of();
-            avisos = List.of();
             estadosCobro = Map.of();
             enviosPorPedido = Map.of();
             Mensajes.error(e.getMessage());
@@ -127,6 +118,5 @@ public class PortalComercioBean implements Serializable {
     }
 
     public List<PedidoDTO> getPedidos() { return pedidos; }
-    public List<NotificacionDTO> getAvisos() { return avisos; }
     public List<ItemInventarioDTO> getItems() { return items; }
 }

@@ -556,7 +556,7 @@ suscripción (ADR-041).
    abre la llamada en el celular). El seguimiento público **no** los
    muestra.
 2. **Avisos a quien recibe (ADR-040):** con el email cargado, cada cambio
-   de estado suma una fila en Pedidos → "Avisos a destinatarios" ("Recibimos
+   de estado suma una fila en la campana → "Avisos a quien recibe" ("Recibimos
    tu pedido de …", "…ya tiene quién lo lleve", "…llega hoy!",
    "Entregamos…"), con el link al seguimiento. Con
    `rabbit.mail.smtp.host` configurado, llegan por mail. Un pedido sin
@@ -680,7 +680,7 @@ Misma rama. Necesita salida a internet (OpenStreetMap).
 | Devolver pedido (repartidor) | Vuelve a Pendiente en espera y se reasigna a otro repartidor, sin cobrar de nuevo |
 | Hoja de ruta recomendada | Retiros primero y después la entrega más cercana (OpenStreetMap; las no ubicadas, por CP); link a Google Maps en tramos de hasta 9 paradas |
 | Quién recibe (email obligatorio) | Se ve en Pedidos, Mis pedidos y Mis entregas; no en el seguimiento público. Sin email o con un email inválido: 400 |
-| Avisos a quien recibe | Una fila por cambio de estado en "Avisos a destinatarios" (y mail si hay SMTP); sin email, nada |
+| Avisos a quien recibe | Una fila por cambio de estado en la campana, "Avisos a quien recibe" (y mail si hay SMTP); sin email, nada |
 | Fecha prometida | Viene en el 201 del alta; hoy antes del corte, mañana después |
 | Visitas fallidas | La primera vuelve a la espera; la segunda (o un rechazo) pasa a Devuelto al comercio, con stock devuelto y cobro anulado |
 | Evidencia de la visita fallida | Motivo de la lista, comentario, hasta 3 fotos y ubicación; "Ver visitas" para el personal y el comercio dueño; paquete dañado sin stock devuelto |

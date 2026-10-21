@@ -2,10 +2,11 @@
 <!--
     VISTA (Facelet) - Capa de Presentacion.
     Pantalla de operacion del personal de Rabbit: los pedidos reales con
-    sus acciones (confirmar, despachar, entregar, cancelar), los avisos a
-    comercios, lo que llego del ERP de cada comercio y un formulario para
-    simular un pedido del ERP en la demo. Se bindea a pedidoBean
-    (PedidoBean.java).
+    sus acciones (confirmar, despachar, entregar, cancelar), lo que llego del
+    ERP de cada comercio y un formulario para simular un pedido del ERP en la
+    demo. Se bindea a pedidoBean (PedidoBean.java). Los avisos (a comercios y a
+    quien recibe cada pedido) se ven en la campana de la cabecera (CampanaBean,
+    template.xhtml).
 -->
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                  xmlns:h="jakarta.faces.html"
@@ -295,58 +296,6 @@
             </h:dataTable>
             </h:panelGroup>
         </h:form>
-
-        <!--
-            Avisos que genero ServicioDeNotificaciones al recibir cada cambio
-            de estado por topico.pedidos.estado (el mismo mensaje que recibe
-            Pagos: publicacion/suscripcion, 1 a N).
-        -->
-        <h2>Avisos a comercios</h2>
-        <h:dataTable value="#{pedidoBean.avisosRecientes}" var="a" id="tablaAvisos"
-                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
-                     rendered="#{not empty pedidoBean.avisosRecientes}">
-            <h:column styleClass="col-p2" headerClass="col-p2">
-                <f:facet name="header">Hora</f:facet>
-                #{a.fechaAviso}
-            </h:column>
-            <h:column styleClass="col-p3" headerClass="col-p3">
-                <f:facet name="header">Comercio</f:facet>
-                #{pedidoBean.nombreComercio(a.idComercio)}
-            </h:column>
-            <h:column>
-                <f:facet name="header">Aviso</f:facet>
-                #{a.mensaje}
-            </h:column>
-        </h:dataTable>
-        <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.avisosRecientes}"
-                      value="Todavía no se enviaron avisos." />
-
-        <!--
-            Avisos a quien recibe cada pedido (ADR-040): los genera un tercer
-            suscriptor del mismo topico. Se mandan por mail si hay servidor de
-            correo configurado; si no, quedan registrados aca.
-        -->
-        <h2>Avisos a destinatarios</h2>
-        <h:dataTable value="#{pedidoBean.avisosADestinatarios}" var="a" id="tablaAvisosDestinatarios"
-                     styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
-                     rendered="#{not empty pedidoBean.avisosADestinatarios}">
-            <h:column styleClass="col-p2" headerClass="col-p2">
-                <f:facet name="header">Hora</f:facet>
-                #{a.fechaAviso}
-            </h:column>
-            <h:column styleClass="col-p3" headerClass="col-p3">
-                <f:facet name="header">Para</f:facet>
-                #{a.email}
-                <span class="dato-secundario">Pedido #{a.idPedido}</span>
-            </h:column>
-            <h:column>
-                <f:facet name="header">Aviso</f:facet>
-                <b>#{a.asunto}</b>
-                <span class="dato-secundario">#{a.mensaje}</span>
-            </h:column>
-        </h:dataTable>
-        <h:outputText styleClass="ayuda" rendered="#{empty pedidoBean.avisosADestinatarios}"
-                      value="Todavía no se avisó a ningún destinatario. (Los pedidos cargados antes de que el email fuera obligatorio pueden no tenerlo: a esos no se les avisa.)" />
 
         <h2>Recibidos del ERP</h2>
         <p class="ayuda">

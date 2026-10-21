@@ -448,6 +448,16 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   `cola.pedidos.externos` o del tópico: el cuerpo solo trae IDs, estado y fecha.
   Automatizado sin broker en `MensajesJmsMinimosTest`.
 
+- [ ] **S17. Campana de notificaciones (ADR-051).** Como `demo.comercio`,
+  con avisos ya generados: arriba a la derecha hay una campana con un
+  contador rojo; al tocarla se abre el panel con los últimos avisos de **sus**
+  pedidos (los nuevos, resaltados), el contador vuelve a 0 y al cerrarla (tocar
+  afuera o Escape) los avisos quedan sin resaltar. Generar otro cambio de estado
+  y recargar: el contador marca 1. Como personal: el panel trae "Avisos a
+  comercios" (con el nombre del comercio) y "Avisos a quien recibe". Como
+  `demo.repartidor`: no hay campana. Probar también en celular y con los tres
+  temas. Ya no hay tablas "Avisos" al final de Mis pedidos ni de Pedidos.
+
 ### Cierre
 
 - [ ] Volver al banco en Java y quitar las system properties de las demos

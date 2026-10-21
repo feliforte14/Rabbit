@@ -33,6 +33,8 @@
     <h:outputScript library="rabbit" name="menu.js" />
     <!-- En el celular, las tablas se ven como tarjetas (ver tablas.js). -->
     <h:outputScript library="rabbit" name="tablas.js" />
+    <!-- Campana de notificaciones: contador de avisos nuevos (ver campana.js). -->
+    <h:outputScript library="rabbit" name="campana.js" />
     <ui:insert name="cabecera" />
 </h:head>
 <h:body>
@@ -128,6 +130,68 @@
         </aside>
 
         <main class="app-contenido">
+            <!--
+                Campana de notificaciones (CampanaBean): al tocarla se abre el panel
+                con los últimos avisos. Es un <details>, así abre y cierra sin
+                JavaScript; campana.js suma el contador de avisos nuevos. La ven los
+                comercios (los avisos de sus pedidos) y el personal (los avisos a
+                comercios y a quien recibe cada pedido, ADR-040). Reemplaza a las
+                tablas "Avisos" que estaban al final de Mis pedidos y de Pedidos.
+            -->
+            <h:panelGroup layout="block" styleClass="barra-superior" rendered="#{campanaBean.visible}">
+                <details class="campana" data-usuario="#{sesionBean.usuarioActual}">
+                    <summary class="campana-boton" title="Notificaciones" aria-label="Notificaciones">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                        <span class="campana-contador" hidden="hidden" aria-hidden="true">0</span>
+                    </summary>
+                    <div class="campana-panel">
+                        <h2 class="campana-titulo">Notificaciones</h2>
+
+                        <h:panelGroup rendered="#{campanaBean.personal}">
+                            <p class="campana-seccion">Avisos a comercios</p>
+                        </h:panelGroup>
+                        <ul class="campana-lista">
+                            <ui:repeat value="#{campanaBean.avisos}" var="a">
+                                <li class="campana-item" data-tipo="n" data-id="#{a.id}">
+                                    <div class="campana-item-cabecera">
+                                        <span>
+                                            <h:outputText value="#{campanaBean.nombreComercio(a.idComercio)}" rendered="#{campanaBean.personal}" />
+                                            <h:outputText value="Pedido #{a.idPedido}" rendered="#{not campanaBean.personal}" />
+                                        </span>
+                                        <span>#{a.fechaAviso}</span>
+                                    </div>
+                                    <p class="campana-item-texto">#{a.mensaje}</p>
+                                    <h:panelGroup rendered="#{campanaBean.personal}">
+                                        <span class="campana-item-extra">Pedido #{a.idPedido}</span>
+                                    </h:panelGroup>
+                                </li>
+                            </ui:repeat>
+                        </ul>
+                        <h:panelGroup rendered="#{empty campanaBean.avisos}">
+                            <p class="campana-vacio">Todavía no hay avisos.</p>
+                        </h:panelGroup>
+
+                        <h:panelGroup rendered="#{campanaBean.personal}">
+                            <p class="campana-seccion">Avisos a quien recibe</p>
+                            <ul class="campana-lista">
+                                <ui:repeat value="#{campanaBean.avisosADestinatarios}" var="d">
+                                    <li class="campana-item" data-tipo="d" data-id="#{d.id}">
+                                        <div class="campana-item-cabecera">
+                                            <span>Pedido #{d.idPedido}</span>
+                                            <span>#{d.fechaAviso}</span>
+                                        </div>
+                                        <p class="campana-item-texto"><b>#{d.asunto}</b></p>
+                                        <span class="campana-item-extra">Para #{d.email}</span>
+                                    </li>
+                                </ui:repeat>
+                            </ul>
+                            <h:panelGroup rendered="#{empty campanaBean.avisosADestinatarios}">
+                                <p class="campana-vacio">Todavía no hay avisos a destinatarios.</p>
+                            </h:panelGroup>
+                        </h:panelGroup>
+                    </div>
+                </details>
+            </h:panelGroup>
             <ui:insert name="contenido" />
         </main>
     </div>

@@ -1126,7 +1126,7 @@ Propuesta o Reemplazada.
   - *SMS o WhatsApp:* exigen un proveedor pago; el mail ya estaba.
 - **Consecuencias:** sumar el canal no tocó Pedidos ni a los otros dos
   suscriptores. Sin servidor de correo, los avisos quedan registrados y el
-  personal los ve en Pedidos → "Avisos a destinatarios". El texto usa el
+  personal los ve en la campana de la cabecera → "Avisos a quien recibe" (ADR-051). El texto usa el
   motivo de devolución vigente al momento del aviso.
 
 ## ADR-041: Entrega fallida con motivo fijo, intentos y devolución al comercio
@@ -1485,3 +1485,33 @@ Propuesta o Reemplazada.
   reconocido. Las pruebas automáticas de SEC-03 y SEC-04 necesitan dos cuentas
   extra (un ERP de otro comercio y un usuario con rol `COMERCIO`) y la app
   desplegada; sin ellas esos tests se saltean.
+
+## ADR-051: Los avisos se ven en una campana de notificaciones
+
+- **Estado:** Aceptada (21/10/2026). Pedido del equipo.
+- **Contexto:** los avisos de Notificaciones se listaban en tablas al final
+  de Mis pedidos (comercio) y de Pedidos (personal): había que bajar hasta el
+  final de la pantalla para verlos, y no se distinguía lo nuevo de lo ya visto.
+- **Decisión:** una **campana en la cabecera** de todas las pantallas
+  (`template.xhtml`, `CampanaBean`). Al tocarla se abre un panel con los
+  últimos 15 avisos; sobre la campana, un contador de los nuevos.
+  - **Quién la ve:** el comercio (los avisos de sus pedidos) y el personal
+    (avisos a comercios y avisos a quien recibe, ADR-040, que tienen el email
+    del cliente final). Repartidor y ERP no tienen campana. Lo que cada rol
+    puede leer lo sigue decidiendo el EJB con `@RolesAllowed`; el bean solo
+    elige qué pedir según el rol.
+  - **Sin JavaScript también anda:** es un `<details>` que abre y cierra solo.
+    `campana.js` suma el contador, cerrar con Escape o al tocar afuera y marcar
+    como vistos los avisos al abrirla.
+  - **"Nuevo" se recuerda en el navegador** (`localStorage`, un valor por
+    usuario y por tipo de aviso): un aviso es nuevo si su id es mayor al último
+    que ese usuario vio. No se agregó ninguna tabla ni columna: la base no cambia.
+  - Se sacaron las tablas viejas y los campos que las alimentaban en
+    `PedidoBean` y `PortalComercioBean`. Los recursos pasaron a `1_18`
+    (convención de versionado del CSS y JS).
+- **Consecuencias:** "visto" es por navegador, no por cuenta: quien entra desde
+  otra computadora vuelve a ver los últimos avisos como nuevos. Si más adelante
+  se necesita un "leído" por cuenta (o una pantalla con todo el historial, hoy
+  limitado a los últimos 15), hace falta guardarlo en la base. La campana
+  consulta los avisos en cada pantalla que se dibuja (dos consultas chicas para
+  el personal, una para el comercio).
