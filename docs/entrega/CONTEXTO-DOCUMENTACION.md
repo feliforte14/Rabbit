@@ -611,7 +611,7 @@ Menú: `src/main/webapp/WEB-INF/plantillas/template.xhtml:59-105`.
 | Procesos (mensajería asincrónica/eventos) | Cola y tópico JMS; eventos CDI con fase de transacción | `PublicadorPedidosExternos`, `PublicadorEstadosPedido`, MDB |
 | Portales | Portal del comercio y seguimiento: una pantalla compone datos de varios componentes | `PortalComercioBean` (Pedidos, Pagos, Inventario, Notificaciones, Transportistas, Repartidores), `SeguimientoBean` (Pedidos + Repartidores + Ruteo) |
 | Datos | Login de WildFly leyendo la tabla `usuarios` (jdbc-realm) | `scripts/configurar-realm-compartido.cli` |
-| Archivos | (a) CSV de indicadores, **generado en el navegador** (`webapp/resources/rabbit/1_18/indicadores.js:272-294`), no es una integración entre sistemas sino una exportación al usuario; (b) `ApplicationRealmSync` lee y escribe `application-users.properties` / `application-roles.properties` de WildFly (`seguridad/negocio/ApplicationRealmSync.java:54-147`) | ver contradicción 2 |
+| Archivos | (a) CSV de indicadores, **generado en el navegador** (`webapp/resources/rabbit/1_19/indicadores.js:272-294`), no es una integración entre sistemas sino una exportación al usuario; (b) `ApplicationRealmSync` lee y escribe `application-users.properties` / `application-roles.properties` de WildFly (`seguridad/negocio/ApplicationRealmSync.java:54-147`) | ver contradicción 2 |
 
 ---
 

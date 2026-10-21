@@ -106,6 +106,9 @@ import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import com.rabbit.pedidos.dto.RemitoDTO;
 import com.rabbit.pedidos.dto.ResumenEntregasDTO;
 
+import com.rabbit.pedidos.datos.model.CalificacionEntrega;
+import com.rabbit.pedidos.dto.CalificacionDTO;
+import jakarta.persistence.PersistenceException;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
@@ -1074,6 +1077,48 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             throw new PedidoNoEncontradoException("No hay ningún pedido con el código " + codigoSeguimiento);
         }
         return PedidoDTO.desde(pedido);
+    }
+
+    @Override
+    // Pública a propósito, como consultarSeguimiento: entra por el código aleatorio.
+    public CalificacionDTO consultarCalificacion(String codigoSeguimiento) {
+        Pedido pedido = pedidoPorCodigoOFallar(codigoSeguimiento);
+        CalificacionEntrega calificacion = repository.buscarCalificacionDePedido(pedido.getId());
+        return calificacion == null ? null : CalificacionDTO.desde(calificacion);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    // Pública a propósito (ADR-052): quien recibe el pedido no tiene cuenta; lo que lo
+    // autoriza es el código aleatorio del pedido. Solo escribe una calificación, una vez,
+    // de un pedido ya entregado; el comentario es texto de un tercero (se valida y se
+    // muestra siempre escapado) y no se escribe en el log.
+    public CalificacionDTO calificarEntrega(String codigoSeguimiento, int estrellas, String comentario) {
+        Pedido pedido = pedidoPorCodigoOFallar(codigoSeguimiento);
+        String comentarioLimpio = ReglaDeCalificacion.validar(pedido.getEstado(), estrellas, comentario);
+        if (repository.buscarCalificacionDePedido(pedido.getId()) != null) {
+            throw new ValidacionException("Esta entrega ya fue calificada. ¡Gracias!");
+        }
+        CalificacionEntrega calificacion = new CalificacionEntrega(pedido.getId(), estrellas, comentarioLimpio,
+                LocalDateTime.now());
+        try {
+            repository.guardarCalificacion(calificacion);
+        } catch (PersistenceException e) {
+            // Dos calificaciones a la vez del mismo pedido: gana la primera (idPedido es único).
+            throw new ValidacionException("Esta entrega ya fue calificada. ¡Gracias!");
+        }
+        LOG.info("[Pedidos] Entrega del pedido " + pedido.getId() + " calificada con " + estrellas + " estrellas");
+        return CalificacionDTO.desde(calificacion);
+    }
+
+    // Busca el pedido por su código de seguimiento, normalizado como en consultarSeguimiento.
+    private Pedido pedidoPorCodigoOFallar(String codigoSeguimiento) {
+        String codigo = codigoSeguimiento == null ? null : codigoSeguimiento.trim().toUpperCase();
+        Pedido pedido = codigo == null || codigo.isEmpty() ? null : repository.buscarPedidoPorCodigoSeguimiento(codigo);
+        if (pedido == null) {
+            throw new PedidoNoEncontradoException("No hay ningún pedido con el código " + codigoSeguimiento);
+        }
+        return pedido;
     }
 
     // Devuelve todos los pedidos reales como DTO — usado por la vista de listado

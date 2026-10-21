@@ -12,14 +12,21 @@ package com.rabbit.pedidos.presentacion;
  * importes, direcciones ni datos de quien recibe: la puede abrir
  * cualquiera que tenga el código.
  *
+ * Cuando el pedido está ENTREGADO, además le pregunta a quien lo recibió cómo
+ * fue la entrega: de 1 a 5 estrellas y un comentario opcional (ADR-052). Una
+ * sola vez por pedido; después muestra lo que calificó.
+ *
  * @RequestScoped: cada consulta es independiente; el código llega por la
  * URL (?codigo=RB-...), así el enlace se puede compartir tal cual.
  */
 
+import com.rabbit.infraestructura.Mensajes;
+import com.rabbit.pedidos.dto.CalificacionDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.ValidacionException;
 import jakarta.enterprise.context.RequestScoped;
+import jakarta.faces.context.FacesContext;
 import com.rabbit.infraestructura.Formatos;
 import com.rabbit.repartidores.dto.UbicacionDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
@@ -57,6 +64,11 @@ public class SeguimientoBean {
     private PedidoDTO pedido;
     private boolean noEncontrado;
 
+    // Calificación de la entrega (ADR-052). El comentario lo escribe un tercero:
+    // el negocio lo valida y esta vista lo muestra siempre escapado.
+    private CalificacionDTO calificacion;
+    private String comentario;
+
     // f:viewAction: busca recién cuando ya se cargó el parámetro de la URL.
     public void buscar() {
         if (codigo == null || codigo.isBlank()) {
@@ -69,12 +81,55 @@ public class SeguimientoBean {
             noEncontrado = true;
             return;
         }
+        // Entregado: si ya lo calificaron, se muestra lo que dejó; si no, el formulario.
+        if ("ENTREGADO".equals(pedido.estado)) {
+            calificacion = seguimiento.consultarCalificacion(codigo);
+        }
         // Solo mientras va en camino con un repartidor de Rabbit: antes no
         // salió, y después no hay nada que seguir.
         if ("EN_CAMINO".equals(pedido.estado) && pedido.idRepartidor != null) {
             ubicacion = repartidores.ubicacionParaPedido(pedido.idRepartidor, pedido.id);
             llegada = estimarLlegada(llegadas, pedido);
         }
+    }
+
+    /**
+     * Envía la calificación (ADR-052). Las estrellas llegan como parámetro del
+     * formulario (los radios de la página no son componentes JSF) y el negocio
+     * las vuelve a validar. Después se vuelve a buscar el pedido para dibujar el
+     * resultado: el agradecimiento, o el formulario con el motivo del rechazo.
+     */
+    public void calificar() {
+        String enviadas = FacesContext.getCurrentInstance().getExternalContext()
+                .getRequestParameterMap().get("estrellas");
+        int estrellas = 0;
+        try {
+            estrellas = enviadas == null ? 0 : Integer.parseInt(enviadas.trim());
+        } catch (NumberFormatException e) {
+            // queda en 0: el negocio responde "Elegí de 1 a 5 estrellas"
+        }
+        try {
+            seguimiento.calificarEntrega(codigo, estrellas, comentario);
+            Mensajes.info("¡Gracias por calificar tu entrega!");
+            comentario = null;
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        }
+        buscar();
+    }
+
+    /** Entregado y todavía sin calificar: la página muestra el formulario. */
+    public boolean isPuedeCalificar() {
+        return pedido != null && "ENTREGADO".equals(pedido.estado) && calificacion == null;
+    }
+
+    public CalificacionDTO getCalificacion() { return calificacion; }
+    public String getComentario() { return comentario; }
+    public void setComentario(String comentario) { this.comentario = comentario; }
+
+    /** Las estrellas llenas y vacías de una calificación, para dibujarla como texto ("★★★★☆"). */
+    public String estrellasEnTexto(int estrellas) {
+        return "★".repeat(Math.max(0, Math.min(5, estrellas))) + "☆".repeat(5 - Math.max(0, Math.min(5, estrellas)));
     }
 
     public LlegadaEstimadaDTO getLlegada() { return llegada; }

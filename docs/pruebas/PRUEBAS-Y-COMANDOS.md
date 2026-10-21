@@ -458,6 +458,18 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   `demo.repartidor`: no hay campana. Probar también en celular y con los tres
   temas. Ya no hay tablas "Avisos" al final de Mis pedidos ni de Pedidos.
 
+- [ ] **S18. Calificar la entrega (ADR-052).** Con un pedido ENTREGADO, abrir
+  `https://localhost:8443/Rabbit/seguimiento.xhtml?codigo=<codigo>` (sin sesión): debajo
+  del estado aparece "¿Cómo fue la entrega?" con 5 estrellas y un comentario
+  opcional. Enviar sin elegir estrellas → el navegador lo frena (y si se fuerza, el
+  servidor responde "Elegí de 1 a 5 estrellas"). Elegir 4 y comentar → "¡Gracias por
+  calificar tu entrega!" y se muestra "Tu calificación" con las estrellas y el
+  comentario; al recargar sigue ahí y ya no ofrece el formulario. Un comentario con
+  `<b>hola</b>` se ve como texto, no en negrita. Un pedido que **no** está entregado
+  no muestra el formulario. Se puede hacer con teclado (flechas sobre las estrellas) y
+  en los tres temas. En la base: una fila en `calificaciones_entrega` (la tabla la crea
+  Hibernate al desplegar).
+
 ### Cierre
 
 - [ ] Volver al banco en Java y quitar las system properties de las demos
