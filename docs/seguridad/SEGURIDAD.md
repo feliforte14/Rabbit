@@ -207,6 +207,42 @@ usa un certificado autofirmado).
   navegador. Si un ERP manda un pedido por HTTP, sus credenciales ya
   viajaron en claro antes del `302`.
 
+### HSTS (SEC-05, ADR-050)
+
+`CONFIDENTIAL` redirige un pedido por HTTP *después* de que ya viajó en
+claro. `FiltroHsts` agrega la cabecera `Strict-Transport-Security:
+max-age=31536000` a las respuestas por HTTPS: el navegador recuerda que
+Rabbit es solo HTTPS y no vuelve a probar por HTTP.
+
+- Solo se manda por HTTPS (por HTTP el navegador debe ignorarla).
+- Con el certificado autofirmado de desarrollo el navegador la ignora, así
+  que no traba el acceso local; empieza a valer con un certificado válido.
+- `-Drabbit.hsts.max.age=<segundos>` la ajusta (por defecto, 1 año); `0` la
+  apaga. Sin `includeSubDomains` ni `preload`.
+
+### Logs sin datos personales (SEC-09, ADR-050)
+
+El log del servidor lo lee más gente que la que ve el pedido y se guarda
+mucho tiempo. Reglas:
+
+- Se loguea el **ID del pedido**, no a quién se le entrega.
+- El **email se enmascara** (`DatosPersonales.emailEnmascarado`):
+  `cliente@correo.test` queda `c******@correo.test`. Los mensajes de error de
+  JavaMail, que a veces traen la dirección que falló, pasan por
+  `DatosPersonales.sinEmails`.
+- La **dirección de entrega no se escribe** en ningún log (tampoco en los
+  simuladores de transportistas).
+
+Probado en `DatosPersonalesTest`.
+
+### Mensajes JMS mínimos (SEC-08)
+
+La cola lleva solo `idPedidoExterno`; el tópico, `idPedido`, `idComercio`,
+`estado` y `fechaCambio`. Nada de direcciones, emails, teléfonos ni importes:
+el consumidor lee el resto de la base. Los publicadores arman el cuerpo en
+`construirPayload`, y `MensajesJmsMinimosTest` verifica los campos exactos y
+que no aparezca ninguno de los prohibidos, sin necesidad de un broker.
+
 ### Credenciales fuera del repositorio
 
 El repositorio es público: ninguna credencial va en el código. Las de la
@@ -237,6 +273,9 @@ Además, el login y la página de error, que tienen que verse sin sesión.
 
 ## Limitaciones conocidas
 
+- HSTS (`FiltroHsts`) no tiene efecto con el certificado autofirmado de
+  desarrollo: los navegadores la ignoran si el certificado no es válido.
+  Hay que verificarla con un certificado reconocido.
 - El certificado HTTPS de WildFly es autofirmado (el navegador advierte,
   `curl` necesita `-k`). En producción iría un certificado de una
   autoridad reconocida en el `key-store` de Elytron.

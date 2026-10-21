@@ -19,6 +19,9 @@ import org.junit.jupiter.api.Test;
  *   mvn verify -Pintegracion -Drabbit.erp.usuario=... -Drabbit.erp.clave=... -Drabbit.punto=...
  *
  * rabbit.punto: un punto de picking activo del comercio de ese ERP.
+ * Opcionales (si faltan, esos tests se saltean):
+ *   -Drabbit.erp2.usuario/-Drabbit.erp2.clave: un ERP de OTRO comercio (SEC-03, pedido ajeno = 404).
+ *   -Drabbit.comercio.usuario/-Drabbit.comercio.clave: un usuario con rol COMERCIO (SEC-04, 403).
  * Los pedidos de prueba llevan "[TEST]" en la dirección, para identificarlos.
  */
 class ApiRestIT {
@@ -110,6 +113,52 @@ class ApiRestIT {
         erp().get("/pedidos-externos/999999999").then()
                 .statusCode(404).contentType(startsWith(PROBLEMA))
                 .body("type", equalTo("/problemas/pedido-inexistente"));
+    }
+
+    /**
+     * SEC-03 (BOLA): un ERP no puede ver ni tocar los pedidos de OTRO comercio, y la API ni siquiera
+     * confirma que existen: responde 404, igual que a un pedido inexistente.
+     * Necesita un segundo usuario ERP, de otro comercio (-Drabbit.erp2.usuario, -Drabbit.erp2.clave).
+     */
+    @Test
+    void unPedidoDeOtroComercioEs404() {
+        String usuario2 = System.getProperty("rabbit.erp2.usuario");
+        String clave2 = System.getProperty("rabbit.erp2.clave");
+        assumeTrue(usuario2 != null && clave2 != null,
+                "Faltan -Drabbit.erp2.usuario y -Drabbit.erp2.clave (un ERP de OTRO comercio)");
+        RequestSpecification otroErp = given().auth().preemptive().basic(usuario2, clave2).contentType("application/json");
+
+        int id = alta(pedido(1500), UUID.randomUUID().toString()).then().statusCode(201).extract().path("idPedidoExterno");
+
+        // Consultar: 404 en problem+json, el mismo que un pedido que no existe.
+        otroErp.get("/pedidos-externos/" + id).then()
+                .statusCode(404).contentType(startsWith(PROBLEMA))
+                .body("type", equalTo("/problemas/pedido-inexistente"));
+        // Cancelar: también 404, y no se cancela nada.
+        otroErp.post("/pedidos-externos/" + id + "/cancelacion").then().statusCode(404);
+
+        // El dueño sigue viéndolo y el pedido no quedó cancelado por el intento ajeno.
+        erp().get("/pedidos-externos/" + id).then().statusCode(200)
+                .body("idPedidoExterno", equalTo(id));
+    }
+
+    /**
+     * SEC-04: la API es solo para el rol ERP. Un usuario autenticado con otro rol (acá, COMERCIO) recibe 403,
+     * y sin credenciales, 401 (sinCredencialesEs401). Necesita un usuario con rol COMERCIO
+     * (-Drabbit.comercio.usuario, -Drabbit.comercio.clave).
+     */
+    @Test
+    void unUsuarioConRolComercioEs403() {
+        String usuarioComercio = System.getProperty("rabbit.comercio.usuario");
+        String claveComercio = System.getProperty("rabbit.comercio.clave");
+        assumeTrue(usuarioComercio != null && claveComercio != null,
+                "Faltan -Drabbit.comercio.usuario y -Drabbit.comercio.clave (un usuario con rol COMERCIO)");
+        RequestSpecification comercio = given().auth().preemptive().basic(usuarioComercio, claveComercio)
+                .contentType("application/json");
+
+        comercio.get("/pedidos-externos/1").then().statusCode(403);
+        comercio.header("Idempotency-Key", UUID.randomUUID().toString()).body(pedido(1500))
+                .post("/pedidos-externos").then().statusCode(403);
     }
 
     @Test

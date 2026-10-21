@@ -414,6 +414,40 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   desde Usuarios)"; uno recién creado → se elimina. Eliminar una zona →
   sus repartidores quedan "Sin zona fija".
 
+- [ ] **S11. BOLA entre ERPs (SEC-03).** Con dos cuentas ERP de comercios
+  distintos, el ERP B consulta (`GET`) y cancela (`POST .../cancelacion`) un
+  pedido del ERP A → `404` (igual que uno inexistente), y el pedido de A sigue
+  intacto. Automatizado en `ApiRestIT.unPedidoDeOtroComercioEs404`:
+
+  ```bash
+  mvn verify -Pintegracion -Drabbit.erp.usuario=<erpA> -Drabbit.erp.clave=<clave> -Drabbit.punto=<id> \
+      -Drabbit.erp2.usuario=<erpB> -Drabbit.erp2.clave=<clave>
+  ```
+- [ ] **S12. Rol equivocado en la API (SEC-04).** Un usuario con rol `COMERCIO`
+  llama a la API del ERP → `403` (sin credenciales, `401`). Automatizado en
+  `ApiRestIT.unUsuarioConRolComercioEs403`, con
+  `-Drabbit.comercio.usuario=<usuario> -Drabbit.comercio.clave=<clave>`.
+- [ ] **S13. Banco caído (SEC-07), prueba manual.** Con WildFly levantado:
+  `jboss-cli.sh --connect --command="/system-property=rabbit.banco.simular.caida:add(value=true)"`.
+  Confirmar un pedido prepago → no cuelga más de ~5 s (timeout) y responde
+  que el cobro no está disponible; tras varios fallos seguidos, el circuito se
+  abre y responde al instante (en el log, `[Pagos][SOAP] Circuito abierto`).
+  Al terminar, quitar la property (`:remove`) y confirmar que el cobro vuelve.
+  **Adjuntar el log como evidencia.**
+- [ ] **S14. Logs sin datos personales (SEC-09).** Mandar un pedido con
+  email y dirección y buscar en el log: el email figura enmascarado
+  (`c******@…`) y la dirección de entrega no aparece en ninguna línea
+  (`grep -i "<parte de la direccion>" standalone/log/server.log` no encuentra
+  nada).
+- [ ] **S15. HSTS (SEC-05).** Con un certificado válido,
+  `curl -sI https://<host>/Rabbit/login.xhtml | grep -i strict-transport` →
+  `max-age=31536000`. Por HTTP, la cabecera no aparece. (Con el certificado
+  autofirmado el navegador la ignora: probar con `curl -k`.)
+- [ ] **S16. Mensajes JMS mínimos (SEC-08).** En la consola de Artemis
+  (`http://localhost:9990`, Runtime → Messaging → ActiveMQ), abrir un mensaje de
+  `cola.pedidos.externos` o del tópico: el cuerpo solo trae IDs, estado y fecha.
+  Automatizado sin broker en `MensajesJmsMinimosTest`.
+
 ### Cierre
 
 - [ ] Volver al banco en Java y quitar las system properties de las demos

@@ -73,7 +73,8 @@ final class SimuladorDeEnvios {
     String registrar(String referencia, String entrega) {
         String codigo = prefijo + secuencia.incrementAndGet();
         envios.put(codigo, new Envio(referencia, System.currentTimeMillis(), false));
-        LOG.info("[" + nombre + "] Envío " + codigo + " tomado: " + referencia + " -> " + entrega);
+        // SEC-09: la dirección de entrega es un dato personal y no se escribe en el log (alcanza con la referencia).
+        LOG.info("[" + nombre + "] Envío " + codigo + " tomado: " + referencia);
         return codigo;
     }
 
