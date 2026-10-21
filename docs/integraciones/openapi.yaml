@@ -63,6 +63,16 @@ paths:
                   nombreDestinatario: Ana Pérez
                   telefonoDestinatario: "+54 11 4567-8901"
                   emailDestinatario: ana@correo.com
+              retiroEnDeposito:
+                summary: Lo retira quien compró en el depósito (sin dirección ni repartidor)
+                value:
+                  origen: STOCK_CONSIGNADO
+                  tipoEntrega: RETIRO_EN_DEPOSITO
+                  lineas:
+                    - { idItem: 3, cantidad: 1 }
+                  importe: 2500.00
+                  medioPago: PREPAGO
+                  emailDestinatario: ana@correo.com
               puntoPicking:
                 summary: A retirar de un punto de picking del comercio
                 value:
@@ -307,7 +317,7 @@ components:
   schemas:
     PedidoExternoRequest:
       type: object
-      required: [lineas, importe, medioPago, direccionEntrega, emailDestinatario]
+      required: [lineas, importe, medioPago, emailDestinatario]
       properties:
         origen:
           type: string
@@ -330,9 +340,18 @@ components:
         medioPago:
           type: string
           enum: [PREPAGO, CONTRA_ENTREGA]
+        tipoEntrega:
+          type: string
+          enum: [DOMICILIO, RETIRO_EN_DEPOSITO]
+          default: DOMICILIO
+          description: >
+            RETIRO_EN_DEPOSITO: quien compró retira el pedido en el depósito donde está el stock, mostrando
+            el código de seguimiento. Solo con origen STOCK_CONSIGNADO y con todos los productos en el mismo
+            depósito (si no, 422). No lleva repartidor, ni lista de espera, ni dirección.
         direccionEntrega:
           type: string
           maxLength: 200
+          description: Obligatoria con tipoEntrega DOMICILIO (el valor por defecto). En un retiro en depósito se ignora.
         codigoPostalEntrega:
           type: string
           maxLength: 8

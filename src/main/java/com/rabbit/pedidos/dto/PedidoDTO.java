@@ -8,6 +8,7 @@ package com.rabbit.pedidos.dto;
 import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
+import com.rabbit.pedidos.datos.model.TipoEntrega;
 import com.rabbit.pagos.dto.MedioPago;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -35,6 +36,11 @@ public class PedidoDTO {
     public String direccionEntrega;
     public String codigoPostalEntrega;
     public String codigoSeguimiento;
+    // Retiro en depósito (ADR-053): null = a domicilio. El texto del depósito lo completa
+    // PedidoService al consultar el seguimiento.
+    public TipoEntrega tipoEntrega;
+    public Long idDepositoRetiro;
+    public String depositoRetiro;
     public String fechaEntrega;
     public String entregadoPor;
     public boolean conRemito;
@@ -78,6 +84,8 @@ public class PedidoDTO {
         dto.direccionEntrega = p.getDireccionEntrega();
         dto.codigoPostalEntrega = p.getCodigoPostalEntrega();
         dto.codigoSeguimiento = p.getCodigoSeguimiento();
+        dto.tipoEntrega = p.getTipoEntrega();
+        dto.idDepositoRetiro = p.getIdDepositoRetiro();
         dto.fechaEntrega = p.getFechaEntrega() != null ? p.getFechaEntrega().format(FORMATO) : null;
         dto.entregadoPor = p.getEntregadoPor();
         dto.conRemito = p.isConRemito();
@@ -129,6 +137,11 @@ public class PedidoDTO {
     public String getDireccionEntrega() { return direccionEntrega; }
     public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
     public String getCodigoSeguimiento() { return codigoSeguimiento; }
+    public TipoEntrega getTipoEntrega() { return tipoEntrega; }
+    public Long getIdDepositoRetiro() { return idDepositoRetiro; }
+    public String getDepositoRetiro() { return depositoRetiro; }
+    /** ¿Se retira en un depósito en vez de recibirse en la puerta? (ADR-053) */
+    public boolean isRetiroEnDeposito() { return tipoEntrega == TipoEntrega.RETIRO_EN_DEPOSITO; }
     public String getFechaEntrega() { return fechaEntrega; }
     public String getEntregadoPor() { return entregadoPor; }
     public boolean isConRemito() { return conRemito; }

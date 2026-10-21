@@ -45,6 +45,9 @@ public class SeguimientoBean {
     /** Los pasos normales de un pedido, en orden (CANCELADO va aparte). */
     private static final List<String> PASOS = List.of("PENDIENTE", "CONFIRMADO", "EN_CAMINO", "ENTREGADO");
 
+    /** Un retiro en depósito no sale a reparto (ADR-053): no pasa por EN_CAMINO. */
+    private static final List<String> PASOS_RETIRO = List.of("PENDIENTE", "CONFIRMADO", "ENTREGADO");
+
     @Inject
     private ISeguimientoPedido seguimiento;
 
@@ -200,8 +203,9 @@ public class SeguimientoBean {
 
     /** "hecho", "actual" o "pendiente", para dibujar cada paso de la línea de tiempo. */
     public String claseDelPaso(String paso) {
-        int actual = PASOS.indexOf(pedido.estado);
-        int este = PASOS.indexOf(paso);
+        List<String> pasos = getPasos();
+        int actual = pasos.indexOf(pedido.estado);
+        int este = pasos.indexOf(paso);
         if (este < actual) {
             return "hecho";
         }
@@ -209,6 +213,14 @@ public class SeguimientoBean {
     }
 
     public String getTitular() {
+        if (isRetiro()) {
+            switch (pedido.estado) {
+                case "PENDIENTE": return "Recibimos tu pedido";
+                case "CONFIRMADO": return "¡Tu pedido está listo para retirar!";
+                case "ENTREGADO": return "¡Retiraste tu pedido!";
+                default: break; // cancelado: igual que a domicilio
+            }
+        }
         switch (pedido.estado) {
             case "PENDIENTE": return "Recibimos tu pedido";
             case "CONFIRMADO": return "Estamos preparando el envío";
@@ -221,6 +233,16 @@ public class SeguimientoBean {
     }
 
     public String getDetalle() {
+        if (isRetiro()) {
+            String donde = pedido.depositoRetiro != null ? pedido.depositoRetiro : "el depósito de Rabbit";
+            switch (pedido.estado) {
+                case "PENDIENTE": return "La tienda ya nos pasó tu pedido. Cuando lo confirmemos te avisamos para que pases a retirarlo por " + donde + ".";
+                case "CONFIRMADO": return "Pasá a retirarlo por " + donde + " y mostrá este código: "
+                        + pedido.codigoSeguimiento + ".";
+                case "ENTREGADO": return "Lo retiraste en el depósito. ¡Gracias por elegirnos!";
+                default: break;
+            }
+        }
         switch (pedido.estado) {
             case "PENDIENTE": return pedido.intentosFallidos > 0
                     ? "Pasamos y no pudimos entregarlo. Lo vamos a intentar de nuevo con otro repartidor."
@@ -235,7 +257,10 @@ public class SeguimientoBean {
         }
     }
 
-    public List<String> getPasos() { return PASOS; }
+    public List<String> getPasos() { return isRetiro() ? PASOS_RETIRO : PASOS; }
+
+    /** ¿Lo retira en un depósito en vez de recibirlo en la puerta? (ADR-053) */
+    public boolean isRetiro() { return pedido != null && pedido.isRetiroEnDeposito(); }
     public String getCodigo() { return codigo; }
     public void setCodigo(String codigo) { this.codigo = codigo; }
     public PedidoDTO getPedido() { return pedido; }

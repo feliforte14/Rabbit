@@ -14,8 +14,13 @@ package com.rabbit.pedidos.presentacion.rest;
 
 import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
+import com.rabbit.pedidos.datos.model.TipoEntrega;
 import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
+import jakarta.validation.Constraint;
+import jakarta.validation.ConstraintValidator;
+import jakarta.validation.ConstraintValidatorContext;
+import jakarta.validation.Payload;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
@@ -25,10 +30,15 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
+@PedidoExternoRequest.ConDireccionSiEsADomicilio
 public class PedidoExternoRequest {
 
     public OrigenPedido origen = OrigenPedido.STOCK_CONSIGNADO;
@@ -48,7 +58,11 @@ public class PedidoExternoRequest {
     @NotNull(message = "Falta el medio de pago (PREPAGO o CONTRA_ENTREGA)")
     public MedioPago medioPago;
 
-    @NotBlank(message = "Falta la dirección de entrega")
+    // Cómo lo recibe quien compró (ADR-053). Si no viene, DOMICILIO (como siempre).
+    // RETIRO_EN_DEPOSITO: sin dirección, lo retira en el depósito mostrando el código.
+    public TipoEntrega tipoEntrega;
+
+    // Obligatoria a domicilio (ver ConDireccionSiEsADomicilio); en un retiro se ignora.
     @Size(max = 200, message = "La dirección de entrega no puede superar los 200 caracteres")
     public String direccionEntrega;
 
@@ -75,6 +89,34 @@ public class PedidoExternoRequest {
     @Email(message = "El email de quien recibe no es válido")
     @Size(max = 120, message = "El email de quien recibe no puede superar los 120 caracteres")
     public String emailDestinatario;
+
+    /** A domicilio la dirección es obligatoria; en un retiro en depósito no hace falta. */
+    @Target(ElementType.TYPE)
+    @Retention(RetentionPolicy.RUNTIME)
+    @Constraint(validatedBy = DireccionSiEsADomicilioValidator.class)
+    public @interface ConDireccionSiEsADomicilio {
+        String message() default "Falta la dirección de entrega";
+
+        Class<?>[] groups() default {};
+
+        Class<? extends Payload>[] payload() default {};
+    }
+
+    public static class DireccionSiEsADomicilioValidator
+            implements ConstraintValidator<ConDireccionSiEsADomicilio, PedidoExternoRequest> {
+        @Override
+        public boolean isValid(PedidoExternoRequest pedido, ConstraintValidatorContext contexto) {
+            if (pedido == null || pedido.tipoEntrega == TipoEntrega.RETIRO_EN_DEPOSITO
+                    || (pedido.direccionEntrega != null && !pedido.direccionEntrega.isBlank())) {
+                return true;
+            }
+            // El error se informa en el campo (direccionEntrega), no en el pedido entero.
+            contexto.disableDefaultConstraintViolation();
+            contexto.buildConstraintViolationWithTemplate(contexto.getDefaultConstraintMessageTemplate())
+                    .addPropertyNode("direccionEntrega").addConstraintViolation();
+            return false;
+        }
+    }
 
     public static class Linea {
         // STOCK_CONSIGNADO: el ítem consignado en Rabbit.
@@ -109,6 +151,7 @@ public class PedidoExternoRequest {
         datos.idPuntoPicking = idPuntoPicking;
         datos.importe = importe;
         datos.medioPago = medioPago;
+        datos.tipoEntrega = tipoEntrega;
         datos.direccionEntrega = direccionEntrega;
         datos.codigoPostalEntrega = codigoPostalEntrega;
         datos.pesoKg = pesoKg;

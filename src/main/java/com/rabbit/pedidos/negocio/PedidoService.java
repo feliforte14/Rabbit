@@ -109,6 +109,8 @@ import com.rabbit.pedidos.dto.ResumenEntregasDTO;
 import com.rabbit.pedidos.datos.model.CalificacionEntrega;
 import com.rabbit.pedidos.dto.CalificacionDTO;
 import jakarta.persistence.PersistenceException;
+import com.rabbit.inventario.dto.DepositoDTO;
+import com.rabbit.pedidos.datos.model.TipoEntrega;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
@@ -216,16 +218,23 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (datos.medioPago == null) {
             throw new ValidacionException("Debe indicar el medio de pago del pedido");
         }
-        if (datos.direccionEntrega == null || datos.direccionEntrega.isBlank()) {
-            throw new ValidacionException("Debe indicar la dirección de entrega del pedido");
-        }
-        if (datos.direccionEntrega.trim().length() > 200) {
-            throw new ValidacionException("La dirección de entrega no puede superar los 200 caracteres");
-        }
-        if (CodigosPostales.esInvalido(datos.codigoPostalEntrega)) {
-            throw new ValidacionException("El código postal de entrega tiene que tener 4 dígitos (o ser un CPA como C1414ABC)");
+        // Cómo lo recibe quien compró (ADR-053). Con retiro en depósito no hay dirección ni código
+        // postal: lo busca en un depósito de Rabbit (se decide al sincronizar, ver más abajo).
+        TipoEntrega tipoEntrega = datos.tipoEntrega != null ? datos.tipoEntrega : TipoEntrega.DOMICILIO;
+        boolean retiro = ReglaDeRetiro.esRetiro(tipoEntrega);
+        if (!retiro) {
+            if (datos.direccionEntrega == null || datos.direccionEntrega.isBlank()) {
+                throw new ValidacionException("Debe indicar la dirección de entrega del pedido");
+            }
+            if (datos.direccionEntrega.trim().length() > 200) {
+                throw new ValidacionException("La dirección de entrega no puede superar los 200 caracteres");
+            }
+            if (CodigosPostales.esInvalido(datos.codigoPostalEntrega)) {
+                throw new ValidacionException("El código postal de entrega tiene que tener 4 dígitos (o ser un CPA como C1414ABC)");
+            }
         }
         OrigenPedido origen = datos.origen != null ? datos.origen : OrigenPedido.STOCK_CONSIGNADO;
+        ReglaDeRetiro.validarOrigen(tipoEntrega, origen);
         validarPesoInformado(datos.pesoKg, origen);
         // Quién recibe (ADR-039): el email es obligatorio (por ahí se le
         // avisa); nombre y teléfono, opcionales, pero si vienen tienen que servir.
@@ -254,14 +263,15 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         }
 
         LocalDateTime ahora = LocalDateTime.now();
-        String codigoPostal = CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega);
+        String codigoPostal = retiro ? null : CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega);
         PedidoExterno externo = new PedidoExterno();
+        externo.setTipoEntrega(tipoEntrega);
         externo.setIdComercio(datos.idComercio);
         externo.setOrigen(origen);
         externo.setImporte(datos.importe);
         externo.setMedioPago(datos.medioPago);
         externo.setPesoKg(datos.pesoKg);
-        externo.setDireccionEntrega(datos.direccionEntrega.trim());
+        externo.setDireccionEntrega(retiro ? ReglaDeRetiro.DIRECCION_PROVISORIA : datos.direccionEntrega.trim());
         externo.setCodigoPostalEntrega(codigoPostal);
         externo.setFechaPedido(ahora);
         externo.setNombreDestinatario(nombreDestinatario);
@@ -373,10 +383,25 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setTelefonoDestinatario(externo.getTelefonoDestinatario());
         pedido.setEmailDestinatario(externo.getEmailDestinatario());
         pedido.setFechaPrometida(externo.getFechaPrometida());
+        pedido.setTipoEntrega(externo.getTipoEntrega());
         pedido.setEstado(EstadoPedido.PENDIENTE);
         pedido.setFechaCreacion(ahora);
         pedido.setFechaActualizacion(ahora);
         pedido.setCodigoSeguimiento(CodigosDeSeguimiento.nuevo());
+
+        // Retiro en depósito (ADR-053): se retira donde está el stock. Se decide ANTES de reservar:
+        // si los productos están en distintos depósitos no hay un solo lugar de retiro, y no tiene
+        // sentido comprometer stock para después deshacerlo.
+        if (externo.isRetiroEnDeposito()) {
+            ReglaDeRetiro.validarOrigen(externo.getTipoEntrega(), externo.getOrigen());
+            List<Long> idsItems = externo.getLineas().stream().map(LineaPedidoExterno::getIdItem).collect(Collectors.toList());
+            Map<Long, Long> depositoPorItem = stock.depositosPorItem(idsItems);
+            Long idDeposito = ReglaDeRetiro.depositoUnico(
+                    idsItems.stream().map(depositoPorItem::get).collect(Collectors.toList()));
+            DepositoDTO deposito = stock.obtenerDeposito(idDeposito);
+            pedido.setIdDepositoRetiro(idDeposito);
+            pedido.setDireccionEntrega(ReglaDeRetiro.textoDeLaDireccion(deposito.getNombre(), deposito.getDireccion()));
+        }
 
         List<LineaPedido> lineasPedido = new ArrayList<>();
         if (externo.getOrigen() == OrigenPedido.PUNTO_PICKING) {
@@ -513,6 +538,18 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
 
+        // Retiro en depósito (ADR-053): no sale a reparto, así que no hay repartidor, ni lista de
+        // espera, ni zona. Se cobra igual (si es prepago) y queda "listo para retirar".
+        if (pedido.isRetiroEnDeposito()) {
+            try {
+                registrarCobroSiFalta(pedido);
+            } catch (com.rabbit.pagos.negocio.ValidacionException e) {
+                throw new ValidacionException(e.getMessage());
+            }
+            cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
+            return null; // sin repartidor: devuelve null como la lista de espera, pero no queda esperando
+        }
+
         // Antes de cobrar: si no hay a quién dárselo, va a la lista de
         // espera sin cobrar nada (no tiene sentido cobrar en el banco para
         // reversarlo enseguida).
@@ -623,6 +660,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         List<EvidenciaDeVisita.Foto> fotos = EvidenciaDeVisita.fotos(motivo, datos.fotos);
         String texto = comentario == null ? "" : comentario;
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        ReglaDeRetiro.exigirADomicilio(pedido.getTipoEntrega(), "devolver al depósito: nunca salió a reparto");
         exigirRepartidorAsignado(pedido);
         if (pedido.getEstado() != EstadoPedido.CONFIRMADO && pedido.getEstado() != EstadoPedido.EN_CAMINO) {
             throw new ValidacionException("El pedido " + idPedido + " está " + pedido.getEstado()
@@ -768,6 +806,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public String derivarATransportista(Long idPedido, Long idTransportista) {
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        ReglaDeRetiro.exigirADomicilio(pedido.getTipoEntrega(), "derivar a un transportista");
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
         if (idTransportista == null) {
             throw new ValidacionException("Elegí a qué empresa de logística derivar el pedido");
@@ -805,6 +844,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (pedido == null) {
             throw new PedidoNoEncontradoException("Pedido no encontrado: " + idPedido);
         }
+        ReglaDeRetiro.exigirADomicilio(pedido.getTipoEntrega(), "cotizar un envío");
         validarTransicion(pedido, EstadoPedido.CONFIRMADO);
         return envios.cotizarEnvio(idPedido, datosDeEnvio(pedido));
     }
@@ -842,6 +882,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR", "REPARTIDOR"})
     public void despacharPedido(Long idPedido) {
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        ReglaDeRetiro.exigirADomicilio(pedido.getTipoEntrega(), "despachar");
         exigirRepartidorAsignado(pedido);
         cambiarEstado(pedido, EstadoPedido.EN_CAMINO);
     }
@@ -855,6 +896,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     public void registrarEntrega(Long idPedido, byte[] imagen) {
         String tipo = Remitos.tipoDeImagen(imagen);
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        ReglaDeRetiro.exigirADomicilio(pedido.getTipoEntrega(), "registrar una entrega con remito: se entrega en el depósito");
         exigirRepartidorAsignado(pedido);
         if (pedido.getIdRepartidor() == null) {
             throw new ValidacionException("El pedido " + idPedido
@@ -876,6 +918,22 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         marcarEntregado(pedido, usuario, ahora);
     }
 
+    // Retiro en depósito (ADR-053): quien retira muestra el código de seguimiento y el personal
+    // del depósito lo ingresa. Es la prueba de la entrega: no hay repartidor ni foto de remito.
+    // Como cualquier entrega, dispara el cobro contra entrega (lo efectiviza Pagos al recibir ENTREGADO).
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void entregarEnDeposito(Long idPedido, String codigoMostrado) {
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        ReglaDeRetiro.validarEntregaEnDeposito(pedido.getTipoEntrega(), pedido.getEstado());
+        if (!ReglaDeRetiro.codigoCoincide(pedido.getCodigoSeguimiento(), codigoMostrado)) {
+            // No se aclara cuál es el correcto ni qué pedido es: quien retira tiene que mostrarlo.
+            throw new ValidacionException("El código no coincide con el del pedido " + idPedido);
+        }
+        marcarEntregado(pedido, contexto.getCallerPrincipal().getName(), LocalDateTime.now());
+    }
+
     // Lo dispara el seguimiento de envíos (timer con @RunAs): sin foto
     // porque la prueba de entrega es del transportista. Un pedido con
     // repartidor propio no puede entrar por acá sin remito.
@@ -884,6 +942,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public void registrarEntregaDeTransportista(Long idPedido) {
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        ReglaDeRetiro.exigirADomicilio(pedido.getTipoEntrega(), "registrar la entrega de un transportista");
         if (pedido.getIdRepartidor() != null) {
             throw new ValidacionException("El pedido " + idPedido
                     + " lo lleva un repartidor de Rabbit: la entrega se registra con la foto del remito");
@@ -1076,7 +1135,14 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (pedido == null) {
             throw new PedidoNoEncontradoException("No hay ningún pedido con el código " + codigoSeguimiento);
         }
-        return PedidoDTO.desde(pedido);
+        PedidoDTO dto = PedidoDTO.desde(pedido);
+        if (pedido.isRetiroEnDeposito() && pedido.getIdDepositoRetiro() != null) {
+            // Dónde retirarlo (ADR-053): el seguimiento público lo muestra junto al código.
+            DepositoDTO deposito = stock.obtenerDeposito(pedido.getIdDepositoRetiro());
+            dto.depositoRetiro = ReglaDeRetiro.textoDeLaDireccion(deposito.getNombre(), deposito.getDireccion())
+                    .substring(ReglaDeRetiro.DIRECCION_PROVISORIA.length() + 2);
+        }
+        return dto;
     }
 
     @Override
@@ -1131,7 +1197,9 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Override
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<PedidoDTO> listarPendientes() {
+        // Los retiros en depósito no salen a reparto: no entran al ruteo (ADR-053).
         return repository.listarPorEstado(EstadoPedido.PENDIENTE).stream()
+                .filter(p -> !p.isRetiroEnDeposito())
                 .map(PedidoDTO::desde).collect(Collectors.toList());
     }
 
@@ -1316,7 +1384,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     }
 
     private void validarTransicion(Pedido pedido, EstadoPedido destino) {
-        if (!pedido.getEstado().puedePasarA(destino)) {
+        if (!pedido.getEstado().puedePasarA(destino, pedido.getTipoEntrega())) {
             throw new ValidacionException("El pedido " + pedido.getId() + " está " + pedido.getEstado()
                     + " y no puede pasar a " + destino);
         }

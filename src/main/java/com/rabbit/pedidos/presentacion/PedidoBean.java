@@ -354,6 +354,9 @@ public class PedidoBean implements Serializable {
             Long idRepartidor = gestion.confirmarPedido(idPedido);
             if (idRepartidor != null) {
                 Mensajes.info("Pedido confirmado");
+            } else if (seguimiento.consultarEstadoPedido(idPedido).isRetiroEnDeposito()) {
+                // Retiro en depósito (ADR-053): no lleva repartidor, queda listo para retirar.
+                Mensajes.info("Pedido " + idPedido + " confirmado: listo para retirar en el depósito");
             } else {
                 Mensajes.info("Pedido " + idPedido + " en lista de espera: "
                         + seguimiento.consultarEstadoPedido(idPedido).getMotivoEspera()
@@ -365,6 +368,27 @@ public class PedidoBean implements Serializable {
         } catch (EJBException e) {
             // Falla técnica al guardar (por ejemplo la base rechazó el cambio
             // y la transacción se deshizo): el pedido quedó como estaba.
+            Mensajes.error("No se pudo guardar el cambio del pedido. Intentá de nuevo.");
+        }
+    }
+
+    // Retiro en depósito (ADR-053): el código que muestra quien retira, por pedido.
+    private final Map<Long, String> codigosDeRetiro = new java.util.HashMap<>();
+
+    public Map<Long, String> getCodigosDeRetiro() {
+        return codigosDeRetiro;
+    }
+
+    // CONFIRMADO → ENTREGADO sin repartidor: el código mostrado es la prueba de la entrega.
+    public void entregarEnDeposito(Long idPedido) {
+        try {
+            gestion.entregarEnDeposito(idPedido, codigosDeRetiro.get(idPedido));
+            codigosDeRetiro.remove(idPedido);
+            Mensajes.info("Pedido " + idPedido + " entregado en el depósito");
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        } catch (EJBException e) {
             Mensajes.error("No se pudo guardar el cambio del pedido. Intentá de nuevo.");
         }
     }

@@ -100,7 +100,7 @@
                     <ui:repeat value="#{seguimientoBean.pasos}" var="paso">
                         <li class="#{seguimientoBean.claseDelPaso(paso)}">
                             <span class="linea-tiempo-punto"></span>
-                            <span class="linea-tiempo-texto">#{etiquetas.pasoSeguimiento(paso)}</span>
+                            <span class="linea-tiempo-texto">#{seguimientoBean.retiro ? etiquetas.pasoRetiro(paso) : etiquetas.pasoSeguimiento(paso)}</span>
                         </li>
                     </ui:repeat>
                 </ol>

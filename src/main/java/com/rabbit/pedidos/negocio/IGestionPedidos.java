@@ -249,6 +249,14 @@ public interface IGestionPedidos {
     void registrarEntregaDeTransportista(Long idPedido);
 
     /**
+     * Entrega un pedido de retiro en depósito (ADR-053): quien retira muestra el código de
+     * seguimiento y el personal lo ingresa. Solo con el pedido CONFIRMADO ("listo para retirar").
+     *
+     * @throws ValidacionException si el pedido no es de retiro, no está listo o el código no coincide
+     */
+    void entregarEnDeposito(Long idPedido, String codigoMostrado);
+
+    /**
      * La foto del remito de un pedido. El personal ve cualquiera; un
      * COMERCIO, las de sus pedidos; un REPARTIDOR, las de los suyos.
      *

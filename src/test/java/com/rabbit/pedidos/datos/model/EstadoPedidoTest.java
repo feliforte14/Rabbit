@@ -54,4 +54,28 @@ class EstadoPedidoTest {
         assertFalse(ENTREGADO.puedePasarA(PENDIENTE));
         assertFalse(CANCELADO.puedePasarA(PENDIENTE));
     }
+
+    @Test
+    void unRetiroEnDepositoSeEntregaDesdeConfirmadoSinPasarPorReparto() {
+        TipoEntrega retiro = TipoEntrega.RETIRO_EN_DEPOSITO;
+        assertTrue(CONFIRMADO.puedePasarA(ENTREGADO, retiro));
+        assertTrue(CONFIRMADO.puedePasarA(CANCELADO, retiro));
+        assertFalse(CONFIRMADO.puedePasarA(EN_CAMINO, retiro));
+        assertFalse(CONFIRMADO.puedePasarA(PENDIENTE, retiro));
+    }
+
+    @Test
+    void aDomicilioLaMaquinaEsLaDeSiempre() {
+        for (TipoEntrega tipo : new TipoEntrega[] {TipoEntrega.DOMICILIO, null}) {
+            assertTrue(CONFIRMADO.puedePasarA(EN_CAMINO, tipo));
+            assertFalse(CONFIRMADO.puedePasarA(ENTREGADO, tipo));
+        }
+    }
+
+    @Test
+    void elRetiroNoCambiaLosDemasEstados() {
+        assertTrue(PENDIENTE.puedePasarA(CONFIRMADO, TipoEntrega.RETIRO_EN_DEPOSITO));
+        assertFalse(PENDIENTE.puedePasarA(ENTREGADO, TipoEntrega.RETIRO_EN_DEPOSITO));
+        assertFalse(ENTREGADO.puedePasarA(CONFIRMADO, TipoEntrega.RETIRO_EN_DEPOSITO));
+    }
 }

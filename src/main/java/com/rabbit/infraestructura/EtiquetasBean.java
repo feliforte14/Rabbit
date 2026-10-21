@@ -144,6 +144,16 @@ public class EtiquetasBean {
         }
     }
 
+    // Lo mismo para un retiro en depósito (ADR-053): no hay "En camino".
+    public String pasoRetiro(Object estado) {
+        switch (texto(estado)) {
+            case "PENDIENTE": return "Recibido";
+            case "CONFIRMADO": return "Listo para retirar";
+            case "ENTREGADO": return "Retirado";
+            default: return "—";
+        }
+    }
+
     public String estadoCotizacion(Object estado) {
         switch (texto(estado)) {
             case "COTIZADO": return "Cotizó";

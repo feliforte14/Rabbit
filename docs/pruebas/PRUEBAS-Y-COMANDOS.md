@@ -469,6 +469,16 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   no muestra el formulario. Se puede hacer con teclado (flechas sobre las estrellas) y
   en los tres temas. En la base: una fila en `calificaciones_entrega` (la tabla la crea
   Hibernate al desplegar).
+- [ ] **S19. Retiro en depósito (ADR-053).** Con la cuenta del ERP, `POST /api/v1/pedidos-externos`
+  con `"tipoEntrega": "RETIRO_EN_DEPOSITO"`, stock consignado y **sin** `direccionEntrega`:
+  201 con `tipoEntrega` en la respuesta. Con la misma clave de idempotencia pero a domicilio →
+  422 (clave reutilizada). Sin `tipoEntrega` ni dirección → 400 con `campo: direccionEntrega`.
+  Con `PUNTO_PICKING` o con ítems de dos depósitos → 422 explicando el motivo. En
+  `personal/pedidos.xhtml` confirmarlo: "listo para retirar", sin repartidor, sin botón
+  Despachar y fuera de Ruteo. "Entregar al retirar" con un código equivocado → error; con el
+  del seguimiento (en minúsculas y con espacios también) → Entregado y, si era contra entrega,
+  cobrado. El seguimiento público muestra tres pasos, el depósito y el código, sin mapa, y el
+  mail dice "listo para retirar".
 
 ### Cierre
 
