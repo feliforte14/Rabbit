@@ -2653,3 +2653,94 @@ html[data-tema="oscuro"] .leaflet-tile-pane {
         width: auto;
     }
 }
+
+/* ==================================================================
+   Calificación de la entrega (ver seguimiento.xhtml, ADR-052)
+
+   Cinco radios HTML comunes con la etiqueta dibujada como estrella. Se
+   escriben de la 5 a la 1 y se muestran al revés (row-reverse): así, con solo
+   CSS, "las hermanas siguientes" son las estrellas MENORES y se pintan todas
+   las que van desde la 1 hasta la elegida. Sin JavaScript. El nombre de cada
+   opción va en texto para el lector de pantalla.
+   ================================================================== */
+.calificacion fieldset.estrellas {
+    margin: 0 0 1rem;
+    padding: 0;
+    border: none;
+}
+
+.calificacion fieldset.estrellas legend {
+    padding: 0;
+    margin-bottom: 0.5rem;
+}
+
+.estrellas-opciones {
+    display: inline-flex;
+    flex-direction: row-reverse;
+    gap: 0.25rem;
+}
+
+/* El radio no se ve, pero sigue siendo enfocable con el teclado. */
+.estrellas-opciones input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.estrellas-opciones label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;             /* 48 px: se toca bien con el pulgar */
+    height: 3rem;
+    font-size: 2.2rem;
+    line-height: 1;
+    color: var(--texto-suave);
+    cursor: pointer;
+    transition: color 0.12s, transform 0.12s;
+}
+
+.estrellas-opciones label::before {
+    content: "☆";
+}
+
+.estrellas-opciones label:hover::before,
+.estrellas-opciones label:hover ~ label::before,
+.estrellas-opciones input:checked + label::before,
+.estrellas-opciones input:checked + label ~ label::before {
+    content: "★";
+}
+
+.estrellas-opciones label:hover,
+.estrellas-opciones label:hover ~ label,
+.estrellas-opciones input:checked + label,
+.estrellas-opciones input:checked + label ~ label {
+    color: var(--naranja);
+}
+
+.estrellas-opciones input:focus-visible + label {
+    outline: 2px solid var(--naranja);
+    outline-offset: 2px;
+    border-radius: var(--radio-chico);
+}
+
+.comentario-calificacion {
+    width: 100%;
+    resize: vertical;
+}
+
+.calificacion-estrellas {
+    margin: 0.3rem 0 0;
+    font-size: 1.8rem;
+    letter-spacing: 0.15rem;
+    color: var(--naranja);
+}
+
+.calificacion-comentario {
+    margin: 0.6rem 0 0;
+    padding-left: 0.9rem;
+    border-left: 3px solid var(--borde);
+    white-space: pre-line;   /* respeta los saltos de línea que escribió */
+    color: var(--texto);
+}

@@ -256,6 +256,16 @@ base viven en el datasource de WildFly y las de management (para
   (con una línea de tiempo), el día prometido y, en camino, la parada y la
   franja (ADR-042 y 043); el código aleatorio es lo único que la abre.
   Nunca muestra los datos de quien recibe (ADR-039).
+- **Calificar la entrega** (ADR-052): desde `seguimiento.xhtml`, quien recibe el
+  pedido deja de 1 a 5 estrellas y un comentario opcional. Es la **única
+  escritura pública** de Rabbit, así que está acotada: la autoriza el código
+  aleatorio del pedido; solo se acepta si el pedido ya está ENTREGADO; una sola
+  vez por pedido (`idPedido` único: una segunda, o dos a la vez, se rechazan);
+  1 a 5 estrellas; comentario de hasta 500 caracteres, sin caracteres de control
+  (`ReglaDeCalificacion`, probada en `ReglaDeCalificacionTest`). El comentario es
+  texto de un tercero: se muestra siempre escapado (`#{...}` de JSF) y no se escribe
+  en el log. El formulario lleva el ViewState de JSF (protección contra CSRF). No se
+  guarda quién calificó.
 - `GET /api/v1/seguimiento/{codigo}` (`SeguimientoResource`, `@PermitAll`),
   a propósito: devuelve solo el estado del pedido, la fecha prometida y la
   parada/franja, sin importes, cobros, direcciones ni datos del comercio o

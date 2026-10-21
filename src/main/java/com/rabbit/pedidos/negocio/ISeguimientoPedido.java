@@ -8,6 +8,7 @@ package com.rabbit.pedidos.negocio;
  * Implementada por {@link PedidoService}.
  */
 
+import com.rabbit.pedidos.dto.CalificacionDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import com.rabbit.pedidos.dto.ResumenEntregasDTO;
@@ -46,6 +47,25 @@ public interface ISeguimientoPedido {
      * @throws PedidoNoEncontradoException si ningún pedido tiene ese código
      */
     PedidoDTO consultarSeguimiento(String codigoSeguimiento);
+
+    /**
+     * La calificación que dejó quien recibió el pedido (ADR-052), por el
+     * código de seguimiento. Pública, igual que el seguimiento.
+     *
+     * @return la calificación, o null si todavía no calificó
+     * @throws PedidoNoEncontradoException si ningún pedido tiene ese código
+     */
+    CalificacionDTO consultarCalificacion(String codigoSeguimiento);
+
+    /**
+     * Califica la entrega (ADR-052), desde el seguimiento público: 1 a 5
+     * estrellas y un comentario opcional. Una sola vez por pedido y solo si
+     * ya está ENTREGADO (ver ReglaDeCalificacion).
+     *
+     * @throws PedidoNoEncontradoException si ningún pedido tiene ese código
+     * @throws ValidacionException si no se puede calificar, los datos no sirven o ya la calificaron
+     */
+    CalificacionDTO calificarEntrega(String codigoSeguimiento, int estrellas, String comentario);
 
     /**
      * @return todos los pedidos, de todos los comercios

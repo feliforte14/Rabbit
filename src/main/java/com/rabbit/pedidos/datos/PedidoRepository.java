@@ -5,6 +5,7 @@ package com.rabbit.pedidos.datos;
  * explicación completa del patrón, se aplica igual acá.
  */
 
+import com.rabbit.pedidos.datos.model.CalificacionEntrega;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
@@ -249,7 +250,7 @@ public class PedidoRepository {
                 .setParameter("id", idComercio).getResultList();
         if (!pedidos.isEmpty()) {
             List<Long> ids = pedidos.stream().map(Pedido::getId).toList();
-            for (String entidad : List.of("RemitoEntrega", "FotoIntentoEntrega", "IntentoEntrega")) {
+            for (String entidad : List.of("RemitoEntrega", "FotoIntentoEntrega", "IntentoEntrega", "CalificacionEntrega")) {
                 em.createQuery("DELETE FROM " + entidad + " x WHERE x.idPedido IN :ids")
                         .setParameter("ids", ids)
                         .executeUpdate();
@@ -293,6 +294,25 @@ public class PedidoRepository {
     /** El remito del pedido, o null si no tiene. */
     public RemitoEntrega buscarRemitoDePedido(Long idPedido) {
         return em.createQuery("SELECT r FROM RemitoEntrega r WHERE r.idPedido = :p", RemitoEntrega.class)
+                .setParameter("p", idPedido)
+                .getResultStream().findFirst().orElse(null);
+    }
+
+    // --- Calificación de la entrega (ADR-052) ---
+
+    /**
+     * Guarda la calificación y la manda a la base en el momento (flush), así
+     * una segunda calificación del mismo pedido (idPedido es único) falla acá
+     * y no recién al cerrar la transacción.
+     */
+    public void guardarCalificacion(CalificacionEntrega calificacion) {
+        em.persist(calificacion);
+        em.flush();
+    }
+
+    /** La calificación del pedido, o null si todavía no la calificaron. */
+    public CalificacionEntrega buscarCalificacionDePedido(Long idPedido) {
+        return em.createQuery("SELECT c FROM CalificacionEntrega c WHERE c.idPedido = :p", CalificacionEntrega.class)
                 .setParameter("p", idPedido)
                 .getResultStream().findFirst().orElse(null);
     }

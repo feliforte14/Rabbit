@@ -1515,3 +1515,36 @@ Propuesta o Reemplazada.
   limitado a los últimos 15), hace falta guardarlo en la base. La campana
   consulta los avisos en cada pantalla que se dibuja (dos consultas chicas para
   el personal, una para el comercio).
+
+## ADR-052: Calificación de la entrega en el seguimiento público
+
+- **Estado:** Aceptada (21/10/2026). Pedido del equipo (Trello).
+- **Contexto:** Rabbit sabía cuándo se entregaba un pedido pero no cómo había
+  sido la entrega para quien lo recibió. El seguimiento público ya es lo único
+  que ve esa persona (sin cuenta), así que es el lugar natural para preguntarlo.
+- **Decisión:** cuando el pedido está ENTREGADO, `seguimiento.xhtml` pregunta
+  "¿Cómo fue la entrega?": de 1 a 5 estrellas y un comentario opcional. Después
+  de enviarla, muestra lo que se calificó y ya no ofrece el formulario.
+  - **Dónde vive:** entidad nueva `CalificacionEntrega` (tabla
+    `calificaciones_entrega`, con `idPedido` único), por ID de pedido y no por
+    relación JPA, igual que el remito y las visitas fallidas. Operaciones públicas
+    `consultarCalificacion` y `calificarEntrega` en `ISeguimientoPedido`; la tabla
+    se agrega sola con `hibernate.hbm2ddl.auto=update`. Al eliminar un comercio se
+    borran también las calificaciones de sus pedidos.
+  - **Regla (`ReglaDeCalificacion`):** solo un pedido ENTREGADO; 1 a 5 estrellas;
+    comentario de hasta 500 caracteres, recortado y sin caracteres de control; un
+    comentario vacío no se guarda. Una sola calificación por pedido: se chequea y,
+    además, `idPedido` único cubre dos envíos a la vez.
+  - **Seguridad:** es la única escritura pública, así que es mínima: la autoriza el
+    código aleatorio, no se guarda quién calificó, el comentario se escapa siempre
+    al mostrarlo y no va al log (ver SEGURIDAD.md).
+  - **Estrellas sin JavaScript:** cinco radios HTML comunes con la etiqueta
+    dibujada como estrella (CSS), accesibles con teclado y con el nombre de cada
+    opción para el lector de pantalla. El código del pedido viaja en un campo oculto
+    porque en el envío del formulario el parámetro de la URL no se vuelve a leer.
+  - Recursos a `1_19`.
+- **Consecuencias:** no hay forma de corregir una calificación una vez enviada
+  (es a propósito: es una opinión sobre una entrega ya hecha). Todavía no se ve en
+  las pantallas del comercio ni del personal, ni hay un promedio en Indicadores: queda
+  como siguiente paso, ahora que el dato existe. Un enlace de seguimiento compartido
+  permite calificar a quien lo tenga; es el mismo alcance que tiene ver el estado.

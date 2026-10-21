@@ -67,6 +67,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   campana de notificaciones de la cabecera y, si hay un servidor de correo configurado, por mail. A quien
   recibe también, al email que manda el ERP con cada pedido (obligatorio
   desde el 18/10), con el link al seguimiento (ADR-039, ADR-040).
+- **Calificación de la entrega:** cuando el pedido está entregado, la página
+  de seguimiento le pregunta a quien lo recibió cómo fue (de 1 a 5 estrellas y
+  un comentario opcional). Una sola vez por pedido (ADR-052).
 - **Indicadores:** tablero para el personal (toda la red, un comercio y
   por repartidor) y para cada comercio: entregas a tiempo, al primer
   intento, horas de recibido a entregado, lista de espera y costo por
@@ -76,7 +79,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
   columnas secundarias de cada tabla, en celular las tablas se ven como
   tarjetas con lo esencial y el menú se despliega con un botón (ver
-  `resources/rabbit/1_18/`). En la compu, la barra lateral entra entera
+  `resources/rabbit/1_19/`). En la compu, la barra lateral entra entera
   sin scroll propio también en pantallas bajas (notebooks de 13").
 
 ## Tecnologías
@@ -114,7 +117,7 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_18/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+├── resources/rabbit/1_19/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
 │                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas),
 │                               remito.js (achica la foto del remito), ubicacion.js y mapa.js (mapas)
 └── WEB-INF/
