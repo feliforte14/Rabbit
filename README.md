@@ -63,8 +63,8 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   firmado, ADR-033) o devuelve el pedido al depósito, desde el celular; un `ERP` (el sistema del
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
   Todo por HTTPS, con límite de intentos en el login.
-- **Notificaciones:** cada cambio de estado le llega al comercio en su
-  portal y, si hay un servidor de correo configurado, por mail. A quien
+- **Notificaciones:** cada cambio de estado le llega al comercio en la
+  campana de notificaciones de la cabecera y, si hay un servidor de correo configurado, por mail. A quien
   recibe también, al email que manda el ERP con cada pedido (obligatorio
   desde el 18/10), con el link al seguimiento (ADR-039, ADR-040).
 - **Indicadores:** tablero para el personal (toda la red, un comercio y
@@ -76,7 +76,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
   columnas secundarias de cada tabla, en celular las tablas se ven como
   tarjetas con lo esencial y el menú se despliega con un botón (ver
-  `resources/rabbit/1_17/`). En la compu, la barra lateral entra entera
+  `resources/rabbit/1_18/`). En la compu, la barra lateral entra entera
   sin scroll propio también en pantallas bajas (notebooks de 13").
 
 ## Tecnologías
@@ -114,7 +114,7 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_17/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+├── resources/rabbit/1_18/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
 │                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas),
 │                               remito.js (achica la foto del remito), ubicacion.js y mapa.js (mapas)
 └── WEB-INF/
@@ -470,7 +470,8 @@ Para ver si está configurada:
 
 ### 8. (Opcional) Avisos por mail
 
-Los avisos a los comercios siempre quedan en su portal. Para que además
+Los avisos a los comercios siempre quedan en la campana de notificaciones de la
+cabecera. Para que además
 salgan por mail (al email que cargó el comercio y al de quien recibe),
 configurar el servidor de correo con system properties. Se leen en cada
 envío: no hace falta redesplegar (ADR-047).

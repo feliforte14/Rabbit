@@ -53,7 +53,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Pedidos | `IGestionPedidos` | `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona` (null = quedó en lista de espera), `asignarDesdeEspera`, `sacarDeEspera`, `devolverADeposito` (motivo fijo e intentos: ADR-037 y 041), `listarIntentosDeEntrega` y `obtenerFotoDeVisita` (evidencia de cada visita, ADR-045), `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido` | `PedidoBean`, `MisEntregasBean`, `RemitoServlet`, Ruteo, MDB, timer |
 | Pedidos | `ISeguimientoPedido` | `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `consultarSeguimiento`, `listarPendientes`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual`, `listarEntregasEnCursoDeRepartidor` (ADR-043), `resumenEntregas`, `resumenEntregasDelComercioActual` (ADR-034) | `PedidoBean`, `PortalComercioBean`, Ruteo, Pagos, Notificaciones, API REST |
 | Pedidos | `IIndicadores` | `calcular` (personal: toda la red o un comercio), `calcularDelComercioActual` (ADR-044) | `IndicadoresBean` |
-| Notificaciones | `IAvisosAlDestinatario` | `avisar`, `listarRecientes` (ADR-040) | `SuscriptorDestinatarioEstadoPedido`, `PedidoBean` |
+| Notificaciones | `IAvisosAlDestinatario` | `avisar`, `listarRecientes` (ADR-040) | `SuscriptorDestinatarioEstadoPedido`, `CampanaBean` |
 | Seguridad | `IRegistroUsuarios` | `registrarUsuario`, `darDeBaja`, `reactivarUsuario`, `restablecerClave` (ADR-031), `eliminarUsuario` (ADR-036) | `UsuarioBean` |
 | Seguridad | `IConsultaUsuarios` | `listarTodos`, `obtenerUsuario` | `UsuarioBean` |
 | Seguridad | `IContextoUsuario` | `idComercioActual`, `idRepartidorActual` | Pedidos, Inventario, Comercios, Notificaciones, `SesionBean` |
@@ -68,7 +68,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
 | Repartidores | `IAsignacionRepartidores` | `asignarRepartidor` (zona preferida, peso, bultos y repartidor excluido: ADR-032 y 037), `motivoParaEsperar`, `antesDelCorte`, `diaDeEntregaPara` (fecha prometida, ADR-042), `liberarRepartidor`, `ultimaUbicacion` (ubicación de la visita fallida, ADR-045) | Pedidos |
 | Repartidores | `IGestionRepartidores` | `registrarRepartidor`, `asignarZona`, `actualizarCapacidad`, `eliminarRepartidor` (ADR-036), `listarTodos`, `obtenerRepartidor`, `registrarUbicacion`, `listarUbicacionesRecientes`, `ubicacionParaPedido` (ADR-035) | `RepartidorBean`, `MapaBean`, `MisEntregasBean`, `SeguimientoBean`, `PedidoBean`, Ruteo, Seguridad |
 | Pagos | `ILiquidaciones` | `liquidarMes`, `previsualizar`, `reintentarCobro`, `reintentarPendientes`, `listarDelPeriodo`, `listarPeriodos`, `listarDelComercioActual`, `previsualizarMesEnCursoDelComercioActual`, `tarifaVigente` (ADR-034) | `LiquidacionBean`, `MisLiquidacionesBean`, `LiquidacionMensual` (timer) |
-| Notificaciones | `INotificaciones` | `avisarCambioDeEstado`, `listarRecientes`, `listarDelComercioActual` | `SuscriptorNotificacionesEstadoPedido`, `PedidoBean`, `PortalComercioBean` |
+| Notificaciones | `INotificaciones` | `avisarCambioDeEstado`, `listarRecientes`, `listarDelComercioActual` | `SuscriptorNotificacionesEstadoPedido`, `CampanaBean` |
 
 Otros detalles de cada componente:
 
@@ -121,8 +121,10 @@ Otros detalles de cada componente:
 - **Hoja de ruta recomendada (ADR-038):** `OrdenDeRecorrido` ordena las
   paradas del repartidor (retiros primero, entregas por cercanía de CP) y
   `EnlaceMapa.tramos` arma los links de Google Maps de hasta 10 puntos.
-- **Notificaciones:** el aviso queda guardado y se ve en `pedidos.xhtml`
-  y en el portal del comercio; si hay un servidor de correo configurado,
+- **Notificaciones:** el aviso queda guardado y se ve en la campana de la
+  cabecera (`CampanaBean`, ADR-051): el comercio, los de sus pedidos; el
+  personal, los avisos a comercios y a quien recibe; si hay un servidor de
+  correo configurado,
   además se le manda por mail (`AvisosPorMail`, después del commit).
   Descarta eventos más viejos que el último avisado del mismo pedido.
 - **Transportistas:** un pedido pendiente se puede **derivar** a una
@@ -229,7 +231,7 @@ el repartidor sale siempre de la identidad autenticada
 
 | Tipo | Pantallas |
 |---|---|
-| Personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) | Pedidos (incluye derivar a un transportista y los avisos a comercios y destinatarios), Ruteo por zona (despacho y zonas), Entregas en curso (tablero del Ruteo), Indicadores (ADR-044), Repartidores, Transportistas, Comercios y sus puntos de picking, Depósitos y stock, Reserva de stock, Historial de reservas. Usuarios, solo `ADMINISTRADOR` |
+| Personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) | Pedidos (incluye derivar a un transportista), la campana de notificaciones (avisos a comercios y a destinatarios), Ruteo por zona (despacho y zonas), Entregas en curso (tablero del Ruteo), Indicadores (ADR-044), Repartidores, Transportistas, Comercios y sus puntos de picking, Depósitos y stock, Reserva de stock, Historial de reservas. Usuarios, solo `ADMINISTRADOR` |
 | `COMERCIO` | Mis pedidos (estado, cobro, repartidor, fecha prometida, visitas fallidas y avisos de Rabbit), Mis indicadores (ADR-044), Mi stock (consignado en los depósitos), Mis puntos de picking |
 | `REPARTIDOR` | Mis entregas: la hoja de ruta recomendada con todas sus paradas (ADR-038), sus entregas en curso con quién recibe y su teléfono (ADR-039), "Ya retiré el pedido", "Entregar pedido" (ventana para la foto del remito) y "Devolver a depósito" con motivo fijo (ADR-037 y 041), y su historial. Pensada para el celular |
 | `ERP` | Ninguna: solo usa la API REST. Si intenta entrar a la web, el login lo rechaza |
