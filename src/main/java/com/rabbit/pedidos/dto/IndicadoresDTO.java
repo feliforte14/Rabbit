@@ -42,6 +42,11 @@ public class IndicadoresDTO {
     // Horas promedio de recibido a entregado; null sin entregas.
     public BigDecimal horasPromedioEntrega;
 
+    // Calificación de los entregados (ADR-052): cuántos se calificaron y la suma
+    // de estrellas. Sin calificaciones el promedio es null, no 0.
+    public int calificaciones;
+    public int sumaEstrellas;
+
     // En la lista de espera ahora (no depende del período).
     public long enEsperaAhora;
 
@@ -101,6 +106,8 @@ public class IndicadoresDTO {
         public int terminados;
         public int alPrimerIntento;
         public BigDecimal horasPromedio;
+        public int calificaciones;
+        public int sumaEstrellas;
 
         public Long getIdRepartidor() { return idRepartidor; }
         public String getNombre() { return nombre; }
@@ -109,6 +116,23 @@ public class IndicadoresDTO {
         public String getHorasPromedioTexto() { return horas(horasPromedio); }
         public Integer getPorcentajeATiempo() { return porcentaje(aTiempo, conPromesa); }
         public Integer getPorcentajePrimerIntento() { return porcentaje(alPrimerIntento, terminados); }
+        public int getCalificaciones() { return calificaciones; }
+        public BigDecimal getPromedioCalificacion() { return promedio(sumaEstrellas, calificaciones); }
+    }
+
+    /** Estrellas promedio con un decimal (4,3); null si nadie calificó. */
+    public static BigDecimal promedio(int sumaEstrellas, int cantidad) {
+        return cantidad == 0 ? null
+                : BigDecimal.valueOf(sumaEstrellas).divide(BigDecimal.valueOf(cantidad), 1, java.math.RoundingMode.HALF_UP);
+    }
+
+    /** "4,3" o "—". */
+    public static String estrellas(BigDecimal promedio) {
+        if (promedio == null) {
+            return "—";
+        }
+        return new java.text.DecimalFormat("0.0", java.text.DecimalFormatSymbols.getInstance(
+                java.util.Locale.forLanguageTag("es-AR"))).format(promedio);
     }
 
     /** "6,5 h" o "—". */
@@ -175,6 +199,9 @@ public class IndicadoresDTO {
     public int getAlPrimerIntento() { return alPrimerIntento; }
     public BigDecimal getHorasPromedioEntrega() { return horasPromedioEntrega; }
     public String getHorasPromedioEntregaTexto() { return horas(horasPromedioEntrega); }
+    public int getCalificaciones() { return calificaciones; }
+    public BigDecimal getPromedioCalificacion() { return promedio(sumaEstrellas, calificaciones); }
+    public String getPromedioCalificacionTexto() { return estrellas(getPromedioCalificacion()); }
     public long getEnEsperaAhora() { return enEsperaAhora; }
     public BigDecimal getCostoPorEnvio() { return costoPorEnvio; }
     public List<Motivo> getMotivosFallidos() { return motivosFallidos; }

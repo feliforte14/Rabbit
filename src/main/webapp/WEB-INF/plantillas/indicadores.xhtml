@@ -61,6 +61,11 @@
             </ui:fragment>
         </div>
         <div class="stat-card">
+            <p class="stat-label">Calificación de las entregas</p>
+            <p class="stat-valor">#{t.promedioCalificacionTexto}</p>
+            <p class="stat-nota">#{t.calificaciones == 0 ? 'ninguna entrega calificada todavía' : 'de 5, según ' += t.calificaciones += ' calificación(es)'}</p>
+        </div>
+        <div class="stat-card">
             <p class="stat-label">En lista de espera</p>
             <p class="stat-valor">#{t.enEsperaAhora}</p>
             <p class="stat-nota">ahora, esperando repartidor</p>

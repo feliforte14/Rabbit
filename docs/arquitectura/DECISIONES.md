@@ -1544,9 +1544,11 @@ Propuesta o Reemplazada.
     porque en el envío del formulario el parámetro de la URL no se vuelve a leer.
   - Recursos a `1_19`.
 - **Consecuencias:** no hay forma de corregir una calificación una vez enviada
-  (es a propósito: es una opinión sobre una entrega ya hecha). Todavía no se ve en
-  las pantallas del comercio ni del personal, ni hay un promedio en Indicadores: queda
-  como siguiente paso, ahora que el dato existe. Un enlace de seguimiento compartido
+  (es a propósito: es una opinión sobre una entrega ya hecha). El promedio se ve en
+  Indicadores (21/10/2026): una tarjeta "Calificación de las entregas" para el personal y el
+  comercio, y dos columnas por repartidor (promedio y cantidad de calificadas). Solo cuentan
+  los pedidos entregados del período; sin calificaciones se muestra "—", no 0. Todavía no se
+  ve el comentario en las pantallas del comercio ni del personal. Un enlace de seguimiento compartido
   permite calificar a quien lo tenga; es el mismo alcance que tiene ver el estado.
 
 ## ADR-053 — Retiro en depósito

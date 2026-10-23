@@ -173,13 +173,20 @@ public class IndicadoresBean {
             } else {
                 extra.add(r.horasPromedio);
             }
+            // Calificación de las entregas (ADR-052): promedio y cuántas la sostienen.
+            if (r.getPromedioCalificacion() == null) {
+                extra.addNull();
+            } else {
+                extra.add(r.getPromedioCalificacion());
+            }
+            extra.add(r.calificaciones);
             filas.add(Json.createObjectBuilder()
                     .add("etiqueta", r.nombre)
                     .add("valores", valores)
                     .add("extra", extra));
         }
         return grafico(List.of("A tiempo", "Al primer intento"), filas, "porcentaje",
-                List.of("Entregas", "Horas de recibido a entregado"));
+                List.of("Entregas", "Horas de recibido a entregado", "Calificación promedio (1 a 5)", "Entregas calificadas"));
     }
 
     private static JsonObjectBuilder fila(String etiqueta, String detalle, int... valores) {

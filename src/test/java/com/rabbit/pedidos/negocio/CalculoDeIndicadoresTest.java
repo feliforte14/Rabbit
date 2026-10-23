@@ -123,4 +123,54 @@ class CalculoDeIndicadoresTest {
         assertEquals(1, t.enCurso);
         assertEquals(4, t.enEsperaAhora);
     }
+
+    // El ID lo pone la base; en el test se fija a mano para poder asociarle una calificación.
+    private static Pedido conId(Pedido p, long id) {
+        try {
+            java.lang.reflect.Field campo = Pedido.class.getDeclaredField("id");
+            campo.setAccessible(true);
+            campo.set(p, id);
+            return p;
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
+    @Test
+    void sinCalificacionesNoHayPromedio() {
+        IndicadoresDTO t = CalculoDeIndicadores.calcular(
+                List.of(conId(entregado(1L, LUNES.atTime(12, 0), 0), 1L)), LUNES, HASTA, 0);
+        assertEquals(0, t.calificaciones);
+        assertNull(t.getPromedioCalificacion(), "sin calificaciones es null, no 0");
+        assertEquals("—", t.getPromedioCalificacionTexto());
+    }
+
+    @Test
+    void elPromedioGeneralYElDeCadaRepartidorSoloCuentanLosCalificados() {
+        Pedido a1 = conId(entregado(1L, LUNES.atTime(12, 0), 0), 1L);
+        Pedido a2 = conId(entregado(1L, LUNES.atTime(12, 0), 0), 2L);
+        Pedido b1 = conId(entregado(2L, LUNES.atTime(12, 0), 0), 3L);
+        Pedido b2 = conId(entregado(2L, LUNES.atTime(12, 0), 0), 4L); // sin calificar
+        Pedido cancelado = conId(pedido(EstadoPedido.CANCELADO, 2L), 5L);
+
+        IndicadoresDTO t = CalculoDeIndicadores.calcular(List.of(a1, a2, b1, b2, cancelado), LUNES, HASTA, 0,
+                java.util.Map.of(1L, 5, 2L, 4, 3L, 2, 5L, 1));
+
+        assertEquals(3, t.calificaciones, "el cancelado no cuenta aunque tenga una calificación suelta");
+        assertEquals(new BigDecimal("3.7"), t.getPromedioCalificacion());   // (5+4+2)/3 = 3,67
+        IndicadoresDTO.PorRepartidor uno = t.porRepartidor.stream().filter(r -> r.idRepartidor == 1L).findFirst().get();
+        IndicadoresDTO.PorRepartidor dos = t.porRepartidor.stream().filter(r -> r.idRepartidor == 2L).findFirst().get();
+        assertEquals(new BigDecimal("4.5"), uno.getPromedioCalificacion());
+        assertEquals(2, uno.calificaciones);
+        assertEquals(new BigDecimal("2.0"), dos.getPromedioCalificacion());
+        assertEquals(1, dos.calificaciones);
+    }
+
+    @Test
+    void elPromedioSeRedondeaAUnDecimal() {
+        assertEquals(new BigDecimal("4.3"), IndicadoresDTO.promedio(13, 3));
+        assertEquals(new BigDecimal("4.5"), IndicadoresDTO.promedio(9, 2));
+        assertNull(IndicadoresDTO.promedio(0, 0));
+        assertEquals("4,3", IndicadoresDTO.estrellas(IndicadoresDTO.promedio(13, 3)));
+    }
 }
