@@ -1614,6 +1614,11 @@ Propuesta o Reemplazada.
     de la operación. Es la página a la que entra el personal.
   - **Seguimiento:** tilde en los pasos hechos y, en un retiro listo, un recuadro con el
     depósito y el código en grande.
+  - **Menú lateral sin scroll propio** (23/10/2026): al sumar opciones (Inicio, Recepción de mercadería) el menú del
+    administrador pasó a necesitar unos 820 px de alto y, en ventanas más bajas, la barra mostraba su propio
+    scroll. Ahora se compacta por escalones según la altura (hasta 840 px y hasta 740 px) y, por debajo de 640 px,
+    la barra se desplaza con la página en vez de tener scroll propio. Medido con el menú completo en alturas de
+    600 a 900 px: antes había scroll entre 660 y 800 px, ahora en ninguna. Recursos a `1_22`.
   - Recursos a `1_20`.
 - **Consecuencias:** quedó afuera dividir el CSS (2.900 líneas) en archivos y unificar los pares
   de colores de estado en una sola familia de tokens: se hace mejor con las pantallas a la vista.
