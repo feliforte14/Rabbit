@@ -510,6 +510,17 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   CONFIRMADO: pantalla "Etiqueta escaneada" con el botón "Marcar como retirado" (queda EN_CAMINO y
   el cliente recibe el mail con su código). Con el pedido de otro repartidor: "Este pedido no está
   entre tus entregas". Un pedido cancelado no imprime etiquetas.
+- [ ] **S23. Opciones de quien recibe (ADR-057).** Con un pedido a domicilio PENDIENTE, abrir su
+  seguimiento (sin sesión): aparece "¿Querés cambiar algo de la entrega?". Elegir un día de dentro de 3
+  días, escribir "dejar en portería, timbre 3B" y un nombre autorizado → "Listo: guardamos los cambios"
+  y la promesa muestra el nuevo día. Un día de más de 7 días o anterior al prometido → error. Enviar sin
+  cambiar nada → "No cambiaste nada". Después de 5 cambios → "Ya hiciste el máximo". En Pedidos
+  (personal): "Reprogramado por el cliente (antes: …)", "Instrucciones: …" y "Autoriza a: …". Confirmar
+  y asignar a un repartidor: en Mis entregas figuran las instrucciones, la persona autorizada y "El
+  cliente pidió recibirlo el dd/MM". Con el repartidor ya EN_CAMINO el formulario desaparece y el aviso
+  dice que ya no se pueden hacer cambios; forzar el envío (otra pestaña vieja) → "El pedido ya salió a
+  reparto". Un texto con `<b>hola</b>` se ve como texto en todas las pantallas. Un retiro en depósito
+  no ofrece el formulario.
 
 ### Cierre
 

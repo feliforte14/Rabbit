@@ -237,6 +237,10 @@ public class RuteoService implements IRuteo {
         hoja.cobrarAlEntregar = p.getMedioPago() == MedioPago.CONTRA_ENTREGA ? p.getImporte() : null;
         hoja.nombreDestinatario = p.getNombreDestinatario();
         hoja.telefonoDestinatario = p.getTelefonoDestinatario();
+        hoja.instrucciones = p.getInstruccionesEntrega();
+        hoja.autorizado = p.getNombreAutorizado();
+        hoja.diaPedidoPorElCliente = p.isReprogramado() && p.getFechaPrometida() != null
+                ? p.getFechaPrometida().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) : null;
         hoja.intentosFallidos = p.getIntentosFallidos();
         hoja.motivoUltimoIntento = p.getMotivoEntregaFallida() != null ? p.getMotivoEntregaFallida().getDescripcion() : null;
 

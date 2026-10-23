@@ -72,6 +72,12 @@ public class SeguimientoBean {
     private CalificacionDTO calificacion;
     private String comentario;
 
+    // Opciones de quien recibe (ADR-057). El día llega como parámetro del formulario (<input type="date">,
+    // no un componente JSF); las instrucciones y la persona autorizada son texto de un tercero.
+    private String instrucciones;
+    private String nombreAutorizado;
+    private boolean opcionesCargadas;
+
     // f:viewAction: busca recién cuando ya se cargó el parámetro de la URL.
     public void buscar() {
         if (codigo == null || codigo.isBlank()) {
@@ -83,6 +89,12 @@ public class SeguimientoBean {
         } catch (ValidacionException e) {
             noEncontrado = true;
             return;
+        }
+        // Que el formulario de opciones arranque con lo que ya había elegido (sin pisar lo recién escrito).
+        if (!opcionesCargadas) {
+            instrucciones = pedido.instruccionesEntrega;
+            nombreAutorizado = pedido.nombreAutorizado;
+            opcionesCargadas = true;
         }
         // Entregado: si ya lo calificaron, se muestra lo que dejó; si no, el formulario.
         if ("ENTREGADO".equals(pedido.estado)) {
@@ -120,6 +132,62 @@ public class SeguimientoBean {
         }
         buscar();
     }
+
+    /**
+     * Guarda lo que eligió quien recibe (ADR-057). El día llega como parámetro "fecha" (AAAA-MM-DD,
+     * vacío = no reprogramar). El negocio vuelve a validar todo: acá solo se lee y se avisa.
+     */
+    public void modificarEntrega() {
+        String enviada = FacesContext.getCurrentInstance().getExternalContext()
+                .getRequestParameterMap().get("fechaEntrega");
+        java.time.LocalDate fecha = null;
+        try {
+            fecha = enviada == null || enviada.isBlank() ? null : java.time.LocalDate.parse(enviada.trim());
+        } catch (java.time.format.DateTimeParseException e) {
+            Mensajes.error("La fecha no es válida");
+            buscar();
+            return;
+        }
+        try {
+            seguimiento.modificarEntrega(codigo, fecha, instrucciones, nombreAutorizado);
+            Mensajes.info("Listo: guardamos los cambios de tu entrega");
+            opcionesCargadas = false; // vuelve a mostrar lo guardado
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        }
+        buscar();
+    }
+
+    /** Todavía no salió: la página muestra el formulario para cambiar la entrega. */
+    public boolean isPuedeModificar() {
+        return pedido != null && pedido.isModificableDesdeSeguimiento();
+    }
+
+    /** Ya salió (o está por salir) y no se puede cambiar: se avisa para que no se busque el formulario. */
+    public boolean isNoSePuedeModificar() {
+        return pedido != null && !pedido.isModificableDesdeSeguimiento() && !pedido.isRetiroEnDeposito()
+                && ("EN_CAMINO".equals(pedido.estado) || "CONFIRMADO".equals(pedido.estado));
+    }
+
+    /** El día que hoy se promete, para que el calendario arranque ahí (o en hoy). */
+    public String getFechaMinima() {
+        java.time.LocalDate hoy = java.time.LocalDate.now();
+        return (pedido != null && pedido.fechaPrometida != null && pedido.fechaPrometida.isAfter(hoy)
+                ? pedido.fechaPrometida : hoy).toString();
+    }
+
+    public String getFechaMaxima() {
+        return java.time.LocalDate.now().plusDays(com.rabbit.pedidos.negocio.ReglaDeOpcionesDeEntrega.DIAS_MAXIMOS).toString();
+    }
+
+    public String getFechaActual() {
+        return pedido != null && pedido.fechaPrometida != null ? pedido.fechaPrometida.toString() : "";
+    }
+
+    public String getInstrucciones() { return instrucciones; }
+    public void setInstrucciones(String instrucciones) { this.instrucciones = instrucciones; }
+    public String getNombreAutorizado() { return nombreAutorizado; }
+    public void setNombreAutorizado(String nombreAutorizado) { this.nombreAutorizado = nombreAutorizado; }
 
     /** Entregado y todavía sin calificar: la página muestra el formulario. */
     public boolean isPuedeCalificar() {

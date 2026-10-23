@@ -161,6 +161,15 @@ public class Pedido {
     // pedidos anteriores a este cambio.
     private LocalDate fechaPrometida;
 
+    // Opciones que elige quien recibe desde el seguimiento (ADR-057). fechaPrometidaOriginal solo
+    // se llena si reprogramó: guarda lo que se había prometido antes. cambiosDelCliente tiene tope.
+    private LocalDate fechaPrometidaOriginal;
+    @Column(length = 200)
+    private String instruccionesEntrega;
+    @Column(length = 100)
+    private String nombreAutorizado;
+    private Integer cambiosDelCliente;
+
     // Código de 4 dígitos que recibe quien compra y le dice al repartidor al entregar
     // (ADR-055). Se genera al salir a reparto; null en los pedidos anteriores o que lleva un
     // transportista: ahí no se pide. Nunca va en el PedidoDTO.
@@ -263,6 +272,14 @@ public class Pedido {
     public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
     public LocalDate getFechaPrometida() { return fechaPrometida; }
     public void setFechaPrometida(LocalDate fechaPrometida) { this.fechaPrometida = fechaPrometida; }
+    public LocalDate getFechaPrometidaOriginal() { return fechaPrometidaOriginal; }
+    public void setFechaPrometidaOriginal(LocalDate fechaPrometidaOriginal) { this.fechaPrometidaOriginal = fechaPrometidaOriginal; }
+    public String getInstruccionesEntrega() { return instruccionesEntrega; }
+    public void setInstruccionesEntrega(String instruccionesEntrega) { this.instruccionesEntrega = instruccionesEntrega; }
+    public String getNombreAutorizado() { return nombreAutorizado; }
+    public void setNombreAutorizado(String nombreAutorizado) { this.nombreAutorizado = nombreAutorizado; }
+    public int getCambiosDelCliente() { return cambiosDelCliente == null ? 0 : cambiosDelCliente; }
+    public void setCambiosDelCliente(int cambiosDelCliente) { this.cambiosDelCliente = cambiosDelCliente; }
     public String getCodigoEntrega() { return codigoEntrega; }
     public void setCodigoEntrega(String codigoEntrega) { this.codigoEntrega = codigoEntrega; }
     public int getIntentosDeCodigo() { return intentosDeCodigo == null ? 0 : intentosDeCodigo; }

@@ -88,6 +88,16 @@
                     <h:panelGroup rendered="#{not empty p.codigoPostalEntrega}">
                         <span class="dato-secundario">CP #{p.codigoPostalEntrega}</span>
                     </h:panelGroup>
+                    <!-- Lo que eligio quien recibe desde el seguimiento (ADR-057). -->
+                    <h:panelGroup rendered="#{p.reprogramado}">
+                        <span class="dato-secundario">Reprogramado por el cliente (antes: #{p.fechaPrometidaOriginal})</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty p.instruccionesEntrega}">
+                        <span class="dato-secundario">Instrucciones: #{p.instruccionesEntrega}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty p.nombreAutorizado}">
+                        <span class="dato-secundario">Autoriza a: #{p.nombreAutorizado}</span>
+                    </h:panelGroup>
                     <!-- Quien recibe (ADR-039) y el dia prometido (ADR-042). -->
                     <h:panelGroup rendered="#{not empty p.nombreDestinatario or not empty p.emailDestinatario}">
                         <span class="dato-secundario">Recibe: #{empty p.nombreDestinatario ? p.emailDestinatario : p.nombreDestinatario}</span>

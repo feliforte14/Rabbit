@@ -110,6 +110,16 @@
                             </h:panelGroup>
                         </span>
                     </h:panelGroup>
+                    <!-- Lo que pidio quien recibe (ADR-057). Texto de un tercero: siempre escapado. -->
+                    <h:panelGroup rendered="#{not empty e.instrucciones}">
+                        <span class="cobrar">Instrucciones del cliente: <b>#{e.instrucciones}</b></span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty e.autorizado}">
+                        <span>También puede recibirlo: <b>#{e.autorizado}</b> (pedile el código de entrega igual)</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty e.diaPedidoPorElCliente}">
+                        <span class="cobrar">El cliente pidió recibirlo el <b>#{e.diaPedidoPorElCliente}</b></span>
+                    </h:panelGroup>
                     <!-- Visitas que ya fallaron (ADR-041). -->
                     <h:panelGroup rendered="#{e.intentosFallidos > 0}">
                         <span class="cobrar">Visita #{e.intentosFallidos + 1} de #{misEntregasBean.maximoIntentos}: la anterior falló (#{e.motivoUltimoIntento})</span>
