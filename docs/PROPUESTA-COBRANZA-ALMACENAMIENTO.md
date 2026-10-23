@@ -1,10 +1,13 @@
 # Propuesta: cobro por almacenamiento en el depósito
 
-> **Estado: PROPUESTA, sin implementar.** La pidió el equipo (Trello,
-> "Testing NO OK") el 16/10/2026. No se tocó el código de la cobranza: se
-> implementa cuando el equipo confirme el modelo y los valores. Todos los
-> rangos y precios de abajo son **ejemplos** para discutir; los tiene que
-> definir el equipo.
+> **Estado: IMPLEMENTADA (22/10/2026, ADR-059), con los precios en $0.** La pidió el
+> equipo (Trello, "Testing NO OK") el 16/10/2026. Se implementó el modelo "se suma"
+> con los rangos de abajo como valores por defecto, pero **el almacenamiento NO se
+> cobra todavía**: los tres precios (`rabbit.tarifa.almacenamiento.*`) arrancan en 0 hasta
+> que el equipo los defina. Siguen **sin implementar** los días gratis y el recargo por
+> stock antiguo (faltan sus valores). Los rangos y precios de abajo son **ejemplos**
+> para discutir; los tiene que definir el equipo. Ver el ADR-059 en
+> `docs/arquitectura/DECISIONES.md`.
 
 ## La idea
 

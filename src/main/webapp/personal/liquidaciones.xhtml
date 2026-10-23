@@ -32,7 +32,16 @@
                 <b><h:outputText value="#{liquidacionBean.tarifa.abono()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> de abono,
                 <b><h:outputText value="#{liquidacionBean.tarifa.porEnvio()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por pedido entregado y
                 <b><h:outputText value="#{liquidacionBean.tarifa.porKilo()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por kilo entregado.
-                Es aparte del cobro de cada pedido. El día 1 a las 6 se liquida solo el mes anterior y se cobra por el banco;
+                <h:panelGroup rendered="#{liquidacionBean.tarifa.cobraAlmacenamiento()}">
+                Más <b><h:outputText value="#{liquidacionBean.tarifa.almacenamientoPequeno()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>,
+                <b><h:outputText value="#{liquidacionBean.tarifa.almacenamientoMediano()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> o
+                <b><h:outputText value="#{liquidacionBean.tarifa.almacenamientoGrande()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
+                por unidad y por día guardada (pequeña, mediana o grande).
+            </h:panelGroup>
+            <h:panelGroup rendered="#{not liquidacionBean.tarifa.cobraAlmacenamiento()}">
+                El almacenamiento todavía no se cobra: faltan definir los precios (<code>rabbit.tarifa.almacenamiento.*</code>).
+            </h:panelGroup>
+            Es aparte del cobro de cada pedido. El día 1 a las 6 se liquida solo el mes anterior y se cobra por el banco;
                 si el banco no responde, se reintenta todos los días.
             </p>
         </details>
@@ -56,6 +65,18 @@
                           value="El mes todavía no terminó: es una vista previa con lo entregado hasta ahora. Se liquida el día 1." />
             <h:outputText styleClass="ayuda" rendered="#{liquidacionBean.vistaPrevia and liquidacionBean.mesCerrado}"
                           value="Este mes todavía no se liquidó: lo que se ve es lo que se va a cobrar." />
+        </h:form>
+
+        <!-- La foto diaria de ocupacion (ADR-059): la saca sola un timer a las 23:55. -->
+        <h:form id="formFoto" styleClass="formulario" rendered="#{sesionBean.admin}">
+            <p class="ayuda">
+                Foto diaria de la ocupación del depósito (unidades por tamaño, para el almacenamiento): la saca sola todos los
+                días a las 23:55. Última foto: <b>#{empty liquidacionBean.ultimaFoto ? 'todavía ninguna' : liquidacionBean.ultimaFoto}</b>.
+            </p>
+            <div class="form-acciones">
+                <h:commandButton value="Sacar la foto de hoy ahora" styleClass="btn btn-secondary"
+                                 action="#{liquidacionBean.tomarFoto}" />
+            </div>
         </h:form>
 
         <h:form id="formTabla">
@@ -97,6 +118,14 @@
                     <span class="dato-secundario">Abono: #{etiquetas.pesos(l.abono)}</span>
                     <span class="dato-secundario">Envíos: #{etiquetas.pesos(l.cargoEnvios)}</span>
                     <span class="dato-secundario">Kilos: #{etiquetas.pesos(l.cargoKilos)}</span>
+                    <!-- Almacenamiento (ADR-059): unidades-dia por tamano y su cargo. -->
+                    <h:panelGroup rendered="#{liquidacionBean.tarifa.cobraAlmacenamiento() or l.unidadesDia > 0}">
+                        <span class="dato-secundario">Almacenamiento: #{etiquetas.pesos(l.cargoAlmacenamiento)}
+                            (#{l.unidadesDiaPequeno} chicas · #{l.unidadesDiaMediano} medianas · #{l.unidadesDiaGrande} grandes, en u.-día)</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{l.productosSinMedidas > 0}">
+                        <span class="dato-secundario">#{l.productosSinMedidas} producto(s) sin medidas: se cuentan como medianos</span>
+                    </h:panelGroup>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Total</f:facet>

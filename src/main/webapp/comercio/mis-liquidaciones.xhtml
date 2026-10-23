@@ -28,6 +28,11 @@
                 Lo que Rabbit te cobra cada mes por el servicio: #{etiquetas.pesos(misLiquidacionesBean.tarifa.abono())} de abono,
                 #{etiquetas.pesos(misLiquidacionesBean.tarifa.porEnvio())} por pedido entregado y
                 #{etiquetas.pesos(misLiquidacionesBean.tarifa.porKilo())} por kilo.
+                <h:panelGroup rendered="#{misLiquidacionesBean.tarifa.cobraAlmacenamiento()}">
+                    Además, por guardar tu mercadería en el depósito: #{etiquetas.pesos(misLiquidacionesBean.tarifa.almacenamientoPequeno())} por unidad y por día si es pequeña,
+                    #{etiquetas.pesos(misLiquidacionesBean.tarifa.almacenamientoMediano())} si es mediana y
+                    #{etiquetas.pesos(misLiquidacionesBean.tarifa.almacenamientoGrande())} si es grande (el tamaño sale del peso y las medidas).
+                </h:panelGroup>
                 Se liquida a principio de cada mes por el mes anterior. Es aparte del cobro de cada pedido.
             </p>
         </details>
@@ -50,11 +55,23 @@
                     <p class="stat-valor">#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.cargoEnvios.add(misLiquidacionesBean.mesEnCurso.cargoKilos))}</p>
                     <p class="stat-nota">#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.cargoEnvios)} + #{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.cargoKilos)}</p>
                 </div>
+                <h:panelGroup layout="block" styleClass="stat-card"
+                              rendered="#{misLiquidacionesBean.tarifa.cobraAlmacenamiento() or misLiquidacionesBean.mesEnCurso.unidadesDia > 0}">
+                    <p class="stat-label">Almacenamiento</p>
+                    <p class="stat-valor">#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.cargoAlmacenamiento)}</p>
+                    <p class="stat-nota">#{misLiquidacionesBean.mesEnCurso.unidadesDia} unidades-día</p>
+                </h:panelGroup>
                 <div class="stat-card">
                     <p class="stat-label">Total a hoy</p>
                     <p class="stat-valor">#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.total)}</p>
                 </div>
             </div>
+            <h:panelGroup rendered="#{misLiquidacionesBean.mesEnCurso.productosSinMedidas > 0}">
+                <p class="ayuda">
+                    #{misLiquidacionesBean.mesEnCurso.productosSinMedidas} producto(s) de tu stock todavía no tienen medidas cargadas: hasta
+                    que se carguen se cuentan como medianos. Pedile al personal de Rabbit que las complete.
+                </p>
+            </h:panelGroup>
         </h:panelGroup>
 
         <h2>Meses liquidados</h2>
@@ -74,6 +91,9 @@
             <h:column>
                 <f:facet name="header">Total</f:facet>
                 <b><h:outputText value="#{l.total}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
+                <h:panelGroup rendered="#{l.unidadesDia > 0}">
+                    <span class="dato-secundario">Incluye almacenamiento: #{etiquetas.pesos(l.cargoAlmacenamiento)} (#{l.unidadesDia} u.-día)</span>
+                </h:panelGroup>
             </h:column>
             <h:column>
                 <f:facet name="header">Estado</f:facet>

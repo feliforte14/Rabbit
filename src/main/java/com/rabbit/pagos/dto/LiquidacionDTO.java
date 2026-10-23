@@ -20,6 +20,13 @@ public class LiquidacionDTO {
     public BigDecimal abono;
     public BigDecimal cargoEnvios;
     public BigDecimal cargoKilos;
+    // Almacenamiento (ADR-059): unidades-día por categoría de tamaño y su cargo.
+    public long unidadesDiaPequeno;
+    public long unidadesDiaMediano;
+    public long unidadesDiaGrande;
+    public BigDecimal cargoAlmacenamiento = BigDecimal.ZERO;
+    // Productos que todavía no tienen medidas (se cuentan como medianos). Solo en la vista previa.
+    public int productosSinMedidas;
     public BigDecimal total;
     public String estado;
     public String motivo;
@@ -37,6 +44,10 @@ public class LiquidacionDTO {
         dto.abono = l.getAbono();
         dto.cargoEnvios = l.getCargoEnvios();
         dto.cargoKilos = l.getCargoKilos();
+        dto.unidadesDiaPequeno = l.getUnidadesDiaPequeno();
+        dto.unidadesDiaMediano = l.getUnidadesDiaMediano();
+        dto.unidadesDiaGrande = l.getUnidadesDiaGrande();
+        dto.cargoAlmacenamiento = l.getCargoAlmacenamiento();
         dto.total = l.getTotal();
         dto.estado = l.getEstado() != null ? l.getEstado().name() : null;
         dto.motivo = l.getMotivo();
@@ -54,6 +65,12 @@ public class LiquidacionDTO {
     public BigDecimal getAbono() { return abono; }
     public BigDecimal getCargoEnvios() { return cargoEnvios; }
     public BigDecimal getCargoKilos() { return cargoKilos; }
+    public long getUnidadesDiaPequeno() { return unidadesDiaPequeno; }
+    public long getUnidadesDiaMediano() { return unidadesDiaMediano; }
+    public long getUnidadesDiaGrande() { return unidadesDiaGrande; }
+    public long getUnidadesDia() { return unidadesDiaPequeno + unidadesDiaMediano + unidadesDiaGrande; }
+    public BigDecimal getCargoAlmacenamiento() { return cargoAlmacenamiento; }
+    public int getProductosSinMedidas() { return productosSinMedidas; }
     public BigDecimal getTotal() { return total; }
     public String getEstado() { return estado; }
     public String getMotivo() { return motivo; }

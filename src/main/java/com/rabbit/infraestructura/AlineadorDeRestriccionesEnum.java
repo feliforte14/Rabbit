@@ -83,6 +83,7 @@ public class AlineadorDeRestriccionesEnum {
             new ColumnaEnum("pedidos_externos", "origen", OrigenPedido.class),
             new ColumnaEnum("pedidos_externos", "mediopago", MedioPago.class),
             new ColumnaEnum("reservas_stock", "estado", EstadoReserva.class),
+            new ColumnaEnum("ocupacion_diaria", "categoria", com.rabbit.inventario.datos.model.CategoriaDeTamano.class),
             new ColumnaEnum("ordenes_recepcion", "estado", com.rabbit.inventario.datos.model.EstadoOrdenDeRecepcion.class),
             new ColumnaEnum("usuarios", "rol", Rol.class),
             new ColumnaEnum("cobros", "estado", EstadoCobro.class),

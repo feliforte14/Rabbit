@@ -19,6 +19,8 @@ import com.rabbit.comercios.dto.ComercioDTO;
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.pagos.datos.LiquidacionRepository;
 import com.rabbit.pagos.datos.model.EstadoLiquidacion;
+import com.rabbit.inventario.dto.OcupacionMensualDTO;
+import com.rabbit.inventario.negocio.IOcupacionDeDeposito;
 import com.rabbit.pagos.dto.LiquidacionDTO;
 import com.rabbit.pedidos.dto.ResumenEntregasDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
@@ -60,6 +62,10 @@ public class LiquidacionService implements ILiquidaciones {
     @Inject
     private IConsultaComercios comercios;
 
+    // La ocupación del depósito, para el cargo por almacenamiento (ADR-059).
+    @Inject
+    private IOcupacionDeDeposito ocupacion;
+
     @Inject
     private IContextoUsuario contextoUsuario;
 
@@ -76,7 +82,8 @@ public class LiquidacionService implements ILiquidaciones {
         for (LiquidacionDTO calculada : calcular(periodo, tarifa)) {
             try {
                 Long id = cobros.crear(calculada.idComercio, calculada.periodo, calculada.cantidadEnvios,
-                        calculada.kilos, tarifa);
+                        calculada.kilos, tarifa, calculada.unidadesDiaPequeno, calculada.unidadesDiaMediano,
+                        calculada.unidadesDiaGrande);
                 if (id != null) {
                     cobros.cobrar(id);
                 }
@@ -102,6 +109,7 @@ public class LiquidacionService implements ILiquidaciones {
         Map<Long, ResumenEntregasDTO> entregas = pedidos
                 .resumenEntregas(periodo.atDay(1).atStartOfDay(), periodo.plusMonths(1).atDay(1).atStartOfDay())
                 .stream().collect(Collectors.toMap(ResumenEntregasDTO::idComercio, Function.identity()));
+        Map<Long, OcupacionMensualDTO> ocupaciones = ocupacion.ocupacionDelMes(periodo);
         List<LiquidacionDTO> resultado = new ArrayList<>();
         for (ComercioDTO comercio : comercios.listarTodos()) {
             if (!comercio.isActivo()) {
@@ -118,7 +126,7 @@ public class LiquidacionService implements ILiquidaciones {
             dto.abono = tarifa.abonoMensual();
             dto.cargoEnvios = tarifa.cargoEnvios(cantidad);
             dto.cargoKilos = tarifa.cargoKilos(kilos);
-            dto.total = tarifa.total(cantidad, kilos);
+            conAlmacenamiento(dto, tarifa, ocupaciones.get(comercio.getId()), cantidad, kilos);
             dto.estado = "VISTA_PREVIA";
             resultado.add(dto);
         }
@@ -186,9 +194,25 @@ public class LiquidacionService implements ILiquidaciones {
         dto.abono = tarifa.abonoMensual();
         dto.cargoEnvios = tarifa.cargoEnvios(resumen.cantidad());
         dto.cargoKilos = tarifa.cargoKilos(resumen.kilos());
-        dto.total = tarifa.total(resumen.cantidad(), resumen.kilos());
+        conAlmacenamiento(dto, tarifa, ocupacion.ocupacionDelMesDelComercioActual(periodo),
+                resumen.cantidad(), resumen.kilos());
         dto.estado = "VISTA_PREVIA";
         return dto;
+    }
+
+    // El cargo por almacenamiento (ADR-059) y el total que lo incluye. Sin ocupación (un comercio que nunca
+    // tuvo stock) no hay nada que cobrar por guardar.
+    private static void conAlmacenamiento(LiquidacionDTO dto, TarifaMensual tarifa, OcupacionMensualDTO o,
+                                          int cantidad, BigDecimal kilos) {
+        long pequeno = o != null ? o.pequeno : 0;
+        long mediano = o != null ? o.mediano : 0;
+        long grande = o != null ? o.grande : 0;
+        dto.unidadesDiaPequeno = pequeno;
+        dto.unidadesDiaMediano = mediano;
+        dto.unidadesDiaGrande = grande;
+        dto.productosSinMedidas = o != null ? o.productosSinMedidas : 0;
+        dto.cargoAlmacenamiento = tarifa.cargoAlmacenamiento(pequeno, mediano, grande);
+        dto.total = tarifa.total(cantidad, kilos, pequeno, mediano, grande);
     }
 
     // Sin rol: la tarifa la ve el personal y cada comercio. Este WildFly

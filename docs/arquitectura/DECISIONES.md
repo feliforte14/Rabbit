@@ -1742,3 +1742,36 @@ Propuesta o Reemplazada.
   anuncia otra orden. Un comercio puede anunciar cualquier cosa (no hay catálogo): el nombre lo escribe él y
   tiene que coincidir con el del stock para sumarse a la misma fila; si difiere en una letra se crea otra.
   No se avisa por mail al personal ni al comercio de cada cambio. No se controlan lotes ni vencimientos.
+
+## ADR-059 — Cobro por almacenamiento
+
+- **Estado:** Aceptada (22/10/2026), con los precios en $0 hasta que el equipo los defina. Pedido del equipo
+  (Trello). Referencia: Mercado Libre Full. Implementa `docs/PROPUESTA-COBRANZA-ALMACENAMIENTO.md`.
+- **Contexto:** Rabbit cobraba solo el reparto (ADR-034). El lugar que ocupa la mercadería en el depósito es otro
+  servicio, con otro costo, y un comercio con mucho stock que rota poco no pagaba nada por él.
+- **Decisión:** se **suma** al modelo actual (abono + envíos + kilos): el comercio paga por unidad y por día guardada,
+  según el tamaño del producto. Se hizo en dos entregas, como proponía el documento:
+  1. **Medidas y categoría (no cobra nada).** `ItemInventario` suma alto, ancho y largo de una unidad (cm), obligatorias
+     en el alta y opcionales al editar (las tres o ninguna; vacías = se conservan). La categoría (`CategoriaDeTamano`:
+     pequeño, mediano, grande o fuera de rango) **no se carga**: se deduce del peso y las medidas y manda la más grande
+     que le toque por cualquiera de sus datos. Límites "hasta" (inclusivos), configurables por system property. Un
+     producto sin medidas cuenta como **mediano** (o más, si lo pesa): no sale gratis por un dato faltante, y se marca
+     "medidas sin cargar". Lo fuera de rango no se acepta en consignación (ni al cargar stock ni al anunciar mercadería).
+  2. **Foto diaria y cargo.** Un timer (`FotoDiariaDeOcupacion`, 23:55) guarda en `ocupacion_diaria` cuántas unidades de
+     cada categoría tenía cada comercio ese día. Un día sin foto (WildFly apagado) se completa con la anterior
+     (`UnidadesDia`); el día de hoy, con lo que hay ahora, así la vista previa llega hasta hoy. Cuentan las unidades
+     disponibles, que ya incluyen las reservadas: una reservada sigue ocupando lugar hasta que sale. La liquidación guarda
+     las unidades-día de cada categoría y el cargo por almacenamiento, con los importes del momento, y el total lo suma.
+     Aparece como línea nueva en las dos liquidaciones (personal y comercio), también en la vista previa del mes en curso.
+- **Precios:** `rabbit.tarifa.almacenamiento.pequeno|mediano|grande`, **por defecto 0**: nada se cobra hasta que el equipo los
+  defina; mientras tanto la liquidación muestra el almacenamiento en $0 y las unidades-día, y avisa que faltan precios. Los
+  rangos por defecto son los de la propuesta, **todavía sin confirmar** por el equipo.
+- **Sin implementar (faltan sus valores):** días gratis al ingresar el stock y recargo por stock antiguo (la referencia de
+  Mercado Libre Full: más de N días sin venderse). El documento deja ambos como ideas; hace falta definir cuántos días y cuánto.
+  Tampoco se decidió desde qué mes se cobra (se recomendó: el siguiente a cargar las medidas).
+- **Consecuencias:** al desplegar, todo el stock existente no tiene medidas y cuenta como mediano: conviene cargarlas antes de
+  poner precios. La mercadería que entra por una orden de recepción (ADR-058) llega sin medidas (el anuncio no las pide) y
+  también cuenta como mediana hasta que el personal las cargue. La primera foto es la del día del despliegue: lo anterior no
+  se reconstruye (los meses ya liquidados no cambian). La foto es del día y no del instante: una unidad que entra y sale entre
+  dos fotos no se cobra. Cobrar de verdad un mes con datos a medias sería injusto: no activar los precios antes de que las
+  medidas estén cargadas.
