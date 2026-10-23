@@ -479,6 +479,14 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   del seguimiento (en minúsculas y con espacios también) → Entregado y, si era contra entrega,
   cobrado. El seguimiento público muestra tres pasos, el depósito y el código, sin mapa, y el
   mail dice "listo para retirar".
+- [ ] **S20. Diseño (ADR-054).** En los tres temas: el texto de "Ingresar" y "Buscar" se lee
+  bien sobre el naranja. Login y seguimiento tienen el mismo ancho y el botón centrado. Las
+  fuentes salen de `/Rabbit/fuentes` (pestaña Red del navegador: sin pedidos a
+  `fonts.googleapis.com`). Con sesión de personal se entra a **Inicio**, con "Requiere atención".
+  En Pedidos (6 filas o más): buscar, filtrar por estado, ordenar con clic en un encabezado y
+  "Vista compacta" (queda al recargar). Los textos largos de ayuda están plegados en "Cómo
+  funciona". En el seguimiento de un retiro listo: recuadro con depósito y código. Con lector de
+  pantalla, un error de formulario se anuncia solo.
 
 ### Cierre
 

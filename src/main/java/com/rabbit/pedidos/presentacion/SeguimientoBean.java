@@ -237,8 +237,7 @@ public class SeguimientoBean {
             String donde = pedido.depositoRetiro != null ? pedido.depositoRetiro : "el depósito de Rabbit";
             switch (pedido.estado) {
                 case "PENDIENTE": return "La tienda ya nos pasó tu pedido. Cuando lo confirmemos te avisamos para que pases a retirarlo por " + donde + ".";
-                case "CONFIRMADO": return "Pasá a retirarlo por " + donde + " y mostrá este código: "
-                        + pedido.codigoSeguimiento + ".";
+                case "CONFIRMADO": return "Pasá a retirarlo cuando quieras por " + donde + ", con el código de abajo.";
                 case "ENTREGADO": return "Lo retiraste en el depósito. ¡Gracias por elegirnos!";
                 default: break;
             }

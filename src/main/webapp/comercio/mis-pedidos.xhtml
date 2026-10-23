@@ -46,12 +46,15 @@
             </div>
         </div>
 
-        <p class="ayuda">
-            Los pedidos llegan desde el sistema de tu comercio (ERP). Rabbit los confirma, los
-            retira y los entrega; acá seguís cada paso. Pasale a tu cliente el
-            <strong>código de seguimiento</strong> de su pedido: con él puede consultar el estado sin
-            pedirte nada.
-        </p>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Los pedidos llegan desde el sistema de tu comercio (ERP). Rabbit los confirma, los
+                retira y los entrega; acá seguís cada paso. Pasale a tu cliente el
+                <strong>código de seguimiento</strong> de su pedido: con él puede consultar el estado sin
+                pedirte nada.
+            </p>
+        </details>
 
         <h:panelGroup layout="block" styleClass="tabla-scroll" rendered="#{not empty portalComercioBean.pedidos}">
         <h:dataTable value="#{portalComercioBean.pedidos}" var="p"

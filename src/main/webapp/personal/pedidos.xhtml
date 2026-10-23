@@ -43,13 +43,16 @@
             </div>
         </div>
 
-        <p class="ayuda">
-            Cada pedido es una venta que el comercio ya cerró y que llega desde su ERP. Al
-            confirmarlo se cobra (si es prepago) y se le asigna un repartidor; el recorrido se
-            sigue en&#160;<h:link outcome="/personal/entregas" value="Entregas en curso" />.
-            Si ningún repartidor tiene lugar (o ya pasó la hora de corte), el pedido queda en la
-            lista de espera, sin cobrar, y se asigna solo cuando se libere uno.
-        </p>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Cada pedido es una venta que el comercio ya cerró y que llega desde su ERP. Al
+                confirmarlo se cobra (si es prepago) y se le asigna un repartidor; el recorrido se
+                sigue en&#160;<h:link outcome="/personal/entregas" value="Entregas en curso" />.
+                Si ningún repartidor tiene lugar (o ya pasó la hora de corte), el pedido queda en la
+                lista de espera, sin cobrar, y se asigna solo cuando se libere uno.
+            </p>
+        </details>
 
         <h:messages globalOnly="false" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
@@ -227,13 +230,16 @@
         </h:panelGroup>
 
         <h2>Derivar a logística tercerizada</h2>
-        <p class="ayuda">
-            En lugar de confirmarlo con un repartidor Rabbit, un pedido pendiente se puede derivar
-            a una empresa de logística externa: se cobra (si es prepago), se le pide el envío y la
-            empresa lo lleva. Su estado se actualiza solo con lo que informe.
-            Con <strong>Cotizar</strong> se ve antes cuánto cobra y cuánto tarda cada empresa
-            (los legados por SOAP no cotizan, pero se les puede derivar igual).
-        </p>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                En lugar de confirmarlo con un repartidor Rabbit, un pedido pendiente se puede derivar
+                a una empresa de logística externa: se cobra (si es prepago), se le pide el envío y la
+                empresa lo lleva. Su estado se actualiza solo con lo que informe.
+                Con <strong>Cotizar</strong> se ve antes cuánto cobra y cuánto tarda cada empresa
+                (los legados por SOAP no cotizan, pero se les puede derivar igual).
+            </p>
+        </details>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty pedidoBean.listaTransportistas}">
             No hay empresas de logística activas. Se dan de alta en#{' '}
             <h:link outcome="/personal/transportistas" value="Logística tercerizada" />.
@@ -309,11 +315,14 @@
         </h:form>
 
         <h2>Recibidos del ERP</h2>
-        <p class="ayuda">
-            Rabbit no origina pedidos: los recibe del sistema de cada comercio por la API REST
-            (<code>POST /api/v1/pedidos-externos</code>) y los convierte en pedidos reales por la cola
-            JMS. Acá se ve qué llegó y cómo terminó cada uno.
-        </p>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Rabbit no origina pedidos: los recibe del sistema de cada comercio por la API REST
+                (<code>POST /api/v1/pedidos-externos</code>) y los convierte en pedidos reales por la cola
+                JMS. Acá se ve qué llegó y cómo terminó cada uno.
+            </p>
+        </details>
         <h:form id="formExternos" styleClass="tabla-scroll" rendered="#{not empty pedidoBean.pedidosExternos}">
             <h:dataTable value="#{pedidoBean.pedidosExternos}" var="pe"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">

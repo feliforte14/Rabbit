@@ -23,12 +23,10 @@
     <meta charset="UTF-8" />
     <title>Rabbit · Seguí tu pedido</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <h:outputStylesheet library="rabbit" name="estilos.css" />
     <!-- Antes de pintar: aplica el tema elegido (ver tema.js). -->
     <h:outputScript library="rabbit" name="tema.js" />
+    <h:outputScript library="rabbit" name="mejoras.js" />
     <ui:fragment rendered="#{not empty seguimientoBean.puntosJson}">
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
               integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb"
@@ -81,6 +79,14 @@
             <p class="seguimiento-codigo">Pedido <code>#{seguimientoBean.pedido.codigoSeguimiento}</code></p>
             <p class="seguimiento-titular">#{seguimientoBean.titular}</p>
             <p class="seguimiento-detalle">#{seguimientoBean.detalle}</p>
+            <!-- Retiro en depósito listo (ADR-053/054): dónde y con qué código. -->
+            <h:panelGroup layout="block" styleClass="retiro-aviso"
+                          rendered="#{seguimientoBean.retiro and seguimientoBean.pedido.estado == 'CONFIRMADO'}">
+                <p>Retiralo en</p>
+                <p class="retiro-lugar">#{empty seguimientoBean.pedido.depositoRetiro ? 'el depósito de Rabbit' : seguimientoBean.pedido.depositoRetiro}</p>
+                <p>Mostrá este código</p>
+                <p class="retiro-codigo">#{seguimientoBean.pedido.codigoSeguimiento}</p>
+            </h:panelGroup>
             <!-- Dia prometido (ADR-042), antes de que salga a reparto. -->
             <h:panelGroup rendered="#{not empty seguimientoBean.promesa}">
                 <p class="seguimiento-promesa">#{seguimientoBean.promesa}</p>

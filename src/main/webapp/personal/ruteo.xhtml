@@ -20,13 +20,16 @@
     <ui:define name="contenido">
         <h1>Ruteo por zona</h1>
 
-        <p class="ayuda">
-            Cada pedido pendiente cae en la zona de su código postal de entrega. "Despachar" decide
-            solo según la zona: en una zona de repartidores Rabbit lo confirma con un repartidor de
-            la zona (si no hay libres, lo deriva a la empresa de logística de respaldo o usa uno de
-            otra zona); en una zona de logística tercerizada, se lo deriva a su empresa. Los pedidos sin zona se despachan a
-            mano desde&#160;<h:link outcome="/personal/pedidos" value="Pedidos" />.
-        </p>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Cada pedido pendiente cae en la zona de su código postal de entrega. "Despachar" decide
+                solo según la zona: en una zona de repartidores Rabbit lo confirma con un repartidor de
+                la zona (si no hay libres, lo deriva a la empresa de logística de respaldo o usa uno de
+                otra zona); en una zona de logística tercerizada, se lo deriva a su empresa. Los pedidos sin zona se despachan a
+                mano desde&#160;<h:link outcome="/personal/pedidos" value="Pedidos" />.
+            </p>
+        </details>
 
         <h:messages globalOnly="true" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"

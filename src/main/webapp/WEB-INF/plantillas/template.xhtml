@@ -23,9 +23,6 @@
     <meta charset="UTF-8" />
     <title><ui:insert name="titulo">Rabbit</ui:insert></title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <h:outputStylesheet library="rabbit" name="estilos.css" />
     <!-- Antes de pintar: aplica el tema elegido (ver tema.js). -->
     <h:outputScript library="rabbit" name="tema.js" />
@@ -33,6 +30,8 @@
     <h:outputScript library="rabbit" name="menu.js" />
     <!-- En el celular, las tablas se ven como tarjetas (ver tablas.js). -->
     <h:outputScript library="rabbit" name="tablas.js" />
+    <!-- Accesibilidad y tablas: orden, buscador y filtro por estado (ver mejoras.js). -->
+    <h:outputScript library="rabbit" name="mejoras.js" />
     <!-- Campana de notificaciones: contador de avisos nuevos (ver campana.js). -->
     <h:outputScript library="rabbit" name="campana.js" />
     <ui:insert name="cabecera" />
@@ -60,6 +59,8 @@
             -->
             <h:panelGroup layout="block" styleClass="sidebar-nav" rendered="#{sesionBean.personal}">
                 <p class="sidebar-seccion">Operación</p>
+                <h:link outcome="/personal/inicio" value="Inicio"
+                        styleClass="#{view.viewId == '/personal/inicio.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/personal/pedidos" value="Pedidos"
                         styleClass="#{view.viewId == '/personal/pedidos.xhtml' ? 'activo' : ''}" />
                 <h:link outcome="/personal/ruteo" value="Ruteo por zona"
