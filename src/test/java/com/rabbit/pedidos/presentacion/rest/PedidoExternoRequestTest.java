@@ -102,4 +102,53 @@ class PedidoExternoRequestTest {
         assertEquals("Ana@Correo.com", r.emailDestinatario);
         assertNull(r.nombreDestinatario);
     }
+
+    // ---- Retiro en depósito (ADR-053) y bultos (ADR-056) ----
+
+    private static Set<String> camposInvalidos(PedidoExternoRequest r) {
+        return validador.validate(r).stream().map(v -> v.getPropertyPath().toString()).collect(Collectors.toSet());
+    }
+
+    @Test
+    void unRetiroEnDepositoNoNecesitaDireccion() {
+        PedidoExternoRequest r = valido();
+        r.tipoEntrega = com.rabbit.pedidos.datos.model.TipoEntrega.RETIRO_EN_DEPOSITO;
+        r.direccionEntrega = null;
+        assertTrue(camposInvalidos(r).isEmpty(), "un retiro sin dirección es válido");
+    }
+
+    @Test
+    void aDomicilioLaDireccionSigueSiendoObligatoria() {
+        for (com.rabbit.pedidos.datos.model.TipoEntrega tipo : new com.rabbit.pedidos.datos.model.TipoEntrega[] {
+                null, com.rabbit.pedidos.datos.model.TipoEntrega.DOMICILIO}) {
+            PedidoExternoRequest r = valido();
+            r.tipoEntrega = tipo;
+            r.direccionEntrega = "  ";
+            assertEquals(Set.of("direccionEntrega"), camposInvalidos(r), "tipo " + tipo);
+        }
+    }
+
+    @Test
+    void elTipoDeEntregaViajaAlNegocio() {
+        PedidoExternoRequest r = valido();
+        r.tipoEntrega = com.rabbit.pedidos.datos.model.TipoEntrega.RETIRO_EN_DEPOSITO;
+        r.bultos = 3;
+        com.rabbit.pedidos.dto.DatosPedidoExternoDTO datos = r.aDatos();
+        assertEquals(com.rabbit.pedidos.datos.model.TipoEntrega.RETIRO_EN_DEPOSITO, datos.tipoEntrega);
+        assertEquals(3, datos.bultos);
+    }
+
+    @Test
+    void losBultosVanDeUnoANoventaYNueve() {
+        for (int bien : new int[] {1, 5, 99}) {
+            PedidoExternoRequest r = valido();
+            r.bultos = bien;
+            assertTrue(camposInvalidos(r).isEmpty(), "bultos " + bien);
+        }
+        for (int mal : new int[] {0, -2, 100}) {
+            PedidoExternoRequest r = valido();
+            r.bultos = mal;
+            assertEquals(Set.of("bultos"), camposInvalidos(r), "bultos " + mal);
+        }
+    }
 }
