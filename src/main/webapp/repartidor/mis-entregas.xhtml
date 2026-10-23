@@ -159,6 +159,17 @@
                                  pt:accept="image/*" pt:capture="environment" pt:required="required" />
                     <p class="ayuda">Sacale una foto al remito con la firma de quien recibe. Es la prueba de la entrega (imagen de hasta 5 MB).</p>
                 </div>
+                <!-- Codigo de entrega (ADR-055): le llego por mail a quien recibe. -->
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" for="codigo" value="Código de entrega" />
+                    <h:inputText id="codigo" value="#{misEntregasBean.codigoEntrega}" maxlength="4" autocomplete="off"
+                                 pt:inputmode="numeric" pt:pattern="[0-9]{4}" pt:required="required" pt:placeholder="4 dígitos" />
+                    <p class="ayuda">Pedile a quien recibe el código de 4 dígitos que le llegó por mail. Sin el código correcto no se puede registrar la entrega.</p>
+                </div>
+                <h:inputHidden id="latitud" value="#{misEntregasBean.latitudEntrega}" />
+                <h:inputHidden id="longitud" value="#{misEntregasBean.longitudEntrega}" />
+                <h:inputHidden id="precision" value="#{misEntregasBean.precisionEntrega}" />
+                <p class="ayuda" id="ubicacionEntrega" aria-live="polite"></p>
                 <div class="form-acciones">
                     <h:commandButton value="Registrar entrega" styleClass="btn btn-primary"
                                      action="#{misEntregasBean.entregar}" />
@@ -235,6 +246,8 @@
                 document.querySelectorAll('[data-entregar]').forEach(function (boton) {
                     boton.addEventListener('click', function () {
                         abrir('dialogoEntrega', 'formEntrega:pedido', boton.getAttribute('data-entregar'));
+                        // entrega.js: limpia el codigo y toma la ubicacion (ADR-055).
+                        document.dispatchEvent(new CustomEvent('rabbit:entrega'));
                     });
                 });
                 document.querySelectorAll('[data-devolver]').forEach(function (boton) {
@@ -296,6 +309,7 @@
 
         <h:outputScript library="rabbit" name="remito.js" />
         <h:outputScript library="rabbit" name="entrega-fallida.js" />
+        <h:outputScript library="rabbit" name="entrega.js" />
         <h:outputScript library="rabbit" name="ubicacion.js" rendered="#{misEntregasBean.compartirUbicacion}" />
     </ui:define>
 </ui:composition>

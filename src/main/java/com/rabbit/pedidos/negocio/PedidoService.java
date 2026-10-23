@@ -95,11 +95,13 @@ import com.rabbit.pedidos.datos.model.PedidoExterno;
 import com.rabbit.pedidos.datos.model.RemitoEntrega;
 import com.rabbit.pedidos.datos.model.FotoIntentoEntrega;
 import com.rabbit.pedidos.datos.model.IntentoEntrega;
+import com.rabbit.pedidos.dto.DatosEntregaDTO;
 import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.EntregaFallidaDTO;
 import com.rabbit.pedidos.dto.FotoDeVisitaDTO;
 import com.rabbit.pedidos.dto.IntentoEntregaDTO;
+import com.rabbit.pedidos.dto.UbicacionEntregaDTO;
 import com.rabbit.repartidores.dto.UbicacionDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
@@ -884,7 +886,32 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         ReglaDeRetiro.exigirADomicilio(pedido.getTipoEntrega(), "despachar");
         exigirRepartidorAsignado(pedido);
+        // ADR-055: al salir a reparto con un repartidor de Rabbit se genera el código que le
+        // llega a quien recibe. Si ya había uno (volvió al depósito y salió de nuevo), se conserva.
+        if (pedido.getIdRepartidor() != null && pedido.getCodigoEntrega() == null) {
+            pedido.setCodigoEntrega(CodigoDeEntrega.generar());
+        }
         cambiarEstado(pedido, EstadoPedido.EN_CAMINO);
+    }
+
+    @Override
+    // PermitAll a propósito: lo llama el aviso al destinatario, que corre sin usuario. El código solo
+    // se devuelve acá (no en PedidoDTO, que ven el repartidor y el seguimiento público) y ninguna
+    // pantalla ni la API lo expone.
+    public String consultarCodigoDeEntrega(Long idPedido) {
+        Pedido pedido = idPedido != null ? repository.buscarPedidoPorId(idPedido) : null;
+        return pedido != null && pedido.getEstado() == EstadoPedido.EN_CAMINO ? pedido.getCodigoEntrega() : null;
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.SUPPORTS)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public UbicacionEntregaDTO consultarUbicacionDeEntrega(Long idPedido) {
+        RemitoEntrega remito = idPedido != null ? repository.buscarRemitoDePedido(idPedido) : null;
+        if (remito == null || remito.getLatitud() == null || remito.getLongitud() == null) {
+            return null;
+        }
+        return new UbicacionEntregaDTO(remito.getLatitud(), remito.getLongitud(), remito.getPrecisionMetros());
     }
 
     // Con prueba: la entrega dispara el cobro contra entrega, así que no
@@ -893,7 +920,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
     @RolesAllowed({"ADMINISTRADOR", "REPARTIDOR"})
-    public void registrarEntrega(Long idPedido, byte[] imagen) {
+    public void registrarEntrega(Long idPedido, byte[] imagen, DatosEntregaDTO datos) {
         String tipo = Remitos.tipoDeImagen(imagen);
         Pedido pedido = obtenerParaActualizarOFallar(idPedido);
         ReglaDeRetiro.exigirADomicilio(pedido.getTipoEntrega(), "registrar una entrega con remito: se entrega en el depósito");
@@ -905,6 +932,25 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         String usuario = contexto.getCallerPrincipal().getName();
         LocalDateTime ahora = LocalDateTime.now();
 
+        // Código de entrega (ADR-055). Un administrador puede registrar la entrega sin él
+        // (contingencia: el repartidor no pudo); el repartidor, no. Cada error se cuenta y,
+        // a diferencia de las demás validaciones, queda guardado (CodigoIncorrectoException).
+        if (!contexto.isCallerInRole("ADMINISTRADOR")) {
+            try {
+                CodigoDeEntrega.exigir(pedido.getCodigoEntrega(), datos != null ? datos.codigo : null,
+                        pedido.getIntentosDeCodigo());
+            } catch (CodigoIncorrectoException e) {
+                pedido.setIntentosDeCodigo(pedido.getIntentosDeCodigo() + 1);
+                LOG.warning("[Pedidos] Código de entrega incorrecto en el pedido " + idPedido + " (intento "
+                        + pedido.getIntentosDeCodigo() + " de " + CodigoDeEntrega.MAXIMO_INTENTOS + ") por " + usuario);
+                throw e;
+            }
+        }
+        // Dónde estaba el repartidor al entregar: opcional, solo si el celular la dio y es creíble.
+        EvidenciaDeVisita.Ubicacion ubicacion = datos == null ? null
+                : EvidenciaDeVisita.ubicacion(datos.latitud, datos.longitud, datos.precisionMetros,
+                        null, null, null, ahora);
+
         RemitoEntrega remito = new RemitoEntrega();
         remito.setIdPedido(idPedido);
         remito.setTipoContenido(tipo);
@@ -912,6 +958,9 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         remito.setTamanoBytes(imagen.length);
         remito.setFechaCarga(ahora);
         remito.setCargadoPor(usuario);
+        if (ubicacion != null) {
+            remito.setUbicacion(ubicacion.latitud(), ubicacion.longitud(), ubicacion.precisionMetros());
+        }
         repository.guardarRemito(remito);
 
         pedido.setConRemito(true);

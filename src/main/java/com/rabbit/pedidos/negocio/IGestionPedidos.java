@@ -233,10 +233,14 @@ public interface IGestionPedidos {
      *
      * @param idPedido ID del pedido entregado
      * @param imagen foto del remito: JPEG, PNG o WEBP, hasta 5 MB
+     * @param datos el código de 4 dígitos que le dijo quien recibe (ADR-055) y, si el celular
+     *        la dio, la ubicación del repartidor. Un ADMINISTRADOR puede registrar la entrega
+     *        sin código (contingencia); el repartidor, no. Puede ser null (= sin código ni ubicación).
      * @throws ValidacionException si el pedido no existe, no está EN_CAMINO,
-     *         no es del repartidor, o falta la foto o no es una imagen válida
+     *         no es del repartidor, falta la foto o no es una imagen válida, o el código
+     *         falta o es incorrecto (CodigoIncorrectoException cuenta el intento)
      */
-    void registrarEntrega(Long idPedido, byte[] imagen);
+    void registrarEntrega(Long idPedido, byte[] imagen, com.rabbit.pedidos.dto.DatosEntregaDTO datos);
 
     /**
      * ENTREGADO informado por el transportista externo de un pedido

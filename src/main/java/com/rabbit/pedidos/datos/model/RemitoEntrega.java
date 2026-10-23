@@ -41,7 +41,21 @@ public class RemitoEntrega {
     @Column(length = 30)
     private String cargadoPor;
 
+    // Dónde estaba el repartidor al entregar (ADR-055). Null si el celular no la dio.
+    private Double latitud;
+    private Double longitud;
+    private Integer precisionMetros;
+
     public RemitoEntrega() {}
+
+    public Double getLatitud() { return latitud; }
+    public Double getLongitud() { return longitud; }
+    public Integer getPrecisionMetros() { return precisionMetros; }
+    public void setUbicacion(Double latitud, Double longitud, Integer precisionMetros) {
+        this.latitud = latitud;
+        this.longitud = longitud;
+        this.precisionMetros = precisionMetros;
+    }
 
     public Long getId() { return id; }
     public Long getIdPedido() { return idPedido; }
