@@ -11,6 +11,7 @@ package com.rabbit.inventario.negocio;
 
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.datos.InventarioRepository;
+import com.rabbit.inventario.datos.model.CategoriaDeTamano;
 import com.rabbit.inventario.datos.model.Deposito;
 import com.rabbit.inventario.datos.model.EstadoOrdenDeRecepcion;
 import com.rabbit.inventario.datos.model.ItemInventario;
@@ -74,6 +75,13 @@ public class RecepcionService implements IRecepcionDeMercaderia {
             throw new ValidacionException("El comercio no existe o está dado de baja: no puede anunciar mercadería.");
         }
         List<DatosLineaRecepcionDTO> lineas = ReglaDeRecepcion.validarAnuncio(datos.lineas);
+        // Lo que no entra ni en la categoría más grande no se acepta en consignación (ADR-059); las medidas
+        // todavía no se conocen, así que acá solo se puede juzgar por el peso.
+        for (DatosLineaRecepcionDTO l : lineas) {
+            if (CategoriaDeTamano.de(l.pesoKg, null, null, null) == CategoriaDeTamano.FUERA_DE_RANGO) {
+                throw new ValidacionException("\"" + l.producto + "\" pesa más de lo que se acepta en consignación: se cotiza aparte");
+            }
+        }
         String notas = ReglaDeRecepcion.limpiarNotas(datos.notas);
 
         OrdenDeRecepcion orden = new OrdenDeRecepcion();

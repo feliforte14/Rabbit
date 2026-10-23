@@ -22,6 +22,7 @@ package com.rabbit.inventario.negocio;
 
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.datos.InventarioRepository;
+import com.rabbit.inventario.datos.model.CategoriaDeTamano;
 import com.rabbit.inventario.datos.model.Deposito;
 import com.rabbit.inventario.datos.model.ItemInventario;
 import com.rabbit.inventario.dto.*;
@@ -52,6 +53,7 @@ import java.util.stream.Collectors;
 public class ConsultaStockService implements IConsultaStock {
 
     private static final BigDecimal PESO_MAXIMO_KG = new BigDecimal("1000");
+    private static final BigDecimal MEDIDA_MAXIMA_CM = new BigDecimal("1000");
 
     @Inject
     private IContextoUsuario contextoUsuario;
@@ -107,6 +109,8 @@ public class ConsultaStockService implements IConsultaStock {
         validarProducto(datos.producto);
         validarCantidad(datos.cantidadDisponible);
         validarPeso(datos.pesoKg);
+        validarMedidas(datos.altoCm, datos.anchoCm, datos.largoCm, true);
+        validarTamano(datos.pesoKg, datos.altoCm, datos.anchoCm, datos.largoCm);
 
         // Cargar stock es registrar una consignacion: sin comercio dueño,
         // la mercaderia no seria de nadie y nadie podria reservarla.
@@ -129,6 +133,7 @@ public class ConsultaStockService implements IConsultaStock {
         item.setDeposito(deposito);
         item.setIdComercio(datos.idComercio);
         item.setPesoKg(datos.pesoKg);
+        item.setMedidas(datos.altoCm, datos.anchoCm, datos.largoCm);
         return repository.guardarItem(item).getId();
     }
 
@@ -142,6 +147,13 @@ public class ConsultaStockService implements IConsultaStock {
         ItemInventario item = obtenerItemOFallar(idItem);
         validarProducto(datos.producto);
         validarPeso(datos.pesoKg);
+        // Las medidas (ADR-059) son opcionales al editar: vacías = se conservan las que ya tenía.
+        validarMedidas(datos.altoCm, datos.anchoCm, datos.largoCm, false);
+        boolean conMedidasNuevas = datos.altoCm != null;
+        validarTamano(datos.pesoKg,
+                conMedidasNuevas ? datos.altoCm : item.getAltoCm(),
+                conMedidasNuevas ? datos.anchoCm : item.getAnchoCm(),
+                conMedidasNuevas ? datos.largoCm : item.getLargoCm());
         String motivo = ReglasDeStock.motivoParaNoCambiarCantidad(
                 datos.cantidadDisponible, item.getCantidadReservada());
         if (motivo != null) {
@@ -156,6 +168,9 @@ public class ConsultaStockService implements IConsultaStock {
         item.setProducto(producto);
         item.setCantidadDisponible(datos.cantidadDisponible);
         item.setPesoKg(datos.pesoKg);
+        if (conMedidasNuevas) {
+            item.setMedidas(datos.altoCm, datos.anchoCm, datos.largoCm);
+        }
         try {
             repository.actualizarItem(item);
             repository.sincronizar();
@@ -299,6 +314,35 @@ public class ConsultaStockService implements IConsultaStock {
 
     // Kilos por unidad: obligatorio, mayor a cero, hasta 1000 kg y 3
     // decimales (gramos).
+    // Alto, ancho y largo de UNA unidad, en centímetros (ADR-059): las tres o ninguna.
+    private void validarMedidas(BigDecimal alto, BigDecimal ancho, BigDecimal largo, boolean obligatorias) {
+        if (alto == null && ancho == null && largo == null) {
+            if (obligatorias) {
+                throw new ValidacionException("Ingresá las medidas de una unidad: alto, ancho y largo, en centímetros");
+            }
+            return;
+        }
+        if (alto == null || ancho == null || largo == null) {
+            throw new ValidacionException("Cargá las tres medidas (alto, ancho y largo) o ninguna");
+        }
+        for (BigDecimal medida : new BigDecimal[] {alto, ancho, largo}) {
+            if (medida.signum() <= 0 || medida.compareTo(MEDIDA_MAXIMA_CM) > 0) {
+                throw new ValidacionException("Cada medida tiene que ser mayor a 0 y de hasta " + MEDIDA_MAXIMA_CM + " cm");
+            }
+            if (medida.stripTrailingZeros().scale() > 1) {
+                throw new ValidacionException("Las medidas admiten hasta 1 decimal (milímetros)");
+            }
+        }
+    }
+
+    // Lo que no entra ni en la categoría más grande no se acepta en consignación (ADR-059).
+    private void validarTamano(BigDecimal pesoKg, BigDecimal alto, BigDecimal ancho, BigDecimal largo) {
+        if (CategoriaDeTamano.de(pesoKg, alto, ancho, largo) == CategoriaDeTamano.FUERA_DE_RANGO) {
+            throw new ValidacionException("El producto supera el tamaño máximo que se acepta en consignación "
+                    + "(categoría Grande): se cotiza aparte");
+        }
+    }
+
     private void validarPeso(BigDecimal pesoKg) {
         if (pesoKg == null) {
             throw new ValidacionException("Ingresá el peso por unidad, en kilos");
