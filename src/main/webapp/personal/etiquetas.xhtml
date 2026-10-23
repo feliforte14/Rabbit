@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Etiquetas imprimibles de un pedido, una por bulto (ADR-056): QR del codigo de seguimiento,
+    direccion y "bulto N de M". Pagina sola (sin menu) para imprimirla limpia. El QR se dibuja en
+    el navegador (qrcode.js, sin pedirle nada a internet); sin JavaScript queda el codigo escrito.
+    Se bindea a etiquetasPedidoBean (EtiquetasPedidoBean.java). Solo el personal.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core"
+      xmlns:ui="jakarta.faces.facelets">
+<h:head>
+    <meta charset="UTF-8" />
+    <title>Rabbit · Etiquetas del pedido</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <h:outputStylesheet library="rabbit" name="estilos.css" />
+    <h:outputScript library="rabbit" name="tema.js" />
+    <f:metadata>
+        <f:viewParam name="pedido" value="#{etiquetasPedidoBean.pedido}" />
+        <f:viewParam name="bultos" value="#{etiquetasPedidoBean.bultos}" />
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+        <f:viewAction action="#{etiquetasPedidoBean.cargar}" />
+    </f:metadata>
+</h:head>
+<h:body styleClass="pagina-etiquetas">
+    <div class="etiquetas-barra no-imprimir">
+        <h1>Etiquetas del pedido #{etiquetasPedidoBean.pedido}</h1>
+        <h:panelGroup rendered="#{not empty etiquetasPedidoBean.datos}">
+            <form method="get" action="#{request.contextPath}/personal/etiquetas.xhtml" class="etiquetas-opciones">
+                <input type="hidden" name="pedido" value="#{etiquetasPedidoBean.pedido}" />
+                <label for="bultos">Cantidad de etiquetas</label>
+                <input id="bultos" name="bultos" type="number" min="1" max="99" value="#{etiquetasPedidoBean.bultos}" />
+                <button type="submit" class="btn btn-secondary">Cambiar</button>
+                <button type="button" class="btn btn-primary" onclick="window.print()">Imprimir</button>
+                <h:link outcome="/personal/pedidos" value="Volver a Pedidos" styleClass="btn btn-secondary" />
+            </form>
+            <p class="ayuda">Una etiqueta por bulto. Pegala en cada caja: el repartidor escanea el QR con la cámara para marcar el retiro.</p>
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="mensaje-error" rendered="#{not empty etiquetasPedidoBean.error}">
+            #{etiquetasPedidoBean.error}
+        </h:panelGroup>
+    </div>
+
+    <ui:fragment rendered="#{not empty etiquetasPedidoBean.datos}">
+    <ui:repeat value="#{etiquetasPedidoBean.numeros}" var="n">
+        <section class="etiqueta">
+            <div class="etiqueta-qr" data-url="#{etiquetasPedidoBean.urlEscaneo}" role="img"
+                 aria-label="Código QR del pedido #{etiquetasPedidoBean.datos.codigoSeguimiento}"></div>
+            <div class="etiqueta-texto">
+                <p class="etiqueta-bulto">BULTO #{n} DE #{etiquetasPedidoBean.bultos}</p>
+                <p class="etiqueta-codigo">#{etiquetasPedidoBean.datos.codigoSeguimiento}</p>
+                <p class="etiqueta-dato">Pedido #{etiquetasPedidoBean.datos.id}
+                    <h:outputText value=" · #{etiquetasPedidoBean.comercio}" rendered="#{not empty etiquetasPedidoBean.comercio}" /></p>
+                <p class="etiqueta-direccion">#{etiquetasPedidoBean.datos.direccionEntrega}</p>
+                <h:panelGroup rendered="#{not empty etiquetasPedidoBean.datos.codigoPostalEntrega}">
+                    <p class="etiqueta-dato">CP #{etiquetasPedidoBean.datos.codigoPostalEntrega}</p>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{not empty etiquetasPedidoBean.datos.nombreDestinatario}">
+                    <p class="etiqueta-dato">Recibe: #{etiquetasPedidoBean.datos.nombreDestinatario}</p>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{etiquetasPedidoBean.datos.retiroEnDeposito}">
+                    <p class="etiqueta-retiro">RETIRO EN DEPÓSITO</p>
+                </h:panelGroup>
+            </div>
+        </section>
+    </ui:repeat>
+    </ui:fragment>
+
+    <h:outputScript library="rabbit" name="qrcode.js" />
+    <h:outputScript library="rabbit" name="etiquetas.js" />
+</h:body>
+</html>

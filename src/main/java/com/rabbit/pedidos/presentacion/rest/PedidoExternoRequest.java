@@ -23,6 +23,8 @@ import jakarta.validation.ConstraintValidatorContext;
 import jakarta.validation.Payload;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -61,6 +63,11 @@ public class PedidoExternoRequest {
     // Cómo lo recibe quien compró (ADR-053). Si no viene, DOMICILIO (como siempre).
     // RETIRO_EN_DEPOSITO: sin dirección, lo retira en el depósito mostrando el código.
     public TipoEntrega tipoEntrega;
+
+    // Cuántas cajas o paquetes forman el pedido: una etiqueta con QR por bulto (ADR-056). Por defecto, 1.
+    @Min(value = 1, message = "La cantidad de bultos tiene que ser al menos 1")
+    @Max(value = 99, message = "Un pedido admite hasta 99 bultos")
+    public Integer bultos;
 
     // Obligatoria a domicilio (ver ConDireccionSiEsADomicilio); en un retiro se ignora.
     @Size(max = 200, message = "La dirección de entrega no puede superar los 200 caracteres")
@@ -152,6 +159,7 @@ public class PedidoExternoRequest {
         datos.importe = importe;
         datos.medioPago = medioPago;
         datos.tipoEntrega = tipoEntrega;
+        datos.bultos = bultos;
         datos.direccionEntrega = direccionEntrega;
         datos.codigoPostalEntrega = codigoPostalEntrega;
         datos.pesoKg = pesoKg;

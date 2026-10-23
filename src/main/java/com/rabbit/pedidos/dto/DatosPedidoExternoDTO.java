@@ -29,6 +29,8 @@ public class DatosPedidoExternoDTO {
     // Cómo lo recibe quien compró (ADR-053). Null = DOMICILIO. Con RETIRO_EN_DEPOSITO no hace
     // falta dirección ni código postal: lo retira en un depósito de Rabbit.
     public TipoEntrega tipoEntrega;
+    // Cantidad de bultos (ADR-056). Null = 1.
+    public Integer bultos;
     // Adónde se entrega el pedido (solo DOMICILIO).
     public String direccionEntrega;
     // Opcional: si no viene, se busca en la dirección (ver CodigosPostales).
@@ -53,6 +55,8 @@ public class DatosPedidoExternoDTO {
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public MedioPago getMedioPago() { return medioPago; }
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
+    public Integer getBultos() { return bultos; }
+    public void setBultos(Integer bultos) { this.bultos = bultos; }
     public TipoEntrega getTipoEntrega() { return tipoEntrega; }
     public void setTipoEntrega(TipoEntrega tipoEntrega) { this.tipoEntrega = tipoEntrega; }
     public String getDireccionEntrega() { return direccionEntrega; }

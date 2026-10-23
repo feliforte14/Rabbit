@@ -136,6 +136,10 @@ public class Pedido {
     @Column(length = 30)
     private TipoEntrega tipoEntrega;
 
+    // Cuántas cajas o paquetes forman el pedido: etiquetas con QR a imprimir (ADR-056). Null = 1:
+    // las filas anteriores. No es getBultos(), que cuenta unidades para el límite del repartidor.
+    private Integer cantidadDeBultos;
+
     // Solo RETIRO_EN_DEPOSITO: el depósito donde retira (el que tiene su stock), decidido al sincronizar.
     private Long idDepositoRetiro;
 
@@ -250,6 +254,8 @@ public class Pedido {
     public void setTelefonoDestinatario(String telefonoDestinatario) { this.telefonoDestinatario = telefonoDestinatario; }
     public TipoEntrega getTipoEntrega() { return tipoEntrega != null ? tipoEntrega : TipoEntrega.DOMICILIO; }
     public void setTipoEntrega(TipoEntrega tipoEntrega) { this.tipoEntrega = tipoEntrega; }
+    public int getCantidadDeBultos() { return cantidadDeBultos == null ? 1 : cantidadDeBultos; }
+    public void setCantidadDeBultos(int cantidadDeBultos) { this.cantidadDeBultos = cantidadDeBultos; }
     public boolean isRetiroEnDeposito() { return getTipoEntrega() == TipoEntrega.RETIRO_EN_DEPOSITO; }
     public Long getIdDepositoRetiro() { return idDepositoRetiro; }
     public void setIdDepositoRetiro(Long idDepositoRetiro) { this.idDepositoRetiro = idDepositoRetiro; }

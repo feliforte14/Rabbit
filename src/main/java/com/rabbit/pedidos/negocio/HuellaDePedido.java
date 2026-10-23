@@ -42,6 +42,10 @@ final class HuellaDePedido {
         if (datos.pesoKg != null) {
             texto.append("|peso:").append(datos.pesoKg.stripTrailingZeros().toPlainString());
         }
+        // Los bultos (ADR-056): solo si hay más de uno, así queda igual que antes para el caso común.
+        if (datos.bultos != null && datos.bultos > 1) {
+            texto.append("|bultos:").append(datos.bultos);
+        }
         // Lo mismo con quien recibe (ADR-039), ya normalizado.
         agregarSiVino(texto, "nombre", Destinatarios.nombre(datos.nombreDestinatario));
         agregarSiVino(texto, "telefono", Destinatarios.telefono(datos.telefonoDestinatario));
