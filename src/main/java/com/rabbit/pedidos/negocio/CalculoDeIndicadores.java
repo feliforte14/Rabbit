@@ -31,6 +31,12 @@ final class CalculoDeIndicadores {
     }
 
     static IndicadoresDTO calcular(List<Pedido> pedidos, LocalDate desde, LocalDate hasta, long enEsperaAhora) {
+        return calcular(pedidos, desde, hasta, enEsperaAhora, Map.of());
+    }
+
+    /** @param estrellasPorPedido la calificación (1 a 5) de cada pedido calificado, por ID de pedido */
+    static IndicadoresDTO calcular(List<Pedido> pedidos, LocalDate desde, LocalDate hasta, long enEsperaAhora,
+                                   Map<Long, Integer> estrellasPorPedido) {
         IndicadoresDTO dto = new IndicadoresDTO();
         dto.desde = desde;
         dto.hasta = hasta;
@@ -72,6 +78,15 @@ final class CalculoDeIndicadores {
                 }
                 case ENTREGADO -> {
                     dto.entregados++;
+                    Integer estrellas = p.getId() == null ? null : estrellasPorPedido.get(p.getId());
+                    if (estrellas != null) {
+                        dto.calificaciones++;
+                        dto.sumaEstrellas += estrellas;
+                        if (fila != null) {
+                            fila.calificaciones++;
+                            fila.sumaEstrellas += estrellas;
+                        }
+                    }
                     boolean primerIntento = p.getIntentosFallidos() == 0;
                     Boolean aTiempo = aTiempo(p);
                     Long minutos = minutosHastaEntregar(p);

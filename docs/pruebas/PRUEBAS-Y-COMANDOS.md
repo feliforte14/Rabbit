@@ -468,7 +468,9 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   `<b>hola</b>` se ve como texto, no en negrita. Un pedido que **no** está entregado
   no muestra el formulario. Se puede hacer con teclado (flechas sobre las estrellas) y
   en los tres temas. En la base: una fila en `calificaciones_entrega` (la tabla la crea
-  Hibernate al desplegar).
+  Hibernate al desplegar). En **Indicadores** (personal y comercio) aparece la tarjeta
+  "Calificación de las entregas" con el promedio y cuántas calificaciones lo sostienen, y la
+  tabla "Por repartidor" suma las columnas de calificación; sin calificaciones muestra "—".
 - [ ] **S19. Retiro en depósito (ADR-053).** Con la cuenta del ERP, `POST /api/v1/pedidos-externos`
   con `"tipoEntrega": "RETIRO_EN_DEPOSITO"`, stock consignado y **sin** `direccionEntrega`:
   201 con `tipoEntrega` en la respuesta. Con la misma clave de idempotencia pero a domicilio →

@@ -317,6 +317,20 @@ public class PedidoRepository {
                 .getResultStream().findFirst().orElse(null);
     }
 
+    /** Las estrellas de cada pedido calificado, por ID de pedido (los no calificados no aparecen). */
+    public java.util.Map<Long, Integer> estrellasDePedidos(java.util.Collection<Long> idsPedidos) {
+        java.util.Map<Long, Integer> estrellas = new java.util.HashMap<>();
+        java.util.List<Long> ids = new java.util.ArrayList<>(idsPedidos);
+        for (int i = 0; i < ids.size(); i += 500) {
+            em.createQuery("SELECT c.idPedido, c.estrellas FROM CalificacionEntrega c WHERE c.idPedido IN :ids",
+                            Object[].class)
+                    .setParameter("ids", ids.subList(i, Math.min(i + 500, ids.size())))
+                    .getResultList()
+                    .forEach(f -> estrellas.put((Long) f[0], (Integer) f[1]));
+        }
+        return estrellas;
+    }
+
     // --- Visitas fallidas y sus fotos (ADR-045) ---
 
     public void guardarIntento(IntentoEntrega intento) {

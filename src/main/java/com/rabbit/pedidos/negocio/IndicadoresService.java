@@ -13,6 +13,8 @@ package com.rabbit.pedidos.negocio;
  */
 
 import com.rabbit.pedidos.datos.PedidoRepository;
+import com.rabbit.pedidos.datos.model.EstadoPedido;
+import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.dto.IndicadoresDTO;
 import com.rabbit.seguridad.negocio.IContextoUsuario;
 import jakarta.annotation.security.DeclareRoles;
@@ -22,6 +24,9 @@ import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
 import jakarta.inject.Inject;
 import java.time.LocalDate;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Stateless
 @DeclareRoles({"ADMINISTRADOR", "OPERADOR", "COMERCIO"})
@@ -53,15 +58,23 @@ public class IndicadoresService implements IIndicadores {
         LocalDate hasta = LocalDate.now();
         LocalDate desde = hasta.minusDays(dias - 1L);
         long enEspera = repository.contarEnEspera(idComercio);
-        IndicadoresDTO tablero = CalculoDeIndicadores.calcular(
+        IndicadoresDTO tablero = calcularPeriodo(
                 repository.listarRecibidosEntre(desde.atStartOfDay(), hasta.plusDays(1).atStartOfDay(), idComercio),
                 desde, hasta, enEspera);
         // El período anterior, del mismo largo, para comparar.
         LocalDate hastaAnterior = desde.minusDays(1);
         LocalDate desdeAnterior = hastaAnterior.minusDays(dias - 1L);
-        tablero.anterior = CalculoDeIndicadores.calcular(
+        tablero.anterior = calcularPeriodo(
                 repository.listarRecibidosEntre(desdeAnterior.atStartOfDay(), desde.atStartOfDay(), idComercio),
                 desdeAnterior, hastaAnterior, enEspera);
         return tablero;
+    }
+
+    // Suma las calificaciones (ADR-052) de los pedidos entregados del período.
+    private IndicadoresDTO calcularPeriodo(List<Pedido> pedidos, LocalDate desde, LocalDate hasta, long enEspera) {
+        List<Long> entregados = pedidos.stream().filter(p -> p.getEstado() == EstadoPedido.ENTREGADO)
+                .map(Pedido::getId).collect(Collectors.toList());
+        Map<Long, Integer> estrellas = entregados.isEmpty() ? Map.of() : repository.estrellasDePedidos(entregados);
+        return CalculoDeIndicadores.calcular(pedidos, desde, hasta, enEspera, estrellas);
     }
 }
