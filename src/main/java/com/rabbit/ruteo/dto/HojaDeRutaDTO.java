@@ -46,12 +46,20 @@ public class HojaDeRutaDTO {
     // persona o la llame antes de llegar. Null si el ERP no los mandó.
     public String nombreDestinatario;
     public String telefonoDestinatario;
+    // Lo que pidió quien recibe (ADR-057): instrucciones de entrega, persona autorizada a recibirlo y, si
+    // reprogramó, el día que eligió. Texto de un tercero: la vista lo muestra siempre escapado.
+    public String instrucciones;
+    public String autorizado;
+    public String diaPedidoPorElCliente;
     // Visitas que ya fallaron y por qué (ADR-041).
     public int intentosFallidos;
     public String motivoUltimoIntento;
 
     // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getIdPedido() { return idPedido; }
+    public String getInstrucciones() { return instrucciones; }
+    public String getAutorizado() { return autorizado; }
+    public String getDiaPedidoPorElCliente() { return diaPedidoPorElCliente; }
     public String getComercio() { return comercio; }
     public String getEstado() { return estado; }
     public String getRepartidor() { return repartidor; }

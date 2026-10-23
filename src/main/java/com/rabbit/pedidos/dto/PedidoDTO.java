@@ -40,6 +40,13 @@ public class PedidoDTO {
     // PedidoService al consultar el seguimiento.
     public TipoEntrega tipoEntrega;
     public Long idDepositoRetiro;
+    // Lo que eligió quien recibe (ADR-057): instrucciones, persona autorizada y si reprogramó (con el
+    // día que se había prometido antes). El repartidor las ve en su hoja de ruta.
+    public String instruccionesEntrega;
+    public String nombreAutorizado;
+    public LocalDate fechaPrometidaOriginal;
+    // Lo completa PedidoService al consultar el seguimiento público (ADR-057); en el resto es false.
+    public boolean modificableDesdeSeguimiento;
     // Cajas o paquetes del pedido: etiquetas con QR a imprimir (ADR-056).
     public int cantidadDeBultos = 1;
     public String depositoRetiro;
@@ -89,6 +96,10 @@ public class PedidoDTO {
         dto.tipoEntrega = p.getTipoEntrega();
         dto.idDepositoRetiro = p.getIdDepositoRetiro();
         dto.cantidadDeBultos = p.getCantidadDeBultos();
+        dto.instruccionesEntrega = p.getInstruccionesEntrega();
+        dto.nombreAutorizado = p.getNombreAutorizado();
+        dto.fechaPrometidaOriginal = p.getFechaPrometidaOriginal();
+        dto.modificableDesdeSeguimiento = false; // lo completa PedidoService.consultarSeguimiento
         dto.fechaEntrega = p.getFechaEntrega() != null ? p.getFechaEntrega().format(FORMATO) : null;
         dto.entregadoPor = p.getEntregadoPor();
         dto.conRemito = p.isConRemito();
@@ -143,6 +154,11 @@ public class PedidoDTO {
     public TipoEntrega getTipoEntrega() { return tipoEntrega; }
     public Long getIdDepositoRetiro() { return idDepositoRetiro; }
     public int getCantidadDeBultos() { return cantidadDeBultos; }
+    public String getInstruccionesEntrega() { return instruccionesEntrega; }
+    public String getNombreAutorizado() { return nombreAutorizado; }
+    public LocalDate getFechaPrometidaOriginal() { return fechaPrometidaOriginal; }
+    public boolean isReprogramado() { return fechaPrometidaOriginal != null; }
+    public boolean isModificableDesdeSeguimiento() { return modificableDesdeSeguimiento; }
     public String getDepositoRetiro() { return depositoRetiro; }
     /** ¿Se retira en un depósito en vez de recibirse en la puerta? (ADR-053) */
     public boolean isRetiroEnDeposito() { return tipoEntrega == TipoEntrega.RETIRO_EN_DEPOSITO; }

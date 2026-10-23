@@ -14,7 +14,8 @@
 <html xmlns="http://www.w3.org/1999/xhtml"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:ui="jakarta.faces.facelets">
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:pt="jakarta.faces.passthrough">
 <f:metadata>
     <f:viewParam name="codigo" value="#{seguimientoBean.codigo}" />
     <f:viewAction action="#{seguimientoBean.buscar}" />
@@ -117,6 +118,45 @@
                      role="region" aria-label="Ubicación de tu pedido"></div>
                 <h:outputScript library="rabbit" name="mapa.js" />
             </h:panelGroup>
+        </h:panelGroup>
+
+        <!--
+            Opciones de quien recibe (ADR-057): reprogramar el dia (hasta 7 dias), dejar instrucciones y
+            autorizar a otra persona. Solo mientras el pedido no salio. El texto es de un tercero: la expresion
+            EL lo escapa siempre al mostrarlo. El dia viaja como parametro "fechaEntrega" (input date de HTML).
+        -->
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta opciones-entrega" rendered="#{seguimientoBean.puedeModificar}">
+            <h:form id="formOpciones">
+                <h:inputHidden value="#{seguimientoBean.codigo}" />
+                <p class="seguimiento-titular">¿Querés cambiar algo de la entrega?</p>
+                <div class="campo">
+                    <label for="fechaEntrega">Recibirlo otro día (hasta 7 días)</label>
+                    <input type="date" id="fechaEntrega" name="fechaEntrega" value="#{seguimientoBean.fechaActual}"
+                           min="#{seguimientoBean.fechaMinima}" max="#{seguimientoBean.fechaMaxima}" />
+                </div>
+                <div class="campo">
+                    <label for="formOpciones:instrucciones">Instrucciones para el repartidor</label>
+                    <h:inputText id="instrucciones" value="#{seguimientoBean.instrucciones}" maxlength="200"
+                                 pt:placeholder="Por ejemplo: dejar en portería, tocar timbre 3B" />
+                </div>
+                <div class="campo">
+                    <label for="formOpciones:autorizado">Autorizar a otra persona a recibirlo</label>
+                    <h:inputText id="autorizado" value="#{seguimientoBean.nombreAutorizado}" maxlength="100"
+                                 pt:placeholder="Nombre y apellido" />
+                    <p class="ayuda">Quien reciba el pedido tiene que decirle el código de entrega que te llegó por mail al repartidor.</p>
+                </div>
+                <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                            layout="list" styleClass="mensajes"
+                            errorClass="mensaje-error" infoClass="mensaje-info" />
+                <div class="form-acciones">
+                    <h:commandButton value="Guardar cambios" action="#{seguimientoBean.modificarEntrega}"
+                                     styleClass="btn btn-primary" />
+                </div>
+            </h:form>
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta" rendered="#{seguimientoBean.noSePuedeModificar}">
+            <p class="seguimiento-detalle">Ya no se pueden hacer cambios en esta entrega (salió o está por salir a reparto,
+                o la lleva otra empresa). Si necesitás algo, comunicate con la tienda.</p>
         </h:panelGroup>
 
         <!--

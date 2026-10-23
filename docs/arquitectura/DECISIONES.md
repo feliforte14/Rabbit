@@ -1681,3 +1681,34 @@ Propuesta o Reemplazada.
   no de ese bulto: no se controla que estén todos. Un repartidor sin sesión que escanea llega al
   seguimiento público, no al login; tiene que tener abierta su sesión. El escaneo al entregar sigue
   siendo por Mis entregas (código de 4 dígitos y foto, ADR-055).
+
+## ADR-057 — Opciones de quien recibe desde el seguimiento
+
+- **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencia: DHL On Demand Delivery.
+- **Contexto:** quien recibe el pedido solo podía mirarlo. No podía pedir otro día, avisar cómo
+  entrar al edificio ni autorizar a un vecino, y eso termina en visitas fallidas (ADR-041).
+- **Decisión:** un formulario en `seguimiento.xhtml` ("¿Querés cambiar algo de la entrega?") con tres
+  opciones, solo mientras el pedido no salió:
+  - **Reprogramar** el día, hasta 7 días desde hoy y nunca antes de lo ya prometido (adelantar no se
+    puede garantizar). Cambia `Pedido.fechaPrometida` y guarda la anterior en `fechaPrometidaOriginal`:
+    la métrica "a tiempo" (ADR-044) se mide contra el día que se reprogramó, y el personal ve que fue
+    reprogramado. No bloquea la confirmación antes de esa fecha: es un aviso visible (Pedidos y
+    la hoja de ruta), no una regla.
+  - **Instrucciones** ("dejar en portería", "tocar timbre 3B"): hasta 200 caracteres.
+  - **Persona autorizada:** solo un nombre (hasta 100).
+  El repartidor las ve en Mis entregas (`HojaDeRutaDTO`); el personal, en Pedidos.
+- **Cuándo se puede** (`ReglaDeOpcionesDeEntrega`): pedido a domicilio PENDIENTE, o CONFIRMADO con un
+  repartidor de Rabbit. No en un retiro en depósito, ni EN_CAMINO o resuelto, ni confirmado sin
+  repartidor (lo lleva una empresa de logística, a la que no se le pasan estos datos). Un PENDIENTE
+  después de una visita fallida sí puede: es justo cuando más sirve reprogramar.
+- **Seguridad:** es una escritura pública (la autoriza el código de seguimiento, como la calificación
+  del ADR-052), así que es mínima y acotada: tres datos cortos, texto de un tercero sin caracteres de
+  control y siempre escapado al mostrarlo, tope de 5 cambios por pedido, y nada de lo escrito va al log
+  (solo qué se cambió). Con el pedido bloqueado y el estado releído, si justo salió a reparto no se
+  cambia nada. **Autorizar a otra persona no reemplaza el código de entrega** (ADR-055): la persona
+  autorizada tiene que conocerlo para recibir el pedido, así que alguien que solo tenga el enlace no
+  se puede hacer pasar por quien recibe.
+- **Consecuencias:** quien tenga el enlace del seguimiento puede reprogramar o dejar instrucciones
+  (no puede recibir el pedido). No se le avisa por mail a quien recibe que cambió algo: queda como
+  mejora, y sería la mitigación natural contra un cambio hecho por un tercero. Reprogramar no
+  retiene el pedido hasta esa fecha: lo decide el personal al confirmar y asignar.

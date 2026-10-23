@@ -58,6 +58,20 @@ public interface ISeguimientoPedido {
     CalificacionDTO consultarCalificacion(String codigoSeguimiento);
 
     /**
+     * Lo que puede cambiar quien recibe desde el seguimiento (ADR-057): reprogramar el día (hasta
+     * 7 días, desde el prometido), dejar instrucciones de entrega y autorizar a otra persona.
+     * Pública: la autoriza el código de seguimiento. Cada dato reemplaza al anterior (vacío = quitarlo);
+     * fecha null = no reprogramar.
+     *
+     * @return el pedido como queda
+     * @throws ValidacionException si el pedido ya salió a reparto o se resolvió, es de retiro, se
+     *         llegó al tope de cambios, o los datos no sirven; o si no se cambió nada
+     * @throws PedidoNoEncontradoException si ningún pedido tiene ese código
+     */
+    PedidoDTO modificarEntrega(String codigoSeguimiento, java.time.LocalDate fecha, String instrucciones,
+                               String nombreAutorizado);
+
+    /**
      * El código de 4 dígitos con el que se entrega el pedido (ADR-055), o null si no está en
      * reparto o no lleva código. SOLO para el aviso al destinatario: es el único camino por el
      * que sale del servicio, y no se muestra en ninguna pantalla.

@@ -127,10 +127,12 @@ import jakarta.enterprise.inject.Instance;
 import jakarta.inject.Inject;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -1187,6 +1189,9 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             throw new PedidoNoEncontradoException("No hay ningún pedido con el código " + codigoSeguimiento);
         }
         PedidoDTO dto = PedidoDTO.desde(pedido);
+        dto.modificableDesdeSeguimiento = ReglaDeOpcionesDeEntrega.sePuedeModificar(
+                pedido.getEstado(), pedido.getTipoEntrega(), pedido.getIdRepartidor())
+                && pedido.getCambiosDelCliente() < ReglaDeOpcionesDeEntrega.CAMBIOS_MAXIMOS;
         if (pedido.isRetiroEnDeposito() && pedido.getIdDepositoRetiro() != null) {
             // Dónde retirarlo (ADR-053): el seguimiento público lo muestra junto al código.
             DepositoDTO deposito = stock.obtenerDeposito(pedido.getIdDepositoRetiro());
@@ -1226,6 +1231,47 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         }
         LOG.info("[Pedidos] Entrega del pedido " + pedido.getId() + " calificada con " + estrellas + " estrellas");
         return CalificacionDTO.desde(calificacion);
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    // Pública a propósito (ADR-057): quien recibe no tiene cuenta; lo autoriza el código aleatorio del
+    // pedido, como en la calificación. Por eso es una escritura mínima: tres datos acotados, solo mientras
+    // el pedido no salió, con tope de cambios, y sin dejar nada de lo escrito en el log. Nada de esto
+    // reemplaza el código de entrega (ADR-055): una persona autorizada igual tiene que conocerlo.
+    public PedidoDTO modificarEntrega(String codigoSeguimiento, LocalDate fecha, String instrucciones,
+                                      String nombreAutorizado) {
+        Pedido encontrado = pedidoPorCodigoOFallar(codigoSeguimiento);
+        // Con bloqueo y estado actual: si justo salió a reparto, no se cambia nada.
+        Pedido pedido = obtenerParaActualizarOFallar(encontrado.getId());
+        ReglaDeOpcionesDeEntrega.exigirModificable(pedido.getEstado(), pedido.getTipoEntrega(),
+                pedido.getIdRepartidor(), pedido.getCambiosDelCliente());
+        ReglaDeOpcionesDeEntrega.Cambios cambios = ReglaDeOpcionesDeEntrega.validar(LocalDate.now(),
+                pedido.getFechaPrometida(), fecha, instrucciones, nombreAutorizado);
+
+        List<String> hechos = new ArrayList<>();
+        if (cambios.fecha() != null && !cambios.fecha().equals(pedido.getFechaPrometida())) {
+            if (pedido.getFechaPrometidaOriginal() == null) {
+                pedido.setFechaPrometidaOriginal(pedido.getFechaPrometida());
+            }
+            pedido.setFechaPrometida(cambios.fecha());
+            hechos.add("reprogramó");
+        }
+        if (!Objects.equals(cambios.instrucciones(), pedido.getInstruccionesEntrega())) {
+            pedido.setInstruccionesEntrega(cambios.instrucciones());
+            hechos.add("instrucciones");
+        }
+        if (!Objects.equals(cambios.nombreAutorizado(), pedido.getNombreAutorizado())) {
+            pedido.setNombreAutorizado(cambios.nombreAutorizado());
+            hechos.add("persona autorizada");
+        }
+        if (hechos.isEmpty()) {
+            throw new ValidacionException("No cambiaste nada");
+        }
+        pedido.setCambiosDelCliente(pedido.getCambiosDelCliente() + 1);
+        LOG.info("[Pedidos] El destinatario modificó la entrega del pedido " + pedido.getId() + ": "
+                + String.join(", ", hechos));
+        return consultarSeguimiento(pedido.getCodigoSeguimiento());
     }
 
     // Busca el pedido por su código de seguimiento, normalizado como en consultarSeguimiento.
