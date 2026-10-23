@@ -521,6 +521,16 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   dice que ya no se pueden hacer cambios; forzar el envío (otra pestaña vieja) → "El pedido ya salió a
   reparto". Un texto con `<b>hola</b>` se ve como texto en todas las pantallas. Un retiro en depósito
   no ofrece el formulario.
+- [ ] **S24. Órdenes de recepción (ADR-058).** Como COMERCIO, en Mi stock → "Avisar mercadería":
+  elegir un depósito, cargar dos productos (nombre, cantidad y kg por unidad; uno que ya tengas en ese depósito
+  y otro nuevo) y "Anunciar mercadería": aparece en "Mis órdenes" como Anunciada y el stock **no** cambia. Un producto
+  repetido, una cantidad 0 o sin peso → error. Como OPERADOR, el inicio dice "1 orden(es) de recepción esperando
+  la mercadería"; en Recepción de mercadería → "Registrar recepción" aparece el formulario con lo anunciado de
+  valor inicial: poné 3 menos en un producto y "Registrar recepción": queda "Recibida con faltantes", el comercio
+  ve "Faltaron 3" y su stock sube **solo** en lo que llegó (el producto existente suma a su fila; el nuevo se crea con
+  el peso anunciado). Volver a abrir la orden: no se puede registrar de nuevo. Otra orden con todo completo → "Recibida".
+  Una orden con todo en 0 → "No llegó nada: cancelá la orden". Cancelar una anunciada (comercio o personal) →
+  "Cancelada". Un comercio no ve ni cancela las órdenes de otro. Intentar eliminar un comercio con una orden anunciada → lo impide.
 
 ### Cierre
 

@@ -7,6 +7,7 @@ package com.rabbit.pedidos.presentacion;
  * ítem con el enlace a la pantalla donde se resuelve.
  */
 
+import com.rabbit.inventario.negocio.IRecepcionDeMercaderia;
 import com.rabbit.pagos.dto.LiquidacionDTO;
 import com.rabbit.pagos.negocio.ILiquidaciones;
 import com.rabbit.pedidos.dto.PedidoDTO;
@@ -39,6 +40,9 @@ public class InicioBean implements Serializable {
 
     @Inject
     private ILiquidaciones liquidaciones;
+
+    @Inject
+    private IRecepcionDeMercaderia recepciones;
 
     private int porConfirmar;
     private int enEspera;
@@ -82,6 +86,16 @@ public class InicioBean implements Serializable {
             LOG.warning("[Inicio] No se pudieron leer las liquidaciones: " + e.getMessage());
         }
 
+        long recepcionesEsperadas = 0;
+        try {
+            recepcionesEsperadas = recepciones.contarAnunciadas();
+        } catch (RuntimeException e) {
+            LOG.warning("[Inicio] No se pudieron leer las recepciones: " + e.getMessage());
+        }
+        if (recepcionesEsperadas > 0) {
+            atencion.add(new Atencion(recepcionesEsperadas + " orden(es) de recepción esperando la mercadería",
+                    "aviso", "/personal/recepciones"));
+        }
         if (enEspera > 0) {
             atencion.add(new Atencion(enEspera + " pedido(s) en lista de espera: nadie tiene lugar para llevarlos",
                     "critico", "/personal/pedidos"));

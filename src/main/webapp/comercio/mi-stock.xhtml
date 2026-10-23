@@ -2,14 +2,15 @@
 <!--
     VISTA (Facelet) - Capa de Presentacion.
     Portal del comercio: su mercaderia consignada en los depositos de Rabbit,
-    deposito por deposito. Solo lectura: la carga de stock la registra el
-    personal de Rabbit cuando la mercaderia entra al deposito.
-    Se bindea a portalComercioBean (PortalComercioBean.java).
+    deposito por deposito. La carga de stock la registra el personal de Rabbit cuando la
+    mercaderia entra al deposito; el comercio la anuncia antes en "Avisar mercaderia" (ADR-058).
+    Se bindea a portalComercioBean (PortalComercioBean.java) y anuncioDeMercaderiaBean.
 -->
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
                  template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirComercio}" />
@@ -72,5 +73,107 @@
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty portalComercioBean.items}">
             No tenés stock consignado en los depósitos de Rabbit.
         </h:panelGroup>
+
+        <!-- Avisar mercaderia (ADR-058): se anuncia antes de mandarla; el deposito registra lo que llega
+             de verdad y recien ahi se suma al stock. -->
+        <h2>Avisar mercadería que vas a mandar</h2>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Avisá qué mandás y a qué depósito. Cuando llega, el personal registra lo que recibió de cada
+                producto y recién ahí se suma a tu stock: <b>solo lo que llegó</b>. Si llega menos de lo que
+                avisaste, ves la diferencia en la orden.
+            </p>
+        </details>
+        <h:form id="formAnuncio" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel styleClass="obligatorio" for="deposito" value="Depósito de destino" />
+                <h:selectOneMenu id="deposito" value="#{anuncioDeMercaderiaBean.idDeposito}">
+                    <f:selectItem itemLabel="— Elegí un depósito —" itemValue="#{null}" noSelectionOption="true" />
+                    <f:selectItems value="#{anuncioDeMercaderiaBean.depositos}" var="d" itemValue="#{d.id}"
+                                   itemLabel="#{d.nombre} · #{d.direccion}" />
+                </h:selectOneMenu>
+            </div>
+            <ui:repeat value="#{anuncioDeMercaderiaBean.filas}" var="f" varStatus="st">
+                <div class="campo fila-anuncio">
+                    <h:outputLabel for="producto" value="Producto #{st.index + 1}" />
+                    <h:inputText id="producto" value="#{f.producto}" maxlength="100" pt:placeholder="Nombre del producto" />
+                    <h:inputText id="cantidad" value="#{f.cantidad}" pt:type="number" pt:min="1" pt:placeholder="Cantidad"
+                                 pt:aria-label="Cantidad de #{st.index + 1}"
+                                 converterMessage="La cantidad tiene que ser un número entero">
+                        <f:convertNumber integerOnly="true" />
+                    </h:inputText>
+                    <h:inputText id="peso" value="#{f.pesoKg}" pt:inputmode="decimal" pt:placeholder="Kg por unidad"
+                                 pt:aria-label="Peso por unidad de #{st.index + 1}, en kilos"
+                                 converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
+                    <h:message for="cantidad" styleClass="error-campo" />
+                    <h:message for="peso" styleClass="error-campo" />
+                </div>
+            </ui:repeat>
+            <div class="form-acciones">
+                <h:commandButton value="Agregar otro producto" styleClass="btn btn-secondary" immediate="true"
+                                 action="#{anuncioDeMercaderiaBean.agregarFila}">
+                    <f:ajax render="@form" />
+                </h:commandButton>
+            </div>
+            <div class="campo">
+                <h:outputLabel for="notas" value="Aclaraciones para el depósito (opcional)" />
+                <h:inputText id="notas" value="#{anuncioDeMercaderiaBean.notas}" maxlength="200"
+                             pt:placeholder="Por ejemplo: llega el jueves con transporte propio" />
+            </div>
+            <div class="form-acciones">
+                <h:commandButton value="Anunciar mercadería" styleClass="btn btn-primary"
+                                 action="#{anuncioDeMercaderiaBean.anunciar}" />
+            </div>
+        </h:form>
+
+        <h2>Mis órdenes de recepción</h2>
+        <h:form id="formOrdenes">
+            <h:dataTable value="#{anuncioDeMercaderiaBean.ordenes}" var="o"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty anuncioDeMercaderiaBean.ordenes}">
+                <h:column>
+                    <f:facet name="header">Orden</f:facet>
+                    N° #{o.id}
+                    <span class="dato-secundario">#{o.fechaAnuncio}</span>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Depósito</f:facet>
+                    #{o.deposito}
+                </h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
+                    <f:facet name="header">Mercadería</f:facet>
+                    <ui:repeat value="#{o.lineas}" var="l">
+                        <span class="dato-secundario">
+                            #{l.producto}: anunciaste #{l.cantidadEsperada}<h:outputText rendered="#{not empty l.cantidadRecibida}"
+                                value=" · llegaron #{l.cantidadRecibida} (#{l.diferenciaTexto})" />
+                        </span>
+                    </ui:repeat>
+                    <h:panelGroup rendered="#{not empty o.notas}">
+                        <span class="dato-secundario">Aclaración: #{o.notas}</span>
+                    </h:panelGroup>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{etiquetas.estadoRecepcion(o.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoRecepcion(o.estado)}" />
+                    <h:panelGroup rendered="#{not empty o.fechaRecepcion}">
+                        <span class="dato-secundario">Recibida el #{o.fechaRecepcion}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{o.hayDiferencia}">
+                        <span class="dato-secundario">Llegaron #{o.totalRecibido} de #{o.totalEsperado} u.</span>
+                    </h:panelGroup>
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Cancelar" styleClass="btn btn-danger" rendered="#{o.anunciada}"
+                                     action="#{anuncioDeMercaderiaBean.cancelar(o.id)}"
+                                     onclick="return confirm('¿Cancelar el aviso de esta mercadería?');" />
+                </h:column>
+            </h:dataTable>
+            <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty anuncioDeMercaderiaBean.ordenes}">
+                Todavía no avisaste ninguna mercadería.
+            </h:panelGroup>
+        </h:form>
     </ui:define>
 </ui:composition>

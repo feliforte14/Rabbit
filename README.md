@@ -79,7 +79,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
   columnas secundarias de cada tabla, en celular las tablas se ven como
   tarjetas con lo esencial y el menú se despliega con un botón (ver
-  `resources/rabbit/1_20/`). En la compu, la barra lateral entra entera
+  `resources/rabbit/1_21/`). En la compu, la barra lateral entra entera
   sin scroll propio también en pantallas bajas (notebooks de 13").
 
 ## Tecnologías
@@ -117,7 +117,7 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_20/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+├── resources/rabbit/1_21/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
 │                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas),
 │                               remito.js (achica la foto del remito), ubicacion.js y mapa.js (mapas)
 └── WEB-INF/
