@@ -133,6 +133,33 @@ public class LiquidacionBean implements Serializable {
         return filas.stream().map(LiquidacionDTO::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
+    /** Lo ya cobrado por el banco. */
+    public BigDecimal getTotalCobrado() {
+        return sumar("COBRADA");
+    }
+
+    /** Lo que falta cobrar: con cobro pendiente o rechazado por el banco. */
+    public BigDecimal getTotalPorCobrar() {
+        return sumar("PENDIENTE").add(sumar("RECHAZADA"));
+    }
+
+    public int getCantidadPorCobrar() {
+        return (int) filas.stream().filter(l -> "PENDIENTE".equals(l.getEstado()) || "RECHAZADA".equals(l.getEstado())).count();
+    }
+
+    public int getTotalEntregas() {
+        return filas.stream().mapToInt(LiquidacionDTO::getCantidadEnvios).sum();
+    }
+
+    public BigDecimal getTotalKilos() {
+        return filas.stream().map(LiquidacionDTO::getKilos).filter(k -> k != null).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    private BigDecimal sumar(String estado) {
+        return filas.stream().filter(l -> estado.equals(l.getEstado()))
+                .map(LiquidacionDTO::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     public String getPeriodo() { return periodo; }
     public void setPeriodo(String periodo) { this.periodo = periodo; }
     public List<LiquidacionDTO> getFilas() { return filas; }

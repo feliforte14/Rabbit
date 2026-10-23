@@ -56,6 +56,27 @@
         </h:form>
 
         <h:form id="formTabla">
+            <!-- Resumen del mes de un vistazo; en la vista previa todavia no hay nada cobrado. -->
+            <h:panelGroup layout="block" styleClass="stat-grid" rendered="#{not empty liquidacionBean.filas}">
+                <div class="stat-card">
+                    <p class="stat-label">#{liquidacionBean.vistaPrevia ? 'Total a cobrar' : 'Total del mes'}</p>
+                    <p class="stat-valor">#{etiquetas.pesos(liquidacionBean.totalGeneral)}</p>
+                </div>
+                <h:panelGroup layout="block" styleClass="stat-card" rendered="#{not liquidacionBean.vistaPrevia}">
+                    <p class="stat-label">Cobrado</p>
+                    <p class="stat-valor">#{etiquetas.pesos(liquidacionBean.totalCobrado)}</p>
+                </h:panelGroup>
+                <h:panelGroup layout="block" styleClass="stat-card" rendered="#{not liquidacionBean.vistaPrevia}">
+                    <p class="stat-label">Por cobrar</p>
+                    <p class="stat-valor">#{etiquetas.pesos(liquidacionBean.totalPorCobrar)}</p>
+                    <p class="dato-secundario">#{liquidacionBean.cantidadPorCobrar} comercio(s)</p>
+                </h:panelGroup>
+                <div class="stat-card">
+                    <p class="stat-label">Entregas</p>
+                    <p class="stat-valor">#{liquidacionBean.totalEntregas}</p>
+                    <p class="dato-secundario">#{etiquetas.kilos(liquidacionBean.totalKilos)} · #{liquidacionBean.filas.size()} comercio(s)</p>
+                </div>
+            </h:panelGroup>
             <h:dataTable value="#{liquidacionBean.filas}" var="l"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
                          rendered="#{not empty liquidacionBean.filas}">
@@ -85,6 +106,12 @@
                     <h:panelGroup rendered="#{not empty l.codigoAutorizacion}">
                         <span class="dato-secundario">Autorización #{l.codigoAutorizacion}</span>
                     </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty l.fechaCobro}">
+                        <span class="dato-secundario">#{l.estado == 'COBRADA' ? 'Cobrada' : 'Último intento'} el #{l.fechaCobro}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{l.intentos > 1 and l.estado != 'COBRADA'}">
+                        <span class="dato-secundario">#{l.intentos} intentos de cobro</span>
+                    </h:panelGroup>
                     <h:panelGroup rendered="#{not empty l.motivo and l.estado != 'COBRADA'}">
                         <span class="dato-secundario">#{l.motivo}</span>
                     </h:panelGroup>
@@ -98,11 +125,6 @@
             </h:dataTable>
             <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty liquidacionBean.filas}">
                 No hay comercios activos para liquidar.
-            </h:panelGroup>
-            <h:panelGroup rendered="#{not empty liquidacionBean.filas}">
-                <p class="ayuda">Total del mes:
-                    <b><h:outputText value="#{liquidacionBean.totalGeneral}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
-                </p>
             </h:panelGroup>
         </h:form>
     </ui:define>
