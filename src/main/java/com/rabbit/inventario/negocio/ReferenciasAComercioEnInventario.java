@@ -22,5 +22,11 @@ public class ReferenciasAComercioEnInventario {
         if (items > 0) {
             evento.impedir(items + " ítem(s) de stock consignado");
         }
+        // Una orden ANUNCIADA es mercadería que está por llegar a nombre de este comercio (ADR-058).
+        long anunciadas = repository.contarOrdenes(
+                com.rabbit.inventario.datos.model.EstadoOrdenDeRecepcion.ANUNCIADA, evento.getIdComercio());
+        if (anunciadas > 0) {
+            evento.impedir(anunciadas + " orden(es) de recepción anunciada(s)");
+        }
     }
 }

@@ -1712,3 +1712,33 @@ Propuesta o Reemplazada.
   (no puede recibir el pedido). No se le avisa por mail a quien recibe que cambió algo: queda como
   mejora, y sería la mitigación natural contra un cambio hecho por un tercero. Reprogramar no
   retiene el pedido hasta esa fecha: lo decide el personal al confirmar y asignar.
+
+## ADR-058 — Órdenes de recepción de mercadería
+
+- **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencia: ShipBob (orden de
+  recepción con cantidades esperadas, recibidas y guardadas).
+- **Contexto:** el stock consignado lo cargaba el personal al verlo entrar, sin que el depósito supiera qué
+  esperar ni quedara registro de lo que faltó o sobró.
+- **Decisión:** el comercio anuncia la mercadería desde Mi stock (producto, cantidad y peso de una unidad, a
+  un depósito) y el personal registra lo que llegó, línea por línea, en `personal/recepciones.xhtml`.
+  - **Estados:** `ANUNCIADA` → `RECIBIDA` (no faltó nada) o `PARCIAL` (en alguna línea llegó menos). Agregué
+    `CANCELADA` (el comercio, o el personal si no llegó nada): sin ella una orden que nunca llega quedaría
+    anunciada para siempre. Todos menos ANUNCIADA son finales.
+  - **Stock:** al registrar la recepción se suma SOLO lo que llegó. Si el comercio ya tenía ese producto en
+    ese depósito se le suma a esa fila (una por producto, depósito y comercio); si no, se crea con el peso
+    del anuncio. Va en la misma transacción que el cambio de estado.
+  - **Diferencias:** cada línea guarda lo esperado y lo recibido; se ven en las dos pantallas ("Faltaron 3",
+    "Llegaron 2 de más"). Llegar de más no vuelve parcial la orden: se anota como diferencia.
+  - **Reglas (`ReglaDeRecepcion`):** de 1 a 50 productos sin repetir (sin importar mayúsculas), cantidad de 1
+    a 100.000, peso como en el alta de stock; al recibir hay que informar cada línea y no se registra una
+    recepción en la que no llegó nada (eso es cancelar).
+  - **Seguridad:** `anunciar` y `listarDelComercioActual` son del COMERCIO y siempre del comercio que llama (el
+    ID sale de la sesión, no del formulario); `cancelar` del comercio solo sirve para lo suyo; registrar la
+    recepción es del ADMINISTRADOR y el OPERADOR. La orden se lee con bloqueo, así dos registros a la vez no
+    suman el stock dos veces. No se puede eliminar un comercio con órdenes anunciadas.
+  - Tablas nuevas `ordenes_recepcion` y `lineas_recepcion` (las crea Hibernate al desplegar). El inicio del
+    personal avisa cuántas órdenes esperan mercadería. Recursos a `1_21`.
+- **Consecuencias:** la recepción se registra una sola vez: si lo que faltó llega después, el comercio
+  anuncia otra orden. Un comercio puede anunciar cualquier cosa (no hay catálogo): el nombre lo escribe él y
+  tiene que coincidir con el del stock para sumarse a la misma fila; si difiere en una letra se crea otra.
+  No se avisa por mail al personal ni al comercio de cada cambio. No se controlan lotes ni vencimientos.

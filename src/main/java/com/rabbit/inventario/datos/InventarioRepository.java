@@ -10,8 +10,10 @@ package com.rabbit.inventario.datos;
  */
 
 import com.rabbit.inventario.datos.model.Deposito;
+import com.rabbit.inventario.datos.model.EstadoOrdenDeRecepcion;
 import com.rabbit.inventario.datos.model.EstadoReserva;
 import com.rabbit.inventario.datos.model.ItemInventario;
+import com.rabbit.inventario.datos.model.OrdenDeRecepcion;
 import com.rabbit.inventario.datos.model.ReservaStock;
 import com.rabbit.inventario.dto.FiltroHistorialDTO;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -381,5 +383,51 @@ public class InventarioRepository {
                 .setParameter("estado", EstadoReserva.VIGENTE)
                 .setParameter("ahora", ahora)
                 .getResultList();
+    }
+
+    // --- Órdenes de recepción (ADR-058) ---
+
+    public OrdenDeRecepcion guardarOrden(OrdenDeRecepcion orden) {
+        em.persist(orden);
+        return orden;
+    }
+
+    public OrdenDeRecepcion buscarOrdenPorId(Long id) {
+        return id == null ? null : em.find(OrdenDeRecepcion.class, id);
+    }
+
+    /** Con bloqueo: dos registros de la misma recepción a la vez no pueden sumar el stock dos veces. */
+    public OrdenDeRecepcion buscarOrdenParaActualizar(Long id) {
+        return id == null ? null : em.find(OrdenDeRecepcion.class, id, jakarta.persistence.LockModeType.PESSIMISTIC_WRITE);
+    }
+
+    public List<OrdenDeRecepcion> listarOrdenesDeComercio(Long idComercio) {
+        return em.createQuery("SELECT DISTINCT o FROM OrdenDeRecepcion o WHERE o.idComercio = :c ORDER BY o.id DESC",
+                OrdenDeRecepcion.class).setParameter("c", idComercio).getResultList();
+    }
+
+    public List<OrdenDeRecepcion> listarOrdenes() {
+        return em.createQuery("SELECT DISTINCT o FROM OrdenDeRecepcion o ORDER BY o.id DESC", OrdenDeRecepcion.class)
+                .getResultList();
+    }
+
+    public long contarOrdenes(EstadoOrdenDeRecepcion estado, Long idComercio) {
+        var consulta = em.createQuery("SELECT COUNT(o) FROM OrdenDeRecepcion o WHERE o.estado = :e"
+                        + (idComercio != null ? " AND o.idComercio = :c" : ""), Long.class)
+                .setParameter("e", estado);
+        if (idComercio != null) {
+            consulta.setParameter("c", idComercio);
+        }
+        return consulta.getSingleResult();
+    }
+
+    /** El ítem que ya tiene ese comercio de ese producto en ese depósito, o null (ver existeProductoEnDeposito). */
+    public ItemInventario buscarItemDelComercio(String producto, Long idDeposito, Long idComercio) {
+        return em.createQuery("SELECT i FROM ItemInventario i WHERE i.producto = :p AND i.deposito.id = :d "
+                        + "AND i.idComercio = :c", ItemInventario.class)
+                .setParameter("p", producto)
+                .setParameter("d", idDeposito)
+                .setParameter("c", idComercio)
+                .getResultStream().findFirst().orElse(null);
     }
 }

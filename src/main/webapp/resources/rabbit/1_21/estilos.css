@@ -3266,3 +3266,33 @@ body.pagina-etiquetas {
         margin: 0;
     }
 }
+
+/* ---- Anuncio de mercadería: producto, cantidad y peso en una fila (ADR-058) ---- */
+.fila-anuncio {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 0.5rem;
+    align-items: end;
+}
+
+.fila-anuncio > label {
+    grid-column: 1 / -1;
+}
+
+.fila-anuncio .error-campo {
+    grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+    .fila-anuncio {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .fila-anuncio > input:first-of-type {
+        grid-column: 1 / -1;
+    }
+}
+
+.fila-recepcion input[type="number"] {
+    max-width: 10rem;
+}

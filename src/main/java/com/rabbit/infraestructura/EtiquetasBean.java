@@ -154,6 +154,27 @@ public class EtiquetasBean {
         }
     }
 
+    // Órdenes de recepción de mercadería (ADR-058).
+    public String estadoRecepcion(Object estado) {
+        switch (texto(estado)) {
+            case "ANUNCIADA": return "Anunciada";
+            case "RECIBIDA": return "Recibida";
+            case "PARCIAL": return "Recibida con faltantes";
+            case "CANCELADA": return "Cancelada";
+            default: return "—";
+        }
+    }
+
+    public String claseEstadoRecepcion(Object estado) {
+        switch (texto(estado)) {
+            case "ANUNCIADA": return "badge badge-azul";
+            case "RECIBIDA": return "badge badge-verde";
+            case "PARCIAL": return "badge badge-naranja";
+            case "CANCELADA": return "badge badge-gris";
+            default: return "";
+        }
+    }
+
     public String estadoCotizacion(Object estado) {
         switch (texto(estado)) {
             case "COTIZADO": return "Cotizó";
