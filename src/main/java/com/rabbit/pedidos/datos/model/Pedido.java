@@ -157,6 +157,15 @@ public class Pedido {
     // pedidos anteriores a este cambio.
     private LocalDate fechaPrometida;
 
+    // Código de 4 dígitos que recibe quien compra y le dice al repartidor al entregar
+    // (ADR-055). Se genera al salir a reparto; null en los pedidos anteriores o que lleva un
+    // transportista: ahí no se pide. Nunca va en el PedidoDTO.
+    @Column(length = 4)
+    private String codigoEntrega;
+
+    // Cuántas veces se equivocó el repartidor con ese código.
+    private Integer intentosDeCodigo;
+
     // Visitas al cliente que no terminaron en entrega (ADR-041). Integer y
     // no int: las filas anteriores quedan en NULL (= ninguna).
     private Integer intentosFallidos;
@@ -248,6 +257,10 @@ public class Pedido {
     public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
     public LocalDate getFechaPrometida() { return fechaPrometida; }
     public void setFechaPrometida(LocalDate fechaPrometida) { this.fechaPrometida = fechaPrometida; }
+    public String getCodigoEntrega() { return codigoEntrega; }
+    public void setCodigoEntrega(String codigoEntrega) { this.codigoEntrega = codigoEntrega; }
+    public int getIntentosDeCodigo() { return intentosDeCodigo == null ? 0 : intentosDeCodigo; }
+    public void setIntentosDeCodigo(int intentosDeCodigo) { this.intentosDeCodigo = intentosDeCodigo; }
     public int getIntentosFallidos() { return intentosFallidos == null ? 0 : intentosFallidos; }
     public void setIntentosFallidos(int intentosFallidos) { this.intentosFallidos = intentosFallidos; }
     public MotivoEntregaFallida getMotivoEntregaFallida() { return motivoEntregaFallida; }

@@ -1619,3 +1619,37 @@ Propuesta o Reemplazada.
   de colores de estado en una sola familia de tokens: se hace mejor con las pantallas a la vista.
   La búsqueda y el filtro actúan sobre la página cargada, no sobre la base: con miles de
   pedidos habrá que paginar en el servidor.
+
+## ADR-055 — Prueba de entrega reforzada: código de 4 dígitos y ubicación
+
+- **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencias: Mercado Libre Flex
+  (código) y Onfleet (firma y ubicación).
+- **Contexto:** la única prueba de una entrega era la foto del remito. Una foto no demuestra
+  que quien recibió sea quien compró, ni dónde estaba el repartidor.
+- **Decisión:**
+  - **Código:** al salir a reparto con un repartidor de Rabbit (`despacharPedido`) se genera un
+    código de 4 dígitos (`CodigoDeEntrega`, `SecureRandom`) en `Pedido.codigoEntrega`. Viaja en el
+    mail de "en camino" a quien recibe. Para marcar la entrega el repartidor tiene que ingresarlo:
+    sin el código correcto no se puede. Un pedido sin código (anterior a este cambio, o de un
+    transportista) no lo pide.
+  - **Intentos:** son solo 10.000 combinaciones, así que se limitan a 5 por pedido
+    (`Pedido.intentosDeCodigo`). Para que el intento fallido quede contado, el error es una
+    `CodigoIncorrectoException` con `rollback = false` (el resto de las `ValidacionException` sí
+    deshacen la transacción). Agotados los intentos, ni el código correcto sirve: lo entrega un
+    administrador.
+  - **Contingencia:** un ADMINISTRADOR puede registrar la entrega sin código (es la pantalla
+    de Pedidos, para cuando el repartidor no pudo). El repartidor, no.
+  - **Dónde se ve el código:** solo en el mail. No va en `PedidoDTO` (lo ven el repartidor y el
+    seguimiento público), no se guarda en el aviso que ve el personal (se guarda la versión sin
+    código) y no está en ninguna pantalla ni en la API. Sale del servicio por un único camino,
+    `consultarCodigoDeEntrega`, que usa el aviso al destinatario.
+  - **Ubicación:** al abrir "Entregar pedido", el celular toma la posición y se guarda junto al
+    remito (`RemitoEntrega.latitud/longitud/precisionMetros`). Es opcional: sin permiso del
+    navegador la entrega se registra igual, sin ubicación (bloquearla dejaría pedidos trabados).
+    Se valida igual que la de una visita fallida (`EvidenciaDeVisita`). El personal la ve en
+    Pedidos, con un enlace a un mapa.
+- **Consecuencias:** el código es una prueba de presencia, no un secreto fuerte. Si el cliente
+  perdió el mail, el repartidor no puede entregar y el pedido lo cierra un administrador. La
+  ubicación se toma al abrir la ventana, no al enviar el formulario, y el navegador puede
+  darla imprecisa: por eso se guarda con su precisión. No se compara contra la dirección de
+  entrega (queda como mejora: marcar entregas lejos del domicilio).

@@ -35,7 +35,21 @@ final class TextosAlDestinatario {
      */
     record Datos(String estado, String nombre, String comercio, String codigo, String enlace,
                  LocalDate fechaPrometida, LocalDate hoy, MotivoEntregaFallida motivo, boolean contoComoVisita,
-                 int visitas, int maximo, String retiro) {
+                 int visitas, int maximo, String retiro, String codigoEntrega) {
+
+        /** Con el retiro (ADR-053) y sin código de entrega. */
+        Datos(String estado, String nombre, String comercio, String codigo, String enlace,
+              LocalDate fechaPrometida, LocalDate hoy, MotivoEntregaFallida motivo, boolean contoComoVisita,
+              int visitas, int maximo, String retiro) {
+            this(estado, nombre, comercio, codigo, enlace, fechaPrometida, hoy, motivo, contoComoVisita,
+                    visitas, maximo, retiro, null);
+        }
+
+        /** El mismo aviso sin el código de entrega: es la versión que se guarda y ve el personal. */
+        Datos sinCodigoDeEntrega() {
+            return new Datos(estado, nombre, comercio, codigo, enlace, fechaPrometida, hoy, motivo, contoComoVisita,
+                    visitas, maximo, retiro, null);
+        }
 
         /** A domicilio (lo de siempre). */
         Datos(String estado, String nombre, String comercio, String codigo, String enlace,
@@ -76,7 +90,10 @@ final class TextosAlDestinatario {
                     ? "Tu pedido ya está listo para retirar por " + d.retiro() + ". Mostrá el código " + d.codigo()
                             + " para que te lo entreguen."
                     : "Ya le asignamos quién lo lleva. Te avisamos cuando salga a reparto.";
-            case "EN_CAMINO" -> "Tu pedido salió a reparto y llega hoy. En el seguimiento ves por dónde va.";
+            case "EN_CAMINO" -> "Tu pedido salió a reparto y llega hoy. En el seguimiento ves por dónde va."
+                    + (d.codigoEntrega() == null ? ""
+                    : "\n\nTu código de entrega es " + d.codigoEntrega() + ". Decíselo al repartidor al recibir el pedido: "
+                            + "sin el código no puede dejártelo. No lo compartas con nadie más.");
             case "ENTREGADO" -> d.esRetiro() ? "Retiraste tu pedido en el depósito. ¡Gracias!"
                     : "Tu pedido fue entregado. ¡Gracias!";
             case "CANCELADO" -> "El pedido se canceló. Si no lo esperabas, consultá con " + d.comercio() + ".";

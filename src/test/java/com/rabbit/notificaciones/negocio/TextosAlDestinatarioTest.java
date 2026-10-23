@@ -141,4 +141,40 @@ class TextosAlDestinatarioTest {
         assertTrue(TextosAlDestinatario.cuerpo(retiro("ENTREGADO")).contains("Retiraste"));
         assertEquals("Retiraste tu pedido de Librería Sur", TextosAlDestinatario.asunto(retiro("ENTREGADO")));
     }
+
+    private static TextosAlDestinatario.Datos enCaminoConCodigo(String codigoEntrega) {
+        return new TextosAlDestinatario.Datos("EN_CAMINO", "Ana", "Librería Sur", "RB-7KQ2M9XHTA",
+                "https://rabbit.example/seguimiento.xhtml?codigo=RB-7KQ2M9XHTA", HOY, HOY, null, false, 0, 3,
+                null, codigoEntrega);
+    }
+
+    @Test
+    void elMailDeEnCaminoLlevaElCodigoDeEntrega() {
+        String cuerpo = TextosAlDestinatario.cuerpo(enCaminoConCodigo("0427"));
+        assertTrue(cuerpo.contains("Tu código de entrega es 0427"));
+        assertTrue(cuerpo.contains("sin el código no puede dejártelo"));
+    }
+
+    @Test
+    void laVersionQueSeGuardaNoLlevaElCodigo() {
+        String guardado = TextosAlDestinatario.cuerpo(enCaminoConCodigo("0427").sinCodigoDeEntrega());
+        assertFalse(guardado.contains("0427"));
+        assertFalse(guardado.contains("código de entrega"));
+    }
+
+    @Test
+    void sinCodigoElMailDeEnCaminoEsElDeSiempre() {
+        String cuerpo = TextosAlDestinatario.cuerpo(enCaminoConCodigo(null));
+        assertFalse(cuerpo.contains("código de entrega"));
+        assertTrue(cuerpo.contains("salió a reparto"));
+    }
+
+    @Test
+    void elCodigoSoloVaEnElMailDeEnCamino() {
+        for (String estado : new String[] {"PENDIENTE", "CONFIRMADO", "ENTREGADO", "CANCELADO"}) {
+            TextosAlDestinatario.Datos d = new TextosAlDestinatario.Datos(estado, "Ana", "Librería Sur", "RB-X",
+                    "https://rabbit.example/s", HOY, HOY, null, false, 0, 3, null, "0427");
+            assertFalse(TextosAlDestinatario.cuerpo(d).contains("0427"), estado);
+        }
+    }
 }

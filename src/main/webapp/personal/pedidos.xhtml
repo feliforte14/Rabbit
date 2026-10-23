@@ -117,6 +117,12 @@
                         <span class="dato-secundario">
                             <a href="#{request.contextPath}/remito?pedido=#{p.id}" target="_blank" rel="noopener noreferrer">Ver remito</a>
                         </span>
+                        <!-- Dónde estaba el repartidor al entregar (ADR-055). -->
+                        <h:panelGroup rendered="#{not empty pedidoBean.ubicacionEntrega(p.id)}">
+                            <span class="dato-secundario">Entregado en
+                                <a href="#{pedidoBean.ubicacionEntrega(p.id).enlaceMapa}" target="_blank" rel="noopener noreferrer">#{pedidoBean.ubicacionEntrega(p.id).texto}</a>
+                            </span>
+                        </h:panelGroup>
                     </h:panelGroup>
                     <!-- Visitas fallidas (ADR-041); al agotarlas vuelve al comercio. -->
                     <h:panelGroup layout="block" styleClass="espera-detalle"

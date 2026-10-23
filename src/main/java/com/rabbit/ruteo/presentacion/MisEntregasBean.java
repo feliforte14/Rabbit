@@ -16,6 +16,7 @@ package com.rabbit.ruteo.presentacion;
 import com.rabbit.infraestructura.ArchivosSubidos;
 import com.rabbit.infraestructura.Mensajes;
 import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
+import com.rabbit.pedidos.dto.DatosEntregaDTO;
 import com.rabbit.pedidos.dto.EntregaFallidaDTO;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
 import com.rabbit.pedidos.negocio.IntentosDeEntrega;
@@ -63,6 +64,11 @@ public class MisEntregasBean implements Serializable {
     // tarjeta le pone el pedido.
     private Long idPedidoAEntregar;
     private transient Part fotoRemito;
+    // Código de 4 dígitos que le dice quien recibe y ubicación del celular al entregar (ADR-055).
+    private String codigoEntrega;
+    private Double latitudEntrega;
+    private Double longitudEntrega;
+    private Double precisionEntrega;
 
     // Ventana "No se pudo entregar", mismo esquema. Con la evidencia de la
     // visita (ADR-045): comentario, hasta 3 fotos y la ubicación que tomó
@@ -121,7 +127,10 @@ public class MisEntregasBean implements Serializable {
             Mensajes.error("La foto del remito no puede superar los 5 MB");
             return;
         }
-        ejecutar(() -> gestion.registrarEntrega(idPedido, foto), "Entrega del pedido " + idPedido + " registrada");
+        ejecutar(() -> gestion.registrarEntrega(idPedido, foto,
+                new DatosEntregaDTO(codigoEntrega, latitudEntrega, longitudEntrega, precisionEntrega)),
+                "Entrega del pedido " + idPedido + " registrada");
+        codigoEntrega = null;
         idPedidoAEntregar = null;
     }
 
@@ -229,6 +238,14 @@ public class MisEntregasBean implements Serializable {
     public void setLongitudVisita(Double longitudVisita) { this.longitudVisita = longitudVisita; }
     public Double getPrecisionVisita() { return precisionVisita; }
     public void setPrecisionVisita(Double precisionVisita) { this.precisionVisita = precisionVisita; }
+    public String getCodigoEntrega() { return codigoEntrega; }
+    public void setCodigoEntrega(String codigoEntrega) { this.codigoEntrega = codigoEntrega; }
+    public Double getLatitudEntrega() { return latitudEntrega; }
+    public void setLatitudEntrega(Double latitudEntrega) { this.latitudEntrega = latitudEntrega; }
+    public Double getLongitudEntrega() { return longitudEntrega; }
+    public void setLongitudEntrega(Double longitudEntrega) { this.longitudEntrega = longitudEntrega; }
+    public Double getPrecisionEntrega() { return precisionEntrega; }
+    public void setPrecisionEntrega(Double precisionEntrega) { this.precisionEntrega = precisionEntrega; }
     public Long getIdPedidoAEntregar() { return idPedidoAEntregar; }
     public void setIdPedidoAEntregar(Long idPedidoAEntregar) { this.idPedidoAEntregar = idPedidoAEntregar; }
     public Part getFotoRemito() { return fotoRemito; }

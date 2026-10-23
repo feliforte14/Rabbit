@@ -119,6 +119,7 @@ public class PedidoBean implements Serializable {
     // llegan llenas en el primer render.
     @PostConstruct
     public void cargar() {
+        ubicacionesDeEntrega = null;
         pedidos = seguimiento.listarTodos();
         pedidosExternos = seguimiento.listarPedidosExternos();
         List<Long> idsItems = pedidosExternos.stream().flatMap(pe -> pe.getLineas().stream())
@@ -209,6 +210,17 @@ public class PedidoBean implements Serializable {
 
     public String nombreRepartidor(Long idRepartidor) {
         return idRepartidor == null ? "—" : nombresRepartidores.getOrDefault(idRepartidor, "#" + idRepartidor);
+    }
+
+    // Dónde estaba el repartidor al entregar (ADR-055), una consulta por pedido y solo si se pide.
+    private transient Map<Long, java.util.Optional<com.rabbit.pedidos.dto.UbicacionEntregaDTO>> ubicacionesDeEntrega;
+
+    public com.rabbit.pedidos.dto.UbicacionEntregaDTO ubicacionEntrega(Long idPedido) {
+        if (ubicacionesDeEntrega == null) {
+            ubicacionesDeEntrega = new java.util.HashMap<>();
+        }
+        return ubicacionesDeEntrega.computeIfAbsent(idPedido,
+                id -> java.util.Optional.ofNullable(seguimiento.consultarUbicacionDeEntrega(id))).orElse(null);
     }
 
     public String estadoCobro(Long idPedido) {
@@ -425,7 +437,7 @@ public class PedidoBean implements Serializable {
             return;
         }
         try {
-            gestion.registrarEntrega(idPedidoAEntregar, foto);
+            gestion.registrarEntrega(idPedidoAEntregar, foto, null);
             Mensajes.info("Entrega del pedido " + idPedidoAEntregar + " registrada");
             idPedidoAEntregar = null;
             cargar();

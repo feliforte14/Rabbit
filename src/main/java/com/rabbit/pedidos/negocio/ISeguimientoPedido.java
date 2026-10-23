@@ -58,6 +58,16 @@ public interface ISeguimientoPedido {
     CalificacionDTO consultarCalificacion(String codigoSeguimiento);
 
     /**
+     * El código de 4 dígitos con el que se entrega el pedido (ADR-055), o null si no está en
+     * reparto o no lleva código. SOLO para el aviso al destinatario: es el único camino por el
+     * que sale del servicio, y no se muestra en ninguna pantalla.
+     */
+    String consultarCodigoDeEntrega(Long idPedido);
+
+    /** Dónde estaba el repartidor al entregar (ADR-055), o null si no la dio. Solo el personal. */
+    com.rabbit.pedidos.dto.UbicacionEntregaDTO consultarUbicacionDeEntrega(Long idPedido);
+
+    /**
      * Califica la entrega (ADR-052), desde el seguimiento público: 1 a 5
      * estrellas y un comentario opcional. Una sola vez por pedido y solo si
      * ya está ENTREGADO (ver ReglaDeCalificacion).

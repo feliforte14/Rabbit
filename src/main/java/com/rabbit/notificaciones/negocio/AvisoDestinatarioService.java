@@ -99,9 +99,12 @@ public class AvisoDestinatarioService implements IAvisosAlDestinatario {
                 nombreComercio(idComercio), pedido.codigoSeguimiento, enlaceSeguimiento(pedido.codigoSeguimiento),
                 pedido.fechaPrometida, ahora.toLocalDate(), motivo, pedido.ultimaFallaContoComoVisita,
                 pedido.intentosFallidos, IntentosDeEntrega.maximo(),
-                pedido.isRetiroEnDeposito() ? (pedido.depositoRetiro != null ? pedido.depositoRetiro : "el depósito de Rabbit") : null);
+                pedido.isRetiroEnDeposito() ? (pedido.depositoRetiro != null ? pedido.depositoRetiro : "el depósito de Rabbit") : null,
+                "EN_CAMINO".equals(estado) ? pedidos.consultarCodigoDeEntrega(idPedido) : null);
         String asunto = TextosAlDestinatario.asunto(datos);
+        // El mail lleva el código de entrega (ADR-055); lo que se guarda y ve el personal, no.
         String texto = TextosAlDestinatario.cuerpo(datos);
+        String textoGuardado = TextosAlDestinatario.cuerpo(datos.sinCodigoDeEntrega());
 
         AvisoDestinatario aviso = new AvisoDestinatario();
         aviso.setIdPedido(idPedido);
@@ -111,7 +114,7 @@ public class AvisoDestinatarioService implements IAvisosAlDestinatario {
         aviso.setFechaAviso(ahora);
         aviso.setEmail(pedido.emailDestinatario);
         aviso.setAsunto(recortar(asunto, 200));
-        aviso.setMensaje(recortar(texto, 1000));
+        aviso.setMensaje(recortar(textoGuardado, 1000));
         repository.guardarAvisoDestinatario(aviso);
         LOG.info("[Notificaciones] Aviso al destinatario del pedido " + idPedido + ": " + asunto);
         avisoRegistrado.fire(new AvisoDestinatarioRegistrado(idPedido, pedido.emailDestinatario, asunto, texto));

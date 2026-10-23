@@ -489,6 +489,17 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   "Vista compacta" (queda al recargar). Los textos largos de ayuda están plegados en "Cómo
   funciona". En el seguimiento de un retiro listo: recuadro con depósito y código. Con lector de
   pantalla, un error de formulario se anuncia solo.
+- [ ] **S21. Código y ubicación en la entrega (ADR-055).** Con un pedido a domicilio y un
+  email de destinatario real: confirmarlo, asignarlo y despacharlo (o que el repartidor lo
+  retire). El mail de "en camino" trae "Tu código de entrega es NNNN". En la tabla de avisos
+  del personal ese mensaje **no** muestra el código. Como repartidor, en Mis entregas →
+  "Entregar pedido": pide el código (4 dígitos) y la foto; la página dice que tomó la
+  ubicación. Con un código equivocado → "El código no es correcto (te quedan 4 intentos)" y el
+  pedido sigue EN_CAMINO; tras 5 errores, ni el correcto deja ("lo tiene que entregar un
+  administrador"). Con el correcto → Entregado. En Pedidos (personal) debajo de "Ver remito" figura
+  "Entregado en lat, lng (±N m)" con enlace al mapa. Negando el permiso de ubicación del navegador,
+  la entrega se registra igual y no figura ubicación. Como ADMINISTRADOR, registrar la entrega
+  desde Pedidos funciona sin código. En la base: `pedidos.intentosdecodigo` cuenta los errores.
 
 ### Cierre
 
