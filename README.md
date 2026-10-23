@@ -443,6 +443,19 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tari
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-kilo:add(value=100)"
 ```
 
+**Almacenamiento (ADR-059):** además se puede cobrar el lugar que ocupa la mercadería, por unidad y por día
+según el tamaño (pequeño, mediano o grande). **Por defecto no se cobra** (los tres precios valen 0): el equipo
+tiene que definirlos.
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.almacenamiento.pequeno:add(value=10)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.almacenamiento.mediano:add(value=30)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.almacenamiento.grande:add(value=90)"
+```
+
+Los límites de cada tamaño también se configuran (`rabbit.almacenamiento.<tamaño>.peso-kg`, `.lado-cm` y
+`.volumen-litros`; por defecto, los de `docs/PROPUESTA-COBRANZA-ALMACENAMIENTO.md`).
+
 ### 7b. Hora de corte de la hoja de ruta (leer antes de una demo)
 
 Por defecto, **07:00** (la definió el equipo: a las 7 se cierra la hoja

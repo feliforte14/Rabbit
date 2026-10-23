@@ -44,6 +44,9 @@ public class LiquidacionBean implements Serializable {
     @Inject
     private IConsultaComercios comercios;
 
+    @Inject
+    private com.rabbit.inventario.negocio.IOcupacionDeDeposito ocupacion;
+
     // "2026-09"
     private String periodo;
     private List<LiquidacionDTO> filas;
@@ -81,6 +84,25 @@ public class LiquidacionBean implements Serializable {
         } catch (EJBAccessException e) {
             Mensajes.error("Solo un administrador puede liquidar el mes.");
         }
+    }
+
+    // ADR-059: la foto de ocupación la saca sola un timer; esto es para sacar la de hoy a mano (solo administrador).
+    public void tomarFoto() {
+        try {
+            ocupacion.tomarFoto(java.time.LocalDate.now());
+            Mensajes.info("Foto de la ocupación de hoy guardada");
+            cargar();
+        } catch (EJBAccessException e) {
+            Mensajes.error("Solo un administrador puede sacar la foto.");
+        } catch (RuntimeException e) {
+            Mensajes.error("No se pudo sacar la foto. Intentá de nuevo.");
+        }
+    }
+
+    /** "22/10/2026" o null si todavía no hay ninguna. */
+    public String getUltimaFoto() {
+        java.time.LocalDate fecha = ocupacion.fechaDeLaUltimaFoto();
+        return fecha == null ? null : fecha.format(java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy"));
     }
 
     public void reintentar(Long idLiquidacion) {

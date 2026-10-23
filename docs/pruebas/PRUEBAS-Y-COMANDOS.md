@@ -531,6 +531,19 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   el peso anunciado). Volver a abrir la orden: no se puede registrar de nuevo. Otra orden con todo completo → "Recibida".
   Una orden con todo en 0 → "No llegó nada: cancelá la orden". Cancelar una anunciada (comercio o personal) →
   "Cancelada". Un comercio no ve ni cancela las órdenes de otro. Intentar eliminar un comercio con una orden anunciada → lo impide.
+- [ ] **S25. Almacenamiento (ADR-059).** *Medidas y categoría:* como OPERADOR, en Depósitos → stock de un depósito,
+  "Cargar stock" ahora pide alto, ancho y largo (cm): sin ellas, error. Cargar una yerba (1 kg, 25 × 10 × 7) →
+  "Pequeño"; un microondas (8 kg, 50 × 40 × 30) → "Grande" (por volumen); un producto de 60 kg → rechazado
+  ("supera el tamaño máximo"). El stock viejo muestra "Medidas sin cargar" y se cuenta como Mediano; "Editar" permite
+  cargarlas (las tres o ninguna). El comercio ve la columna Tamaño en Mi stock. *Foto diaria:* en Liquidaciones
+  (administrador) "Sacar la foto de hoy ahora" → "Última foto: dd/mm/aaaa"; en la tabla `ocupacion_diaria` aparecen
+  3 filas por comercio con stock (pequeño, mediano, grande). A las 23:55 se saca sola (log: "Foto de ocupación del …").
+  *Liquidación:* el mes en curso muestra la línea "Almacenamiento: $0 (N chicas · N medianas · N grandes, en u.-día)" y la
+  nota de productos sin medidas, en personal y en Mis liquidaciones. Con
+  `/system-property=rabbit.tarifa.almacenamiento.pequeno:add(value=10)` (y mediano y grande) el cargo pasa a ser
+  unidades-día × precio y el total lo incluye; la ayuda de la pantalla muestra los precios. Sin definir precios, la
+  pantalla dice que faltan. Liquidar un mes cerrado guarda las unidades-día y el cargo; cambiar los precios después no
+  modifica lo ya liquidado.
 
 ### Cierre
 

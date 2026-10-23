@@ -44,7 +44,8 @@ public class CobroDeLiquidaciones {
 
     /** @return el ID de la liquidación nueva, o null si ese comercio ya tenía la de ese mes */
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
-    public Long crear(Long idComercio, String periodo, int cantidadEnvios, BigDecimal kilos, TarifaMensual tarifa) {
+    public Long crear(Long idComercio, String periodo, int cantidadEnvios, BigDecimal kilos, TarifaMensual tarifa,
+                      long unidadesDiaPequeno, long unidadesDiaMediano, long unidadesDiaGrande) {
         if (repository.existe(idComercio, periodo)) {
             return null;
         }
@@ -56,7 +57,9 @@ public class CobroDeLiquidaciones {
         l.setAbono(tarifa.abonoMensual());
         l.setCargoEnvios(tarifa.cargoEnvios(cantidadEnvios));
         l.setCargoKilos(tarifa.cargoKilos(kilos));
-        l.setTotal(tarifa.total(cantidadEnvios, kilos));
+        l.setUnidadesDia(unidadesDiaPequeno, unidadesDiaMediano, unidadesDiaGrande);
+        l.setCargoAlmacenamiento(tarifa.cargoAlmacenamiento(unidadesDiaPequeno, unidadesDiaMediano, unidadesDiaGrande));
+        l.setTotal(tarifa.total(cantidadEnvios, kilos, unidadesDiaPequeno, unidadesDiaMediano, unidadesDiaGrande));
         l.setEstado(EstadoLiquidacion.PENDIENTE);
         l.setMotivo("Todavía no se pidió el cobro al banco");
         l.setFechaGeneracion(LocalDateTime.now());

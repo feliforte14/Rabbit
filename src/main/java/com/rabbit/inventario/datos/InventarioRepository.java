@@ -13,6 +13,7 @@ import com.rabbit.inventario.datos.model.Deposito;
 import com.rabbit.inventario.datos.model.EstadoOrdenDeRecepcion;
 import com.rabbit.inventario.datos.model.EstadoReserva;
 import com.rabbit.inventario.datos.model.ItemInventario;
+import com.rabbit.inventario.datos.model.OcupacionDiaria;
 import com.rabbit.inventario.datos.model.OrdenDeRecepcion;
 import com.rabbit.inventario.datos.model.ReservaStock;
 import com.rabbit.inventario.dto.FiltroHistorialDTO;
@@ -429,5 +430,49 @@ public class InventarioRepository {
                 .setParameter("d", idDeposito)
                 .setParameter("c", idComercio)
                 .getResultStream().findFirst().orElse(null);
+    }
+
+    // --- Ocupación diaria (ADR-059) ---
+
+    /** Todos los ítems, de todos los comercios y depósitos (para la foto de cada día). */
+    public List<ItemInventario> listarTodosLosItems() {
+        return em.createQuery("SELECT i FROM ItemInventario i WHERE i.idComercio IS NOT NULL", ItemInventario.class)
+                .getResultList();
+    }
+
+    /** Borra la foto de un día entero, para volver a sacarla. */
+    public void borrarOcupacionDelDia(java.time.LocalDate fecha) {
+        em.createQuery("DELETE FROM OcupacionDiaria o WHERE o.fecha = :f").setParameter("f", fecha).executeUpdate();
+    }
+
+    public void guardarOcupacion(OcupacionDiaria fila) {
+        em.persist(fila);
+    }
+
+    /** Las fotos de un rango de días (inclusive), de un comercio o, con null, de todos. */
+    public List<OcupacionDiaria> listarOcupacion(java.time.LocalDate desde, java.time.LocalDate hasta, Long idComercio) {
+        var consulta = em.createQuery("SELECT o FROM OcupacionDiaria o WHERE o.fecha >= :d AND o.fecha <= :h"
+                        + (idComercio != null ? " AND o.idComercio = :c" : ""), OcupacionDiaria.class)
+                .setParameter("d", desde).setParameter("h", hasta);
+        if (idComercio != null) {
+            consulta.setParameter("c", idComercio);
+        }
+        return consulta.getResultList();
+    }
+
+    /** La última foto anterior a un día: las filas de la fecha más reciente que haya antes de él. */
+    public List<OcupacionDiaria> listarUltimaOcupacionAntesDe(java.time.LocalDate dia, Long idComercio) {
+        var maxima = em.createQuery("SELECT MAX(o.fecha) FROM OcupacionDiaria o WHERE o.fecha < :d"
+                        + (idComercio != null ? " AND o.idComercio = :c" : ""), java.time.LocalDate.class)
+                .setParameter("d", dia);
+        if (idComercio != null) {
+            maxima.setParameter("c", idComercio);
+        }
+        java.time.LocalDate fecha = maxima.getSingleResult();
+        return fecha == null ? List.of() : listarOcupacion(fecha, fecha, idComercio);
+    }
+
+    public java.time.LocalDate fechaDeLaUltimaOcupacion() {
+        return em.createQuery("SELECT MAX(o.fecha) FROM OcupacionDiaria o", java.time.LocalDate.class).getSingleResult();
     }
 }

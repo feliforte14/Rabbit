@@ -44,6 +44,16 @@ public class Liquidacion {
     @Column(precision = 12, scale = 2)
     private BigDecimal cargoKilos;
 
+    // Almacenamiento (ADR-059): unidades-día de cada categoría de tamaño y lo que se cobró por ellas, con
+    // los importes del momento (una liquidación ya hecha no cambia si después cambia la tarifa). Null en las
+    // anteriores: se leen como 0.
+    private Long unidadesDiaPequeno;
+    private Long unidadesDiaMediano;
+    private Long unidadesDiaGrande;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal cargoAlmacenamiento;
+
     @Column(precision = 12, scale = 2)
     private BigDecimal total;
 
@@ -78,6 +88,16 @@ public class Liquidacion {
     public void setCargoEnvios(BigDecimal cargoEnvios) { this.cargoEnvios = cargoEnvios; }
     public BigDecimal getCargoKilos() { return cargoKilos; }
     public void setCargoKilos(BigDecimal cargoKilos) { this.cargoKilos = cargoKilos; }
+    public long getUnidadesDiaPequeno() { return unidadesDiaPequeno == null ? 0 : unidadesDiaPequeno; }
+    public long getUnidadesDiaMediano() { return unidadesDiaMediano == null ? 0 : unidadesDiaMediano; }
+    public long getUnidadesDiaGrande() { return unidadesDiaGrande == null ? 0 : unidadesDiaGrande; }
+    public void setUnidadesDia(long pequeno, long mediano, long grande) {
+        this.unidadesDiaPequeno = pequeno;
+        this.unidadesDiaMediano = mediano;
+        this.unidadesDiaGrande = grande;
+    }
+    public BigDecimal getCargoAlmacenamiento() { return cargoAlmacenamiento == null ? BigDecimal.ZERO : cargoAlmacenamiento; }
+    public void setCargoAlmacenamiento(BigDecimal cargoAlmacenamiento) { this.cargoAlmacenamiento = cargoAlmacenamiento; }
     public BigDecimal getTotal() { return total; }
     public void setTotal(BigDecimal total) { this.total = total; }
     public EstadoLiquidacion getEstado() { return estado; }
