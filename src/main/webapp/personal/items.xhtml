@@ -9,6 +9,7 @@
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
                  template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
@@ -73,6 +74,22 @@
                                  converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
                     <h:message for="pesoEd" styleClass="error-campo" />
                 </div>
+                <div class="campo campo-medidas">
+                    <h:outputLabel value="Medidas de una unidad (cm): alto, ancho y largo" for="altoEd" />
+                    <h:inputText id="altoEd" value="#{itemInventarioBean.edicion.altoCm}" pt:placeholder="Alto"
+                                 pt:inputmode="decimal" pt:aria-label="Alto en centímetros"
+                                 converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                    <h:inputText id="anchoEd" value="#{itemInventarioBean.edicion.anchoCm}" pt:placeholder="Ancho"
+                                 pt:inputmode="decimal" pt:aria-label="Ancho en centímetros"
+                                 converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                    <h:inputText id="largoEd" value="#{itemInventarioBean.edicion.largoCm}" pt:placeholder="Largo"
+                                 pt:inputmode="decimal" pt:aria-label="Largo en centímetros"
+                                 converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                    <h:message for="altoEd" styleClass="error-campo" />
+                    <h:message for="anchoEd" styleClass="error-campo" />
+                    <h:message for="largoEd" styleClass="error-campo" />
+                    <p class="ayuda">Con las medidas y el peso, Rabbit deduce el tamaño (pequeño, mediano o grande) y el costo de guardarlo. Las tres o ninguna: si queda vacío se conservan las anteriores.</p>
+                </div>
                 <div class="form-acciones">
                     <h:commandButton value="Guardar cambios" styleClass="btn btn-primary"
                                      action="#{itemInventarioBean.guardarEdicion}" />
@@ -114,6 +131,14 @@
                     <f:facet name="header">Peso por unidad</f:facet>
                     <h:outputText value="#{etiquetas.kilos(i.pesoKg)}" rendered="#{not empty i.pesoKg}" />
                     <h:outputText value="Sin cargar" styleClass="badge badge-naranja" rendered="#{empty i.pesoKg}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Tamaño</f:facet>
+                    #{i.categoriaEtiqueta}
+                    <h:panelGroup rendered="#{not i.sinMedidas}">
+                        <span class="dato-secundario">#{i.medidasTexto}</span>
+                    </h:panelGroup>
+                    <h:outputText value="Medidas sin cargar" styleClass="badge badge-naranja" rendered="#{i.sinMedidas}" />
                 </h:column>
                 <h:column styleClass="acciones">
                     <f:facet name="header">Acciones</f:facet>
@@ -171,6 +196,26 @@
                              converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
                 <h:message for="peso" styleClass="error-campo" />
                 <p class="ayuda">Con el peso, Rabbit calcula cuánto pesa cada pedido y no le asigna a un repartidor más de lo que soporta su vehículo.</p>
+            </div>
+
+            <div class="campo campo-medidas">
+                <h:outputLabel styleClass="obligatorio" value="Medidas de una unidad (cm): alto, ancho y largo" for="alto" />
+                <h:inputText id="alto" value="#{itemInventarioBean.nuevoItem.altoCm}" required="true" label="Alto"
+                             requiredMessage="Ingresá el alto" pt:placeholder="Alto" pt:inputmode="decimal"
+                             pt:aria-label="Alto en centímetros"
+                             converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                <h:inputText id="ancho" value="#{itemInventarioBean.nuevoItem.anchoCm}" required="true" label="Ancho"
+                             requiredMessage="Ingresá el ancho" pt:placeholder="Ancho" pt:inputmode="decimal"
+                             pt:aria-label="Ancho en centímetros"
+                             converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                <h:inputText id="largo" value="#{itemInventarioBean.nuevoItem.largoCm}" required="true" label="Largo"
+                             requiredMessage="Ingresá el largo" pt:placeholder="Largo" pt:inputmode="decimal"
+                             pt:aria-label="Largo en centímetros"
+                             converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                <h:message for="alto" styleClass="error-campo" />
+                <h:message for="ancho" styleClass="error-campo" />
+                <h:message for="largo" styleClass="error-campo" />
+                <p class="ayuda">Con las medidas y el peso, Rabbit deduce el tamaño del producto (pequeño, mediano o grande), que define cuánto se cobra por guardarlo.</p>
             </div>
 
             <div class="form-acciones">

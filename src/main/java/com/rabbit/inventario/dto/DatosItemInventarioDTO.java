@@ -14,6 +14,11 @@ public class DatosItemInventarioDTO {
     public String producto;
     public int cantidadDisponible;
     public Long idComercio;
+    // Medidas de una unidad en centímetros (ADR-059). Obligatorias en el alta; al editar, si las
+    // tres vienen vacías se conservan las que ya tenía.
+    public BigDecimal altoCm;
+    public BigDecimal anchoCm;
+    public BigDecimal largoCm;
     // Kilos por unidad (ADR-032).
     public BigDecimal pesoKg;
 
@@ -24,6 +29,12 @@ public class DatosItemInventarioDTO {
     public void setCantidadDisponible(int cantidadDisponible) { this.cantidadDisponible = cantidadDisponible; }
     public BigDecimal getPesoKg() { return pesoKg; }
     public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
+    public BigDecimal getAltoCm() { return altoCm; }
+    public void setAltoCm(BigDecimal altoCm) { this.altoCm = altoCm; }
+    public BigDecimal getAnchoCm() { return anchoCm; }
+    public void setAnchoCm(BigDecimal anchoCm) { this.anchoCm = anchoCm; }
+    public BigDecimal getLargoCm() { return largoCm; }
+    public void setLargoCm(BigDecimal largoCm) { this.largoCm = largoCm; }
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
 }

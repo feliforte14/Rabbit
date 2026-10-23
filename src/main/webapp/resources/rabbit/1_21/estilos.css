@@ -3296,3 +3296,17 @@ body.pagina-etiquetas {
 .fila-recepcion input[type="number"] {
     max-width: 10rem;
 }
+
+/* ---- Medidas de una unidad: alto, ancho y largo en una fila (ADR-059) ---- */
+.campo-medidas {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.5rem;
+    align-items: end;
+}
+
+.campo-medidas > label,
+.campo-medidas > .ayuda,
+.campo-medidas > .error-campo {
+    grid-column: 1 / -1;
+}

@@ -35,6 +35,16 @@ public class ItemInventario {
     @Column(precision = 8, scale = 3)
     private BigDecimal pesoKg;
 
+    // Medidas de UNA unidad, en centímetros (ADR-059): con ellas y el peso se calcula la categoría de
+    // tamaño (CategoriaDeTamano) que define cuánto se cobra por guardarla. Null en lo cargado antes de
+    // este cambio: se cuenta como mediano hasta que se carguen.
+    @Column(precision = 6, scale = 1)
+    private BigDecimal altoCm;
+    @Column(precision = 6, scale = 1)
+    private BigDecimal anchoCm;
+    @Column(precision = 6, scale = 1)
+    private BigDecimal largoCm;
+
     // Comercio dueño de esta mercadería consignada. El depósito es de
     // Rabbit (ver Deposito), pero lo que hay adentro sigue siendo del
     // comercio que lo consignó, y solo él puede reservarlo — ver
@@ -77,6 +87,19 @@ public class ItemInventario {
     private Deposito deposito;
 
     public ItemInventario() {}
+
+    public BigDecimal getAltoCm() { return altoCm; }
+    public BigDecimal getAnchoCm() { return anchoCm; }
+    public BigDecimal getLargoCm() { return largoCm; }
+    public void setMedidas(BigDecimal altoCm, BigDecimal anchoCm, BigDecimal largoCm) {
+        this.altoCm = altoCm;
+        this.anchoCm = anchoCm;
+        this.largoCm = largoCm;
+    }
+    /** La categoría de tamaño de este ítem (ADR-059). */
+    public CategoriaDeTamano getCategoria() {
+        return CategoriaDeTamano.de(pesoKg, altoCm, anchoCm, largoCm);
+    }
 
     // Getters/setters JavaBean estándar de la entidad.
     public Long getId() { return id; }

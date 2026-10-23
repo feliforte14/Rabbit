@@ -132,6 +132,9 @@ public class ItemInventarioBean implements Serializable {
         edicion.producto = itemEnEdicion.getProducto();
         edicion.cantidadDisponible = itemEnEdicion.getCantidadDisponible();
         edicion.pesoKg = itemEnEdicion.getPesoKg();
+        edicion.altoCm = itemEnEdicion.getAltoCm();
+        edicion.anchoCm = itemEnEdicion.getAnchoCm();
+        edicion.largoCm = itemEnEdicion.getLargoCm();
     }
 
     public void cancelarEdicion() {

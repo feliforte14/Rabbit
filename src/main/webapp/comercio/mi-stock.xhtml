@@ -69,6 +69,16 @@
                 <f:facet name="header">Peso por unidad</f:facet>
                 #{empty i.pesoKg ? '—' : etiquetas.kilos(i.pesoKg)}
             </h:column>
+            <h:column styleClass="col-p2" headerClass="col-p2">
+                <f:facet name="header">Tamaño</f:facet>
+                #{i.categoriaEtiqueta}
+                <h:panelGroup rendered="#{i.sinMedidas}">
+                    <span class="dato-secundario">Medidas sin cargar: se cuenta como mediano</span>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{not i.sinMedidas}">
+                    <span class="dato-secundario">#{i.medidasTexto}</span>
+                </h:panelGroup>
+            </h:column>
         </h:dataTable>
         <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty portalComercioBean.items}">
             No tenés stock consignado en los depósitos de Rabbit.
