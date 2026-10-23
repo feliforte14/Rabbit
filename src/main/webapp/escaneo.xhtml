@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Adonde apunta el QR de la etiqueta (ADR-056). Lo escanea cualquiera con la camara, asi que
+    esta pagina no muestra nada: solo reparte. Un repartidor con sesion va a su pantalla de escaneo
+    (donde marca el retiro); cualquier otra persona, al seguimiento publico del pedido.
+-->
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="jakarta.faces.html"
+      xmlns:f="jakarta.faces.core">
+<h:head>
+    <meta charset="UTF-8" />
+    <title>Rabbit</title>
+    <f:metadata>
+        <f:viewParam name="codigo" value="#{escaneoRedirectBean.codigo}" />
+        <f:viewAction action="#{escaneoRedirectBean.derivar}" />
+    </f:metadata>
+</h:head>
+<h:body>
+    <p>Abriendo el pedido…</p>
+</h:body>
+</html>

@@ -500,6 +500,16 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   "Entregado en lat, lng (±N m)" con enlace al mapa. Negando el permiso de ubicación del navegador,
   la entrega se registra igual y no figura ubicación. Como ADMINISTRADOR, registrar la entrega
   desde Pedidos funciona sin código. En la base: `pedidos.intentosdecodigo` cuenta los errores.
+- [ ] **S22. Etiquetas con QR (ADR-056).** En Pedidos (personal), un pedido PENDIENTE, CONFIRMADO
+  o EN_CAMINO tiene el botón "Etiquetas": abre una página con una etiqueta por bulto (por defecto
+  1; con `"bultos": 3` en el alta de la API, 3 etiquetas "BULTO 1 DE 3"…). Cada una trae QR,
+  código de seguimiento, dirección y quien recibe. "Cantidad de etiquetas" permite reimprimir
+  otra cantidad. En la vista previa de impresión sale una por hoja de 100×60 mm y sin la barra. Con
+  la cámara del celular, el QR abre el link `…/escaneo.xhtml?codigo=RB-…`: sin sesión, cae en el
+  seguimiento público de **ese** pedido. Con la sesión de un repartidor al que se le asignó el pedido
+  CONFIRMADO: pantalla "Etiqueta escaneada" con el botón "Marcar como retirado" (queda EN_CAMINO y
+  el cliente recibe el mail con su código). Con el pedido de otro repartidor: "Este pedido no está
+  entre tus entregas". Un pedido cancelado no imprime etiquetas.
 
 ### Cierre
 

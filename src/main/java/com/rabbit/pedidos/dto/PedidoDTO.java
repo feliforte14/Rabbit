@@ -40,6 +40,8 @@ public class PedidoDTO {
     // PedidoService al consultar el seguimiento.
     public TipoEntrega tipoEntrega;
     public Long idDepositoRetiro;
+    // Cajas o paquetes del pedido: etiquetas con QR a imprimir (ADR-056).
+    public int cantidadDeBultos = 1;
     public String depositoRetiro;
     public String fechaEntrega;
     public String entregadoPor;
@@ -86,6 +88,7 @@ public class PedidoDTO {
         dto.codigoSeguimiento = p.getCodigoSeguimiento();
         dto.tipoEntrega = p.getTipoEntrega();
         dto.idDepositoRetiro = p.getIdDepositoRetiro();
+        dto.cantidadDeBultos = p.getCantidadDeBultos();
         dto.fechaEntrega = p.getFechaEntrega() != null ? p.getFechaEntrega().format(FORMATO) : null;
         dto.entregadoPor = p.getEntregadoPor();
         dto.conRemito = p.isConRemito();
@@ -139,6 +142,7 @@ public class PedidoDTO {
     public String getCodigoSeguimiento() { return codigoSeguimiento; }
     public TipoEntrega getTipoEntrega() { return tipoEntrega; }
     public Long getIdDepositoRetiro() { return idDepositoRetiro; }
+    public int getCantidadDeBultos() { return cantidadDeBultos; }
     public String getDepositoRetiro() { return depositoRetiro; }
     /** ¿Se retira en un depósito en vez de recibirse en la puerta? (ADR-053) */
     public boolean isRetiroEnDeposito() { return tipoEntrega == TipoEntrega.RETIRO_EN_DEPOSITO; }

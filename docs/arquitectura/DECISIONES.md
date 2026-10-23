@@ -1653,3 +1653,31 @@ Propuesta o Reemplazada.
   ubicación se toma al abrir la ventana, no al enviar el formulario, y el navegador puede
   darla imprecisa: por eso se guarda con su precisión. No se compara contra la dirección de
   entrega (queda como mejora: marcar entregas lejos del domicilio).
+
+## ADR-056 — Etiquetas con QR por bulto
+
+- **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencias: Andreani y Onfleet
+  (escaneo al retirar y al entregar).
+- **Contexto:** el repartidor retiraba marcando el pedido a mano en la pantalla. Una etiqueta pegada
+  en cada caja permite identificar el bulto y marcar el retiro con la cámara.
+- **Decisión:**
+  - **Bultos:** nuevo dato opcional `bultos` en el alta del pedido (1 a 99; por defecto 1), guardado
+    como `cantidadDeBultos`. No es `Pedido.getBultos()`, que ya existía y cuenta *unidades* para el
+    límite de carga del repartidor: 40 remeras pueden ir en 2 cajas.
+  - **Etiquetas:** `personal/etiquetas.xhtml?pedido=N` (botón "Etiquetas" en Pedidos, solo personal)
+    arma una etiqueta de 100×60 mm por bulto con QR, "BULTO 2 DE 3", código de seguimiento, dirección,
+    CP y quien recibe. El personal puede pedir otra cantidad (`&bultos=`) sin cambiar el pedido, por
+    ejemplo para reimprimir una. Se imprime desde el navegador (`@page` de 100×60 mm, una por hoja).
+  - **QR:** se dibuja en el navegador con `qrcode.js` (MIT, dentro del proyecto: no se pide nada a
+    internet). Lleva `…/escaneo.xhtml?codigo=RB-…`, armado con `rabbit.url-publica` si está definida
+    (lo impreso tiene que servir desde la calle). Verificado: un lector (jsQR) decodifica el link exacto.
+  - **Escaneo:** `escaneo.xhtml` no muestra nada, solo reparte: un repartidor con sesión va a
+    `repartidor/escaneo.xhtml` y cualquier otra persona, al seguimiento público. Esa pantalla busca el
+    código **solo entre las entregas del propio repartidor**: si el pedido no es suyo, no se muestra
+    nada de él. Si está por retirar, un botón marca el retiro (el mismo `despacharPedido` de siempre,
+    con sus controles).
+- **Consecuencias:** el QR contiene el código de seguimiento, que ya viaja en los mails y que da acceso
+  solo a lo que muestra el seguimiento público. Escanear un bulto marca el retiro de todo el pedido,
+  no de ese bulto: no se controla que estén todos. Un repartidor sin sesión que escanea llega al
+  seguimiento público, no al login; tiene que tener abierta su sesión. El escaneo al entregar sigue
+  siendo por Mis entregas (código de 4 dígitos y foto, ADR-055).

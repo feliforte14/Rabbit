@@ -268,6 +268,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         String codigoPostal = retiro ? null : CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega);
         PedidoExterno externo = new PedidoExterno();
         externo.setTipoEntrega(tipoEntrega);
+        externo.setCantidadDeBultos(Bultos.validar(datos.bultos));
         externo.setIdComercio(datos.idComercio);
         externo.setOrigen(origen);
         externo.setImporte(datos.importe);
@@ -386,6 +387,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setEmailDestinatario(externo.getEmailDestinatario());
         pedido.setFechaPrometida(externo.getFechaPrometida());
         pedido.setTipoEntrega(externo.getTipoEntrega());
+        pedido.setCantidadDeBultos(externo.getCantidadDeBultos());
         pedido.setEstado(EstadoPedido.PENDIENTE);
         pedido.setFechaCreacion(ahora);
         pedido.setFechaActualizacion(ahora);
