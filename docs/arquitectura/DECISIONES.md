@@ -1582,3 +1582,38 @@ Propuesta o Reemplazada.
 - **Consecuencias:** un retiro que nadie busca queda CONFIRMADO hasta que se cancele (no
   hay vencimiento ni cobro por almacenamiento todavía). La prueba de entrega es solo el
   código, más débil que la foto del remito; el código lo conoce quien tenga el enlace.
+
+## ADR-054 — Mejoras de diseño visual
+
+- **Estado:** Aceptada (22/10/2026). Surge de una revisión del diseño de toda la aplicación.
+- **Contexto:** la revisión encontró contraste insuficiente (texto blanco sobre el naranja de la
+  marca: 2,8:1; el menú, 4,4:1), tablas muy anchas sin búsqueda, filtro ni orden, páginas
+  públicas con anchos y botones distintos, estados que dependían solo del color, y una
+  dependencia de Google Fonts en cada visita.
+- **Decisión** (todo es presentación; no cambia ninguna regla de negocio):
+  - **Contraste:** el texto de los botones naranjas pasa a azul marino (6,4:1; token
+    `--sobre-naranja`), los enlaces naranja usan `--acento-texto` (5,2:1) y el texto del menú
+    se aclara. Los temas claro y oscuro definen sus propios valores.
+  - **Páginas públicas:** login y seguimiento comparten ancho, botón y color de ayuda, y se
+    centran verticalmente.
+  - **Fuentes propias:** Inter y Barlow Condensed (latin y latin-ext) en `/fuentes`, sin pedir
+    nada a Google. Se sirven fuera de `resources` a propósito: la URL del CSS de JSF es
+    relativa a `/jakarta.faces.resource/`.
+  - **Tablas (`mejoras.js`):** encabezados con `scope`, nombre accesible, orden al hacer clic
+    (o con teclado), y en tablas de 6 filas o más, buscador, filtro por estado y vista
+    compacta que se recuerda. Todo se arma sobre lo que JSF ya dibuja y se repite tras un
+    AJAX; sin JavaScript la tabla se ve igual.
+  - **Accesibilidad:** los mensajes de error se anuncian (`role=alert`); los estados llevan un
+    símbolo además del color.
+  - **Ayuda plegable** ("Cómo funciona") en las pantallas con texto largo, y estados vacíos
+    con ícono.
+  - **Inicio del personal** (`personal/inicio.xhtml`, `InicioBean`): "Requiere atención"
+    (lista de espera, liquidaciones sin cobrar, devueltos, por confirmar, retiros) y un resumen
+    de la operación. Es la página a la que entra el personal.
+  - **Seguimiento:** tilde en los pasos hechos y, en un retiro listo, un recuadro con el
+    depósito y el código en grande.
+  - Recursos a `1_20`.
+- **Consecuencias:** quedó afuera dividir el CSS (2.900 líneas) en archivos y unificar los pares
+  de colores de estado en una sola familia de tokens: se hace mejor con las pantallas a la vista.
+  La búsqueda y el filtro actúan sobre la página cargada, no sobre la base: con miles de
+  pedidos habrá que paginar en el servidor.

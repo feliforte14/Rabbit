@@ -25,14 +25,17 @@
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
-        <p class="ayuda">
-            Cada mes, a cada comercio activo se le cobra el servicio de Rabbit:
-            <b><h:outputText value="#{liquidacionBean.tarifa.abono()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> de abono,
-            <b><h:outputText value="#{liquidacionBean.tarifa.porEnvio()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por pedido entregado y
-            <b><h:outputText value="#{liquidacionBean.tarifa.porKilo()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por kilo entregado.
-            Es aparte del cobro de cada pedido. El día 1 a las 6 se liquida solo el mes anterior y se cobra por el banco;
-            si el banco no responde, se reintenta todos los días.
-        </p>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Cada mes, a cada comercio activo se le cobra el servicio de Rabbit:
+                <b><h:outputText value="#{liquidacionBean.tarifa.abono()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> de abono,
+                <b><h:outputText value="#{liquidacionBean.tarifa.porEnvio()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por pedido entregado y
+                <b><h:outputText value="#{liquidacionBean.tarifa.porKilo()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por kilo entregado.
+                Es aparte del cobro de cada pedido. El día 1 a las 6 se liquida solo el mes anterior y se cobra por el banco;
+                si el banco no responde, se reintenta todos los días.
+            </p>
+        </details>
 
         <h:form id="formPeriodo" styleClass="formulario">
             <div class="campo">

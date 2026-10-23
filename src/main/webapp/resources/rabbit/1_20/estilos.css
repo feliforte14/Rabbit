@@ -17,6 +17,156 @@
  */
 
 /* ==================================================================
+   Fuentes propias (Inter y Barlow Condensed, latin y latin-ext): se sirven desde
+   /fuentes, sin pedirle nada a Google en cada visita (ADR-054).
+   La URL es relativa a /jakarta.faces.resource/, de ahí el ../
+   ================================================================== */
+/* latin-ext */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../fuentes/barlow-condensed-600i-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: italic;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../fuentes/barlow-condensed-600i-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../fuentes/barlow-condensed-700i-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: italic;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../fuentes/barlow-condensed-700i-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../fuentes/barlow-condensed-600-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../fuentes/barlow-condensed-600-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../fuentes/barlow-condensed-700-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../fuentes/barlow-condensed-700-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fuentes/inter-400-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(../fuentes/inter-400-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(../fuentes/inter-500-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(../fuentes/inter-500-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../fuentes/inter-600-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url(../fuentes/inter-600-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../fuentes/inter-700-latin-ext.woff2) format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(../fuentes/inter-700-latin.woff2) format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ==================================================================
    Tokens
    ================================================================== */
 :root {
@@ -52,10 +202,15 @@
        porque en el tema oscuro van en direcciones opuestas. */
     --titulo: var(--navy);
     --sobre-acento: #fff;
+    /* Texto sobre el naranja de la marca: el blanco da 2,8:1; el azul marino, 6,4:1 (ADR-054). */
+    --sobre-naranja: #0f1b3d;
+    --naranja-hover: #fb923c;
+    /* Naranja para texto y enlaces sobre fondo claro: 5,2:1 sobre blanco. */
+    --acento-texto: #c2410c;
     --sidebar-fondo: var(--navy);
     --sidebar-texto: #fff;
-    --sidebar-texto-suave: rgba(255, 255, 255, 0.55);
-    --sidebar-texto-tenue: rgba(255, 255, 255, 0.45);
+    --sidebar-texto-suave: rgba(255, 255, 255, 0.7);
+    --sidebar-texto-tenue: rgba(255, 255, 255, 0.62);
     --sidebar-hover: rgba(255, 255, 255, 0.08);
     --sidebar-hover-texto: rgba(255, 255, 255, 0.85);
     --sidebar-borde: rgba(255, 255, 255, 0.08);
@@ -152,7 +307,7 @@ h2 {
 .enlace-volver {
     display: inline-block;
     margin-bottom: 1.25rem;
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
     text-decoration: none;
     font-weight: 600;
     font-size: 0.9rem;
@@ -456,7 +611,7 @@ h2 {
 .stat-card .stat-nota {
     margin: 0.35rem 0 0;
     font-size: 0.78rem;
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
     font-weight: 600;
 }
 
@@ -506,7 +661,7 @@ h2 {
 }
 
 .tabla a {
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
     font-weight: 600;
     text-decoration: none;
 }
@@ -736,7 +891,7 @@ label.obligatorio::after {
     font-size: 1.15rem;
     font-weight: 700;
     letter-spacing: 0.01em;
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
 }
 
 .reserva-datos {
@@ -792,11 +947,11 @@ label.obligatorio::after {
 
 .btn-primary {
     background: var(--naranja);
-    color: var(--sobre-acento);
+    color: var(--sobre-naranja);
 }
 
 .btn-primary:hover {
-    background: var(--naranja-oscuro);
+    background: var(--naranja-hover);
 }
 
 .btn-secondary {
@@ -1085,7 +1240,7 @@ label.obligatorio::after {
     padding: 0.35rem 0.8rem;
     border-radius: var(--radio-chico);
     background: var(--naranja-suave);
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
     font-weight: 700;
 }
 
@@ -1144,12 +1299,12 @@ label.obligatorio::after {
 .pestanas a.activa {
     background: var(--naranja);
     border-color: var(--naranja);
-    color: var(--sobre-acento);
+    color: var(--sobre-naranja);
 }
 
 .pestanas a.activa:hover {
-    background: var(--naranja-oscuro);
-    border-color: var(--naranja-oscuro);
+    background: var(--naranja-hover);
+    border-color: var(--naranja-hover);
 }
 
 .pestanas a:focus-visible {
@@ -1261,7 +1416,7 @@ body.pagina-sola .tema-selector.tema-pie {
 }
 
 .ayuda a {
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
     font-weight: 600;
 }
 
@@ -1285,7 +1440,7 @@ a.btn {
 }
 
 .hoja-ruta-datos a {
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
     font-weight: 600;
 }
 
@@ -1315,7 +1470,7 @@ a.codigo {
 }
 
 a.codigo:hover {
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
 }
 
 /* ---- Botones dentro de tablas: mas chicos ------------------------ */
@@ -1742,7 +1897,7 @@ a.codigo:hover {
 }
 
 .linea-tiempo li.actual .linea-tiempo-texto {
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
 }
 
 /* Enlace al seguimiento debajo del login. */
@@ -1752,7 +1907,7 @@ a.codigo:hover {
 }
 
 .enlace-seguimiento a {
-    color: var(--naranja-oscuro);
+    color: var(--acento-texto);
     font-weight: 600;
 }
 
@@ -1825,6 +1980,9 @@ html[data-tema="claro"] {
        botones. */
     --naranja: #c2410c;
     --naranja-oscuro: #9a3412;
+    --sobre-naranja: #ffffff;
+    --naranja-hover: #9a3412;
+    --acento-texto: #9a3412;
 }
 
 html[data-tema="claro"] .sidebar {
@@ -1862,6 +2020,9 @@ html[data-tema="oscuro"] {
     --verde-suave: rgba(34, 197, 94, 0.14);
     --verde-borde: rgba(34, 197, 94, 0.4);
     --sobre-acento: #0b1220;
+    --sobre-naranja: #0b1220;
+    --naranja-hover: #fdba74;
+    --acento-texto: #fdba74;
     --anillo-foco: rgba(251, 146, 60, 0.3);
     --anillo-error: rgba(239, 68, 68, 0.3);
 
@@ -2743,4 +2904,246 @@ html[data-tema="oscuro"] .leaflet-tile-pane {
     border-left: 3px solid var(--borde);
     white-space: pre-line;   /* respeta los saltos de línea que escribió */
     color: var(--texto);
+}
+
+/* ==================================================================
+   Mejoras de diseño (ADR-054)
+   ================================================================== */
+
+/* ---- Páginas sin menú (login, seguimiento): mismo ancho, botón y
+        color de ayuda, y centradas en la pantalla ------------------ */
+body.pagina-sola .container {
+    margin-block: auto;
+    width: 100%;
+    max-width: 520px;
+}
+
+body.pagina-sola .formulario,
+body.pagina-sola .seguimiento-tarjeta {
+    max-width: 520px;
+    width: 100%;
+}
+
+body.pagina-sola .form-acciones {
+    justify-content: center;
+}
+
+body.pagina-sola .form-acciones .btn {
+    min-width: 9rem;
+}
+
+.enlace-seguimiento {
+    color: var(--texto-suave);
+}
+
+/* ---- Ayuda plegable: el texto largo no empuja el contenido ------- */
+details.ayuda-plegable {
+    margin: 0 0 1.25rem;
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+}
+
+details.ayuda-plegable > summary {
+    cursor: pointer;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--acento-texto);
+    list-style: none;
+}
+
+details.ayuda-plegable > summary::-webkit-details-marker {
+    display: none;
+}
+
+details.ayuda-plegable > summary::before {
+    content: "▸";
+    display: inline-block;
+    margin-right: 0.45rem;
+    transition: transform 0.15s;
+}
+
+details.ayuda-plegable[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+details.ayuda-plegable > .ayuda {
+    margin: 0;
+    padding: 0 0.9rem 0.8rem;
+}
+
+/* ---- Estados vacíos con ícono ------------------------------------ */
+.vacio::before {
+    content: "";
+    display: block;
+    width: 2.6rem;
+    height: 2.6rem;
+    margin: 0 auto 0.7rem;
+    background: var(--texto-suave);
+    opacity: 0.55;
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 8l-9-5-9 5v8l9 5 9-5V8z'/%3E%3Cpath d='M3 8l9 5 9-5M12 13v8'/%3E%3C/svg%3E") center / contain no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 8l-9-5-9 5v8l9 5 9-5V8z'/%3E%3Cpath d='M3 8l9 5 9-5M12 13v8'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+/* ---- Estados con forma además de color (daltonismo) --------------- */
+.badge-verde::before  { content: "✓ "; }
+.badge-rojo::before   { content: "✕ "; }
+.badge-naranja::before { content: "! "; }
+.badge-azul::before   { content: "i "; font-style: italic; }
+.badge-gris::before   { content: "– "; }
+
+/* ---- Barra de herramientas de tablas: buscar, filtrar, compactar -- */
+.tabla-herramientas {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    align-items: center;
+    margin: 0 0 0.9rem;
+}
+
+.tabla-herramientas input[type="search"],
+.tabla-herramientas select {
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    background: var(--superficie);
+    font: inherit;
+    font-size: 0.9rem;
+}
+
+.tabla-herramientas input[type="search"] {
+    flex: 1 1 14rem;
+    min-width: 0;
+}
+
+.tabla-herramientas .tabla-conteo {
+    margin-left: auto;
+    font-size: 0.82rem;
+    color: var(--texto-suave);
+}
+
+.tabla-herramientas button {
+    padding: 0.5rem 0.8rem;
+    border: 1px solid var(--borde);
+    border-radius: var(--radio-chico);
+    background: var(--superficie);
+    color: var(--texto-suave);
+    font: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.tabla-herramientas button[aria-pressed="true"] {
+    border-color: var(--naranja);
+    color: var(--acento-texto);
+}
+
+/* Orden por columna: el encabezado se vuelve un botón */
+.tabla th[aria-sort] {
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.tabla th[aria-sort="ascending"]::after  { content: " ▲"; font-size: 0.7em; }
+.tabla th[aria-sort="descending"]::after { content: " ▼"; font-size: 0.7em; }
+
+.tabla th[aria-sort]:focus-visible {
+    outline: 2px solid var(--naranja);
+    outline-offset: -2px;
+}
+
+/* Vista compacta: solo lo esencial de cada fila */
+.tabla.tabla-compacta .dato-secundario {
+    display: none;
+}
+
+.tabla tr.fila-oculta {
+    display: none;
+}
+
+/* ---- Inicio del personal: lo que pide atención -------------------- */
+.atencion-lista {
+    list-style: none;
+    margin: 0 0 2rem;
+    padding: 0;
+    display: grid;
+    gap: 0.6rem;
+}
+
+.atencion-lista li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.8rem 1rem;
+    background: var(--superficie);
+    border: 1px solid var(--borde);
+    border-left: 4px solid var(--naranja);
+    border-radius: var(--radio-chico);
+}
+
+.atencion-lista li.critico {
+    border-left-color: var(--rojo);
+}
+
+.atencion-lista li.ok {
+    border-left-color: var(--verde);
+    color: var(--texto-suave);
+}
+
+.atencion-lista a {
+    font-weight: 600;
+    color: var(--acento-texto);
+    white-space: nowrap;
+}
+
+/* ---- Seguimiento: línea de tiempo con tilde y retiro destacado ---- */
+.linea-tiempo li.hecho .linea-tiempo-punto {
+    display: grid;
+    place-items: center;
+}
+
+.linea-tiempo li.hecho .linea-tiempo-punto::after {
+    content: "✓";
+    font-size: 0.62rem;
+    line-height: 1;
+    font-weight: 700;
+    color: var(--sobre-naranja);
+}
+
+.retiro-aviso {
+    margin: 1rem 0;
+    padding: 1rem 1.1rem;
+    border: 2px dashed var(--naranja);
+    border-radius: var(--radio);
+    background: var(--naranja-suave);
+    text-align: center;
+}
+
+.retiro-aviso p {
+    margin: 0;
+}
+
+.retiro-aviso .retiro-lugar {
+    font-family: var(--fuente-titulo);
+    font-style: italic;
+    font-weight: 700;
+    font-size: 1.5rem;
+    color: var(--titulo);
+    margin-bottom: 0.7rem;
+}
+
+.retiro-aviso .retiro-codigo {
+    font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--titulo);
+}
+
+body.pagina-sola .ayuda,
+body.pagina-sola .enlace-seguimiento {
+    text-wrap: balance;
 }

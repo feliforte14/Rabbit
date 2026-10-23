@@ -22,12 +22,15 @@
                     layout="list" styleClass="mensajes"
                     errorClass="mensaje-error" infoClass="mensaje-info" />
 
-        <p class="ayuda">
-            Lo que Rabbit te cobra cada mes por el servicio: #{etiquetas.pesos(misLiquidacionesBean.tarifa.abono())} de abono,
-            #{etiquetas.pesos(misLiquidacionesBean.tarifa.porEnvio())} por pedido entregado y
-            #{etiquetas.pesos(misLiquidacionesBean.tarifa.porKilo())} por kilo.
-            Se liquida a principio de cada mes por el mes anterior. Es aparte del cobro de cada pedido.
-        </p>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Lo que Rabbit te cobra cada mes por el servicio: #{etiquetas.pesos(misLiquidacionesBean.tarifa.abono())} de abono,
+                #{etiquetas.pesos(misLiquidacionesBean.tarifa.porEnvio())} por pedido entregado y
+                #{etiquetas.pesos(misLiquidacionesBean.tarifa.porKilo())} por kilo.
+                Se liquida a principio de cada mes por el mes anterior. Es aparte del cobro de cada pedido.
+            </p>
+        </details>
 
         <h:panelGroup rendered="#{not empty misLiquidacionesBean.mesEnCurso}">
             <h2>#{misLiquidacionesBean.nombreMes(misLiquidacionesBean.mesEnCurso.periodo)} (en curso)</h2>

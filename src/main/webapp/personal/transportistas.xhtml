@@ -22,11 +22,14 @@
 
         <ui:include src="/WEB-INF/plantillas/pestanas-repartos.xhtml" />
 
-        <p class="ayuda">
-            Empresas de logística externas a Rabbit. Un pedido pendiente se les deriva desde&#160;
-            <h:link outcome="/personal/pedidos" value="Pedidos" />; cada una se integra con su propia
-            tecnología (API REST o SOAP legado) y Rabbit consulta el estado de sus envíos cada 15 s.
-        </p>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Empresas de logística externas a Rabbit. Un pedido pendiente se les deriva desde&#160;
+                <h:link outcome="/personal/pedidos" value="Pedidos" />; cada una se integra con su propia
+                tecnología (API REST o SOAP legado) y Rabbit consulta el estado de sus envíos cada 15 s.
+            </p>
+        </details>
 
         <h:messages globalOnly="true" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
