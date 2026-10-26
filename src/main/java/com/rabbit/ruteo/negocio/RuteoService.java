@@ -140,13 +140,33 @@ public class RuteoService implements IRuteo {
     @Override
     @RolesAllowed("REPARTIDOR")
     public RecorridoDTO recorridoRecomendado(List<HojaDeRutaDTO> entregasEnCurso) {
-        return OrdenDeRecorrido.recomendar(entregasEnCurso);
+        return OrdenDeRecorrido.recomendar(entregasEnCurso, depositoDeSalida());
     }
 
     @Override
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public RecorridoDTO recorridoDeRepartidor(Long idRepartidor) {
-        return OrdenDeRecorrido.recomendar(armar(pedidos.listarEntregasEnCursoDeRepartidor(idRepartidor)));
+        return OrdenDeRecorrido.recomendar(armar(pedidos.listarEntregasEnCursoDeRepartidor(idRepartidor)),
+                depositoDeSalida());
+    }
+
+    @Override
+    @jakarta.annotation.security.PermitAll
+    public ParadaDTO depositoDeSalida() {
+        ParadaDTO salida = DepositoRabbit.salida(stock.listarDepositos());
+        if (salida.direccion != null) {
+            String clave = Nominatim.clave(salida.direccion, salida.codigoPostal);
+            try {
+                double[] c = coordenadas.encontradas(List.of(clave)).get(clave);
+                if (c != null) {
+                    salida.latitud = c[0];
+                    salida.longitud = c[1];
+                }
+            } catch (RuntimeException e) {
+                LOG.warning("[Ruteo] No se pudo ubicar el depósito de salida: " + e.getMessage());
+            }
+        }
+        return salida;
     }
 
     @Override

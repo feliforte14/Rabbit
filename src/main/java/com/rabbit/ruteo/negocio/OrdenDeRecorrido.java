@@ -4,8 +4,10 @@ package com.rabbit.ruteo.negocio;
  * Arma la hoja de ruta recomendada del repartidor (ADR-038, ADR-046) con
  * todas sus entregas en curso:
  *
- *   1. Primero los retiros que le faltan (pedidos CONFIRMADO), sin repetir
- *      lugares: así ninguna entrega queda antes de su retiro.
+ *   0. Si todavía tiene pedidos por retirar, la salida del depósito Rabbit
+ *      (DepositoRabbit): el camión sale de ahí a buscarlos.
+ *   1. Los retiros que le faltan (pedidos CONFIRMADO), desde la salida y sin
+ *      repetir lugares: así ninguna entrega queda antes de su retiro.
  *   2. Después las entregas, desde el punto de partida: el último retiro o,
  *      si ya retiró todo, el depósito o punto de picking de donde salieron.
  *      Siempre va a la entrega más cercana a la anterior. Varios pedidos a
@@ -41,7 +43,7 @@ final class OrdenDeRecorrido {
     private OrdenDeRecorrido() {
     }
 
-    static RecorridoDTO recomendar(List<HojaDeRutaDTO> entregas) {
+    static RecorridoDTO recomendar(List<HojaDeRutaDTO> entregas, ParadaDTO salida) {
         Map<String, ParadaDTO> retiros = new LinkedHashMap<>();
         Map<String, ParadaDTO> destinos = new LinkedHashMap<>();
         ParadaDTO origen = null;
@@ -66,7 +68,13 @@ final class OrdenDeRecorrido {
                     hoja.codigoPostalEntrega, hoja.latitudEntrega, hoja.longitudEntrega, hoja.idPedido);
         }
 
-        List<ParadaDTO> ordenRetiros = encadenar(new ArrayList<>(retiros.values()), (ParadaDTO) null);
+        // El día arranca en el depósito Rabbit, mientras quede algo por retirar.
+        boolean porRetirar = entregas.stream().anyMatch(h -> "CONFIRMADO".equals(h.estado));
+        if (porRetirar && salida != null) {
+            recorrido.paradas.add(salida);
+        }
+        List<ParadaDTO> ordenRetiros = encadenar(new ArrayList<>(retiros.values()),
+                porRetirar && salida != null ? salida : (ParadaDTO) null);
         recorrido.paradas.addAll(ordenRetiros);
 
         // Punto de partida de las entregas: el último retiro, o de donde
@@ -74,7 +82,9 @@ final class OrdenDeRecorrido {
         ParadaDTO partida = !ordenRetiros.isEmpty() ? ordenRetiros.get(ordenRetiros.size() - 1) : origen;
         recorrido.paradas.addAll(encadenar(new ArrayList<>(destinos.values()), partida));
 
-        recorrido.tramos = EnlaceMapa.tramos(recorrido.paradas.stream().map(p -> p.direccion).toList());
+        // La salida sin dirección no va a Maps: el primer tramo arranca donde esté el repartidor.
+        recorrido.tramos = EnlaceMapa.tramos(recorrido.paradas.stream()
+                .map(p -> p.direccion).filter(d -> d != null && !d.isBlank()).toList());
         return recorrido;
     }
 

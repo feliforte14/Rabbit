@@ -68,7 +68,8 @@ final class EstimacionDeLlegada {
      *         (por ejemplo, no tiene dirección de entrega)
      */
     static LlegadaEstimadaDTO estimar(RecorridoDTO recorrido, Long idPedido, LocalDateTime ahora, int minutosPorParada) {
-        List<ParadaDTO> paradas = recorrido.paradas;
+        // La salida del depósito no es una parada que cuente para el cliente.
+        List<ParadaDTO> paradas = recorrido.paradas.stream().filter(p -> p.tipo != ParadaDTO.Tipo.SALIDA).toList();
         int indice = -1;
         for (int i = 0; i < paradas.size(); i++) {
             ParadaDTO parada = paradas.get(i);

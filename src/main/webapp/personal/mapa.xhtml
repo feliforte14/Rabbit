@@ -45,6 +45,25 @@
             </h:commandButton>
             <h:panelGroup id="datos">
                 <span id="datosMapa" data-puntos="#{mapaBean.puntosJson}" data-resumen="#{mapaBean.resumen}"></span>
+                <h2>Avance de la hoja de ruta</h2>
+                <h:panelGroup rendered="#{empty mapaBean.avances}">
+                    <p class="ayuda">Sin repartidores en el mapa por ahora.</p>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{not empty mapaBean.avances}">
+                    <table class="tabla">
+                        <thead><tr><th>Repartidor</th><th>Próxima parada</th><th>Paradas pendientes</th><th>Última ubicación</th></tr></thead>
+                        <tbody>
+                            <ui:repeat value="#{mapaBean.avances}" var="a">
+                                <tr>
+                                    <td><h:outputText value="#{a.nombre}" /></td>
+                                    <td><h:outputText value="#{a.proximaParada}" /></td>
+                                    <td>#{a.paradasPendientes}</td>
+                                    <td>#{a.hora}</td>
+                                </tr>
+                            </ui:repeat>
+                        </tbody>
+                    </table>
+                </h:panelGroup>
             </h:panelGroup>
         </h:form>
 

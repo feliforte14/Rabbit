@@ -30,13 +30,26 @@ class OrdenDeRecorridoTest {
         return h;
     }
 
+    private static RecorridoDTO sinSalida(List<HojaDeRutaDTO> entregas) {
+        return OrdenDeRecorrido.recomendar(entregas, null);
+    }
+
+    private static ParadaDTO salida() {
+        ParadaDTO s = new ParadaDTO();
+        s.tipo = ParadaDTO.Tipo.SALIDA;
+        s.descripcion = "Depósito Rabbit";
+        s.direccion = "Depósito Rabbit";
+        s.codigoPostal = "1200";
+        return s;
+    }
+
     private static List<String> direcciones(RecorridoDTO r) {
         return r.paradas.stream().map(ParadaDTO::getDireccion).collect(Collectors.toList());
     }
 
     @Test
     void primeroLosRetirosPendientesSinRepetirYDespuesLasEntregas() {
-        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+        RecorridoDTO r = sinSalida(List.of(
                 hoja(1, "CONFIRMADO", "Entrega A", "1400", "Deposito|1100"),
                 hoja(2, "CONFIRMADO", "Entrega B", "1200", "Deposito|1100"),
                 hoja(3, "EN_CAMINO", "Entrega C", "1150", "Otro deposito|1300")));
@@ -61,7 +74,7 @@ class OrdenDeRecorridoTest {
 
     @Test
     void variosPedidosALaMismaDireccionSonUnaSolaParada() {
-        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+        RecorridoDTO r = sinSalida(List.of(
                 hoja(1, "EN_CAMINO", "Av. Corrientes 1234", "1043"),
                 hoja(2, "EN_CAMINO", "av. corrientes  1234", "1043")));
         assertEquals(1, r.paradas.size());
@@ -70,7 +83,7 @@ class OrdenDeRecorridoTest {
 
     @Test
     void losPedidosSinDireccionQuedanAfueraYSeAvisan() {
-        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+        RecorridoDTO r = sinSalida(List.of(
                 hoja(1, "EN_CAMINO", null, null),
                 hoja(2, "EN_CAMINO", "Entrega", "1200")));
         assertEquals(List.of("Entrega"), direcciones(r));
@@ -114,7 +127,7 @@ class OrdenDeRecorridoTest {
         // por distancia, primero Boedo (1225, ~1,5 km), después Balvanera
         // (1096, cerca de Boedo) y al final Paternal.
         String deposito = "Deposito|1414";
-        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+        RecorridoDTO r = sinSalida(List.of(
                 ubicada(1, "CONFIRMADO", "Paternal", "1416", -34.5985, -58.4690, deposito, -34.6037, -58.4200),
                 ubicada(2, "CONFIRMADO", "Boedo", "1225", -34.6187, -58.4182, deposito, -34.6037, -58.4200),
                 ubicada(3, "CONFIRMADO", "Balvanera", "1096", -34.6095, -58.4020, deposito, -34.6037, -58.4200)));
@@ -124,7 +137,7 @@ class OrdenDeRecorridoTest {
     @Test
     void siYaRetiroTodoArrancaDesdeDondeLoRetiro() {
         // En camino: no hay retiro en la lista, pero el punto de partida es el depósito.
-        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+        RecorridoDTO r = sinSalida(List.of(
                 ubicada(1, "EN_CAMINO", "Lejos", "1000", -34.5500, -58.4500, "Deposito|1414", -34.6037, -58.4200),
                 ubicada(2, "EN_CAMINO", "Cerca", "1499", -34.6050, -58.4210, "Deposito|1414", -34.6037, -58.4200)));
         assertEquals(List.of("Cerca", "Lejos"), direcciones(r));
@@ -133,7 +146,7 @@ class OrdenDeRecorridoTest {
     @Test
     void lasQueNoSeUbicaronVanDespuesPorCodigoPostal() {
         HojaDeRutaDTO sinUbicar = hoja(3, "EN_CAMINO", "Sin ubicar", "1100", "Deposito|1414");
-        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+        RecorridoDTO r = sinSalida(List.of(
                 sinUbicar,
                 ubicada(1, "EN_CAMINO", "Ubicada", "1425", -34.59, -58.41, "Deposito|1414", -34.6037, -58.4200)));
         assertEquals(List.of("Ubicada", "Sin ubicar"), direcciones(r));
@@ -154,10 +167,44 @@ class OrdenDeRecorridoTest {
     @Test
     void sinParadasNoHayLinks() {
         assertTrue(EnlaceMapa.tramos(List.of()).isEmpty());
-        assertTrue(OrdenDeRecorrido.recomendar(List.of()).isVacio());
+        assertTrue(sinSalida(List.of()).isVacio());
     }
 
     private static List<String> paradas(int cantidad) {
         return IntStream.rangeClosed(1, cantidad).mapToObj(i -> "Parada " + i).collect(Collectors.toList());
+    }
+
+    @Test
+    void elDiaArrancaEnElDepositoRabbitYLuegoLosRetirosYLasEntregas() {
+        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+                hoja(1, "CONFIRMADO", "Entrega A", "1400", "Picking ajeno|1100")), salida());
+        assertEquals(List.of("Depósito Rabbit", "Picking ajeno", "Entrega A"), direcciones(r));
+        assertTrue(r.paradas.get(0).isSalida());
+        assertEquals(1, r.tramos.size());
+    }
+
+    @Test
+    void sinNadaPorRetirarNoHayParadaDeSalida() {
+        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+                hoja(1, "EN_CAMINO", "Entrega A", "1400", "Picking ajeno|1100")), salida());
+        assertEquals(List.of("Entrega A"), direcciones(r));
+    }
+
+    @Test
+    void lasEntregasArrancanDesdeElUltimoRetiro() {
+        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+                hoja(1, "CONFIRMADO", "Lejos", "1490", "Picking|1010"),
+                hoja(2, "CONFIRMADO", "Cerca", "1020", "Picking|1010")), salida());
+        assertEquals(List.of("Depósito Rabbit", "Picking", "Cerca", "Lejos"), direcciones(r));
+    }
+
+    @Test
+    void laSalidaSinDireccionNoEntraEnLosLinksDeMaps() {
+        ParadaDTO s = salida();
+        s.direccion = null;
+        RecorridoDTO r = OrdenDeRecorrido.recomendar(List.of(
+                hoja(1, "CONFIRMADO", "Entrega A", "1400", "Picking|1100")), s);
+        assertEquals(3, r.paradas.size());
+        assertFalse(r.tramos.get(0).contains("Dep"));
     }
 }

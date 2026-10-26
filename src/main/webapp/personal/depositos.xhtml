@@ -22,6 +22,10 @@
 
     <ui:define name="contenido">
         <h1>Depósitos y stock</h1>
+        <p class="ayuda">
+            La base de salida es el depósito de donde arrancan los camiones cada día: la hoja de ruta de
+            los repartidores empieza ahí. Si ninguno está marcado, la hoja no indica dirección de salida.
+        </p>
 
         <h:messages globalOnly="true" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
@@ -54,6 +58,13 @@
                 <h:column styleClass="col-p2" headerClass="col-p2">
                     <f:facet name="header">Código Postal</f:facet>
                     #{d.codigoPostal}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Base de salida</f:facet>
+                    <h:outputText value="Base de salida" styleClass="etiqueta" rendered="#{d.baseDeSalida}" />
+                    <h:commandButton value="Usar como base de salida" styleClass="btn btn-secondary"
+                                     rendered="#{not d.baseDeSalida}"
+                                     action="#{depositoBean.marcarBaseDeSalida(d.id)}" />
                 </h:column>
                 <h:column>
                     <f:facet name="header">Stock</f:facet>

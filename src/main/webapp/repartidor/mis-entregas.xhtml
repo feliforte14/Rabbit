@@ -43,23 +43,38 @@
             </p>
         </h:form>
 
-        <!-- Hoja de ruta recomendada: todas las paradas, retiros primero y
-             entregas por cercania de codigo postal (OrdenDeRecorrido). -->
+        <!-- Hoja de ruta recomendada: todas las paradas, salida del deposito Rabbit,
+             retiros y entregas (OrdenDeRecorrido). -->
         <h:panelGroup rendered="#{not misEntregasBean.recorrido.vacio}">
             <h2>Hoja de ruta recomendada</h2>
             <div class="hoja-ruta recorrido">
                 <p class="ayuda">
-                    Primero los retiros y después las entregas, ordenadas por cercanía de código postal.
+                    El día arranca en el depósito de Rabbit, de ahí se pasa a buscar lo que esté en un punto
+                    de picking y después se hacen las entregas, desde el último retiro y ordenadas por cercanía.
                     Es una sugerencia: si conocés un camino mejor, usalo.
                 </p>
-                <ol class="paradas">
-                    <ui:repeat value="#{misEntregasBean.recorrido.paradas}" var="parada" varStatus="st">
-                        <li class="parada#{parada.retiro ? '' : ' parada-entrega'}">
-                            <span class="parada-tipo">#{st.index + 1} · #{parada.retiro ? 'Retirá en' : 'Entregá en'} · Pedido #{parada.pedidosTexto}</span>
-                            <span class="parada-lugar">#{parada.descripcion}</span>
-                        </li>
-                    </ui:repeat>
-                </ol>
+                <h:panelGroup rendered="#{not empty misEntregasBean.recorrido.salidaYRetiros}">
+                    <h3 class="recorrido-seccion">Salida del depósito y retiros</h3>
+                    <ol class="paradas">
+                        <ui:repeat value="#{misEntregasBean.recorrido.salidaYRetiros}" var="parada" varStatus="st">
+                            <li class="parada">
+                                <span class="parada-tipo">#{st.index + 1} · #{parada.salida ? 'Salí desde' : 'Retirá en'}#{parada.salida ? '' : ' · Pedido '}#{parada.salida ? '' : parada.pedidosTexto}</span>
+                                <span class="parada-lugar">#{parada.descripcion}</span>
+                            </li>
+                        </ui:repeat>
+                    </ol>
+                </h:panelGroup>
+                <h:panelGroup rendered="#{not empty misEntregasBean.recorrido.entregas}">
+                    <h3 class="recorrido-seccion">Entregas</h3>
+                    <ol class="paradas">
+                        <ui:repeat value="#{misEntregasBean.recorrido.entregas}" var="parada" varStatus="st">
+                            <li class="parada parada-entrega">
+                                <span class="parada-tipo">#{st.index + 1 + misEntregasBean.recorrido.salidaYRetiros.size()} · Entregá en · Pedido #{parada.pedidosTexto}</span>
+                                <span class="parada-lugar">#{parada.descripcion}</span>
+                            </li>
+                        </ui:repeat>
+                    </ol>
+                </h:panelGroup>
                 <div class="form-acciones recorrido-tramos">
                     <ui:repeat value="#{misEntregasBean.recorrido.tramos}" var="tramo" varStatus="st">
                         <a href="#{tramo}" target="_blank" rel="noopener noreferrer" class="btn btn-secondary">
