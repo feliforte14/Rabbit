@@ -539,10 +539,10 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
   (administrador) "Sacar la foto de hoy ahora" → "Última foto: dd/mm/aaaa"; en la tabla `ocupacion_diaria` aparecen
   3 filas por comercio con stock (pequeño, mediano, grande). A las 23:55 se saca sola (log: "Foto de ocupación del …").
   *Liquidación:* el mes en curso muestra la línea "Almacenamiento: $0 (N chicas · N medianas · N grandes, en u.-día)" y la
-  nota de productos sin medidas, en personal y en Mis liquidaciones. Con
-  `/system-property=rabbit.tarifa.almacenamiento.pequeno:add(value=10)` (y mediano y grande) el cargo pasa a ser
-  unidades-día × precio y el total lo incluye; la ayuda de la pantalla muestra los precios. Sin definir precios, la
-  pantalla dice que faltan. Liquidar un mes cerrado guarda las unidades-día y el cargo; cambiar los precios después no
+  nota de productos sin medidas, en personal y en Mis liquidaciones. El cargo es
+  unidades-día × precio (por defecto $10, $30 y $90) y el total lo incluye; la ayuda de la pantalla muestra los precios.
+  Con `/system-property=rabbit.tarifa.almacenamiento.pequeno:add(value=0)` (y mediano y grande) no se cobra y la
+  pantalla lo dice. Liquidar un mes cerrado guarda las unidades-día y el cargo; cambiar los precios después no
   modifica lo ya liquidado.
 
 ### Cierre

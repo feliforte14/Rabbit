@@ -39,7 +39,7 @@
                 por unidad y por día guardada (pequeña, mediana o grande).
             </h:panelGroup>
             <h:panelGroup rendered="#{not liquidacionBean.tarifa.cobraAlmacenamiento()}">
-                El almacenamiento todavía no se cobra: faltan definir los precios (<code>rabbit.tarifa.almacenamiento.*</code>).
+                El almacenamiento no se cobra: los tres precios están en cero (<code>rabbit.tarifa.almacenamiento.*</code>).
             </h:panelGroup>
             Es aparte del cobro de cada pedido. El día 1 a las 6 se liquida solo el mes anterior y se cobra por el banco;
                 si el banco no responde, se reintenta todos los días.

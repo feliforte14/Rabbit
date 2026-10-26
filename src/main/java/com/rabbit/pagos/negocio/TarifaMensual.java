@@ -12,7 +12,7 @@ package com.rabbit.pagos.negocio;
  *   rabbit.tarifa.por-envio (por defecto 1200)
  *   rabbit.tarifa.por-kilo  (por defecto 80)
  *   rabbit.tarifa.almacenamiento.pequeno | .mediano | .grande
- *       (por defecto 0: el almacenamiento NO se cobra hasta que el equipo defina los precios)
+ *       (por defecto 10, 30 y 90 por unidad y por día; con los tres en 0 el almacenamiento no se cobra)
  * Un valor inválido se ignora y se usa el de por defecto.
  */
 
@@ -37,9 +37,9 @@ public record TarifaMensual(BigDecimal abono, BigDecimal porEnvio, BigDecimal po
                 leer("rabbit.tarifa.abono", "15000"),
                 leer("rabbit.tarifa.por-envio", "1200"),
                 leer("rabbit.tarifa.por-kilo", "80"),
-                leer("rabbit.tarifa.almacenamiento.pequeno", "0"),
-                leer("rabbit.tarifa.almacenamiento.mediano", "0"),
-                leer("rabbit.tarifa.almacenamiento.grande", "0"));
+                leer("rabbit.tarifa.almacenamiento.pequeno", "10"),
+                leer("rabbit.tarifa.almacenamiento.mediano", "30"),
+                leer("rabbit.tarifa.almacenamiento.grande", "90"));
     }
 
     private static BigDecimal leer(String propiedad, String porDefecto) {

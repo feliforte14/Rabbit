@@ -17,7 +17,7 @@ import java.util.logging.Logger;
  *   rabbit.almacenamiento.{pequeno|mediano|grande}.lado-cm       (el lado mayor)
  *   rabbit.almacenamiento.{pequeno|mediano|grande}.volumen-litros (alto x ancho x largo)
  *
- * Por defecto (los de la propuesta, a confirmar por el equipo): pequeño hasta 1 kg, 25 cm y 3 L; mediano hasta
+ * Por defecto: pequeño hasta 1 kg, 25 cm y 3 L; mediano hasta
  * 10 kg, 60 cm y 50 L; grande hasta 50 kg, 150 cm y 500 L. Más que eso es FUERA_DE_RANGO: no se acepta en consignación.
  *
  * Un producto sin medidas se cuenta como MEDIANO (o la que le toque por peso, si es mayor), así no sale

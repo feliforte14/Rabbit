@@ -444,8 +444,8 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tari
 ```
 
 **Almacenamiento (ADR-059):** además se puede cobrar el lugar que ocupa la mercadería, por unidad y por día
-según el tamaño (pequeño, mediano o grande). **Por defecto no se cobra** (los tres precios valen 0): el equipo
-tiene que definirlos.
+según el tamaño (pequeño, mediano o grande). **Por defecto se cobra $10, $30 y $90** por unidad y por día
+(pequeño, mediano y grande); con los tres precios en 0 no se cobra.
 
 ```bash
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.almacenamiento.pequeno:add(value=10)"
@@ -454,7 +454,8 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tari
 ```
 
 Los límites de cada tamaño también se configuran (`rabbit.almacenamiento.<tamaño>.peso-kg`, `.lado-cm` y
-`.volumen-litros`; por defecto, los de `docs/PROPUESTA-COBRANZA-ALMACENAMIENTO.md`).
+`.volumen-litros`). Por defecto: pequeño hasta 1 kg, 25 cm y 3 L; mediano hasta 10 kg, 60 cm y 50 L; grande hasta
+50 kg, 150 cm y 500 L. Más que eso no se acepta en consignación.
 
 ### 7b. Hora de corte de la hoja de ruta (leer antes de una demo)
 

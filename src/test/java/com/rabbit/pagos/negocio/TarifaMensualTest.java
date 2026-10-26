@@ -85,10 +85,22 @@ class TarifaMensualTest {
     }
 
     @Test
-    void laTarifaVigenteNoCobraAlmacenamientoSiNadieLoConfiguro() {
+    void laTarifaVigenteCobraAlmacenamientoConLosPreciosPorDefecto() {
         System.getProperties().stringPropertyNames().stream()
                 .filter(p -> p.startsWith("rabbit.tarifa.almacenamiento.")).forEach(System::clearProperty);
-        assertFalse(TarifaMensual.vigente().cobraAlmacenamiento(), "por defecto es 0 hasta que el equipo defina los precios");
+        TarifaMensual t = TarifaMensual.vigente();
+        assertTrue(t.cobraAlmacenamiento());
+        assertEquals(new BigDecimal("10"), t.almacenamientoPequeno());
+        assertEquals(new BigDecimal("30"), t.almacenamientoMediano());
+        assertEquals(new BigDecimal("90"), t.almacenamientoGrande());
+    }
+
+    @Test
+    void conLosTresPreciosEnCeroElAlmacenamientoNoSeCobra() {
+        System.setProperty("rabbit.tarifa.almacenamiento.pequeno", "0");
+        System.setProperty("rabbit.tarifa.almacenamiento.mediano", "0");
+        System.setProperty("rabbit.tarifa.almacenamiento.grande", "0");
+        assertFalse(TarifaMensual.vigente().cobraAlmacenamiento());
     }
 
     @Test
