@@ -91,6 +91,7 @@ import com.rabbit.pedidos.datos.model.LineaPedidoExterno;
 import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
+import com.rabbit.pedidos.datos.model.TransicionInvalidaException;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
 import com.rabbit.pedidos.datos.model.RemitoEntrega;
 import com.rabbit.pedidos.datos.model.FotoIntentoEntrega;
@@ -133,6 +134,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
@@ -552,7 +554,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             } catch (com.rabbit.pagos.negocio.ValidacionException e) {
                 throw new ValidacionException(e.getMessage());
             }
-            cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
+            aplicar(pedido, Pedido::confirmar);
             return null; // sin repartidor: devuelve null como la lista de espera, pero no queda esperando
         }
 
@@ -588,7 +590,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             throw new ValidacionException(e.getMessage());
         }
         pedido.setIdRepartidor(idRepartidor);
-        cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
+        aplicar(pedido, Pedido::confirmar);
         return idRepartidor;
     }
 
@@ -704,7 +706,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             if (motivo != MotivoEntregaFallida.PAQUETE_DANADO) {
                 devolverStock(pedido);
             }
-            cambiarEstado(pedido, EstadoPedido.DEVUELTO_AL_COMERCIO);
+            aplicar(pedido, Pedido::devolverAlComercio);
             pedido.setFechaUltimaFalla(pedido.getFechaActualizacion());
             LOG.info("[Pedidos] Pedido " + idPedido + " devuelto al comercio después de " + desenlace.intentos()
                     + " visita(s): " + descripcion);
@@ -715,7 +717,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setIdRepartidorExcluido(idRepartidor);
         pedido.setEnEsperaDesde(LocalDateTime.now());
         pedido.setMotivoEspera(aTexto300("Devuelto al depósito: " + descripcion));
-        cambiarEstado(pedido, EstadoPedido.PENDIENTE);
+        aplicar(pedido, Pedido::devolverADeposito);
         // Entidad bloqueada y administrada: se guarda al confirmar la transacción.
         pedido.setFechaUltimaFalla(pedido.getFechaActualizacion());
         LOG.info("[Pedidos] Pedido " + idPedido + " devuelto al depósito por el repartidor " + idRepartidor
@@ -833,7 +835,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             throw new ValidacionException(e.getMessage());
         }
         pedido.setIdRepartidor(null);
-        cambiarEstado(pedido, EstadoPedido.CONFIRMADO);
+        aplicar(pedido, Pedido::confirmar);
         return codigoSeguimiento;
     }
 
@@ -895,7 +897,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         if (pedido.getIdRepartidor() != null && pedido.getCodigoEntrega() == null) {
             pedido.setCodigoEntrega(CodigoDeEntrega.generar());
         }
-        cambiarEstado(pedido, EstadoPedido.EN_CAMINO);
+        aplicar(pedido, Pedido::despachar);
     }
 
     @Override
@@ -1008,7 +1010,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     private void marcarEntregado(Pedido pedido, String usuario, LocalDateTime cuando) {
         pedido.setFechaEntrega(cuando);
         pedido.setEntregadoPor(usuario);
-        cambiarEstado(pedido, EstadoPedido.ENTREGADO);
+        aplicar(pedido, Pedido::entregar);
         repartidores.liberarRepartidor(pedido.getIdRepartidor(), pedido.getId());
     }
 
@@ -1131,7 +1133,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         }
 
         devolverStock(pedido);
-        cambiarEstado(pedido, EstadoPedido.CANCELADO);
+        aplicar(pedido, Pedido::cancelar);
     }
 
     // El stock de cada línea con reserva se descontó al sincronizarla
@@ -1459,32 +1461,31 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         return externo;
     }
 
-    // Único lugar donde cambia el estado de un pedido ya existente: valida
-    // la transición contra la máquina de estados (EstadoPedido.puedePasarA)
-    // y avisa el cambio.
-    private void cambiarEstado(Pedido pedido, EstadoPedido destino) {
-        validarTransicion(pedido, destino);
-        if (destino != EstadoPedido.PENDIENTE) {
-            // Confirmado, derivado o cancelado: ya no espera repartidor.
-            pedido.setEnEsperaDesde(null);
-            pedido.setMotivoEspera(null);
-            pedido.setIdZonaEspera(null);
+    // Único lugar donde cambia el estado de un pedido ya existente (State): el pedido delega la
+    // operación en su estado, que decide si se permite, a cuál lleva y qué pasa al entrar (por ejemplo, que
+    // deja de esperar repartidor). Acá solo se traduce el rechazo, se guarda y se avisa el cambio.
+    private void aplicar(Pedido pedido, Consumer<Pedido> operacion) {
+        try {
+            operacion.accept(pedido);
+        } catch (TransicionInvalidaException e) {
+            throw sinTransicion(pedido, e.getEstado(), e.getDestino());
         }
-        if (destino == EstadoPedido.EN_CAMINO) {
-            // Desde acá ya no se puede cancelar (ReglaDeCancelacion).
-            pedido.setSalioAReparto(true);
-        }
-        pedido.setEstado(destino);
         pedido.setFechaActualizacion(LocalDateTime.now());
         repository.actualizarPedido(pedido);
         avisarCambioDeEstado(pedido);
     }
 
+    // Para operaciones largas (cobrar, pedir un envío): se consulta antes de empezar, así no se hace nada
+    // si el estado no lo permite.
     private void validarTransicion(Pedido pedido, EstadoPedido destino) {
         if (!pedido.getEstado().puedePasarA(destino, pedido.getTipoEntrega())) {
-            throw new ValidacionException("El pedido " + pedido.getId() + " está " + pedido.getEstado()
-                    + " y no puede pasar a " + destino);
+            throw sinTransicion(pedido, pedido.getEstado(), destino);
         }
+    }
+
+    private static TransicionNoPermitidaException sinTransicion(Pedido pedido, EstadoPedido estado, EstadoPedido destino) {
+        return new TransicionNoPermitidaException("El pedido " + pedido.getId() + " está " + estado
+                + " y no puede pasar a " + destino);
     }
 
     // Todavía no hay observer: lo va a escuchar el publicador del tópico

@@ -1,7 +1,5 @@
 package com.rabbit.pedidos.datos.model;
 
-import java.util.Set;
-
 /**
  * Estados por los que pasa un pedido dentro de Rabbit.
  *
@@ -58,30 +56,21 @@ public enum EstadoPedido {
     DEVUELTO_AL_COMERCIO;
 
     /**
-     * Máquina de estados del pedido en un solo lugar: PedidoService la
-     * consulta antes de cada cambio en vez de repetir los if en cada
-     * operación. También protege contra eventos o clics que llegan fuera
-     * de orden (por ejemplo, "entregar" sobre un pedido que se canceló).
-     */
-    /**
-     * La misma máquina, sabiendo cómo lo recibe quien compró (ADR-053): un pedido de RETIRO_EN_DEPOSITO
-     * no sale a reparto, así que no pasa por EN_CAMINO y se entrega directo desde CONFIRMADO ("listo
-     * para retirar") cuando quien lo retira muestra el código. Para DOMICILIO es idéntica a la de arriba.
+     * Si desde este estado se puede pasar a {@code destino}. La decisión la toma el objeto estado
+     * ({@link EstadoDelPedido}): acá solo se delega, así hay una única fuente de verdad.
+     * PedidoService consulta esto antes de empezar una operación larga (cobrar, pedir un envío) y también
+     * protege contra eventos o clics que llegan fuera de orden (por ejemplo, "entregar" sobre un pedido
+     * que se canceló).
+     *
+     * Sabiendo cómo lo recibe quien compró (ADR-053): un pedido de RETIRO_EN_DEPOSITO no sale a reparto, así
+     * que no pasa por EN_CAMINO y se entrega directo desde CONFIRMADO ("listo para retirar") cuando quien lo
+     * retira muestra el código. Para DOMICILIO es la máquina de arriba.
      */
     public boolean puedePasarA(EstadoPedido destino, TipoEntrega tipo) {
-        if (tipo == TipoEntrega.RETIRO_EN_DEPOSITO && this == CONFIRMADO) {
-            return Set.of(ENTREGADO, CANCELADO).contains(destino);
-        }
-        return puedePasarA(destino);
+        return EstadoDelPedido.de(this).puedePasarA(destino, tipo);
     }
 
     public boolean puedePasarA(EstadoPedido destino) {
-        return switch (this) {
-            case PENDIENTE -> Set.of(CONFIRMADO, CANCELADO).contains(destino);
-            // DEVUELTO_AL_COMERCIO desde CONFIRMADO: paquete dañado al retirarlo (ADR-045).
-            case CONFIRMADO -> Set.of(EN_CAMINO, CANCELADO, PENDIENTE, DEVUELTO_AL_COMERCIO).contains(destino);
-            case EN_CAMINO -> Set.of(ENTREGADO, PENDIENTE, DEVUELTO_AL_COMERCIO).contains(destino);
-            case ENTREGADO, CANCELADO, DEVUELTO_AL_COMERCIO -> false;
-        };
+        return puedePasarA(destino, TipoEntrega.DOMICILIO);
     }
 }
