@@ -1,7 +1,0 @@
-flowchart LR
-    CE["PedidoService.aplicar<br/>fire EstadoPedidoCambiado"] -->|"AFTER_SUCCESS"| PUB["PublicadorEstadosPedido<br/>NOT_SUPPORTED"]
-    PUB -->|"TextMessage {idPedido, idComercio, estado, fechaCambio}<br/>propiedades estado, idPedido"| T{{"topico.pedidos.estado<br/>java:/jms/topic/EstadosPedido"}}
-    T -->|"selector estado IN ('ENTREGADO','DEVUELTO_AL_COMERCIO')<br/>durable rabbit-pagos / pagos-estados-pedido"| PAG["SuscriptorPagosEstadoPedido<br/>acredita o anula el cobro"]
-    T -->|"durable rabbit-notificaciones / notificaciones-estados-pedido"| NOT["SuscriptorNotificacionesEstadoPedido<br/>aviso al comercio (portal y mail)"]
-    T -->|"durable rabbit-destinatarios / destinatarios-estados-pedido"| DES["SuscriptorDestinatarioEstadoPedido<br/>mail a quien recibe"]
-    CE -->|"AFTER_SUCCESS (CDI, no JMS)"| AE["AvisosDeEspera<br/>timer 500 ms → AsignadorDeEspera"]
