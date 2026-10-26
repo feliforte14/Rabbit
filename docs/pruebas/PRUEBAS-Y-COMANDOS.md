@@ -97,7 +97,7 @@ avisar al equipo antes de la C o la B.
 ### Colección de Postman
 
 [`Rabbit.postman_collection.json`](Rabbit.postman_collection.json):
-**Import → File** en Postman. Trae 46 requests ordenados por prueba (los
+**Import → File** en Postman. Trae 64 requests ordenados por prueba (los
 códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 
 | Carpeta | Qué prueba |
@@ -108,10 +108,16 @@ códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 | 4 · Pedidos de apoyo | Pedidos para seguir probando en la web (banco que rechaza, ruteo por zona) |
 | 5 · Transportistas | REST y SOAP legado, llamados directo |
 | 6 · Banco legado | Llamado directo: autorizar, rechazo y reversa |
+| 7 · Contrato, idempotencia y seguridad cruzada | 18 pasos automatizados con tests, en orden: misma clave con otro cuerpo (422), sin clave (400), BOLA entre dos ERPs (404 al consultar y al cancelar), rol COMERCIO (403), sincronización y seguimiento con el código en minúsculas, cancelación idempotente, problem+json, HSTS y pantallas protegidas sin sesión (302) |
 
 Antes de usarla: en **Settings**, apagar *SSL certificate verification*
 (el certificado es autofirmado), y en las variables de la colección
-completar `erpClave` y `adminClave` en *Current value* (no se exportan).
+completar `erpClave` y `adminClave` en *Current value* (no se exportan). La carpeta 7 pide además
+`erp2Usuario`/`erp2Clave` (una cuenta ERP de **otro** comercio) y `comercioUsuario`/`comercioClave` (un usuario con
+rol COMERCIO), y que `idPuntoPicking` sea un punto activo del comercio de la cuenta ERP. Se corre entera con el
+*Collection Runner* (o `newman run docs/pruebas/Rabbit.postman_collection.json --insecure --folder "7 · Contrato, idempotencia y seguridad cruzada"`
+con `--env-var` para las claves). Crea un pedido de prueba y lo cancela al final. Para las carpetas 1 y 4,
+`idItem` tiene que ser un ítem con stock del comercio de la cuenta ERP; si no, el pedido queda `Descartado`.
 Los pasos que piden hacer algo en la web lo dicen en la descripción
 (ANTES / DESPUÉS).
 
