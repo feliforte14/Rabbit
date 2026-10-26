@@ -163,8 +163,9 @@ qué alternativa se descartó.
 - **Descartado:** un enum con métodos por constante (mezcla persistencia con
   reglas y los estados consultan el pedido, por el retiro en depósito) y una
   librería de máquinas de estados (una dependencia para seis estados).
-- **Pendiente:** los mensajes de "por qué no se puede cancelar"
-  (`ReglaDeCancelacion` y `porQueNoSeCancela`) siguen como `switch` sobre el
+- **Mensajes de cancelación:** el motivo por el que un estado no se puede
+  cancelar también lo da el estado (`motivoParaNoCancelar` y
+  `queLeQuedaAlErp`); `ReglaDeCancelacion` le pregunta y ya no decide según el
   estado.
 
 ## Transacción compensatoria
