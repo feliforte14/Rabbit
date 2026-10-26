@@ -22,7 +22,7 @@ sequenceDiagram
         PS->>TS: cancelarEnvioDePedido
         TS->>TS: fire EnvioCancelado
         PS->>INV: registrarDevolucion (por línea)
-        PS->>PS: cambiarEstado(CANCELADO)
+        PS->>PS: aplicar(Pedido::cancelar) → CANCELADO
         Note over PS: commit
         RB->>BL: reversarPago (AFTER_SUCCESS de CobroAnulado)
         CE->>TR: cancelarEnvio (AFTER_SUCCESS de EnvioCancelado)

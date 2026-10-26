@@ -405,7 +405,7 @@ Todas usan `@Id @GeneratedValue(AUTO)`. Las referencias entre componentes se gua
 
 ### 4.1 Estados y matriz exacta
 
-`EstadoPedido.puedePasarA` (`pedidos/datos/model/EstadoPedido.java:66-74`):
+`EstadoPedido.puedePasarA` (`pedidos/datos/model/EstadoPedido.java:69-75`), que desde el 26/10/2026 consulta al estado (`EstadoDelPedido` y una clase por estado, en la misma carpeta). La matriz es la misma de antes del refactor (`EstadoDelPedidoTest` la compara celda por celda):
 
 | Desde \ Hacia | PENDIENTE | CONFIRMADO | EN_CAMINO | ENTREGADO | CANCELADO | DEVUELTO_AL_COMERCIO |
 |---|---|---|---|---|---|---|
@@ -414,7 +414,7 @@ Todas usan `@Id @GeneratedValue(AUTO)`. Las referencias entre componentes se gua
 | EN_CAMINO | ✔ | ✘ | ✘ | ✔ | ✘ | ✔ |
 | ENTREGADO / CANCELADO / DEVUELTO_AL_COMERCIO | ✘ | ✘ | ✘ | ✘ | ✘ | ✘ |
 
-- El único punto que cambia el estado es `PedidoService.cambiarEstado` (`:1255-1271`). Valida, limpia la espera si el destino no es PENDIENTE, marca `salioAReparto` al pasar a EN_CAMINO y dispara `EstadoPedidoCambiado`.
+- El único punto que cambia el estado es `PedidoService.aplicar` (`:1467`). Delega la operación en el `Pedido` (`confirmar()`, `despachar()`, …), que la resuelve su estado; la acción de entrada del estado limpia la espera si el destino no es PENDIENTE y marca `salioAReparto` al pasar a EN_CAMINO. Después guarda y dispara `EstadoPedidoCambiado`. Una operación no permitida lanza `TransicionNoPermitidaException` (409 en la API del ERP al cancelar).
 - **Nombre exacto del estado de tránsito del pedido: `EN_CAMINO`** ("En camino" en pantalla). `EN_TRANSITO` es un estado del **envío** del transportista (`EstadoEnvio`), no del pedido.
 - **Lista de espera:** no es un estado. Es un pedido `PENDIENTE` con `enEsperaDesde != null` (`Pedido.java:219`).
 
@@ -924,7 +924,7 @@ Si la reversa o la cancelación no se confirma, queda en log `SEVERE` para hacer
 | Singleton (EJB) | `CircuitBreakerBanco`, timers (`BarredorDeReservas`, `SincronizadorDePedidos`, `AsignadorDeEspera`, `Geocodificador`, `SeguimientoDeEnvios`, `LiquidacionMensual`), `AlineadorDeRestriccionesEnum`, `LimpiezaDeCredenciales` |
 | Provider / fábrica de instancias | `Instance<IReservaStock>` en `PedidoService.java:155,404,1035` |
 | Observer | Eventos CDI (sección 7.2) y tópico JMS |
-| Máquina de estados (State simplificado) | `EstadoPedido.puedePasarA` + `PedidoService.cambiarEstado` |
+| State | `EstadoDelPedido` + una clase por estado; `Pedido` delega; `PedidoService.aplicar` (`EstadoPedido.puedePasarA` consulta al estado) |
 | Transacción compensatoria | `ReversasBancarias`, `CancelacionesDeEnvios` |
 | Circuit Breaker | `CircuitBreakerBanco` |
 | Exception Mapper / Problem Details | `ProblemaMapper`, `Problema` |
@@ -945,7 +945,7 @@ Fuente: `docs/arquitectura/DECISIONES.md` (1.448 líneas). Los 49 existen y no h
 | 002 | El envío del mensaje no comparte transacción | AFTER_SUCCESS + NOT_SUPPORTED en el publicador | Aceptada | ok |
 | 003 | Timeout del padrón fiscal | — | Reemplazada (sin SOAP de padrón) | ok |
 | 004 | Importe y medio de pago vienen del ERP | Se copian al `Pedido` | Aceptada | ok |
-| 005 | Máquina de estados en el enum | `puedePasarA` + un único `cambiarEstado` | Aceptada | ok |
+| 005 | Máquina de estados en el enum | `puedePasarA` + un único `cambiarEstado`; desde el 26/10 es State (`EstadoDelPedido`) con `aplicar` | Aceptada | actualizada 26/10 |
 | 006 | Tópico para cambios de estado | `topico.pedidos.estado`, orden por `fechaCambio` | Aceptada | ok |
 | 007 | Endpoint REST reemplaza al formulario del ERP | `POST /api/v1/pedidos-externos` | Aceptada | ok |
 | 008 | CHECK de enums alineados al desplegar | `AlineadorDeRestriccionesEnum` | Aceptada | ok |

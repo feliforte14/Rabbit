@@ -263,9 +263,11 @@ el repartidor sale siempre de la identidad autenticada
 
 ## Máquina de estados del pedido
 
-Implementada en `EstadoPedido.puedePasarA(...)`. Todo cambio de estado de
-un pedido existente pasa por `PedidoService.cambiarEstado(...)`, que
-valida la transición y dispara el evento `EstadoPedidoCambiado`.
+Implementada con el patrón State: `EstadoDelPedido` y una clase por estado
+(en `pedidos/datos/model`); `EstadoPedido.puedePasarA(...)` consulta al
+estado. Todo cambio de estado de un pedido existente pasa por
+`PedidoService.aplicar(...)`, que delega la operación en el pedido (la
+resuelve su estado), guarda y dispara el evento `EstadoPedidoCambiado`.
 
 ```mermaid
 stateDiagram-v2
