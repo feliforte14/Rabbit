@@ -19,6 +19,7 @@ package com.rabbit.pedidos.negocio;
  * contenedor: se prueba con tests unitarios.
  */
 
+import com.rabbit.pedidos.datos.model.EstadoDelPedido;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
 
 public final class ReglaDeCancelacion {
@@ -32,26 +33,7 @@ public final class ReglaDeCancelacion {
      * @param salioAReparto si alguna vez estuvo EN_CAMINO
      */
     public static String motivoParaNoCancelar(Long idPedido, EstadoPedido estado, boolean salioAReparto) {
-        String pedido = "El pedido " + idPedido;
-        switch (estado) {
-            case EN_CAMINO:
-                return pedido + " ya salió a reparto y no se puede cancelar: solo queda entregarlo. Si no se"
-                        + " puede entregar, vuelve al comercio, que gestiona la devolución con su cliente.";
-            case PENDIENTE:
-            case CONFIRMADO:
-                return salioAReparto
-                        ? pedido + " ya salió a reparto (volvió al depósito para otra visita) y no se puede"
-                                + " cancelar. Si tampoco se puede entregar, vuelve al comercio, que gestiona la"
-                                + " devolución con su cliente."
-                        : null;
-            case ENTREGADO:
-                return pedido + " ya fue entregado: no se puede cancelar.";
-            case DEVUELTO_AL_COMERCIO:
-                return pedido + " ya volvió al comercio: no se puede cancelar.";
-            case CANCELADO:
-                return pedido + " ya está cancelado.";
-            default:
-                return null;
-        }
+        // El motivo lo da cada estado (State): acá solo se pregunta, no se decide según el estado.
+        return EstadoDelPedido.de(estado).motivoParaNoCancelar(idPedido, salioAReparto);
     }
 }

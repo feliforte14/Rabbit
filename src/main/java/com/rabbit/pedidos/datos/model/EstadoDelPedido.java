@@ -60,6 +60,27 @@ public sealed interface EstadoDelPedido
     }
 
     /**
+     * Por qué no se puede cancelar un pedido en este estado, o null si se puede. Por defecto vale para los
+     * estados cancelables (PENDIENTE y CONFIRMADO): solo se rechaza si el pedido ya salió a reparto alguna vez
+     * y volvió al depósito para otra visita. Los demás estados la sobrescriben con su propio motivo.
+     * Lo usan el personal (web) y el ERP (API).
+     *
+     * @param salioAReparto si alguna vez estuvo EN_CAMINO
+     */
+    default String motivoParaNoCancelar(Long idPedido, boolean salioAReparto) {
+        return salioAReparto
+                ? "El pedido " + idPedido + " ya salió a reparto (volvió al depósito para otra visita) y no se puede"
+                        + " cancelar. Si tampoco se puede entregar, vuelve al comercio, que gestiona la"
+                        + " devolución con su cliente."
+                : null;
+    }
+
+    /** Qué le queda al ERP cuando ya no puede cancelar: solo un CONFIRMADO lo puede cancelar todavía el personal. */
+    default String queLeQuedaAlErp() {
+        return "Si todavía no salió, lo puede cancelar el personal de Rabbit.";
+    }
+
+    /**
      * Si desde este estado se puede llegar a {@code destino}, según cómo lo recibe quien compró
      * (ADR-053: el retiro en depósito no sale a reparto). Prueba cada operación sobre un pedido de prueba:
      * son puras, así que no hay efectos.
