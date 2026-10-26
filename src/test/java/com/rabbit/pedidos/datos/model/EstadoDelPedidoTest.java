@@ -243,4 +243,38 @@ class EstadoDelPedidoTest {
     void unPedidoSinEstadoNoSeSuponeNada() {
         assertThrows(IllegalStateException.class, () -> new Pedido().confirmar());
     }
+
+    // ---- mensajes de "por qué no se puede cancelar": los textos de antes, ahora en cada estado
+
+    private static final String VOLVER_AL_COMERCIO = "vuelve al comercio, que gestiona la devolución con su cliente.";
+
+    @Test
+    void losMotivosParaNoCancelarSonLosDeAntes() {
+        assertEquals("El pedido 7 ya salió a reparto y no se puede cancelar: solo queda entregarlo. Si no se puede entregar, "
+                + VOLVER_AL_COMERCIO, EstadoDelPedido.de(EN_CAMINO).motivoParaNoCancelar(7L, true));
+        assertEquals("El pedido 7 ya fue entregado: no se puede cancelar.", EstadoDelPedido.de(ENTREGADO).motivoParaNoCancelar(7L, true));
+        assertEquals("El pedido 7 ya volvió al comercio: no se puede cancelar.",
+                EstadoDelPedido.de(DEVUELTO_AL_COMERCIO).motivoParaNoCancelar(7L, true));
+        assertEquals("El pedido 7 ya está cancelado.", EstadoDelPedido.de(CANCELADO).motivoParaNoCancelar(7L, false));
+    }
+
+    @Test
+    void pendienteYConfirmadoSoloSeRechazanSiYaSalieronAReparto() {
+        for (EstadoPedido e : new EstadoPedido[] {PENDIENTE, CONFIRMADO}) {
+            assertNull(EstadoDelPedido.de(e).motivoParaNoCancelar(7L, false), e + " antes de salir se cancela");
+            assertEquals("El pedido 7 ya salió a reparto (volvió al depósito para otra visita) y no se puede cancelar. "
+                    + "Si tampoco se puede entregar, " + VOLVER_AL_COMERCIO,
+                    EstadoDelPedido.de(e).motivoParaNoCancelar(7L, true), e + " después de salir ya no");
+        }
+    }
+
+    @Test
+    void loQueLeQuedaAlErpDependeDeHastaDondeLlego() {
+        assertEquals("Ya salió a reparto: no se puede cancelar.", EstadoDelPedido.de(EN_CAMINO).queLeQuedaAlErp());
+        assertEquals("Ya fue entregado: no se puede cancelar.", EstadoDelPedido.de(ENTREGADO).queLeQuedaAlErp());
+        assertEquals("No se pudo entregar y ya volvió al comercio.", EstadoDelPedido.de(DEVUELTO_AL_COMERCIO).queLeQuedaAlErp());
+        for (EstadoPedido e : new EstadoPedido[] {PENDIENTE, CONFIRMADO, CANCELADO}) {
+            assertEquals("Si todavía no salió, lo puede cancelar el personal de Rabbit.", EstadoDelPedido.de(e).queLeQuedaAlErp(), e.toString());
+        }
+    }
 }

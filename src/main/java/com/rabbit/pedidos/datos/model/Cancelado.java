@@ -12,4 +12,9 @@ public final class Cancelado implements EstadoDelPedido {
     public EstadoPedido codigo() {
         return EstadoPedido.CANCELADO;
     }
+
+    @Override
+    public String motivoParaNoCancelar(Long idPedido, boolean salioAReparto) {
+        return "El pedido " + idPedido + " ya está cancelado.";
+    }
 }

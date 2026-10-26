@@ -31,6 +31,17 @@ public final class EnCamino implements EstadoDelPedido {
         return DevueltoAlComercio.INSTANCIA;
     }
 
+    @Override
+    public String motivoParaNoCancelar(Long idPedido, boolean salioAReparto) {
+        return "El pedido " + idPedido + " ya salió a reparto y no se puede cancelar: solo queda entregarlo. Si no se"
+                + " puede entregar, vuelve al comercio, que gestiona la devolución con su cliente.";
+    }
+
+    @Override
+    public String queLeQuedaAlErp() {
+        return "Ya salió a reparto: no se puede cancelar.";
+    }
+
     /** Desde acá ya no se puede cancelar (ReglaDeCancelacion): queda marcado que salió a reparto. */
     @Override
     public void alEntrar(Pedido pedido) {

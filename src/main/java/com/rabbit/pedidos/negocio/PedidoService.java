@@ -1085,22 +1085,11 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             } else if (pedido.getEstado() != EstadoPedido.CANCELADO) {
                 throw new CancelacionNoPermitidaException("El pedido " + pedido.getId() + " está "
                         + pedido.getEstado() + ": el comercio ya no puede cancelarlo por la API. "
-                        + porQueNoSeCancela(pedido.getEstado()));
+                        + pedido.estadoActual().queLeQuedaAlErp());
             }
         }
         // Ya cancelado o descartado: no queda nada que cancelar.
         return aDTOConPedido(externo);
-    }
-
-    // Qué le queda al ERP según hasta dónde llegó el pedido: solo un
-    // CONFIRMADO lo puede cancelar todavía el personal.
-    private static String porQueNoSeCancela(EstadoPedido estado) {
-        switch (estado) {
-            case EN_CAMINO: return "Ya salió a reparto: no se puede cancelar.";
-            case ENTREGADO: return "Ya fue entregado: no se puede cancelar.";
-            case DEVUELTO_AL_COMERCIO: return "No se pudo entregar y ya volvió al comercio.";
-            default: return "Si todavía no salió, lo puede cancelar el personal de Rabbit.";
-        }
     }
 
     // Cancela un pedido devolviendo lo que tenía comprometido. Lo usan el

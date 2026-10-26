@@ -12,4 +12,14 @@ public final class DevueltoAlComercio implements EstadoDelPedido {
     public EstadoPedido codigo() {
         return EstadoPedido.DEVUELTO_AL_COMERCIO;
     }
+
+    @Override
+    public String motivoParaNoCancelar(Long idPedido, boolean salioAReparto) {
+        return "El pedido " + idPedido + " ya volvió al comercio: no se puede cancelar.";
+    }
+
+    @Override
+    public String queLeQuedaAlErp() {
+        return "No se pudo entregar y ya volvió al comercio.";
+    }
 }

@@ -12,4 +12,14 @@ public final class Entregado implements EstadoDelPedido {
     public EstadoPedido codigo() {
         return EstadoPedido.ENTREGADO;
     }
+
+    @Override
+    public String motivoParaNoCancelar(Long idPedido, boolean salioAReparto) {
+        return "El pedido " + idPedido + " ya fue entregado: no se puede cancelar.";
+    }
+
+    @Override
+    public String queLeQuedaAlErp() {
+        return "Ya fue entregado: no se puede cancelar.";
+    }
 }
