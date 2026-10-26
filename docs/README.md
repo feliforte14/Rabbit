@@ -37,59 +37,47 @@ docs/
 
 ## ¿Qué documento me sirve?
 
-| Si querés… | Leé |
-|---|---|
-| Entender cómo está armado Rabbit | [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md) |
-| Saber por qué se decidió algo y qué alternativas se descartaron | [DECISIONES.md](arquitectura/DECISIONES.md) (con índice de ADR) |
-| Ver qué patrones de diseño se aplican y dónde | [PATRONES.md](arquitectura/PATRONES.md) (con catálogo) |
-| Entender las transacciones y qué pasa si algo falla a la mitad | [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md) |
-| Saber con qué tecnología se integra cada sistema y por qué | [MENSAJERIA-JUSTIFICACION.md](integraciones/MENSAJERIA-JUSTIFICACION.md) |
-| Consultar el contrato de la API REST | [openapi.yaml](integraciones/openapi.yaml) |
-| Ver los roles, permisos y protecciones | [SEGURIDAD.md](seguridad/SEGURIDAD.md) |
-| Levantar el sistema y probarlo | [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md) y [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md) |
-| Ubicar cómo se cumple cada requisito de la consigna | [CHECKLIST.md](consigna/CHECKLIST.md) |
+- Entender cómo está armado Rabbit → leé [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md).
+- Saber por qué se decidió algo y qué alternativas se descartaron → leé [DECISIONES.md](arquitectura/DECISIONES.md) (con índice de ADR).
+- Ver qué patrones de diseño se aplican y dónde → leé [PATRONES.md](arquitectura/PATRONES.md) (con catálogo).
+- Entender las transacciones y qué pasa si algo falla a la mitad → leé [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md).
+- Saber con qué tecnología se integra cada sistema y por qué → leé [MENSAJERIA-JUSTIFICACION.md](integraciones/MENSAJERIA-JUSTIFICACION.md).
+- Consultar el contrato de la API REST → leé [openapi.yaml](integraciones/openapi.yaml).
+- Ver los roles, permisos y protecciones → leé [SEGURIDAD.md](seguridad/SEGURIDAD.md).
+- Levantar el sistema y probarlo → leé [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md) y [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md).
+- Ubicar cómo se cumple cada requisito de la consigna → leé [CHECKLIST.md](consigna/CHECKLIST.md).
 
 ## Índice
 
 ### [arquitectura/](arquitectura/)
 
-| Documento | Qué contiene |
-|---|---|
-| [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md) | Capas, componentes, interfaces entre componentes, stateless vs. stateful, máquina de estados del pedido |
-| [PATRONES.md](arquitectura/PATRONES.md) | Catálogo de patrones y, para cada uno, qué problema resuelve, dónde está y qué alternativa se descartó |
-| [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md) | Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo |
-| [DECISIONES.md](arquitectura/DECISIONES.md) | Registro de decisiones de arquitectura (59 ADR), con índice |
+- [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md): Capas, componentes, interfaces entre componentes, stateless vs. stateful, máquina de estados del pedido
+- [PATRONES.md](arquitectura/PATRONES.md): Catálogo de patrones y, para cada uno, qué problema resuelve, dónde está y qué alternativa se descartó
+- [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md): Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo
+- [DECISIONES.md](arquitectura/DECISIONES.md): Registro de decisiones de arquitectura (59 ADR), con índice
 
 ### [integraciones/](integraciones/)
 
-| Documento | Qué contiene |
-|---|---|
-| [MENSAJERIA-JUSTIFICACION.md](integraciones/MENSAJERIA-JUSTIFICACION.md) | **Por qué** cada integración usa cola, tópico, SOAP o REST: el criterio de decisión aplicado a todas |
-| [MENSAJERIA-SINCRONICA.md](integraciones/MENSAJERIA-SINCRONICA.md) | SOAP con el banco legado (cobro, reversa, timeout, circuit breaker), transportistas SOAP y REST (cotización, derivación y seguimiento por polling) y API REST (ERP y seguimiento) |
-| [MENSAJERIA-ASINCRONICA.md](integraciones/MENSAJERIA-ASINCRONICA.md) | Cola JMS de pedidos externos, tópico de estados del pedido y avisos por mail |
-| [openapi.yaml](integraciones/openapi.yaml) | Contrato OpenAPI 3.1 de la API REST (se abre en Swagger Editor; para Postman está la colección de `pruebas/`) |
+- [MENSAJERIA-JUSTIFICACION.md](integraciones/MENSAJERIA-JUSTIFICACION.md): **Por qué** cada integración usa cola, tópico, SOAP o REST: el criterio de decisión aplicado a todas
+- [MENSAJERIA-SINCRONICA.md](integraciones/MENSAJERIA-SINCRONICA.md): SOAP con el banco legado (cobro, reversa, timeout, circuit breaker), transportistas SOAP y REST (cotización, derivación y seguimiento por polling) y API REST (ERP y seguimiento)
+- [MENSAJERIA-ASINCRONICA.md](integraciones/MENSAJERIA-ASINCRONICA.md): Cola JMS de pedidos externos, tópico de estados del pedido y avisos por mail
+- [openapi.yaml](integraciones/openapi.yaml): Contrato OpenAPI 3.1 de la API REST (se abre en Swagger Editor; para Postman está la colección de `pruebas/`)
 
 ### [seguridad/](seguridad/)
 
-| Documento | Qué contiene |
-|---|---|
-| [SEGURIDAD.md](seguridad/SEGURIDAD.md) | Autenticación, roles, `@RolesAllowed`, operaciones sensibles, límite de intentos de login y HTTPS |
+- [SEGURIDAD.md](seguridad/SEGURIDAD.md): Autenticación, roles, `@RolesAllowed`, operaciones sensibles, límite de intentos de login y HTTPS
 
 ### [pruebas/](pruebas/)
 
-| Documento | Qué contiene |
-|---|---|
-| [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md) | Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo. Los tests automatizados están en `src/test` (ver el README principal) |
-| [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md) | Comandos para prender y apagar cada sistema, perillas de las demos y la lista completa de pruebas para marcar |
-| [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json) | Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos, más una carpeta automatizada de contrato y seguridad (64 requests) |
+- [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md): Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo. Los tests automatizados están en `src/test` (ver el README principal)
+- [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md): Comandos para prender y apagar cada sistema, perillas de las demos y la lista completa de pruebas para marcar
+- [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json): Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos, más una carpeta automatizada de contrato y seguridad (64 requests)
 
 ### [consigna/](consigna/)
 
-| Documento | Qué contiene |
-|---|---|
-| [CHECKLIST.md](consigna/CHECKLIST.md) | Dónde se cumple cada requisito obligatorio de la consigna (Sección 6) |
-| [DESAFIOS-OPCIONALES.md](consigna/DESAFIOS-OPCIONALES.md) | Desafíos opcionales: resiliencia, escalabilidad y ADRs desarrollados con sus alternativas (la heterogeneidad tecnológica está en la rama `desafio-heterogeneidad`) |
-| [USO-DE-IA.md](consigna/USO-DE-IA.md) | Declaración de uso de IA generativa (obligatoria por consigna) |
+- [CHECKLIST.md](consigna/CHECKLIST.md): Dónde se cumple cada requisito obligatorio de la consigna (Sección 6)
+- [DESAFIOS-OPCIONALES.md](consigna/DESAFIOS-OPCIONALES.md): Desafíos opcionales: resiliencia, escalabilidad y ADRs desarrollados con sus alternativas (la heterogeneidad tecnológica está en la rama `desafio-heterogeneidad`)
+- [USO-DE-IA.md](consigna/USO-DE-IA.md): Declaración de uso de IA generativa (obligatoria por consigna)
 
 ## Convenciones
 
