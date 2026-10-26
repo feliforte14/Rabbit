@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Rabbit",
-    "description": "Pruebas de las integraciones de Rabbit (TP DA2 · Grupo 9). Los códigos (A1, A4, J1…) son los de docs/pruebas/FLUJO-DE-PRUEBAS.md.\n\nANTES DE EMPEZAR\n1. Settings → General → apagar \"SSL certificate verification\" (el certificado de WildFly es autofirmado).\n2. Colección → Variables: completar erpClave y adminClave en \"Current value\" (no se exportan).\n3. Revisar idItem e idPuntoPicking, y que el ítem tenga stock (las carpetas 1 y 4 usan unas 9 unidades).\n\nCARPETAS\n1 · API del ERP — la integración REST de la consigna. En orden.\n2 · Validaciones y seguridad — errores 400/401/403/404/302.\n3 · Seguimiento público — sin login.\n4 · Pedidos de apoyo — para pruebas que siguen en la web (banco rechaza, ruteo por zona).\n5 · Transportistas — REST y SOAP legado, llamados directo.\n6 · Banco legado SOAP — autorizar, rechazo y reversa.\n\nSe puede correr una carpeta entera con \"Run folder\" (salvo los pasos marcados ANTES/DESPUÉS, que piden hacer algo en la web).",
+    "description": "Pruebas de las integraciones de Rabbit (TP DA2 · Grupo 9). Los códigos (A1, A4, J1…) son los de docs/pruebas/FLUJO-DE-PRUEBAS.md.\n\nANTES DE EMPEZAR\n1. Settings → General → apagar \"SSL certificate verification\" (el certificado de WildFly es autofirmado).\n2. Colección → Variables: completar erpClave y adminClave en \"Current value\" (no se exportan).\n3. Revisar idItem e idPuntoPicking, y que el ítem tenga stock (las carpetas 1 y 4 usan unas 9 unidades).\n\nCARPETAS\n1 · API del ERP — la integración REST de la consigna. En orden.\n2 · Validaciones y seguridad — errores 400/401/403/404/302.\n3 · Seguimiento público — sin login.\n4 · Pedidos de apoyo — para pruebas que siguen en la web (banco rechaza, ruteo por zona).\n5 · Transportistas — REST y SOAP legado, llamados directo.\n6 · Banco legado SOAP — autorizar, rechazo y reversa.\n\nSe puede correr una carpeta entera con \"Run folder\" (salvo los pasos marcados ANTES/DESPUÉS, que piden hacer algo en la web).\n7 · Contrato, idempotencia y seguridad cruzada — automatizada: idempotencia, BOLA entre ERPs, rol equivocado, seguimiento público, HSTS y pantallas protegidas. Pide también erp2Clave y comercioClave.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -31,11 +31,11 @@
     },
     {
       "key": "idItem",
-      "value": "1"
+      "value": "111"
     },
     {
       "key": "idPuntoPicking",
-      "value": "1"
+      "value": "202"
     },
     {
       "key": "idempotencyKey",
@@ -83,6 +83,42 @@
     },
     {
       "key": "idExternoEspera",
+      "value": ""
+    },
+    {
+      "key": "erp2Usuario",
+      "value": "Almacen_Demo2erp"
+    },
+    {
+      "key": "erp2Clave",
+      "value": ""
+    },
+    {
+      "key": "comercioUsuario",
+      "value": "Almacen_Demo2"
+    },
+    {
+      "key": "comercioClave",
+      "value": ""
+    },
+    {
+      "key": "idemCruzada",
+      "value": ""
+    },
+    {
+      "key": "idemTmp",
+      "value": ""
+    },
+    {
+      "key": "idCruzado",
+      "value": ""
+    },
+    {
+      "key": "codigoCruzado",
+      "value": ""
+    },
+    {
+      "key": "codigoCruzadoMin",
       "value": ""
     }
   ],
@@ -1819,6 +1855,615 @@
           ],
           "auth": {
             "type": "noauth"
+          }
+        }
+      ]
+    },
+    {
+      "name": "7 · Contrato, idempotencia y seguridad cruzada",
+      "description": "Pasos automatizados: cada request trae sus tests y se pueden correr todos juntos con el Collection Runner (en orden). Cubren idempotencia, BOLA entre ERPs, rol equivocado, seguimiento público, HSTS y que las pantallas protegidas no se vean sin sesión. Necesitan erpClave, erp2Clave y comercioClave en Current value; idPuntoPicking tiene que ser un punto activo del comercio de la cuenta ERP A. Crean un pedido de prueba y lo cancelan al final.",
+      "auth": {
+        "type": "basic",
+        "basic": [
+          {
+            "key": "username",
+            "value": "{{erpUsuario}}",
+            "type": "string"
+          },
+          {
+            "key": "password",
+            "value": "{{erpClave}}",
+            "type": "string"
+          }
+        ]
+      },
+      "item": [
+        {
+          "name": "1. Alta de referencia (ERP A, punto de picking) → 201",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idemCruzada\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Header Location contiene /api/v1/pedidos-externos/\", () => pm.expect(pm.response.headers.get(\"Location\") || \"\").to.include(\"/api/v1/pedidos-externos/\"));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"resultado = Pendiente\", () => pm.expect(r.resultado).to.eql(\"Pendiente\"));",
+                  "pm.collectionVariables.set(\"idCruzado\", r.idPedidoExterno);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemCruzada}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos",
+            "description": "Crea el pedido que usan los pasos siguientes. Guarda su id en idCruzado y la clave en idemCruzada.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"[TEST] Caja\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 1500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"[TEST] Av. Siempreviva 742, CABA\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "2. Misma Idempotency-Key, otro cuerpo → 422",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 422\", () => pm.response.to.have.status(422));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemCruzada}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos",
+            "description": "La clave ya se usó con otro cuerpo: la API no lo acepta como reintento.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"[TEST] Caja\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 9999,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"[TEST] Av. Siempreviva 742, CABA\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "3. Sin Idempotency-Key → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 400\", () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos",
+            "description": "El alta exige el header Idempotency-Key.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"origen\": \"PUNTO_PICKING\",\n  \"idPuntoPicking\": {{idPuntoPicking}},\n  \"lineas\": [\n    {\n      \"producto\": \"[TEST] Caja\",\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 1500,\n  \"medioPago\": \"CONTRA_ENTREGA\",\n  \"direccionEntrega\": \"[TEST] Av. Siempreviva 742, CABA\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "4. BOLA · el ERP B consulta un pedido del ERP A → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idCruzado}}",
+            "description": "Misma respuesta que un pedido inexistente: no revela que existe en otro comercio (SEC-03). Usa erp2Usuario / erp2Clave.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{erp2Usuario}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{erp2Clave}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "5. BOLA · el ERP B cancela un pedido del ERP A → 404",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idemTmp\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemTmp}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idCruzado}}/cancelacion",
+            "description": "Tampoco puede cancelarlo (SEC-03).",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{erp2Usuario}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{erp2Clave}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "6. Rol COMERCIO en la API del ERP → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idCruzado}}",
+            "description": "Un usuario autenticado pero sin rol ERP (SEC-04). Usa comercioUsuario / comercioClave.",
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "{{comercioUsuario}}",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "{{comercioClave}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "7. El pedido de A sigue intacto y se sincroniza → 200",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Pausa para que la cola procese el pedido antes de consultarlo.",
+                  "setTimeout(function () {}, 4000);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"resultado = Sincronizado\", () => pm.expect(r.resultado).to.eql(\"Sincronizado\"));",
+                  "pm.collectionVariables.set(\"codigoCruzado\", r.codigoSeguimiento);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idCruzado}}",
+            "description": "Espera 4 s a que la cola lo procese. Si el punto de picking no es del comercio del ERP A, da Descartado: revisar idPuntoPicking."
+          }
+        },
+        {
+          "name": "8. Seguimiento público con el código en minúsculas → 200",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"codigoCruzadoMin\", String(pm.collectionVariables.get(\"codigoCruzado\")).toLowerCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json();",
+                  "pm.test(\"estado = PENDIENTE\", () => pm.expect(r.estado).to.eql(\"PENDIENTE\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/seguimiento/{{codigoCruzadoMin}}",
+            "description": "Sin login. El código no distingue mayúsculas.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "9. Cancelar el pedido de referencia → 200",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idemTmp\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemTmp}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idCruzado}}/cancelacion",
+            "description": "Deja la base como estaba."
+          }
+        },
+        {
+          "name": "10. Cancelar otra vez → 200 (idempotente)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"idemTmp\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{idemTmp}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idCruzado}}/cancelacion",
+            "description": "Cancelar dos veces no da error."
+          }
+        },
+        {
+          "name": "11. URL inexistente → 404 en problem+json",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Header Content-Type contiene problem+json\", () => pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"problem+json\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/api/v1/no-existe",
+            "description": "Los errores de la API tienen forma de problema (RFC 9457)."
+          }
+        },
+        {
+          "name": "12. HSTS por HTTPS (SEC-05)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Header Strict-Transport-Security contiene max-age=31536000\", () => pm.expect(pm.response.headers.get(\"Strict-Transport-Security\") || \"\").to.include(\"max-age=31536000\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/login.xhtml",
+            "description": "Con el certificado autofirmado el navegador la ignora; acá se lee el header.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "13. Sin HSTS por HTTP → 302",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 302\", () => pm.response.to.have.status(302));",
+                  "pm.test(\"No trae Strict-Transport-Security\", () => pm.expect(pm.response.headers.has(\"Strict-Transport-Security\")).to.be.false);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{httpUrl}}/login.xhtml",
+            "description": "Por HTTP la cabecera no aparece; redirige a HTTPS.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "14. Pantalla del personal sin sesión → 302 al login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 302\", () => pm.response.to.have.status(302));",
+                  "pm.test(\"Header Location contiene login.xhtml\", () => pm.expect(pm.response.headers.get(\"Location\") || \"\").to.include(\"login.xhtml\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/personal/pedidos.xhtml",
+            "description": "Ninguna pantalla protegida se ve sin iniciar sesión.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "15. Pantalla del comercio sin sesión → 302 al login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 302\", () => pm.response.to.have.status(302));",
+                  "pm.test(\"Header Location contiene login.xhtml\", () => pm.expect(pm.response.headers.get(\"Location\") || \"\").to.include(\"login.xhtml\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/comercio/mis-liquidaciones.xhtml",
+            "description": "Incluye las liquidaciones con la tarifa de almacenamiento.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "16. Pantalla del repartidor sin sesión → 302 al login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 302\", () => pm.response.to.have.status(302));",
+                  "pm.test(\"Header Location contiene login.xhtml\", () => pm.expect(pm.response.headers.get(\"Location\") || \"\").to.include(\"login.xhtml\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/repartidor/mis-entregas.xhtml",
+            "description": "Idem para el repartidor.",
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "protocolProfileBehavior": {
+            "followRedirects": false
+          }
+        },
+        {
+          "name": "17. Login público → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/login.xhtml",
+            "description": "La pantalla de ingreso abre sin sesión.",
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "18. Seguimiento (página pública) → 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/seguimiento.xhtml",
+            "description": "Sin login.",
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
