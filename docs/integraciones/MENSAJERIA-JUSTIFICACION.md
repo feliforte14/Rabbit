@@ -71,17 +71,57 @@ solo se justificaría si el consumidor exigiera un contrato WSDL o WS-\*.
 
 ## 2. Inventario: todas las integraciones de Rabbit
 
-| # | Integración | Dirección | ¿Necesita la respuesta para seguir? | ¿Expone/exige SOAP? | Tecnología |
-|---|---|---|---|---|---|
-| 1 | Sincronizar el pedido que llegó del ERP | Interna (Pedidos → Pedidos) | **No** | — | **Cola JMS** `cola.pedidos.externos` |
-| 2 | Avisar los cambios de estado del pedido | Interna (Pedidos → Notificaciones, Pagos) | **No** | — | **Tópico JMS** `topico.pedidos.estado` |
-| 3 | Cobrar y reversar pagos en el banco | Saliente (Rabbit → banco legado) | **Sí** | **Sí** (WSDL, faults) | **SOAP** |
-| 4 | Pedir, seguir y cancelar envíos en un transportista legado | Saliente (Rabbit → transportista) | **Sí** | **Sí** (WSDL, faults) | **SOAP** |
-| 5 | Pedir, seguir y cancelar envíos en un transportista moderno | Saliente (Rabbit → transportista) | **Sí** | **No** | **REST** |
-| 6 | Recibir pedidos del ERP de cada comercio | Entrante (ERP → Rabbit) | **Sí** (el ERP necesita saber si se aceptó) | **No** (partner moderno) | **REST** (y adentro, cola) |
-| 7 | Seguimiento público del pedido | Entrante (cliente → Rabbit) | **Sí** (quiere ver el estado ya) | **No** | **REST** |
-| 8 | Avisar al comercio y a quien recibe por mail | Saliente (Rabbit → Gmail) | **No** (sale después del commit) | — | **SMTP** con login y STARTTLS (Jakarta Mail, ADR-047) |
-| 9 | Ubicar direcciones para ordenar la hoja de ruta (ADR-046) | Saliente (Rabbit → OpenStreetMap) | **Sí** (para guardar la coordenada), pero desde un timer: el usuario no espera | **No** (API pública JSON) | **REST/HTTP** (Nominatim) |
+- **1**
+  - Integración: Sincronizar el pedido que llegó del ERP
+  - Dirección: Interna (Pedidos → Pedidos)
+  - ¿Necesita la respuesta para seguir?: **No**
+  - Tecnología: **Cola JMS** `cola.pedidos.externos`
+- **2**
+  - Integración: Avisar los cambios de estado del pedido
+  - Dirección: Interna (Pedidos → Notificaciones, Pagos)
+  - ¿Necesita la respuesta para seguir?: **No**
+  - Tecnología: **Tópico JMS** `topico.pedidos.estado`
+- **3**
+  - Integración: Cobrar y reversar pagos en el banco
+  - Dirección: Saliente (Rabbit → banco legado)
+  - ¿Necesita la respuesta para seguir?: **Sí**
+  - ¿Expone/exige SOAP?: **Sí** (WSDL, faults)
+  - Tecnología: **SOAP**
+- **4**
+  - Integración: Pedir, seguir y cancelar envíos en un transportista legado
+  - Dirección: Saliente (Rabbit → transportista)
+  - ¿Necesita la respuesta para seguir?: **Sí**
+  - ¿Expone/exige SOAP?: **Sí** (WSDL, faults)
+  - Tecnología: **SOAP**
+- **5**
+  - Integración: Pedir, seguir y cancelar envíos en un transportista moderno
+  - Dirección: Saliente (Rabbit → transportista)
+  - ¿Necesita la respuesta para seguir?: **Sí**
+  - ¿Expone/exige SOAP?: **No**
+  - Tecnología: **REST**
+- **6**
+  - Integración: Recibir pedidos del ERP de cada comercio
+  - Dirección: Entrante (ERP → Rabbit)
+  - ¿Necesita la respuesta para seguir?: **Sí** (el ERP necesita saber si se aceptó)
+  - ¿Expone/exige SOAP?: **No** (partner moderno)
+  - Tecnología: **REST** (y adentro, cola)
+- **7**
+  - Integración: Seguimiento público del pedido
+  - Dirección: Entrante (cliente → Rabbit)
+  - ¿Necesita la respuesta para seguir?: **Sí** (quiere ver el estado ya)
+  - ¿Expone/exige SOAP?: **No**
+  - Tecnología: **REST**
+- **8**
+  - Integración: Avisar al comercio y a quien recibe por mail
+  - Dirección: Saliente (Rabbit → Gmail)
+  - ¿Necesita la respuesta para seguir?: **No** (sale después del commit)
+  - Tecnología: **SMTP** con login y STARTTLS (Jakarta Mail, ADR-047)
+- **9**
+  - Integración: Ubicar direcciones para ordenar la hoja de ruta (ADR-046)
+  - Dirección: Saliente (Rabbit → OpenStreetMap)
+  - ¿Necesita la respuesta para seguir?: **Sí** (para guardar la coordenada), pero desde un timer: el usuario no espera
+  - ¿Expone/exige SOAP?: **No** (API pública JSON)
+  - Tecnología: **REST/HTTP** (Nominatim)
 
 Un mismo pedido, de punta a punta, pasa por las tres tecnologías (ver la
 sección 4): **no se elige una sola mensajería para todo el sistema; se
@@ -117,14 +157,12 @@ disponibilidad y velocidad de la reserva de stock.
 
 **Cómo se cubre lo que la cola no garantiza:**
 
-| Riesgo | Solución |
-|---|---|
-| El broker falla justo al publicar | El pedido ya está guardado; el polling de respaldo (`SincronizadorDePedidos`, cada minuto) lo levanta (ADR-001) |
-| El mensaje sale pero el pedido no se guardó | El mensaje se publica recién **después del commit** (`AFTER_SUCCESS`), nunca antes (ADR-002) |
-| La cola y el polling procesan el mismo pedido a la vez | Bloqueo `PESSIMISTIC_WRITE` + flag `sincronizado`: el segundo lo ignora |
-| El consumidor está caído | El mensaje espera en la cola |
-| Falla de negocio (sin stock, comercio de baja) | Se descarta con motivo; reintentar no lo arregla |
-| Falla transitoria (base caída) | Se relanza la excepción y el broker reintenta la entrega |
+- **El broker falla justo al publicar**: El pedido ya está guardado; el polling de respaldo (`SincronizadorDePedidos`, cada minuto) lo levanta (ADR-001)
+- **El mensaje sale pero el pedido no se guardó**: El mensaje se publica recién **después del commit** (`AFTER_SUCCESS`), nunca antes (ADR-002)
+- **La cola y el polling procesan el mismo pedido a la vez**: Bloqueo `PESSIMISTIC_WRITE` + flag `sincronizado`: el segundo lo ignora
+- **El consumidor está caído**: El mensaje espera en la cola
+- **Falla de negocio (sin stock, comercio de baja)**: Se descarta con motivo; reintentar no lo arregla
+- **Falla transitoria (base caída)**: Se relanza la excepción y el broker reintenta la entrega
 
 ### 3.2 Tópico JMS: avisar los cambios de estado del pedido
 
@@ -161,12 +199,10 @@ estado.
 
 **Cómo se cubre lo que el tópico no garantiza:**
 
-| Riesgo | Solución |
-|---|---|
-| Un suscriptor no está activo cuando se publica (por ejemplo, durante un redeploy) | **Suscripciones durables**: el broker le guarda el mensaje y se lo entrega al volver (ADR-009). Probado deteniendo el MDB de Pagos |
-| A Pagos solo le importan `ENTREGADO` y `DEVUELTO_AL_COMERCIO` | **Selector** `estado IN ('ENTREGADO', 'DEVUELTO_AL_COMERCIO')`: el broker ni siquiera le entrega los demás |
-| El mismo evento llega dos veces | Pagos es idempotente (si ya está `ACREDITADO` o `ANULADO`, no hace nada); los dos suscriptores de Notificaciones descartan repetidos por `fechaCambio` |
-| Los eventos llegan desordenados | Notificaciones ignora los más viejos que el último que vio; a Pagos no le afecta (`ENTREGADO` y `DEVUELTO_AL_COMERCIO` son finales) |
+- **Un suscriptor no está activo cuando se publica (por ejemplo, durante un redeploy)**: **Suscripciones durables**: el broker le guarda el mensaje y se lo entrega al volver (ADR-009). Probado deteniendo el MDB de Pagos
+- **A Pagos solo le importan `ENTREGADO` y `DEVUELTO_AL_COMERCIO`**: **Selector** `estado IN ('ENTREGADO', 'DEVUELTO_AL_COMERCIO')`: el broker ni siquiera le entrega los demás
+- **El mismo evento llega dos veces**: Pagos es idempotente (si ya está `ACREDITADO` o `ANULADO`, no hace nada); los dos suscriptores de Notificaciones descartan repetidos por `fechaCambio`
+- **Los eventos llegan desordenados**: Notificaciones ignora los más viejos que el último que vio; a Pagos no le afecta (`ENTREGADO` y `DEVUELTO_AL_COMERCIO` son finales)
 
 ### 3.3 SOAP: cobrar y reversar pagos en el banco legado
 
@@ -196,12 +232,10 @@ define la tecnología es el contrato que expone el otro sistema.
 
 **Cómo se maneja que el banco no conteste (el costo de lo sincrónico):**
 
-| Situación | Qué hace Rabbit |
-|---|---|
-| El banco no responde en **5 s** | El pedido sigue `PENDIENTE` (sin respuesta no se sabe si cobró); el usuario puede reintentar |
-| El banco falló 3 veces seguidas | **Circuit breaker** abierto: las llamadas se cortan al instante, sin esperar 5 s cada una, para que la caída del banco no agote los hilos de Rabbit (ADR-011). A los 30 s prueba de nuevo |
-| El banco rechaza (`soap:Fault`) | Es una respuesta válida: el pedido sigue `PENDIENTE` con el motivo del banco |
-| El banco cobró pero Rabbit falla después | El rollback deshace lo de Rabbit, pero no lo del banco: **transacción compensatoria** (`reversarPago`, ADR-010) |
+- **El banco no responde en **5 s****: El pedido sigue `PENDIENTE` (sin respuesta no se sabe si cobró); el usuario puede reintentar
+- **El banco falló 3 veces seguidas**: **Circuit breaker** abierto: las llamadas se cortan al instante, sin esperar 5 s cada una, para que la caída del banco no agote los hilos de Rabbit (ADR-011). A los 30 s prueba de nuevo
+- **El banco rechaza (`soap:Fault`)**: Es una respuesta válida: el pedido sigue `PENDIENTE` con el motivo del banco
+- **El banco cobró pero Rabbit falla después**: El rollback deshace lo de Rabbit, pero no lo del banco: **transacción compensatoria** (`reversarPago`, ADR-010)
 
 ### 3.4 SOAP: transportista legado
 
@@ -250,13 +284,11 @@ espera** por ellas, así que una demora o caída del transportista no frena
 a Rabbit. Un webhook para que los modernos avisen se descartó para
 simplificar: hasta 15 s de demora es aceptable para un envío (ADR-029).
 
-| Situación | Qué hace Rabbit |
-|---|---|
-| El transportista no responde en **5 s** al pedir el envío | El pedido sigue `PENDIENTE`: "probá de nuevo o con otro transportista" |
-| Lo rechaza (fault `EnvioRechazado` o `422`) | El pedido sigue `PENDIENTE` con el motivo; si ya se había cobrado, se reversa en el banco |
-| No responde a una consulta de seguimiento | Se reintenta en la próxima pasada (15 s) |
-| Falla al derivarle desde el despacho por zona | Se cotiza con los demás y se deriva al más barato que cotice |
-| Se cancela el pedido | El envío se anula en el transportista **después** del commit (compensación) |
+- **El transportista no responde en **5 s** al pedir el envío**: El pedido sigue `PENDIENTE`: "probá de nuevo o con otro transportista"
+- **Lo rechaza (fault `EnvioRechazado` o `422`)**: El pedido sigue `PENDIENTE` con el motivo; si ya se había cobrado, se reversa en el banco
+- **No responde a una consulta de seguimiento**: Se reintenta en la próxima pasada (15 s)
+- **Falla al derivarle desde el despacho por zona**: Se cotiza con los demás y se deriva al más barato que cotice
+- **Se cancela el pedido**: El envío se anula en el transportista **después** del commit (compensación)
 
 ### 3.6 REST: recibir pedidos del ERP de cada comercio
 
@@ -289,13 +321,11 @@ procesamiento, que se refleja en el campo `resultado`. Por eso `201`.
 
 **Lo que REST obliga a resolver a mano** (en SOAP venía con WS-\*):
 
-| Tema | Cómo se resolvió |
-|---|---|
-| El ERP reintenta tras un timeout y duplica el pedido | `Idempotency-Key` obligatoria: la misma clave devuelve el mismo pedido (ADR-018) |
-| Errores tipados (el `soap:Fault` de SOAP) | **Problem Details** (RFC 9457): `type`, `title`, `status`, `detail` |
-| Contrato formal (el WSDL de SOAP) | **OpenAPI** en [openapi.yaml](openapi.yaml) |
-| Seguridad (WS-Security en SOAP) | HTTP Basic + rol `ERP` atado a un comercio; en producción, sobre TLS |
-| Cambios que rompen a los clientes | Versión en la URI (`/api/v1`) |
+- **El ERP reintenta tras un timeout y duplica el pedido**: `Idempotency-Key` obligatoria: la misma clave devuelve el mismo pedido (ADR-018)
+- **Errores tipados (el `soap:Fault` de SOAP)**: **Problem Details** (RFC 9457): `type`, `title`, `status`, `detail`
+- **Contrato formal (el WSDL de SOAP)**: **OpenAPI** en [openapi.yaml](openapi.yaml)
+- **Seguridad (WS-Security en SOAP)**: HTTP Basic + rol `ERP` atado a un comercio; en producción, sobre TLS
+- **Cambios que rompen a los clientes**: Versión en la URI (`/api/v1`)
 
 **Y la pregunta de la cátedra: "si el SOAP legado no responde en 5 s,
 ¿qué devuelve la API?"** Esta API **no llama al banco** en forma
@@ -348,15 +378,34 @@ sequenceDiagram
     C->>R: REST GET /api/v1/seguimiento/{codigo}
 ```
 
-| Tramo | Sincrónico o asincrónico | Tecnología | Por qué |
-|---|---|---|---|
-| ERP → Rabbit (alta) | Sincrónico | REST | El ERP necesita saber si se aceptó; es un partner moderno |
-| Alta → pedido real | Asincrónico | Cola | Nadie tiene que esperar la reserva; se procesa una sola vez |
-| Rabbit → banco | Sincrónico | SOAP | Sin saber si cobró no se confirma; el banco es legado con WSDL |
-| Rabbit → transportista | Sincrónico | REST o SOAP | Hay que saber si tomó el envío; la tecnología la impone cada transportista |
-| Rabbit → transportista (seguimiento) | Polling, en segundo plano | REST o SOAP | Al legado hay que preguntarle; con el mismo mecanismo para todos, nadie espera |
-| Cambio de estado → interesados | Asincrónico | Tópico | Varios interesados; nadie tiene que esperarlos |
-| Cliente → Rabbit (seguimiento) | Sincrónico | REST | Lectura inmediata desde un navegador |
+- **ERP → Rabbit (alta)**
+  - Sincrónico o asincrónico: Sincrónico
+  - Tecnología: REST
+  - Por qué: El ERP necesita saber si se aceptó; es un partner moderno
+- **Alta → pedido real**
+  - Sincrónico o asincrónico: Asincrónico
+  - Tecnología: Cola
+  - Por qué: Nadie tiene que esperar la reserva; se procesa una sola vez
+- **Rabbit → banco**
+  - Sincrónico o asincrónico: Sincrónico
+  - Tecnología: SOAP
+  - Por qué: Sin saber si cobró no se confirma; el banco es legado con WSDL
+- **Rabbit → transportista**
+  - Sincrónico o asincrónico: Sincrónico
+  - Tecnología: REST o SOAP
+  - Por qué: Hay que saber si tomó el envío; la tecnología la impone cada transportista
+- **Rabbit → transportista (seguimiento)**
+  - Sincrónico o asincrónico: Polling, en segundo plano
+  - Tecnología: REST o SOAP
+  - Por qué: Al legado hay que preguntarle; con el mismo mecanismo para todos, nadie espera
+- **Cambio de estado → interesados**
+  - Sincrónico o asincrónico: Asincrónico
+  - Tecnología: Tópico
+  - Por qué: Varios interesados; nadie tiene que esperarlos
+- **Cliente → Rabbit (seguimiento)**
+  - Sincrónico o asincrónico: Sincrónico
+  - Tecnología: REST
+  - Por qué: Lectura inmediata desde un navegador
 
 ## 5. Lo que no es mensajería entre sistemas: eventos CDI
 
@@ -378,20 +427,54 @@ estén caídos)**.
 
 ## 6. Resumen: por qué no la otra opción
 
-| Integración | Elegida | Descartada | Por qué no |
-|---|---|---|---|
-| Sincronizar pedido | Cola | Tópico | Varios lo procesarían: stock reservado dos veces |
-| Sincronizar pedido | Cola | Llamada sincrónica | El ERP quedaría esperando la reserva de stock |
-| Estados del pedido | Tópico | Cola | Solo un interesado recibiría el aviso |
-| Estados del pedido | Tópico | Llamada directa | Pedidos dependería de Notificaciones y Pagos, y su caída lo frenaría |
-| Banco | SOAP | REST | El banco no lo ofrece: expone WSDL y faults |
-| Banco | SOAP | Cola | Hace falta saber en el momento si cobró |
-| Transportista legado | SOAP | REST | No lo ofrece |
-| Transportista moderno | REST | SOAP | No expone WSDL; REST es lo que publica |
-| Seguimiento de envíos | Polling | Webhook (aviso del transportista) | El legado no avisa; para los modernos, un endpoint más con su propia autenticación no compensa 15 s de demora (ADR-029) |
-| ERP → Rabbit | REST + cola | SOAP | El ERP es moderno y no exige WSDL ni WS-\* |
-| ERP → Rabbit | REST + cola | Solo cola (que el ERP publique en el broker) | Expondría el broker interno a un sistema externo, y el ERP no sabría en el momento si el pedido es válido |
-| Seguimiento público | REST | SOAP | El consumidor es un navegador o un celular |
+- **Sincronizar pedido**
+  - Elegida: Cola
+  - Descartada: Tópico
+  - Por qué no: Varios lo procesarían: stock reservado dos veces
+- **Sincronizar pedido**
+  - Elegida: Cola
+  - Descartada: Llamada sincrónica
+  - Por qué no: El ERP quedaría esperando la reserva de stock
+- **Estados del pedido**
+  - Elegida: Tópico
+  - Descartada: Cola
+  - Por qué no: Solo un interesado recibiría el aviso
+- **Estados del pedido**
+  - Elegida: Tópico
+  - Descartada: Llamada directa
+  - Por qué no: Pedidos dependería de Notificaciones y Pagos, y su caída lo frenaría
+- **Banco**
+  - Elegida: SOAP
+  - Descartada: REST
+  - Por qué no: El banco no lo ofrece: expone WSDL y faults
+- **Banco**
+  - Elegida: SOAP
+  - Descartada: Cola
+  - Por qué no: Hace falta saber en el momento si cobró
+- **Transportista legado**
+  - Elegida: SOAP
+  - Descartada: REST
+  - Por qué no: No lo ofrece
+- **Transportista moderno**
+  - Elegida: REST
+  - Descartada: SOAP
+  - Por qué no: No expone WSDL; REST es lo que publica
+- **Seguimiento de envíos**
+  - Elegida: Polling
+  - Descartada: Webhook (aviso del transportista)
+  - Por qué no: El legado no avisa; para los modernos, un endpoint más con su propia autenticación no compensa 15 s de demora (ADR-029)
+- **ERP → Rabbit**
+  - Elegida: REST + cola
+  - Descartada: SOAP
+  - Por qué no: El ERP es moderno y no exige WSDL ni WS-\*
+- **ERP → Rabbit**
+  - Elegida: REST + cola
+  - Descartada: Solo cola (que el ERP publique en el broker)
+  - Por qué no: Expondría el broker interno a un sistema externo, y el ERP no sabría en el momento si el pedido es válido
+- **Seguimiento público**
+  - Elegida: REST
+  - Descartada: SOAP
+  - Por qué no: El consumidor es un navegador o un celular
 
 **En una frase:** si no hace falta la respuesta, se encola (cola si lo
 procesa uno, tópico si les interesa a varios); si hace falta, se llama: con

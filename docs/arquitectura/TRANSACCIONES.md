@@ -17,35 +17,61 @@
 
 ## Atributos usados
 
-| Atributo | Dónde | Por qué |
-|---|---|---|
-| `REQUIRED` (default) | Casi todas las operaciones | Se suman a la transacción del llamador, o abren una |
-| `REQUIRES_NEW` | `sincronizarPedidoExterno`, `descartarPedidoExterno` | El sincronizador procesa varias filas por pasada: si comparten transacción, una fila fallida la deja condenada y arrastra a las siguientes |
-| `NOT_SUPPORTED` | `PublicadorPedidosExternos` y `PublicadorEstadosPedido` | El envío JMS corre fuera de la transacción: si el broker falla, no deshace lo ya guardado |
-| `NOT_SUPPORTED` | `ReversasBancarias` | La reversa en el banco corre después de que la transacción de Rabbit terminó (se deshizo o se confirmó) |
-| `NOT_SUPPORTED` | `SincronizadorDePedidos.sincronizarPendientes` | La pasada del timer no abre transacción: cada fila se sincroniza en la suya (`REQUIRES_NEW`), así una fila fallida no arrastra a las demás |
-| `AFTER_SUCCESS` (observer) | `AvisosPorMail` | El mail del aviso sale recién después del commit, y fuera de la transacción: un servidor de correo caído no deshace el aviso |
-| `NOT_SUPPORTED` | `PedidoService.cotizarDerivacion` | Lee el pedido (con sus líneas, en una sola consulta) y le pide precios a los transportistas sin abrir transacción: no retiene una conexión a la base mientras espera hasta 5 s por transportista |
-| `NOT_SUPPORTED` | `TransportistaService.cotizarEnvio` | Solo pregunta precios a los transportistas: no escribe nada y no retiene una transacción mientras espera respuestas de afuera |
-| `NOT_SUPPORTED` | `CancelacionesDeEnvios`, `SeguimientoDeEnvios` | Las llamadas a los transportistas corren fuera de la transacción de Rabbit (compensaciones y consultas de estado) |
-| `REQUIRES_NEW` | `TransportistaService.registrarNovedad` | Cada novedad de un envío (y el cambio de estado del pedido que dispara) en su propia transacción: una que falla no arrastra a las demás de la pasada |
-| `NOT_SUPPORTED` | `RuteoService.despacharPedido` / `despacharZona` | El despacho no abre transacción: cada pedido se confirma o deriva en la suya (la de `confirmarPedidoEnZona` o `derivarATransportista`), así un pedido que falla (por ejemplo, el cobro) no deshace los demás de la zona. Ver ADR-017 |
-| `NOT_SUPPORTED` | `PedidosExternosResource`, `SeguimientoResource` (API REST) | El recurso no abre transacción: cada operación de negocio confirma la suya, así un error al confirmar (dos reintentos simultáneos con la misma `Idempotency-Key` chocan contra la restricción única) llega al recurso, que reintenta y responde bien, en vez de explotar después de que el método terminó. Ver ADR-018 |
-| `NOT_SUPPORTED` + `REQUIRES_NEW` | `AsignadorDeEspera` → `PedidoService.asignarDesdeEspera` / `sacarDeEspera` | La pasada por la lista de espera no abre transacción; cada pedido se asigna (cobro + repartidor) o sale de la fila en la suya, así uno que falla no frena a los demás (ADR-037) |
-| `AFTER_SUCCESS` (observer) | `AvisosDeEspera` | Después del commit de una entrega, cancelación o devolución programa una pasada de la lista de espera en un timer: no demora la pantalla de quien hizo el cambio ni corre con su usuario |
-| `NOT_SUPPORTED` | `CircuitBreakerBanco` | Solo cambia estado en memoria: no tiene nada que hacer en la transacción del llamador |
+- `REQUIRED` (default)
+  - Dónde: Casi todas las operaciones
+  - Por qué: Se suman a la transacción del llamador, o abren una
+- `REQUIRES_NEW`
+  - Dónde: `sincronizarPedidoExterno`, `descartarPedidoExterno`
+  - Por qué: El sincronizador procesa varias filas por pasada: si comparten transacción, una fila fallida la deja condenada y arrastra a las siguientes
+- `NOT_SUPPORTED`
+  - Dónde: `PublicadorPedidosExternos` y `PublicadorEstadosPedido`
+  - Por qué: El envío JMS corre fuera de la transacción: si el broker falla, no deshace lo ya guardado
+- `NOT_SUPPORTED`
+  - Dónde: `ReversasBancarias`
+  - Por qué: La reversa en el banco corre después de que la transacción de Rabbit terminó (se deshizo o se confirmó)
+- `NOT_SUPPORTED`
+  - Dónde: `SincronizadorDePedidos.sincronizarPendientes`
+  - Por qué: La pasada del timer no abre transacción: cada fila se sincroniza en la suya (`REQUIRES_NEW`), así una fila fallida no arrastra a las demás
+- `AFTER_SUCCESS` (observer)
+  - Dónde: `AvisosPorMail`
+  - Por qué: El mail del aviso sale recién después del commit, y fuera de la transacción: un servidor de correo caído no deshace el aviso
+- `NOT_SUPPORTED`
+  - Dónde: `PedidoService.cotizarDerivacion`
+  - Por qué: Lee el pedido (con sus líneas, en una sola consulta) y le pide precios a los transportistas sin abrir transacción: no retiene una conexión a la base mientras espera hasta 5 s por transportista
+- `NOT_SUPPORTED`
+  - Dónde: `TransportistaService.cotizarEnvio`
+  - Por qué: Solo pregunta precios a los transportistas: no escribe nada y no retiene una transacción mientras espera respuestas de afuera
+- `NOT_SUPPORTED`
+  - Dónde: `CancelacionesDeEnvios`, `SeguimientoDeEnvios`
+  - Por qué: Las llamadas a los transportistas corren fuera de la transacción de Rabbit (compensaciones y consultas de estado)
+- `REQUIRES_NEW`
+  - Dónde: `TransportistaService.registrarNovedad`
+  - Por qué: Cada novedad de un envío (y el cambio de estado del pedido que dispara) en su propia transacción: una que falla no arrastra a las demás de la pasada
+- `NOT_SUPPORTED`
+  - Dónde: `RuteoService.despacharPedido` / `despacharZona`
+  - Por qué: El despacho no abre transacción: cada pedido se confirma o deriva en la suya (la de `confirmarPedidoEnZona` o `derivarATransportista`), así un pedido que falla (por ejemplo, el cobro) no deshace los demás de la zona. Ver ADR-017
+- `NOT_SUPPORTED`
+  - Dónde: `PedidosExternosResource`, `SeguimientoResource` (API REST)
+  - Por qué: El recurso no abre transacción: cada operación de negocio confirma la suya, así un error al confirmar (dos reintentos simultáneos con la misma `Idempotency-Key` chocan contra la restricción única) llega al recurso, que reintenta y responde bien, en vez de explotar después de que el método terminó. Ver ADR-018
+- `NOT_SUPPORTED` + `REQUIRES_NEW`
+  - Dónde: `AsignadorDeEspera` → `PedidoService.asignarDesdeEspera` / `sacarDeEspera`
+  - Por qué: La pasada por la lista de espera no abre transacción; cada pedido se asigna (cobro + repartidor) o sale de la fila en la suya, así uno que falla no frena a los demás (ADR-037)
+- `AFTER_SUCCESS` (observer)
+  - Dónde: `AvisosDeEspera`
+  - Por qué: Después del commit de una entrega, cancelación o devolución programa una pasada de la lista de espera en un timer: no demora la pantalla de quien hizo el cambio ni corre con su usuario
+- `NOT_SUPPORTED`
+  - Dónde: `CircuitBreakerBanco`
+  - Por qué: Solo cambia estado en memoria: no tiene nada que hacer en la transacción del llamador
 
 ## Flujo 1: sincronizar un pedido externo (implementado)
 
 `PedidoService.sincronizarPedidoExterno`, `REQUIRES_NEW`:
 
-| Paso | Si falla… |
-|---|---|
-| 1. Leer la fila externa con `PESSIMISTIC_WRITE` | Si ya está sincronizada: `PedidoYaSincronizadoException`, no cambia nada |
-| 2. Validar comercio activo | Rollback; el MDB o el timer la descartan con motivo (`descartarPedidoExterno`, en su propia transacción) |
-| 3. Por cada línea: reservar y confirmar stock (`IReservaStock`, se suma a la transacción) | Rollback de **todas** las reservas de las líneas anteriores: el pedido es todo o nada |
-| 4. Guardar el `Pedido` (PENDIENTE, con importe, medio de pago y dirección de entrega) y disparar `EstadoPedidoCambiado` | Rollback de todo; el evento no se publica (observers `AFTER_SUCCESS`) |
-| 5. Marcar la fila externa como sincronizada | Rollback de todo |
+- **1. Leer la fila externa con `PESSIMISTIC_WRITE`**: Si ya está sincronizada: `PedidoYaSincronizadoException`, no cambia nada
+- **2. Validar comercio activo**: Rollback; el MDB o el timer la descartan con motivo (`descartarPedidoExterno`, en su propia transacción)
+- **3. Por cada línea: reservar y confirmar stock (`IReservaStock`, se suma a la transacción)**: Rollback de **todas** las reservas de las líneas anteriores: el pedido es todo o nada
+- **4. Guardar el `Pedido` (PENDIENTE, con importe, medio de pago y dirección de entrega) y disparar `EstadoPedidoCambiado`**: Rollback de todo; el evento no se publica (observers `AFTER_SUCCESS`)
+- **5. Marcar la fila externa como sincronizada**: Rollback de todo
 
 ## Flujo 2: cambios de estado (implementado)
 
@@ -59,14 +85,12 @@ una devolución, se deshacen también las anteriores.
 
 `confirmarPedido`, `REQUIRED`, en una única transacción:
 
-| Paso | Si falla… |
-|---|---|
-| 1. Validar que el pedido esté PENDIENTE | No cambia nada |
-| 1b. `IAsignacionRepartidores.motivoParaEsperar` (sin bloqueo, ADR-037) | Nadie tiene lugar o pasó la hora de corte: el pedido queda en la lista de espera, **sin cobrar**, y la transacción confirma solo esa marca |
-| 2. `IRegistroCobros.registrarCobro` (PREPAGO: `autorizarPago` en el banco por SOAP), salvo que ya tenga cobro (devuelto al depósito) | Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE |
-| 3. `IAsignacionRepartidores.asignarRepartidor` | Otro se quedó con el lugar justo después del paso 1b: rollback en Rabbit **y reversa en el banco** (el rollback no alcanza al sistema externo) |
-| 4. Estado CONFIRMADO + `EstadoPedidoCambiado` | Rollback de todo |
-| 5. Publicación en el tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`) | Se loguea; no deshace la confirmación (misma decisión que ADR-002) |
+- **1. Validar que el pedido esté PENDIENTE**: No cambia nada
+- **1b. `IAsignacionRepartidores.motivoParaEsperar` (sin bloqueo, ADR-037)**: Nadie tiene lugar o pasó la hora de corte: el pedido queda en la lista de espera, **sin cobrar**, y la transacción confirma solo esa marca
+- **2. `IRegistroCobros.registrarCobro` (PREPAGO: `autorizarPago` en el banco por SOAP), salvo que ya tenga cobro (devuelto al depósito)**: Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE
+- **3. `IAsignacionRepartidores.asignarRepartidor`**: Otro se quedó con el lugar justo después del paso 1b: rollback en Rabbit **y reversa en el banco** (el rollback no alcanza al sistema externo)
+- **4. Estado CONFIRMADO + `EstadoPedidoCambiado`**: Rollback de todo
+- **5. Publicación en el tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`)**: Se loguea; no deshace la confirmación (misma decisión que ADR-002)
 
 **Por qué no hace falta XA:** las tres escrituras (repartidor, cobro,
 pedido) van a la misma base; el mensaje JMS queda fuera de la
@@ -88,11 +112,9 @@ Las excepciones de Repartidores y Pagos son `@ApplicationException(rollback
 
 ## Flujo 4: entregar y cancelar un pedido confirmado (implementado)
 
-| Operación | Qué hace, en la misma transacción |
-|---|---|
-| `registrarEntrega` | Guarda la foto del remito (ADR-033), estado ENTREGADO + le saca el pedido al repartidor (borra su `CargaAsignada`; si era el último, queda DISPONIBLE). El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción |
-| `cancelarPedido` (desde CONFIRMADO) | Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si era PREPAGO, después del commit se pide la reversa al banco. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada |
-| `devolverADeposito` sin visitas restantes (ADR-041) | Libera al repartidor, devuelve el stock consignado y pasa a DEVUELTO_AL_COMERCIO. El cobro **no** se anula acá (lo pide un repartidor, que no puede anular cobros): lo anula Pagos al recibir el evento por el tópico, en su propia transacción, y si era PREPAGO pide la reversa después de ese commit. Si Pagos está caído, la suscripción durable guarda el evento |
+- `registrarEntrega`: Guarda la foto del remito (ADR-033), estado ENTREGADO + le saca el pedido al repartidor (borra su `CargaAsignada`; si era el último, queda DISPONIBLE). El cobro CONTRA_ENTREGA **no** se hace acá: lo acredita Pagos al recibir el evento por el tópico, en su propia transacción
+- `cancelarPedido` (desde CONFIRMADO): Anula el cobro (`ADMINISTRADOR`), libera al repartidor, devuelve el stock y pasa a CANCELADO. Si era PREPAGO, después del commit se pide la reversa al banco. Si un OPERADOR lo intenta, `EJBAccessException` y no se cancela nada
+- `devolverADeposito` sin visitas restantes (ADR-041): Libera al repartidor, devuelve el stock consignado y pasa a DEVUELTO_AL_COMERCIO. El cobro **no** se anula acá (lo pide un repartidor, que no puede anular cobros): lo anula Pagos al recibir el evento por el tópico, en su propia transacción, y si era PREPAGO pide la reversa después de ese commit. Si Pagos está caído, la suscripción durable guarda el evento
 
 ## Flujo 5: alta de usuario (implementado)
 
@@ -101,10 +123,8 @@ vive solo en la tabla `usuarios` (perfil y hash bcrypt de la contraseña),
 que es lo que lee WildFly al loguear: todo queda dentro de una
 transacción.
 
-| Paso | Si falla… |
-|---|---|
-| 1. Validar username, contraseña y a quién representa la cuenta | No cambia nada |
-| 2. Guardar la fila en `usuarios`, con el hash | Rollback: la cuenta no existe en ningún lado |
+- **1. Validar username, contraseña y a quién representa la cuenta**: No cambia nada
+- **2. Guardar la fila en `usuarios`, con el hash**: Rollback: la cuenta no existe en ningún lado
 
 Antes de ADR-031 la contraseña iba a los archivos del realm de WildFly,
 fuera de la transacción, y hacía falta una `Synchronization` que la
@@ -136,12 +156,10 @@ borrado.
 transacción. Es la alternativa a `confirmarPedido` cuando el pedido lo
 lleva una empresa de envíos externa:
 
-| Paso | Si falla… |
-|---|---|
-| 1. Validar que el pedido esté PENDIENTE | No cambia nada |
-| 2. `IRegistroCobros.registrarCobro` (PREPAGO: se cobra en el banco) | Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE |
-| 3. `IEnvios.solicitarEnvio`: el transportista toma el envío y se guarda con su código de seguimiento | Transportista rechaza, no responde o está de baja: rollback **y reversa en el banco** si ya se había cobrado |
-| 4. Estado CONFIRMADO + `EstadoPedidoCambiado` | Rollback de todo **y cancelación del envío en el transportista** (`EnvioSolicitado` + `AFTER_FAILURE`) |
+- **1. Validar que el pedido esté PENDIENTE**: No cambia nada
+- **2. `IRegistroCobros.registrarCobro` (PREPAGO: se cobra en el banco)**: Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE
+- **3. `IEnvios.solicitarEnvio`: el transportista toma el envío y se guarda con su código de seguimiento**: Transportista rechaza, no responde o está de baja: rollback **y reversa en el banco** si ya se había cobrado
+- **4. Estado CONFIRMADO + `EstadoPedidoCambiado`**: Rollback de todo **y cancelación del envío en el transportista** (`EnvioSolicitado` + `AFTER_FAILURE`)
 
 Después, cada novedad que informa el transportista se registra con
 `registrarNovedad` (`REQUIRES_NEW`): primero Pedidos mueve el pedido
@@ -200,11 +218,15 @@ transacción: un choque sobre un item no deshace la pasada entera.
 `LiquidacionService.liquidarMes`, `NOT_SUPPORTED`: no abre una
 transacción propia y recorre los comercios activos. Por cada uno:
 
-| Paso | Transacción | Si falla… |
-|---|---|---|
-| 1. Calcular entregas y kilos del mes (Pedidos) | Sin transacción | No se crea nada |
-| 2. `CobroDeLiquidaciones.crear`: la liquidación, PENDIENTE | `REQUIRES_NEW` | Rollback de ese comercio; los demás siguen |
-| 3. `CobroDeLiquidaciones.cobrar`: banco (SOAP) y resultado | `REQUIRES_NEW`, con la fila bloqueada | El banco no se deshace: por eso la liquidación ya existe (paso 2) antes de llamarlo. Si no responde, queda PENDIENTE y el timer la reintenta |
+- **1. Calcular entregas y kilos del mes (Pedidos)**
+  - Transacción: Sin transacción
+  - Si falla…: No se crea nada
+- **2. `CobroDeLiquidaciones.crear`: la liquidación, PENDIENTE**
+  - Transacción: `REQUIRES_NEW`
+  - Si falla…: Rollback de ese comercio; los demás siguen
+- **3. `CobroDeLiquidaciones.cobrar`: banco (SOAP) y resultado**
+  - Transacción: `REQUIRES_NEW`, con la fila bloqueada
+  - Si falla…: El banco no se deshace: por eso la liquidación ya existe (paso 2) antes de llamarlo. Si no responde, queda PENDIENTE y el timer la reintenta
 
 Correrlo dos veces no duplica: `crear` no hace nada si el comercio ya
 tiene la de ese mes (y hay una restricción única por comercio y período).

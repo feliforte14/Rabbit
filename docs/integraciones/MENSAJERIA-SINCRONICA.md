@@ -17,15 +17,13 @@ el pedido: hay que saber en el momento si se cobró o no.
 **Por qué SOAP:** el banco es un sistema legado con contrato WSDL y
 errores de negocio tipados (`soap:Fault`).
 
-| Clase | Rol |
-|---|---|
-| `BancoLegadoService` | Contrato (SEI): `autorizarPago`, `reversarPago` |
-| `BancoLegadoServiceImpl` | Banco simulado, publicado en el mismo WAR (el de por defecto) |
-| `PagoRechazadoException` + `PagoRechazadoFaultInfo` | Fault de negocio con el motivo del rechazo |
-| `IBancoClient` | Lo único que conoce `PagoService` |
-| `BancoClient` | Adapter: cliente JAX-WS (proxy dinámico con `Service.getPort`, sin wsimport), timeout de 5 s |
-| `CircuitBreakerBanco` | Circuit breaker (`@Singleton`): con el banco caído, corta las llamadas sin esperar el timeout |
-| `ReversasBancarias` | Pide las reversas (compensación y devoluciones) |
+- `BancoLegadoService`: Contrato (SEI): `autorizarPago`, `reversarPago`
+- `BancoLegadoServiceImpl`: Banco simulado, publicado en el mismo WAR (el de por defecto)
+- `PagoRechazadoException` + `PagoRechazadoFaultInfo`: Fault de negocio con el motivo del rechazo
+- `IBancoClient`: Lo único que conoce `PagoService`
+- `BancoClient`: Adapter: cliente JAX-WS (proxy dinámico con `Service.getPort`, sin wsimport), timeout de 5 s
+- `CircuitBreakerBanco`: Circuit breaker (`@Singleton`): con el banco caído, corta las llamadas sin esperar el timeout
+- `ReversasBancarias`: Pide las reversas (compensación y devoluciones)
 
 Endpoint: `http://localhost:8080/Rabbit/BancoLegadoService` (WSDL en
 `?wsdl`). Aunque está en el mismo servidor, se consume siempre por
@@ -67,14 +65,12 @@ sequenceDiagram
 
 ### Qué pasa en cada caso
 
-| Caso | Resultado |
-|---|---|
-| El banco aprueba y todo sale bien | Pedido CONFIRMADO, cobro ACREDITADO con el código del banco |
-| El banco rechaza (`soap:Fault`) | El pedido sigue PENDIENTE; el usuario ve el motivo del banco |
-| El banco no responde (5 s) | El pedido sigue PENDIENTE: sin respuesta no se sabe si cobró |
-| El banco falló 3 veces seguidas (circuito abierto) | El pedido sigue PENDIENTE **al instante**, sin llamar al banco ni esperar el timeout |
-| El banco aprueba pero después falla Rabbit (no hay repartidor) | Rollback en Rabbit **y reversa en el banco** (transacción compensatoria) |
-| Un administrador cancela un pedido PREPAGO confirmado | Cobro ANULADO y, cuando la cancelación queda confirmada, reversa en el banco |
+- **El banco aprueba y todo sale bien**: Pedido CONFIRMADO, cobro ACREDITADO con el código del banco
+- **El banco rechaza (`soap:Fault`)**: El pedido sigue PENDIENTE; el usuario ve el motivo del banco
+- **El banco no responde (5 s)**: El pedido sigue PENDIENTE: sin respuesta no se sabe si cobró
+- **El banco falló 3 veces seguidas (circuito abierto)**: El pedido sigue PENDIENTE **al instante**, sin llamar al banco ni esperar el timeout
+- **El banco aprueba pero después falla Rabbit (no hay repartidor)**: Rollback en Rabbit **y reversa en el banco** (transacción compensatoria)
+- **Un administrador cancela un pedido PREPAGO confirmado**: Cobro ANULADO y, cuando la cancelación queda confirmada, reversa en el banco
 
 ### Por qué hace falta la reversa
 
@@ -163,20 +159,22 @@ el transportista tomó el envío (y su código de seguimiento) para confirmar
 el pedido. El seguimiento posterior es por consulta periódica (polling),
 no por aviso: un transportista legado no avisa (ver ADR-016).
 
-| Transportista | Tecnología | Endpoint del simulado | Estados que usa |
-|---|---|---|---|
-| Moderno | REST con JSON: `POST /cotizaciones`, `POST /envios`, `GET /envios/{codigo}`, `DELETE /envios/{codigo}` | `http://localhost:8080/Rabbit/api/simulador/transportista-rest` | `SOLICITADO`, `EN_TRANSITO`, `ENTREGADO`, `CANCELADO` |
-| Legado | SOAP con WSDL: `registrarEnvio`, `consultarEnvio`, `anularEnvio`, fault `EnvioRechazado` | `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl` | `RECIBIDO`, `EN_VIAJE`, `ENTREGADO`, `ANULADO` |
+- **Moderno**
+  - Tecnología: REST con JSON: `POST /cotizaciones`, `POST /envios`, `GET /envios/{codigo}`, `DELETE /envios/{codigo}`
+  - Endpoint del simulado: `http://localhost:8080/Rabbit/api/simulador/transportista-rest`
+  - Estados que usa: `SOLICITADO`, `EN_TRANSITO`, `ENTREGADO`, `CANCELADO`
+- **Legado**
+  - Tecnología: SOAP con WSDL: `registrarEnvio`, `consultarEnvio`, `anularEnvio`, fault `EnvioRechazado`
+  - Endpoint del simulado: `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl`
+  - Estados que usa: `RECIBIDO`, `EN_VIAJE`, `ENTREGADO`, `ANULADO`
 
-| Clase | Rol |
-|---|---|
-| `IAdaptadorTransportista` | Contrato común: `cotizarEnvio`, `solicitarEnvio`, `consultarEstado`, `cancelarEnvio` |
-| `AdaptadorRestTransportista` | Cliente JAX-RS, timeout de 5 s; 201 → tomado, 422 → rechazado; cotización: 200 → precio y plazo |
-| `AdaptadorSoapTransportista` | Proxy JAX-WS desde el WSDL, timeout de 5 s; el fault `EnvioRechazado` → rechazado; no cotiza (el WSDL no tiene esa operación) |
-| `TransportistaService` | Deriva, cancela y registra las novedades |
-| `SeguimientoDeEnvios` | Timer (cada 15 s): consulta los envíos activos |
-| `CancelacionesDeEnvios` | Cancela en el transportista (compensación y cancelaciones) |
-| `simulador.*` | Los dos transportistas simulados, en el mismo WAR (como el banco) |
+- `IAdaptadorTransportista`: Contrato común: `cotizarEnvio`, `solicitarEnvio`, `consultarEstado`, `cancelarEnvio`
+- `AdaptadorRestTransportista`: Cliente JAX-RS, timeout de 5 s; 201 → tomado, 422 → rechazado; cotización: 200 → precio y plazo
+- `AdaptadorSoapTransportista`: Proxy JAX-WS desde el WSDL, timeout de 5 s; el fault `EnvioRechazado` → rechazado; no cotiza (el WSDL no tiene esa operación)
+- `TransportistaService`: Deriva, cancela y registra las novedades
+- `SeguimientoDeEnvios`: Timer (cada 15 s): consulta los envíos activos
+- `CancelacionesDeEnvios`: Cancela en el transportista (compensación y cancelaciones)
+- `simulador.*`: Los dos transportistas simulados, en el mismo WAR (como el banco)
 
 **Cotización antes de derivar.** En **Pedidos → Derivar a un
 transportista**, el botón **Cotizar** le pregunta a cada transportista
@@ -188,9 +186,9 @@ cotiza" y se le puede derivar igual; uno que no responde en 5 s aparece
 como "no respondió" y no frena a los demás. Cada fila tiene **Derivar con
 este**. La cotización no escribe nada (`NOT_SUPPORTED`).
 
-| Cotización | Request | Respuesta del simulado |
-|---|---|---|
-| `POST {endpoint}/cotizaciones` | Igual que `POST /envios` | `200 {"precio", "plazoHoras"}`: $2.500 + $350 por bulto (+$500 si hay que cobrar al entregar), 24 h · `422 {"error"}` si supera los 50 bultos |
+- `POST {endpoint}/cotizaciones`
+  - Request: Igual que `POST /envios`
+  - Respuesta del simulado: `200 {"precio", "plazoHoras"}`: $2.500 + $350 por bulto (+$500 si hay que cobrar al entregar), 24 h · `422 {"error"}` si supera los 50 bultos
 
 **Seguimiento por polling.** Rabbit consulta cada 15 s el estado de los
 envíos activos de todos los transportistas, modernos y legados, con la
@@ -237,13 +235,11 @@ sequenceDiagram
     end
 ```
 
-| Caso | Resultado |
-|---|---|
-| El transportista toma el envío | Pedido CONFIRMADO, con transportista y código de seguimiento en lugar de repartidor |
-| Lo rechaza (más de 50 bultos) | El pedido sigue PENDIENTE con el motivo; si se había cobrado, se reversa en el banco |
-| No responde (5 s) | El pedido sigue PENDIENTE: "probá de nuevo o con otro transportista" |
-| Informa EN_TRANSITO / ENTREGADO | El pedido pasa a EN_CAMINO / ENTREGADO; el tópico avisa al comercio y acredita el contra entrega |
-| Se cancela el pedido | El envío se cancela en el transportista después del commit |
+- **El transportista toma el envío**: Pedido CONFIRMADO, con transportista y código de seguimiento en lugar de repartidor
+- **Lo rechaza (más de 50 bultos)**: El pedido sigue PENDIENTE con el motivo; si se había cobrado, se reversa en el banco
+- **No responde (5 s)**: El pedido sigue PENDIENTE: "probá de nuevo o con otro transportista"
+- **Informa EN_TRANSITO / ENTREGADO**: El pedido pasa a EN_CAMINO / ENTREGADO; el tópico avisa al comercio y acredita el contra entrega
+- **Se cancela el pedido**: El envío se cancela en el transportista después del commit
 
 **Limitaciones:** si el transportista salta un estado entre dos consultas
 (por ejemplo, de SOLICITADO a ENTREGADO), el pedido pasa por los dos en la
@@ -262,12 +258,22 @@ El contrato completo (esquemas, ejemplos y errores) está en
 [`openapi.yaml`](openapi.yaml): se abre en Swagger Editor o se importa en
 Postman.
 
-| Endpoint | Quién | Qué hace | Respuestas |
-|---|---|---|---|
-| `POST /api/v1/pedidos-externos` | ERP (HTTP Basic) + header `Idempotency-Key` | Registra un pedido externo de **su** comercio | `201` + `Location` · `400` · `401` · `403` · `422` |
-| `GET /api/v1/pedidos-externos/{id}` | ERP | Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`, `estadoPedido` y `codigoSeguimiento`; si está `PENDIENTE`, también `enListaDeEspera`, ADR-037), `Descartado` (con `motivo`) o `Cancelado` | `200` · `404` |
-| `POST /api/v1/pedidos-externos/{id}/cancelacion` | ERP | Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE` que nunca salió a reparto) | `200` · `404` · `409` |
-| `GET /api/v1/seguimiento/{codigo}` | Público | Estado actual del pedido, día prometido (ADR-042) y, en camino, parada y franja (ADR-043) | `200 {"codigoSeguimiento", "estado", "fechaPrometida"?, "llegadaEstimada"?, "ubicacionRepartidor"?}` · `404` |
+- `POST /api/v1/pedidos-externos`
+  - Quién: ERP (HTTP Basic) + header `Idempotency-Key`
+  - Qué hace: Registra un pedido externo de **su** comercio
+  - Respuestas: `201` + `Location` · `400` · `401` · `403` · `422`
+- `GET /api/v1/pedidos-externos/{id}`
+  - Quién: ERP
+  - Qué hace: Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`, `estadoPedido` y `codigoSeguimiento`; si está `PENDIENTE`, también `enListaDeEspera`, ADR-037), `Descartado` (con `motivo`) o `Cancelado`
+  - Respuestas: `200` · `404`
+- `POST /api/v1/pedidos-externos/{id}/cancelacion`
+  - Quién: ERP
+  - Qué hace: Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE` que nunca salió a reparto)
+  - Respuestas: `200` · `404` · `409`
+- `GET /api/v1/seguimiento/{codigo}`
+  - Quién: Público
+  - Qué hace: Estado actual del pedido, día prometido (ADR-042) y, en camino, parada y franja (ADR-043)
+  - Respuestas: `200 {"codigoSeguimiento", "estado", "fechaPrometida"?, "llegadaEstimada"?, "ubicacionRepartidor"?}` · `404`
 
 Ejemplo de alta desde el ERP:
 
@@ -363,13 +369,11 @@ Ruteo ubica el pedido en su zona (ADR-017).
   negocio confirma su propia transacción, así un error al confirmar llega
   al recurso y se responde bien.
 
-| Clase | Rol |
-|---|---|
-| `ApiRest` | Activa JAX-RS bajo `/Rabbit/api` |
-| `PedidosExternosResource` | Endpoints del ERP; delega en `IGestionPedidos` / `ISeguimientoPedido` |
-| `PedidoExternoRequest` | Cuerpo del alta, con Bean Validation |
-| `SeguimientoResource` | Endpoint público de seguimiento |
-| `Problema` / `ProblemaMapper` | Errores en Problem Details |
+- `ApiRest`: Activa JAX-RS bajo `/Rabbit/api`
+- `PedidosExternosResource`: Endpoints del ERP; delega en `IGestionPedidos` / `ISeguimientoPedido`
+- `PedidoExternoRequest`: Cuerpo del alta, con Bean Validation
+- `SeguimientoResource`: Endpoint público de seguimiento
+- `Problema` / `ProblemaMapper`: Errores en Problem Details
 
 - **Por qué sincrónico:** el ERP necesita saber en el momento si Rabbit
   aceptó el pedido (validación de datos) y con qué ID. La **conversión**

@@ -7,13 +7,21 @@ la demo.
 
 ## Qué rol prueba cada sección
 
-| Rol | Qué puede hacer | Dónde se prueba |
-|---|---|---|
-| `ADMINISTRADOR` | Todo lo del personal, **más** dar de alta/baja usuarios, eliminar (no solo dar de baja) comercios, usuarios, repartidores y zonas, liquidar el mes, registrar una entrega con remito como contingencia y anular el cobro de un pedido ya `CONFIRMADO` en adelante | 1, 2, 5, 6, 6b, 6c, 7b, 9, 10, 11, 12 |
-| `OPERADOR` | Todo lo del personal **salvo** esas operaciones — no ve los botones y el EJB las rechaza con `EJBAccessException` | 1b, 10, 11, 12 |
-| `COMERCIO` | Solo lo suyo: sus pedidos (con el remito de cada entrega), sus indicadores, su stock (solo lectura), sus puntos de picking y sus liquidaciones (y el aviso cuando un pedido vuelve al depósito o al comercio) | 3, 7, 10, 11, 12 |
-| `REPARTIDOR` | Solo su hoja de ruta (la recomendada, con todas sus paradas): retirar, entregar con foto del remito, devolver al depósito con motivo y compartir su ubicación | 5 (paso 3), 10, 11, 12 |
-| `ERP` | Solo la API REST, solo los pedidos de su comercio | 4, 12 |
+- `ADMINISTRADOR`
+  - Qué puede hacer: Todo lo del personal, **más** dar de alta/baja usuarios, eliminar (no solo dar de baja) comercios, usuarios, repartidores y zonas, liquidar el mes, registrar una entrega con remito como contingencia y anular el cobro de un pedido ya `CONFIRMADO` en adelante
+  - Dónde se prueba: 1, 2, 5, 6, 6b, 6c, 7b, 9, 10, 11, 12
+- `OPERADOR`
+  - Qué puede hacer: Todo lo del personal **salvo** esas operaciones — no ve los botones y el EJB las rechaza con `EJBAccessException`
+  - Dónde se prueba: 1b, 10, 11, 12
+- `COMERCIO`
+  - Qué puede hacer: Solo lo suyo: sus pedidos (con el remito de cada entrega), sus indicadores, su stock (solo lectura), sus puntos de picking y sus liquidaciones (y el aviso cuando un pedido vuelve al depósito o al comercio)
+  - Dónde se prueba: 3, 7, 10, 11, 12
+- `REPARTIDOR`
+  - Qué puede hacer: Solo su hoja de ruta (la recomendada, con todas sus paradas): retirar, entregar con foto del remito, devolver al depósito con motivo y compartir su ubicación
+  - Dónde se prueba: 5 (paso 3), 10, 11, 12
+- `ERP`
+  - Qué puede hacer: Solo la API REST, solo los pedidos de su comercio
+  - Dónde se prueba: 4, 12
 
 Requisitos previos:
 - WildFly corriendo con `standalone-full.xml` (necesario por JMS/MDBs):
@@ -223,22 +231,48 @@ un instante en pasar de Pendiente a Sincronizado.
 
 ### 4.1 Lo que tiene que mostrar la API
 
-| Prueba | Cómo | Esperado |
-|---|---|---|
-| Idempotencia | Repetir el mismo `curl` con la **misma** `Idempotency-Key` (fijala en una variable: `K=$(uuidgen)`) | `201` con el **mismo** `idPedidoExterno`; en Pedidos hay uno solo |
-| Reintentos simultáneos | La misma clave en varios `curl` en paralelo | Todos `201` con el mismo id; en el log puede aparecer un `WFLYEJB0034` por la restricción única (esperado) |
-| Clave reutilizada | Misma clave, otro `importe` | `422`, `type: /problemas/clave-idempotencia-reutilizada` |
-| Sin clave | Sacar el header `Idempotency-Key` | `400`, `type: /problemas/clave-idempotencia-invalida` |
-| Formato inválido | `"importe": 0` y sin `direccionEntrega` | `400` con `errores` (un mensaje por campo) |
-| Regla de negocio | `"origen": "PUNTO_PICKING"` sin `idPuntoPicking`, o `"codigoPostalEntrega": "12"` | `422`, `type: /problemas/datos-invalidos` |
-| Sin stock | `"cantidad": 9999` | `201`, y al consultarlo `Descartado` con el motivo ("se pidieron 9999 y hay N libres"); no se crea pedido ni se toca el stock |
-| Comercio dado de baja | Dar de baja el comercio y mandar un pedido | `201`, y al consultarlo `Descartado` ("El comercio N no existe o está dado de baja"). Reactivarlo después |
-| JSON roto | `-d '{"importe":'` | `400`, `type: /problemas/cuerpo-invalido` |
-| Pedido de otro comercio | `GET` de un `idPedidoExterno` de otro comercio | `404` (no se revela que existe) |
-| Cancelar | `curl -i -X POST -u demo.erp:<contraseña> .../v1/pedidos-externos/<id>/cancelacion` | `200` (`Sincronizado` con `estadoPedido: CANCELADO`, sin link `cancelar`); repetirlo da `200` igual |
-| Cancelar tarde | Lo mismo con el pedido ya `CONFIRMADO` | `409`, `type: /problemas/cancelacion-no-permitida` |
-| Seguimiento público | `curl -ik https://localhost:8443/Rabbit/api/v1/seguimiento/<codigoSeguimiento>` | `200 {"codigoSeguimiento", "estado"}`, sin login |
-| URL vieja | `curl -i .../Rabbit/api/pedidos-externos/1` | `404` en `application/problem+json` (la API es `/v1`) |
+- **Idempotencia**
+  - Cómo: Repetir el mismo `curl` con la **misma** `Idempotency-Key` (fijala en una variable: `K=$(uuidgen)`)
+  - Esperado: `201` con el **mismo** `idPedidoExterno`; en Pedidos hay uno solo
+- **Reintentos simultáneos**
+  - Cómo: La misma clave en varios `curl` en paralelo
+  - Esperado: Todos `201` con el mismo id; en el log puede aparecer un `WFLYEJB0034` por la restricción única (esperado)
+- **Clave reutilizada**
+  - Cómo: Misma clave, otro `importe`
+  - Esperado: `422`, `type: /problemas/clave-idempotencia-reutilizada`
+- **Sin clave**
+  - Cómo: Sacar el header `Idempotency-Key`
+  - Esperado: `400`, `type: /problemas/clave-idempotencia-invalida`
+- **Formato inválido**
+  - Cómo: `"importe": 0` y sin `direccionEntrega`
+  - Esperado: `400` con `errores` (un mensaje por campo)
+- **Regla de negocio**
+  - Cómo: `"origen": "PUNTO_PICKING"` sin `idPuntoPicking`, o `"codigoPostalEntrega": "12"`
+  - Esperado: `422`, `type: /problemas/datos-invalidos`
+- **Sin stock**
+  - Cómo: `"cantidad": 9999`
+  - Esperado: `201`, y al consultarlo `Descartado` con el motivo ("se pidieron 9999 y hay N libres"); no se crea pedido ni se toca el stock
+- **Comercio dado de baja**
+  - Cómo: Dar de baja el comercio y mandar un pedido
+  - Esperado: `201`, y al consultarlo `Descartado` ("El comercio N no existe o está dado de baja"). Reactivarlo después
+- **JSON roto**
+  - Cómo: `-d '{"importe":'`
+  - Esperado: `400`, `type: /problemas/cuerpo-invalido`
+- **Pedido de otro comercio**
+  - Cómo: `GET` de un `idPedidoExterno` de otro comercio
+  - Esperado: `404` (no se revela que existe)
+- **Cancelar**
+  - Cómo: `curl -i -X POST -u demo.erp:<contraseña> .../v1/pedidos-externos/<id>/cancelacion`
+  - Esperado: `200` (`Sincronizado` con `estadoPedido: CANCELADO`, sin link `cancelar`); repetirlo da `200` igual
+- **Cancelar tarde**
+  - Cómo: Lo mismo con el pedido ya `CONFIRMADO`
+  - Esperado: `409`, `type: /problemas/cancelacion-no-permitida`
+- **Seguimiento público**
+  - Cómo: `curl -ik https://localhost:8443/Rabbit/api/v1/seguimiento/<codigoSeguimiento>`
+  - Esperado: `200 {"codigoSeguimiento", "estado"}`, sin login
+- **URL vieja**
+  - Cómo: `curl -i .../Rabbit/api/pedidos-externos/1`
+  - Esperado: `404` en `application/problem+json` (la API es `/v1`)
 
 **Sobre el `409` de cancelar tarde:** puede salir con dos tipos distintos
 de `Problema` — `cancelacion-no-permitida` (el pedido ya avanzó, es
@@ -660,41 +694,39 @@ Misma rama. Necesita salida a internet (OpenStreetMap).
 
 ## Checklist rápido
 
-| Ítem | Resultado esperado |
-|---|---|
-| Login admin | Entra a personal/pedidos.xhtml sin error |
-| Login operador | Mismas pantallas que admin, sin **Usuarios** en el menú |
-| Operador intenta eliminar comercio / cancelar pedido confirmado | Rechazado con mensaje de negocio, no una excepción cruda |
-| Alta comercio/depósito/stock/repartidor | Aparecen en sus listados; CUIT duplicado se rechaza con mensaje claro |
-| Alta de usuarios operador/comercio/repartidor/ERP | Cuenta creada, loguea, ve solo lo suyo (o nada, si es ERP) |
-| POST /api/v1/pedidos-externos (ERP) | 201 + Location, luego Sincronizado; reintento con la misma clave no duplica |
-| Ciclo pedido completo | Pasa por todos los estados hasta ENTREGADO |
-| Circuit breaker | 3 fallas → ABIERTO → corta instantáneo → SEMIABIERTO a los 30s |
-| Derivar a un transportista | Confirmado con código de seguimiento; pasa solo a En camino y Entregado |
-| Cancelar un pedido derivado | Se cancela sin cruzarse con una novedad del transportista en curso |
-| Ruteo por zona | Pedidos agrupados por CP; despachar usa el repartidor de la zona, el respaldo o el transportista de la zona |
-| Eliminar un comercio dado de baja | Con pedidos en curso o entregados, stock o cuentas: rechazado. Con solo pedidos cancelados: se borra junto con ese historial, sin dejar nada huérfano |
-| Eliminar usuario / repartidor / zona (admin) | Se borra; un repartidor con cuenta o entregas en curso se rechaza; el operador no ve el botón |
-| Capacidad del repartidor | Si el primero no tiene lugar, se le asigna a otro; si nadie, queda en lista de espera sin cobrar y se asigna solo al liberarse uno |
-| Hora de corte (07:00, `rabbit.ruteo.hora-corte`) | Después del corte, lo que se confirma queda en espera para el día siguiente; con `ninguno`, no hay corte |
-| Devolver pedido (repartidor) | Vuelve a Pendiente en espera y se reasigna a otro repartidor, sin cobrar de nuevo |
-| Hoja de ruta recomendada | Retiros primero y después la entrega más cercana (OpenStreetMap; las no ubicadas, por CP); link a Google Maps en tramos de hasta 9 paradas |
-| Quién recibe (email obligatorio) | Se ve en Pedidos, Mis pedidos y Mis entregas; no en el seguimiento público. Sin email o con un email inválido: 400 |
-| Avisos a quien recibe | Una fila por cambio de estado en la campana, "Avisos a quien recibe" (y mail si hay SMTP); sin email, nada |
-| Fecha prometida | Viene en el 201 del alta; hoy antes del corte, mañana después |
-| Visitas fallidas | La primera vuelve a la espera; la segunda (o un rechazo) pasa a Devuelto al comercio, con stock devuelto y cobro anulado |
-| Evidencia de la visita fallida | Motivo de la lista, comentario, hasta 3 fotos y ubicación; "Ver visitas" para el personal y el comercio dueño; paquete dañado sin stock devuelto |
-| Horario en el seguimiento | En camino: "parada N de M" y una franja; si falla, sin horario y sin error |
-| Indicadores | Personal (red o comercio, por repartidor) y comercio (lo suyo); "—" sin base |
-| Navegar un rato largo (más de 30 min) y después derivar o abrir Entregas en curso | Funciona: las consultas de stock no dependen de una instancia stateful que vence (ADR-027) |
-| Acceso restringido a personal/usuarios.xhtml | Comercio/repartidor/operador no puede entrar |
-| REST sin credenciales | 401 (HTML de WildFly) |
-| REST con rol incorrecto | 403 (HTML de WildFly) |
-| REST con código postal inválido | 422 (regla de negocio) |
-| Pedido del ERP sin stock o de un comercio dado de baja | 201 y después Descartado, con el motivo |
-| Celular (comercio y repartidor), con los 3 temas | Menú desplegable, tablas como tarjetas, botones de 44 px, nada desborda |
-| Cancelar pedido externo tarde | 409 `cancelacion-no-permitida` (definitivo) o `stock-en-conflicto` (reintentar) |
-| Cancelar un pedido que ya salió a reparto (ADR-048) | En Pedidos no aparece el botón (dice "Ya salió a reparto: no se puede cancelar"), tampoco si volvió al depósito para otra visita; por la API, 409 con el mismo motivo |
-| Editar stock por debajo de lo reservado, o eliminar un ítem que usa un pedido en curso (ADR-049) | Error con el motivo (la cantidad mínima, o el número de pedido); un operador no ve "Eliminar" |
-| Alta sin email de quien recibe (ADR-039) | API: 400 con `emailDestinatario` en `errores`; pantalla: "Ingresá el email de quien recibe…" |
-| Cuenta sin comercio asociado | Mensaje amigable, no el interno |
+- **Login admin**: Entra a personal/pedidos.xhtml sin error
+- **Login operador**: Mismas pantallas que admin, sin **Usuarios** en el menú
+- **Operador intenta eliminar comercio / cancelar pedido confirmado**: Rechazado con mensaje de negocio, no una excepción cruda
+- **Alta comercio/depósito/stock/repartidor**: Aparecen en sus listados; CUIT duplicado se rechaza con mensaje claro
+- **Alta de usuarios operador/comercio/repartidor/ERP**: Cuenta creada, loguea, ve solo lo suyo (o nada, si es ERP)
+- **POST /api/v1/pedidos-externos (ERP)**: 201 + Location, luego Sincronizado; reintento con la misma clave no duplica
+- **Ciclo pedido completo**: Pasa por todos los estados hasta ENTREGADO
+- **Circuit breaker**: 3 fallas → ABIERTO → corta instantáneo → SEMIABIERTO a los 30s
+- **Derivar a un transportista**: Confirmado con código de seguimiento; pasa solo a En camino y Entregado
+- **Cancelar un pedido derivado**: Se cancela sin cruzarse con una novedad del transportista en curso
+- **Ruteo por zona**: Pedidos agrupados por CP; despachar usa el repartidor de la zona, el respaldo o el transportista de la zona
+- **Eliminar un comercio dado de baja**: Con pedidos en curso o entregados, stock o cuentas: rechazado. Con solo pedidos cancelados: se borra junto con ese historial, sin dejar nada huérfano
+- **Eliminar usuario / repartidor / zona (admin)**: Se borra; un repartidor con cuenta o entregas en curso se rechaza; el operador no ve el botón
+- **Capacidad del repartidor**: Si el primero no tiene lugar, se le asigna a otro; si nadie, queda en lista de espera sin cobrar y se asigna solo al liberarse uno
+- **Hora de corte (07:00, `rabbit.ruteo.hora-corte`)**: Después del corte, lo que se confirma queda en espera para el día siguiente; con `ninguno`, no hay corte
+- **Devolver pedido (repartidor)**: Vuelve a Pendiente en espera y se reasigna a otro repartidor, sin cobrar de nuevo
+- **Hoja de ruta recomendada**: Retiros primero y después la entrega más cercana (OpenStreetMap; las no ubicadas, por CP); link a Google Maps en tramos de hasta 9 paradas
+- **Quién recibe (email obligatorio)**: Se ve en Pedidos, Mis pedidos y Mis entregas; no en el seguimiento público. Sin email o con un email inválido: 400
+- **Avisos a quien recibe**: Una fila por cambio de estado en la campana, "Avisos a quien recibe" (y mail si hay SMTP); sin email, nada
+- **Fecha prometida**: Viene en el 201 del alta; hoy antes del corte, mañana después
+- **Visitas fallidas**: La primera vuelve a la espera; la segunda (o un rechazo) pasa a Devuelto al comercio, con stock devuelto y cobro anulado
+- **Evidencia de la visita fallida**: Motivo de la lista, comentario, hasta 3 fotos y ubicación; "Ver visitas" para el personal y el comercio dueño; paquete dañado sin stock devuelto
+- **Horario en el seguimiento**: En camino: "parada N de M" y una franja; si falla, sin horario y sin error
+- **Indicadores**: Personal (red o comercio, por repartidor) y comercio (lo suyo); "—" sin base
+- **Navegar un rato largo (más de 30 min) y después derivar o abrir Entregas en curso**: Funciona: las consultas de stock no dependen de una instancia stateful que vence (ADR-027)
+- **Acceso restringido a personal/usuarios.xhtml**: Comercio/repartidor/operador no puede entrar
+- **REST sin credenciales**: 401 (HTML de WildFly)
+- **REST con rol incorrecto**: 403 (HTML de WildFly)
+- **REST con código postal inválido**: 422 (regla de negocio)
+- **Pedido del ERP sin stock o de un comercio dado de baja**: 201 y después Descartado, con el motivo
+- **Celular (comercio y repartidor), con los 3 temas**: Menú desplegable, tablas como tarjetas, botones de 44 px, nada desborda
+- **Cancelar pedido externo tarde**: 409 `cancelacion-no-permitida` (definitivo) o `stock-en-conflicto` (reintentar)
+- **Cancelar un pedido que ya salió a reparto (ADR-048)**: En Pedidos no aparece el botón (dice "Ya salió a reparto: no se puede cancelar"), tampoco si volvió al depósito para otra visita; por la API, 409 con el mismo motivo
+- **Editar stock por debajo de lo reservado, o eliminar un ítem que usa un pedido en curso (ADR-049)**: Error con el motivo (la cantidad mínima, o el número de pedido); un operador no ve "Eliminar"
+- **Alta sin email de quien recibe (ADR-039)**: API: 400 con `emailDestinatario` en `errores`; pantalla: "Ingresá el email de quien recibe…"
+- **Cuenta sin comercio asociado**: Mensaje amigable, no el interno

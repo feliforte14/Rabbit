@@ -22,50 +22,48 @@ cli() { "$WILDFLY_HOME/bin/jboss-cli.sh" --connect "$@"; }
 
 ### Mapa de los sistemas
 
-| Sistema | Dónde corre | Puerto | Hace falta para |
-|---|---|---|---|
-| WildFly 41 (Rabbit + broker JMS + banco y transportistas simulados) | Local | 8443 (app, HTTPS), 8080 (simuladores), 9990 (management) | Todo |
-| Base PostgreSQL | Supabase (remota, siempre prendida) | 5432 (Session Pooler) | Todo |
+- **WildFly 41 (Rabbit + broker JMS + banco y transportistas simulados)**
+  - Dónde corre: Local
+  - Puerto: 8443 (app, HTTPS), 8080 (simuladores), 9990 (management)
+  - Hace falta para: Todo
+- **Base PostgreSQL**
+  - Dónde corre: Supabase (remota, siempre prendida)
+  - Puerto: 5432 (Session Pooler)
+  - Hace falta para: Todo
 
 El broker (ActiveMQ Artemis), el banco en Java y los dos transportistas
 simulados viven dentro de WildFly: se prenden y se apagan con él.
 
 ### WildFly
 
-| Qué | Comando |
-|---|---|
-| Prender (en esta terminal; se apaga con Ctrl+C) | `$WILDFLY_HOME/bin/standalone.sh -c standalone-full.xml` |
-| Prender en segundo plano | `nohup $WILDFLY_HOME/bin/standalone.sh -c standalone-full.xml > ~/wildfly-consola.log 2>&1 &` |
-| ¿Está prendido? | `cli --command=":read-attribute(name=server-state)"` → `"running"` |
-| Apagar | `cli --command=":shutdown"` |
-| Reiniciar el proceso | `cli --command=":shutdown(restart=true)"` |
-| Recargar la configuración (sin reiniciar el proceso) | `cli --command=":reload"` |
-| Ver el log en vivo | `tail -f $WILDFLY_HOME/standalone/log/server.log` |
+- **Prender (en esta terminal; se apaga con Ctrl+C)**: `$WILDFLY_HOME/bin/standalone.sh -c standalone-full.xml`
+- **Prender en segundo plano**: `nohup $WILDFLY_HOME/bin/standalone.sh -c standalone-full.xml > ~/wildfly-consola.log 2>&1 &`
+- **¿Está prendido?**: `cli --command=":read-attribute(name=server-state)"` → `"running"`
+- **Apagar**: `cli --command=":shutdown"`
+- **Reiniciar el proceso**: `cli --command=":shutdown(restart=true)"`
+- **Recargar la configuración (sin reiniciar el proceso)**: `cli --command=":reload"`
+- **Ver el log en vivo**: `tail -f $WILDFLY_HOME/standalone/log/server.log`
 
 Siempre con **`standalone-full.xml`**: con el perfil por defecto no hay
 JMS y la app no despliega.
 
 Prefijos útiles para filtrar el log (`grep`):
 
-| Prefijo | Qué muestra |
-|---|---|
-| `[Pedidos][JMS]` | La cola de pedidos del ERP |
-| `[Pagos][Circuito]` | Cambios de estado del circuit breaker |
-| `[Banco legado]` | Cobros y reversas del banco simulado |
-| `[Transportistas]` | Envíos derivados y cada novedad del seguimiento |
-| `[Esquema]` | Restricciones CHECK realineadas al desplegar |
+- `[Pedidos][JMS]`: La cola de pedidos del ERP
+- `[Pagos][Circuito]`: Cambios de estado del circuit breaker
+- `[Banco legado]`: Cobros y reversas del banco simulado
+- `[Transportistas]`: Envíos derivados y cada novedad del seguimiento
+- `[Esquema]`: Restricciones CHECK realineadas al desplegar
 
 ### La aplicación
 
 Desde la raíz del repositorio:
 
-| Qué | Comando |
-|---|---|
-| Compilar y desplegar (o redesplegar) | `mvn -q clean package wildfly:deploy` |
-| Quitar el despliegue | `mvn -q wildfly:undeploy` |
-| ¿Está desplegada? | `cli --command="deployment-info --name=Rabbit.war"` → `OK` |
-| Redesplegar el WAR ya subido (tras cambiar una system property) | `cli --command="/deployment=Rabbit.war:redeploy"` |
-| Abrir | https://localhost:8443/Rabbit (certificado autofirmado: aceptar la advertencia) |
+- **Compilar y desplegar (o redesplegar)**: `mvn -q clean package wildfly:deploy`
+- **Quitar el despliegue**: `mvn -q wildfly:undeploy`
+- **¿Está desplegada?**: `cli --command="deployment-info --name=Rabbit.war"` → `OK`
+- **Redesplegar el WAR ya subido (tras cambiar una system property)**: `cli --command="/deployment=Rabbit.war:redeploy"`
+- **Abrir**: https://localhost:8443/Rabbit (certificado autofirmado: aceptar la advertencia)
 
 Usá siempre `clean`: una compilación incremental ya dejó pasar un import
 faltante.
@@ -74,10 +72,8 @@ faltante.
 
 No se prende ni se apaga: es remota. Desde WildFly:
 
-| Qué | Comando |
-|---|---|
-| Probar la conexión | `cli --command="/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"` |
-| Vaciar el pool (si aparece `This connection has been closed`) | `cli --command="/subsystem=datasources/data-source=RabbitDS:flush-all-connection-in-pool"` |
+- **Probar la conexión**: `cli --command="/subsystem=datasources/data-source=RabbitDS:test-connection-in-pool"`
+- **Vaciar el pool (si aparece `This connection has been closed`)**: `cli --command="/subsystem=datasources/data-source=RabbitDS:flush-all-connection-in-pool"`
 
 Si responde `EAUTHQUERY ... connection to database not available`, el
 proyecto de Supabase está pausado: reactivarlo desde su dashboard. Si
@@ -100,15 +96,13 @@ avisar al equipo antes de la C o la B.
 **Import → File** en Postman. Trae 64 requests ordenados por prueba (los
 códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 
-| Carpeta | Qué prueba |
-|---|---|
-| 1 · API del ERP | Alta, idempotencia, punto de picking, sin stock, cancelación y comercio dado de baja. En orden: cada alta guarda su id y la consulta de al lado lo usa |
-| 2 · Validaciones y seguridad | 400, 422, 401, 403, 404, 404 y 302 |
-| 3 · Seguimiento público | 200 y 404, sin login |
-| 4 · Pedidos de apoyo | Pedidos para seguir probando en la web (banco que rechaza, ruteo por zona) |
-| 5 · Transportistas | REST y SOAP legado, llamados directo |
-| 6 · Banco legado | Llamado directo: autorizar, rechazo y reversa |
-| 7 · Contrato, idempotencia y seguridad cruzada | 18 pasos automatizados con tests, en orden: misma clave con otro cuerpo (422), sin clave (400), BOLA entre dos ERPs (404 al consultar y al cancelar), rol COMERCIO (403), sincronización y seguimiento con el código en minúsculas, cancelación idempotente, problem+json, HSTS y pantallas protegidas sin sesión (302) |
+- **1 · API del ERP**: Alta, idempotencia, punto de picking, sin stock, cancelación y comercio dado de baja. En orden: cada alta guarda su id y la consulta de al lado lo usa
+- **2 · Validaciones y seguridad**: 400, 422, 401, 403, 404, 404 y 302
+- **3 · Seguimiento público**: 200 y 404, sin login
+- **4 · Pedidos de apoyo**: Pedidos para seguir probando en la web (banco que rechaza, ruteo por zona)
+- **5 · Transportistas**: REST y SOAP legado, llamados directo
+- **6 · Banco legado**: Llamado directo: autorizar, rechazo y reversa
+- **7 · Contrato, idempotencia y seguridad cruzada**: 18 pasos automatizados con tests, en orden: misma clave con otro cuerpo (422), sin clave (400), BOLA entre dos ERPs (404 al consultar y al cancelar), rol COMERCIO (403), sincronización y seguimiento con el código en minúsculas, cancelación idempotente, problem+json, HSTS y pantallas protegidas sin sesión (302)
 
 Antes de usarla: en **Settings**, apagar *SSL certificate verification*
 (el certificado es autofirmado), y en las variables de la colección
@@ -126,19 +120,50 @@ Los pasos que piden hacer algo en la web lo dicen en la descripción
 Se agregan con `cli --command="/system-property=<nombre>:add(value=<valor>)"`
 y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 
-| Propiedad | Por defecto | Qué hace | ¿Hay que redesplegar? |
-|---|---|---|---|
-| `rabbit.banco.simular.caida` | sin definir | `true`: el banco en Java tarda 10 s y no responde a tiempo | No |
-| `rabbit.banco.wsdl` | el banco en Java | Apunta Rabbit a otro banco con el mismo WSDL | Sí |
-| `rabbit.banco.cb.umbral` | `3` | Fallas seguidas que abren el circuito | Sí |
-| `rabbit.banco.cb.espera.ms` | `30000` | Cuánto espera el circuito abierto antes de probar | Sí |
-| `rabbit.transportista.simulador.segundos` | `20` | Cada cuántos segundos avanza un envío simulado. Menos de 15 hace que el pedido salte de Confirmado a Entregado | No |
-| `rabbit.cola.consumidores` | `1` | Consumidores de la cola de pedidos del ERP | Sí |
-| `rabbit.sincronizador.pausado` | sin definir | `true`: pausa el timer de respaldo de la cola (lo usa la prueba de escalabilidad) | No |
-| `rabbit.ruteo.hora-corte` | `07:00` | `HH:mm`: desde esa hora los pedidos que se confirman van a la lista de espera para el día siguiente (ADR-037), y los que llegan reciben fecha prometida para mañana (ADR-042). Para probarlo de día, `00:01`; para una demo después de las 21, `ninguno` | No |
-| `rabbit.entregas.max-intentos` | `2` | Visitas fallidas antes de devolver el pedido al comercio (ADR-041). Con `1`, la primera visita fallida ya lo devuelve | No |
-| `rabbit.ruteo.minutos-por-parada` | `20` | Minutos por parada para la franja horaria del seguimiento (ADR-043) | No |
-| `rabbit.url-publica` | `https://localhost:8443/Rabbit` | Base del link al seguimiento en los avisos a quien recibe (ADR-040) | No |
+- `rabbit.banco.simular.caida`
+  - Por defecto: sin definir
+  - Qué hace: `true`: el banco en Java tarda 10 s y no responde a tiempo
+  - ¿Hay que redesplegar?: No
+- `rabbit.banco.wsdl`
+  - Por defecto: el banco en Java
+  - Qué hace: Apunta Rabbit a otro banco con el mismo WSDL
+  - ¿Hay que redesplegar?: Sí
+- `rabbit.banco.cb.umbral`
+  - Por defecto: `3`
+  - Qué hace: Fallas seguidas que abren el circuito
+  - ¿Hay que redesplegar?: Sí
+- `rabbit.banco.cb.espera.ms`
+  - Por defecto: `30000`
+  - Qué hace: Cuánto espera el circuito abierto antes de probar
+  - ¿Hay que redesplegar?: Sí
+- `rabbit.transportista.simulador.segundos`
+  - Por defecto: `20`
+  - Qué hace: Cada cuántos segundos avanza un envío simulado. Menos de 15 hace que el pedido salte de Confirmado a Entregado
+  - ¿Hay que redesplegar?: No
+- `rabbit.cola.consumidores`
+  - Por defecto: `1`
+  - Qué hace: Consumidores de la cola de pedidos del ERP
+  - ¿Hay que redesplegar?: Sí
+- `rabbit.sincronizador.pausado`
+  - Por defecto: sin definir
+  - Qué hace: `true`: pausa el timer de respaldo de la cola (lo usa la prueba de escalabilidad)
+  - ¿Hay que redesplegar?: No
+- `rabbit.ruteo.hora-corte`
+  - Por defecto: `07:00`
+  - Qué hace: `HH:mm`: desde esa hora los pedidos que se confirman van a la lista de espera para el día siguiente (ADR-037), y los que llegan reciben fecha prometida para mañana (ADR-042). Para probarlo de día, `00:01`; para una demo después de las 21, `ninguno`
+  - ¿Hay que redesplegar?: No
+- `rabbit.entregas.max-intentos`
+  - Por defecto: `2`
+  - Qué hace: Visitas fallidas antes de devolver el pedido al comercio (ADR-041). Con `1`, la primera visita fallida ya lo devuelve
+  - ¿Hay que redesplegar?: No
+- `rabbit.ruteo.minutos-por-parada`
+  - Por defecto: `20`
+  - Qué hace: Minutos por parada para la franja horaria del seguimiento (ADR-043)
+  - ¿Hay que redesplegar?: No
+- `rabbit.url-publica`
+  - Por defecto: `https://localhost:8443/Rabbit`
+  - Qué hace: Base del link al seguimiento en los avisos a quien recibe (ADR-040)
+  - ¿Hay que redesplegar?: No
 
 Para ver cuáles están definidas:
 `cli --command="/system-property=*:read-resource"`.
