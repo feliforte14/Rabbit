@@ -133,33 +133,65 @@ docs/                      ← documentación técnica por tema (ver docs/README
 scripts/                   ← prueba de escalabilidad y limpieza de datos de prueba
 ```
 
-| Componente | Paquete | Estado |
-|---|---|---|
-| Comercios | `comercios` | Implementado |
-| Inventario | `inventario` | Implementado |
-| Pedidos | `pedidos` | Implementado |
-| Seguridad | `seguridad` | Implementado |
-| Pagos y Cobranzas | `pagos` | Implementado |
-| Repartidores | `repartidores` | Implementado |
-| Integración con el banco legado (SOAP) | `integracion.banco` | Implementado |
-| Notificaciones | `notificaciones` | Implementado |
-| Ruteo (zonas, despacho por zona, hoja de ruta y tablero de entregas) | `ruteo` | Implementado |
-| Transportistas (REST y SOAP legado) | `transportistas` | Implementado |
+- **Comercios**
+  - Paquete: `comercios`
+  - Estado: Implementado
+- **Inventario**
+  - Paquete: `inventario`
+  - Estado: Implementado
+- **Pedidos**
+  - Paquete: `pedidos`
+  - Estado: Implementado
+- **Seguridad**
+  - Paquete: `seguridad`
+  - Estado: Implementado
+- **Pagos y Cobranzas**
+  - Paquete: `pagos`
+  - Estado: Implementado
+- **Repartidores**
+  - Paquete: `repartidores`
+  - Estado: Implementado
+- **Integración con el banco legado (SOAP)**
+  - Paquete: `integracion.banco`
+  - Estado: Implementado
+- **Notificaciones**
+  - Paquete: `notificaciones`
+  - Estado: Implementado
+- **Ruteo (zonas, despacho por zona, hoja de ruta y tablero de entregas)**
+  - Paquete: `ruteo`
+  - Estado: Implementado
+- **Transportistas (REST y SOAP legado)**
+  - Paquete: `transportistas`
+  - Estado: Implementado
 
 ## Integraciones
 
 2 SOAP, 3 REST, 1 cola punto a punto y 1 tópico pub/sub (más el mail, opcional):
 
-| Integración | Tipo | Dirección |
-|---|---|---|
-| Pagos → banco legado (cobro y reversa, con circuit breaker) | Sincrónica, **SOAP** | Saliente |
-| Transportistas → transportista legado (derivar, seguir, cancelar) | Sincrónica, **SOAP** | Saliente |
-| ERP del comercio → Rabbit (`/api/v1/pedidos-externos`: alta idempotente, consulta y cancelación) | Sincrónica, **REST** | Entrante |
-| Cliente final → Rabbit (`/api/v1/seguimiento/{codigo}`, sin login) | Sincrónica, **REST** | Entrante |
-| Transportistas → transportista moderno (cotizar, derivar, seguir, cancelar) | Sincrónica, **REST** | Saliente |
-| Pedido del ERP → pedido real (`cola.pedidos.externos`) | Asincrónica, **cola JMS** | Interna |
-| Cambios de estado del pedido → Pagos y Notificaciones (`topico.pedidos.estado`) | Asincrónica, **tópico JMS** | Interna |
-| Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Saliente (opcional, por configuración) |
+- **Pagos → banco legado (cobro y reversa, con circuit breaker)**
+  - Tipo: Sincrónica, **SOAP**
+  - Dirección: Saliente
+- **Transportistas → transportista legado (derivar, seguir, cancelar)**
+  - Tipo: Sincrónica, **SOAP**
+  - Dirección: Saliente
+- **ERP del comercio → Rabbit (`/api/v1/pedidos-externos`: alta idempotente, consulta y cancelación)**
+  - Tipo: Sincrónica, **REST**
+  - Dirección: Entrante
+- **Cliente final → Rabbit (`/api/v1/seguimiento/{codigo}`, sin login)**
+  - Tipo: Sincrónica, **REST**
+  - Dirección: Entrante
+- **Transportistas → transportista moderno (cotizar, derivar, seguir, cancelar)**
+  - Tipo: Sincrónica, **REST**
+  - Dirección: Saliente
+- **Pedido del ERP → pedido real (`cola.pedidos.externos`)**
+  - Tipo: Asincrónica, **cola JMS**
+  - Dirección: Interna
+- **Cambios de estado del pedido → Pagos y Notificaciones (`topico.pedidos.estado`)**
+  - Tipo: Asincrónica, **tópico JMS**
+  - Dirección: Interna
+- **Notificaciones → comercio**
+  - Tipo: SMTP (Jakarta Mail), después del commit
+  - Dirección: Saliente (opcional, por configuración)
 
 El seguimiento de los envíos derivados es por consulta periódica (cada
 15 s) a todos los transportistas, modernos y legados (ADR-029).
@@ -169,7 +201,7 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (49 ADRs)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (59 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MENSAJERIA-JUSTIFICACION.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
@@ -177,18 +209,16 @@ El detalle y la justificación de cada decisión están en
 
 ## Cumplimiento de la consigna
 
-| Requisito | Cómo |
-|---|---|
-| Mínimo 6 componentes con interfaz explícita | 9 componentes de negocio, cada uno con interfaces `@Local`, más una capa técnica de integración (`integracion`: cliente del banco y adaptadores de transportistas) |
-| 1 componente stateful y 1 stateless | `InventarioService` (`@Stateful`: la reserva de stock es una conversación) y el resto `@Stateless` |
-| Arquitectura en capas | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente |
-| 3 patrones de diseño | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, State, transacción compensatoria y Circuit Breaker |
-| SOAP con un sistema legado / REST con un partner moderno | Ver [Integraciones](#integraciones) |
-| Cola punto a punto y tópico pub/sub | `cola.pedidos.externos` y `topico.pedidos.estado` (ActiveMQ Artemis) |
-| Seguridad declarativa | `@RolesAllowed` en las operaciones sensibles, 5 roles, HTTPS obligatorio |
-| Transacciones declarativas | `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla |
-| Desafíos opcionales | Resiliencia, escalabilidad medida y ADRs. La heterogeneidad tecnológica (banco en Node.js, transportista en Python) está en la rama [`desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad) |
-| Anexo: responsive y temas | Responsive de 360 a 1920 px; temas normal, claro y oscuro en tiempo real |
+- **Mínimo 6 componentes con interfaz explícita**: 9 componentes de negocio, cada uno con interfaces `@Local`, más una capa técnica de integración (`integracion`: cliente del banco y adaptadores de transportistas)
+- **1 componente stateful y 1 stateless**: `InventarioService` (`@Stateful`: la reserva de stock es una conversación) y el resto `@Stateless`
+- **Arquitectura en capas**: `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente
+- **3 patrones de diseño**: DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, State, transacción compensatoria y Circuit Breaker
+- **SOAP con un sistema legado / REST con un partner moderno**: Ver [Integraciones](#integraciones)
+- **Cola punto a punto y tópico pub/sub**: `cola.pedidos.externos` y `topico.pedidos.estado` (ActiveMQ Artemis)
+- **Seguridad declarativa**: `@RolesAllowed` en las operaciones sensibles, 5 roles, HTTPS obligatorio
+- **Transacciones declarativas**: `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla
+- **Desafíos opcionales**: Resiliencia, escalabilidad medida y ADRs. La heterogeneidad tecnológica (banco en Node.js, transportista en Python) está en la rama [`desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad)
+- **Anexo: responsive y temas**: Responsive de 360 a 1920 px; temas normal, claro y oscuro en tiempo real
 
 El detalle, requisito por requisito, en el [Checklist](docs/consigna/CHECKLIST.md).
 
@@ -201,11 +231,15 @@ es el checklist de qué necesita cada quien y dónde se consigue o se crea
 
 ### Infraestructura
 
-| Credencial | Para qué | De dónde sale |
-|---|---|---|
-| Usuario/contraseña de la base PostgreSQL | Datasource `RabbitDS` (paso 2) | Si es la base compartida de Supabase, pedírsela al equipo; si es una base propia, la que elijas al crearla |
-| Usuario/contraseña de management de WildFly | `wildfly-maven-plugin` para desplegar (paso 3), puerto `9990` | Se crea una sola vez con `add-user.sh -u ... -p ...` (sin `-a`, no es un usuario de la app) y se guarda en `~/.m2/settings.xml`, nunca en `pom.xml` |
-| Servidor SMTP (host, puerto, remitente) | Avisos por mail al comercio (paso 7, opcional) | El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal |
+- **Usuario/contraseña de la base PostgreSQL**
+  - Para qué: Datasource `RabbitDS` (paso 2)
+  - De dónde sale: Si es la base compartida de Supabase, pedírsela al equipo; si es una base propia, la que elijas al crearla
+- **Usuario/contraseña de management de WildFly**
+  - Para qué: `wildfly-maven-plugin` para desplegar (paso 3), puerto `9990`
+  - De dónde sale: Se crea una sola vez con `add-user.sh -u ... -p ...` (sin `-a`, no es un usuario de la app) y se guarda en `~/.m2/settings.xml`, nunca en `pom.xml`
+- **Servidor SMTP (host, puerto, remitente)**
+  - Para qué: Avisos por mail al comercio (paso 7, opcional)
+  - De dónde sale: El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal
 
 ### Cuentas de la aplicación
 
@@ -214,13 +248,21 @@ Estas **no** se precargan: las crea cada administrador desde la pantalla
 base compartida (con la contraseña en bcrypt), así que una cuenta creada
 desde cualquier máquina entra en el WildFly de todos (paso 5, ADR-031).
 
-| Tipo de cuenta | Cómo se crea | Qué usa/ve |
-|---|---|---|
-| `ADMINISTRADOR` (la primera) | `add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s` (paso 5) — es la única que se crea por fuera de la app | Todo; además, único rol que puede eliminar comercios, repartidores, zonas y usuarios, anular un cobro, dar de alta/baja otros usuarios y liquidar el mes |
-| `ADMINISTRADOR` / `OPERADOR` (resto) | Desde **Usuarios**, con un `ADMINISTRADOR` ya logueado | Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar nada ni anular cobros |
-| `COMERCIO` | Desde **Usuarios**, asociándola a un comercio ya dado de alta | Sus pedidos (con el remito de cada entrega), su stock (solo lectura), sus puntos de picking y sus liquidaciones mensuales |
-| `REPARTIDOR` | Desde **Usuarios**, asociándola a un repartidor ya dado de alta | Su hoja de ruta; marca retiro y entrega (con foto del remito) y comparte su ubicación mientras reparte |
-| `ERP` | Desde **Usuarios**, asociándola a un comercio (paso 6) | Nada de la web — solo la API REST `/api/v1`, y solo los pedidos de ese comercio (HTTP Basic) |
+- `ADMINISTRADOR` (la primera)
+  - Cómo se crea: `add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s` (paso 5) — es la única que se crea por fuera de la app
+  - Qué usa/ve: Todo; además, único rol que puede eliminar comercios, repartidores, zonas y usuarios, anular un cobro, dar de alta/baja otros usuarios y liquidar el mes
+- `ADMINISTRADOR` / `OPERADOR` (resto)
+  - Cómo se crea: Desde **Usuarios**, con un `ADMINISTRADOR` ya logueado
+  - Qué usa/ve: Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar nada ni anular cobros
+- `COMERCIO`
+  - Cómo se crea: Desde **Usuarios**, asociándola a un comercio ya dado de alta
+  - Qué usa/ve: Sus pedidos (con el remito de cada entrega), su stock (solo lectura), sus puntos de picking y sus liquidaciones mensuales
+- `REPARTIDOR`
+  - Cómo se crea: Desde **Usuarios**, asociándola a un repartidor ya dado de alta
+  - Qué usa/ve: Su hoja de ruta; marca retiro y entrega (con foto del remito) y comparte su ubicación mientras reparte
+- `ERP`
+  - Cómo se crea: Desde **Usuarios**, asociándola a un comercio (paso 6)
+  - Qué usa/ve: Nada de la web — solo la API REST `/api/v1`, y solo los pedidos de ese comercio (HTTP Basic)
 
 Un usuario creado a mano con `add-user.sh -g ERP`/`-g COMERCIO` (sin pasar
 por la app) no queda asociado a ningún comercio ni repartidor: la app
@@ -235,11 +277,15 @@ transportista legado (SOAP) y el transportista moderno (REST) están
 simulados dentro del mismo WAR y se llaman por la red igual que si fueran
 externos:
 
-| Sistema | Protocolo | Dónde |
-|---|---|---|
-| Banco legado | SOAP | `http://localhost:8080/Rabbit/BancoLegadoService?wsdl` |
-| Transportista legado | SOAP | `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl` |
-| Transportista moderno | REST | `http://localhost:8080/Rabbit/api/simulador/transportista-rest` |
+- **Banco legado**
+  - Protocolo: SOAP
+  - Dónde: `http://localhost:8080/Rabbit/BancoLegadoService?wsdl`
+- **Transportista legado**
+  - Protocolo: SOAP
+  - Dónde: `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl`
+- **Transportista moderno**
+  - Protocolo: REST
+  - Dónde: `http://localhost:8080/Rabbit/api/simulador/transportista-rest`
 
 Ninguno tiene autenticación. Las versiones en otros lenguajes (banco en
 Node.js, transportista en Python) están en la rama

@@ -32,13 +32,21 @@
 
 ## Roles
 
-| Rol | Quién | Cómo se crea |
-|---|---|---|
-| `ADMINISTRADOR` | Personal de Rabbit con permisos totales | El primero con `add-user.sh -a -u <usuario> -p '<clave>' -g ADMINISTRADOR`; los demás, un administrador desde `personal/usuarios.xhtml` |
-| `OPERADOR` | Personal de Rabbit | Un administrador, desde `personal/usuarios.xhtml` |
-| `COMERCIO` | Un comercio: ve solo sus pedidos, su stock y sus puntos de picking | Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un comercio activo |
-| `REPARTIDOR` | Un repartidor: ve y mueve solo sus entregas | Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un repartidor (una cuenta por repartidor) |
-| `ERP` | Sistema de un comercio que usa la API REST (no es una persona): carga y ve solo los pedidos de su comercio | Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un comercio activo |
+- `ADMINISTRADOR`
+  - Quién: Personal de Rabbit con permisos totales
+  - Cómo se crea: El primero con `add-user.sh -a -u <usuario> -p '<clave>' -g ADMINISTRADOR`; los demás, un administrador desde `personal/usuarios.xhtml`
+- `OPERADOR`
+  - Quién: Personal de Rabbit
+  - Cómo se crea: Un administrador, desde `personal/usuarios.xhtml`
+- `COMERCIO`
+  - Quién: Un comercio: ve solo sus pedidos, su stock y sus puntos de picking
+  - Cómo se crea: Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un comercio activo
+- `REPARTIDOR`
+  - Quién: Un repartidor: ve y mueve solo sus entregas
+  - Cómo se crea: Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un repartidor (una cuenta por repartidor)
+- `ERP`
+  - Quién: Sistema de un comercio que usa la API REST (no es una persona): carga y ve solo los pedidos de su comercio
+  - Cómo se crea: Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un comercio activo
 
 La API REST del ERP se autentica con HTTP Basic (`web.xml`:
 `security-constraint` sobre `/api/v1/pedidos-externos` + `login-config`
@@ -49,46 +57,48 @@ rechaza al usuario ERP.
 
 La autorización real está en la capa de Negocio, sobre los EJB:
 
-| Anotación | Dónde | Para qué |
-|---|---|---|
-| `@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})` | Clase del EJB | Documenta los roles del componente |
-| `@PermitAll` | Clase del EJB | Necesario: WildFly está con `default-missing-method-permissions-deny-access=true`, así que sin esto todo método sin anotación queda denegado |
-| `@RolesAllowed("ADMINISTRADOR")` | Método sensible | La restricción real |
+- `@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})`
+  - Dónde: Clase del EJB
+  - Para qué: Documenta los roles del componente
+- `@PermitAll`
+  - Dónde: Clase del EJB
+  - Para qué: Necesario: WildFly está con `default-missing-method-permissions-deny-access=true`, así que sin esto todo método sin anotación queda denegado
+- `@RolesAllowed("ADMINISTRADOR")`
+  - Dónde: Método sensible
+  - Para qué: La restricción real
 
 ### Operaciones sensibles protegidas (implementado)
 
-| Operación | Por qué es sensible |
-|---|---|
-| `ComercioService.eliminarComercio` | Borra físicamente el comercio y sus puntos de picking en cascada, y su historial cancelado (pedidos, avisos, cobros anulados, envíos; ADR-028) |
-| `UsuarioService.registrarUsuario` | Crea cuentas con acceso al sistema. Si fuera público, cualquiera se daría un `OPERADOR` |
-| Alta y cambios de comercios, depósitos, stock y repartidores; `confirmarPedido` y `cancelarPedido` | Solo el personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) |
-| `despacharPedido` (EN_CAMINO) | Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido |
-| `registrarEntrega` (ENTREGADO) | Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR`, y siempre con la foto del remito (ADR-033): dispara el cobro contra entrega. La foto se valida por sus primeros bytes (JPEG, PNG o WEBP) y hasta 5 MB |
-| `devolverADeposito` | Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR` (ADR-037). El pedido se forzó con un ID ajeno en el formulario: "no está asignado a vos". Al agotar las visitas el pedido vuelve al comercio (ADR-041); el cobro no lo anula el repartidor sino Pagos, por el tópico (`anularCobroPorDevolucion`, sin rol porque el MDB corre sin usuario, igual que `registrarCobroContraEntrega`) |
-| `asignarDesdeEspera`, `sacarDeEspera` | Personal de Rabbit; en la práctica las llama `AsignadorDeEspera` con `@RunAs("OPERADOR")`. Va en un bean propio porque `AvisosDeEspera`, que lo dispara después del commit, no puede tener `@RunAs`: en esa fase Elytron no puede consultar el realm JDBC |
-| `obtenerRemito` (`/remito?pedido=ID`) | El personal, el `COMERCIO` dueño del pedido y su `REPARTIDOR`. Cualquier otro caso responde 404, sin distinguir si existe |
-| `registrarUbicacion` | Solo el `REPARTIDOR`, para sí mismo y mientras tiene entregas en curso (ADR-035). El seguimiento público muestra la ubicación solo si el repartidor lleva ESE pedido |
-| `liquidarMes`, `reintentarCobro` | Solo `ADMINISTRADOR` (o el timer mensual con `@RunAs`): cobran por el banco (ADR-034) |
-| `previsualizarMesEnCursoDelComercioActual`, `resumenEntregasDelComercioActual` | Solo `COMERCIO`, y solo con sus entregas: el resumen de todos los comercios (`resumenEntregas`) es del personal |
-| `UsuarioService.eliminarUsuario`, `RepartidorService.eliminarRepartidor`, `ZonaService.eliminarZona`, `ConsultaStockService.eliminarItem` (ADR-049) | Solo `ADMINISTRADOR`: borran físicamente y no se deshacen (ADR-036). No se puede eliminar la propia cuenta, ni al último administrador activo, ni un repartidor con entregas en curso o con cuenta |
-| `IConsultaStock.pesosPorItem` | Sin rol a propósito: la usa la sincronización de pedidos del ERP, que corre sin usuario (JMS y timer). Devuelve solo el peso de cada ítem; el listado completo del stock sigue siendo del personal |
-| `registrarPedidoExterno` | Personal de Rabbit (simulación) o el `ERP`, que solo carga pedidos de su comercio (el comercio sale de su cuenta, no del cuerpo del pedido) |
-| `cancelarPedido`, `cancelarPedidoExterno` | El personal (`cancelarPedido`) o el `ERP` (solo pedidos de su comercio que todavía estén pendientes). Nadie cancela un pedido que ya salió a reparto, aunque haya vuelto al depósito para otra visita (ADR-048) |
-| Puntos de picking (alta, baja, reactivación) | Personal de Rabbit o el `COMERCIO` dueño |
-| Consultas del portal (`listarPedidosDelComercioActual`, `listarStockDelComercioActual`, `listarDelComercioActual`, `listarCobrosDelComercioActual`) | Solo `COMERCIO`, y solo lo suyo. El cobro guarda el comercio dueño, así que Pagos valida la pertenencia sin consultar a Pedidos |
-| Listados de pedidos, pedidos del ERP y cobros (`listarTodos`, `listarPedidosExternos`, `listarEntregasEnCurso`, `obtenerCobroDePedido`) | Solo el personal de Rabbit. `consultarPedidoExterno`, también el `ERP` (solo los de su comercio: uno ajeno responde como inexistente). `consultarSeguimiento` es pública a propósito (seguimiento sin login por código aleatorio, solo el estado) |
-| Transportistas: alta, baja, derivar un pedido (`derivarATransportista`), envíos | Solo el personal de Rabbit. Un `COMERCIO` ve solo los envíos de sus pedidos (`listarEnviosDelComercioActual`) |
-| Ruteo: tablero de entregas / entregas del repartidor y su hoja de ruta recomendada (`recorridoRecomendado`) | Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas |
-| Hoja de ruta de un repartidor puntual (`recorridoDeRepartidor`, `listarEntregasEnCursoDeRepartidor`) | Solo el personal: tiene las direcciones de todos sus pedidos. El seguimiento público la usa a través de `LlegadaEstimadaService` con `@RunAs("OPERADOR")`, que devuelve solo la parada y la franja (ADR-043) |
-| Indicadores (`IIndicadores.calcular` / `calcularDelComercioActual`) | El personal ve toda la red o un comercio; un `COMERCIO`, solo lo suyo (ADR-044) |
-| Avisos a destinatarios (`IAvisosAlDestinatario.listarRecientes`) | Solo el personal: tienen el email de clientes finales (ADR-040) |
-| Ruteo: zonas (alta, baja, reactivación), `despacharPedido`, `despacharZona`, `listarPendientesPorZona`; zona de un repartidor (`asignarZona`) | Solo el personal de Rabbit |
-| `UsuarioService.listarTodos` | Expone el padrón completo de usuarios |
-| `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |
-| `UsuarioService.reactivarUsuario` | Le devuelve el acceso a una cuenta dada de baja, con una contraseña nueva (la anterior no se puede recuperar del hash). Revalida que su comercio siga activo o que su repartidor no tenga otra cuenta activa |
-| `UsuarioService.restablecerClave` | Cambia la contraseña de una cuenta activa: quien la cambia puede entrar como esa cuenta. También pasa a la base las cuentas creadas antes de ADR-031 |
-| `PagoService.anularCobro` | Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR` |
-| `PedidosExternosResource` (`/api/v1/pedidos-externos`) | Un sistema externo carga pedidos en Rabbit: solo el rol `ERP`. Sin credenciales responde `401`; con un usuario de otro rol, o un ERP sin comercio asociado, `403`. El `401` y el `403` por rol los responde WildFly en HTML, antes de llegar al código: es la seguridad declarativa en acción |
+- `ComercioService.eliminarComercio`: Borra físicamente el comercio y sus puntos de picking en cascada, y su historial cancelado (pedidos, avisos, cobros anulados, envíos; ADR-028)
+- `UsuarioService.registrarUsuario`: Crea cuentas con acceso al sistema. Si fuera público, cualquiera se daría un `OPERADOR`
+- **Alta y cambios de comercios, depósitos, stock y repartidores; `confirmarPedido` y `cancelarPedido`**: Solo el personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`)
+- `despacharPedido` (EN_CAMINO): Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido
+- `registrarEntrega` (ENTREGADO): Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR`, y siempre con la foto del remito (ADR-033): dispara el cobro contra entrega. La foto se valida por sus primeros bytes (JPEG, PNG o WEBP) y hasta 5 MB
+- `devolverADeposito`: Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR` (ADR-037). El pedido se forzó con un ID ajeno en el formulario: "no está asignado a vos". Al agotar las visitas el pedido vuelve al comercio (ADR-041); el cobro no lo anula el repartidor sino Pagos, por el tópico (`anularCobroPorDevolucion`, sin rol porque el MDB corre sin usuario, igual que `registrarCobroContraEntrega`)
+- `asignarDesdeEspera`, `sacarDeEspera`: Personal de Rabbit; en la práctica las llama `AsignadorDeEspera` con `@RunAs("OPERADOR")`. Va en un bean propio porque `AvisosDeEspera`, que lo dispara después del commit, no puede tener `@RunAs`: en esa fase Elytron no puede consultar el realm JDBC
+- `obtenerRemito` (`/remito?pedido=ID`): El personal, el `COMERCIO` dueño del pedido y su `REPARTIDOR`. Cualquier otro caso responde 404, sin distinguir si existe
+- `registrarUbicacion`: Solo el `REPARTIDOR`, para sí mismo y mientras tiene entregas en curso (ADR-035). El seguimiento público muestra la ubicación solo si el repartidor lleva ESE pedido
+- `liquidarMes`, `reintentarCobro`: Solo `ADMINISTRADOR` (o el timer mensual con `@RunAs`): cobran por el banco (ADR-034)
+- `previsualizarMesEnCursoDelComercioActual`, `resumenEntregasDelComercioActual`: Solo `COMERCIO`, y solo con sus entregas: el resumen de todos los comercios (`resumenEntregas`) es del personal
+- `UsuarioService.eliminarUsuario`, `RepartidorService.eliminarRepartidor`, `ZonaService.eliminarZona`, `ConsultaStockService.eliminarItem` (ADR-049): Solo `ADMINISTRADOR`: borran físicamente y no se deshacen (ADR-036). No se puede eliminar la propia cuenta, ni al último administrador activo, ni un repartidor con entregas en curso o con cuenta
+- `IConsultaStock.pesosPorItem`: Sin rol a propósito: la usa la sincronización de pedidos del ERP, que corre sin usuario (JMS y timer). Devuelve solo el peso de cada ítem; el listado completo del stock sigue siendo del personal
+- `registrarPedidoExterno`: Personal de Rabbit (simulación) o el `ERP`, que solo carga pedidos de su comercio (el comercio sale de su cuenta, no del cuerpo del pedido)
+- `cancelarPedido`, `cancelarPedidoExterno`: El personal (`cancelarPedido`) o el `ERP` (solo pedidos de su comercio que todavía estén pendientes). Nadie cancela un pedido que ya salió a reparto, aunque haya vuelto al depósito para otra visita (ADR-048)
+- **Puntos de picking (alta, baja, reactivación)**: Personal de Rabbit o el `COMERCIO` dueño
+- **Consultas del portal (`listarPedidosDelComercioActual`, `listarStockDelComercioActual`, `listarDelComercioActual`, `listarCobrosDelComercioActual`)**: Solo `COMERCIO`, y solo lo suyo. El cobro guarda el comercio dueño, así que Pagos valida la pertenencia sin consultar a Pedidos
+- **Listados de pedidos, pedidos del ERP y cobros (`listarTodos`, `listarPedidosExternos`, `listarEntregasEnCurso`, `obtenerCobroDePedido`)**: Solo el personal de Rabbit. `consultarPedidoExterno`, también el `ERP` (solo los de su comercio: uno ajeno responde como inexistente). `consultarSeguimiento` es pública a propósito (seguimiento sin login por código aleatorio, solo el estado)
+- **Transportistas: alta, baja, derivar un pedido (`derivarATransportista`), envíos**: Solo el personal de Rabbit. Un `COMERCIO` ve solo los envíos de sus pedidos (`listarEnviosDelComercioActual`)
+- **Ruteo: tablero de entregas / entregas del repartidor y su hoja de ruta recomendada (`recorridoRecomendado`)**: Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas
+- **Hoja de ruta de un repartidor puntual (`recorridoDeRepartidor`, `listarEntregasEnCursoDeRepartidor`)**: Solo el personal: tiene las direcciones de todos sus pedidos. El seguimiento público la usa a través de `LlegadaEstimadaService` con `@RunAs("OPERADOR")`, que devuelve solo la parada y la franja (ADR-043)
+- **Indicadores (`IIndicadores.calcular` / `calcularDelComercioActual`)**: El personal ve toda la red o un comercio; un `COMERCIO`, solo lo suyo (ADR-044)
+- **Avisos a destinatarios (`IAvisosAlDestinatario.listarRecientes`)**: Solo el personal: tienen el email de clientes finales (ADR-040)
+- **Ruteo: zonas (alta, baja, reactivación), `despacharPedido`, `despacharZona`, `listarPendientesPorZona`; zona de un repartidor (`asignarZona`)**: Solo el personal de Rabbit
+- `UsuarioService.listarTodos`: Expone el padrón completo de usuarios
+- `UsuarioService.darDeBaja`: Deja a un usuario sin acceso
+- `UsuarioService.reactivarUsuario`: Le devuelve el acceso a una cuenta dada de baja, con una contraseña nueva (la anterior no se puede recuperar del hash). Revalida que su comercio siga activo o que su repartidor no tenga otra cuenta activa
+- `UsuarioService.restablecerClave`: Cambia la contraseña de una cuenta activa: quien la cambia puede entrar como esa cuenta. También pasa a la base las cuentas creadas antes de ADR-031
+- `PagoService.anularCobro`: Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR`
+- `PedidosExternosResource` (`/api/v1/pedidos-externos`): Un sistema externo carga pedidos en Rabbit: solo el rol `ERP`. Sin credenciales responde `401`; con un usuario de otro rol, o un ERP sin comercio asociado, `403`. El `401` y el `403` por rol los responde WildFly en HTML, antes de llegar al código: es la seguridad declarativa en acción
 
 El suscriptor de Pagos al tópico (`SuscriptorPagosEstadoPedido`) corre
 sin usuario: por eso `registrarCobroContraEntrega` no lleva restricción de
