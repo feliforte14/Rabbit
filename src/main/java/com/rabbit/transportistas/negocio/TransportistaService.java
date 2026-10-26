@@ -50,7 +50,6 @@ import jakarta.inject.Inject;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import com.rabbit.transportistas.datos.model.TipoIntegracion;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;

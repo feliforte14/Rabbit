@@ -922,11 +922,6 @@ label.obligatorio::after {
     margin-left: 0.5rem;
 }
 
-.texto-peligro {
-    color: var(--rojo);
-    font-weight: 700;
-}
-
 /* ==================================================================
    Botones (h:commandButton renderiza <input type="submit">)
    ================================================================== */
