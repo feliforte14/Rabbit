@@ -58,10 +58,26 @@ Propuesta o Reemplazada.
 - **Contexto:** se agregan `EN_CAMINO` y `ENTREGADO`; las reglas de
   transición estaban repartidas en cada operación.
 - **Decisión:** `EstadoPedido.puedePasarA` + un único
-  `PedidoService.cambiarEstado`. No se usa el patrón State completo.
+  `PedidoService.cambiarEstado`. En ese momento no se usó el patrón State
+  completo (ver la actualización del 26/10/2026, más abajo).
 - **Consecuencias:** una sola regla para validar y para disparar el
   evento de cambio de estado. `cancelarPedido` deja de aceptar pedidos
   `EN_CAMINO` o `ENTREGADO`.
+- **Actualización (26/10/2026):** el ciclo de vida pasó al patrón State
+  completo. `EstadoDelPedido` (interfaz sellada) tiene una clase por estado
+  (`Pendiente`, `Confirmado`, `EnCamino`, `Entregado`, `Cancelado`,
+  `DevueltoAlComercio`, en `pedidos/datos/model`): cada una decide qué
+  operaciones permite y a qué estado lleva, y tiene una acción de entrada
+  (`alEntrar`) con los efectos de antes (dejar la lista de espera, marcar que
+  salió a reparto). `Pedido` delega (`confirmar()`, `despachar()`, …),
+  `PedidoService.aplicar` es el único lugar que cambia el estado y
+  `EstadoPedido.puedePasarA` consulta al estado. Una operación no permitida
+  lanza `TransicionInvalidaException`, que el servicio traduce a
+  `TransicionNoPermitidaException` (409 en la API del ERP al cancelar). La
+  columna de la base sigue siendo el enum. Se descartó el enum con métodos por
+  constante porque los estados consultan el pedido (retiro en depósito).
+  Quedan como `switch` sobre el estado los mensajes de "por qué no se puede
+  cancelar" (`ReglaDeCancelacion` y `porQueNoSeCancela`).
 - **Nota de despliegue:** Hibernate crea un `CHECK` con los valores del
   enum que `hbm2ddl=update` no regenera; ver README (sección "Cómo
   levantar el sistema").
@@ -1401,7 +1417,7 @@ Propuesta o Reemplazada.
   DEVUELTO_AL_COMERCIO, y la devolución con el cliente la gestiona el
   comercio.
   - `Pedido.salioAReparto` se prende la primera vez que pasa a EN_CAMINO
-    (en `cambiarEstado`) y no se apaga. Para las filas anteriores, un
+    (al entrar a EN_CAMINO) y no se apaga. Para las filas anteriores, un
     pedido con visitas fallidas cuenta como salido (solo se cuentan si
     estaba EN_CAMINO).
   - `ReglaDeCancelacion` decide, igual para el personal (web) y para el

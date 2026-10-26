@@ -182,7 +182,7 @@ El detalle y la justificación de cada decisión están en
 | Mínimo 6 componentes con interfaz explícita | 9 componentes de negocio, cada uno con interfaces `@Local`, más una capa técnica de integración (`integracion`: cliente del banco y adaptadores de transportistas) |
 | 1 componente stateful y 1 stateless | `InventarioService` (`@Stateful`: la reserva de stock es una conversación) y el resto `@Stateless` |
 | Arquitectura en capas | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente |
-| 3 patrones de diseño | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, máquina de estados, transacción compensatoria y Circuit Breaker |
+| 3 patrones de diseño | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, State, transacción compensatoria y Circuit Breaker |
 | SOAP con un sistema legado / REST con un partner moderno | Ver [Integraciones](#integraciones) |
 | Cola punto a punto y tópico pub/sub | `cola.pedidos.externos` y `topico.pedidos.estado` (ActiveMQ Artemis) |
 | Seguridad declarativa | `@RolesAllowed` en las operaciones sensibles, 5 roles, HTTPS obligatorio |

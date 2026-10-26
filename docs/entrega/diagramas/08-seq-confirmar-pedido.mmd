@@ -29,7 +29,7 @@ sequenceDiagram
             RB->>BC: reversar(codigo)
             PS-->>PB: "Probá de nuevo en un momento"
         else asignado
-            PS->>PS: cambiarEstado(CONFIRMADO) + fire EstadoPedidoCambiado
+            PS->>PS: aplicar(Pedido::confirmar) + fire EstadoPedidoCambiado
             Note over PS,TOPI: commit · AFTER_SUCCESS publica
             PS-)TOPI: {idPedido, estado: CONFIRMADO}
             PS-->>PB: idRepartidor

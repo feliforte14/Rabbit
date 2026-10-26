@@ -145,15 +145,27 @@ qué alternativa se descartó.
   sabe con cuál habla. Sumar un transportista EDI sería una implementación
   más.
 
-## Máquina de estados (State simplificado)
+## Máquina de estados (State)
 
 - **Problema:** las reglas de "desde qué estado se puede pasar a cuál"
-  estaban repartidas en `if` dentro de cada operación.
-- **Dónde:** `EstadoPedido.puedePasarA(...)` +
-  `PedidoService.cambiarEstado(...)`.
-- **Por qué no el patrón State completo** (una clase por estado): con
-  cinco estados sin comportamiento propio, un `switch` en el enum es más
-  simple de explicar y de mantener.
+  estaban repartidas en `if` dentro de cada operación y, después, en un
+  `switch` del enum que decía qué se puede pero no qué provoca cada estado.
+- **Dónde:** `EstadoDelPedido` (interfaz sellada) y una clase por estado en
+  `pedidos/datos/model`. `Pedido` delega (`despachar()`, `cancelar()`, …) y
+  `PedidoService.aplicar(...)` es el único lugar que cambia el estado de un
+  pedido existente.
+- **Cómo funciona:** cada estado implementa solo las operaciones que permite;
+  el resto lanza `TransicionInvalidaException`, que el servicio traduce a
+  `TransicionNoPermitidaException` (409 en la API del ERP al cancelar). Los
+  efectos de entrar a un estado (dejar la lista de espera, marcar que salió a
+  reparto) están en `alEntrar`. `EstadoPedido.puedePasarA` consulta al
+  estado. La columna de la base sigue siendo el enum.
+- **Descartado:** un enum con métodos por constante (mezcla persistencia con
+  reglas y los estados consultan el pedido, por el retiro en depósito) y una
+  librería de máquinas de estados (una dependencia para seis estados).
+- **Pendiente:** los mensajes de "por qué no se puede cancelar"
+  (`ReglaDeCancelacion` y `porQueNoSeCancela`) siguen como `switch` sobre el
+  estado.
 
 ## Transacción compensatoria
 
