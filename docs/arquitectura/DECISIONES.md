@@ -1750,12 +1750,12 @@ Propuesta o Reemplazada.
 
 ## ADR-059 — Cobro por almacenamiento
 
-- **Estado:** Aceptada (22/10/2026), con los precios en $0 hasta que el equipo los defina. Pedido del equipo
-  (Trello). Referencia: Mercado Libre Full. Implementa `docs/PROPUESTA-COBRANZA-ALMACENAMIENTO.md`.
+- **Estado:** Aceptada (22/10/2026). Precios por defecto fijados el 26/10/2026 ($10, $30 y $90). Pedido del equipo
+  (Trello). Referencia: Mercado Libre Full.
 - **Contexto:** Rabbit cobraba solo el reparto (ADR-034). El lugar que ocupa la mercadería en el depósito es otro
   servicio, con otro costo, y un comercio con mucho stock que rota poco no pagaba nada por él.
 - **Decisión:** se **suma** al modelo actual (abono + envíos + kilos): el comercio paga por unidad y por día guardada,
-  según el tamaño del producto. Se hizo en dos entregas, como proponía el documento:
+  según el tamaño del producto. Se hizo en dos entregas:
   1. **Medidas y categoría (no cobra nada).** `ItemInventario` suma alto, ancho y largo de una unidad (cm), obligatorias
      en el alta y opcionales al editar (las tres o ninguna; vacías = se conservan). La categoría (`CategoriaDeTamano`:
      pequeño, mediano, grande o fuera de rango) **no se carga**: se deduce del peso y las medidas y manda la más grande
@@ -1768,15 +1768,16 @@ Propuesta o Reemplazada.
      disponibles, que ya incluyen las reservadas: una reservada sigue ocupando lugar hasta que sale. La liquidación guarda
      las unidades-día de cada categoría y el cargo por almacenamiento, con los importes del momento, y el total lo suma.
      Aparece como línea nueva en las dos liquidaciones (personal y comercio), también en la vista previa del mes en curso.
-- **Precios:** `rabbit.tarifa.almacenamiento.pequeno|mediano|grande`, **por defecto 0**: nada se cobra hasta que el equipo los
-  defina; mientras tanto la liquidación muestra el almacenamiento en $0 y las unidades-día, y avisa que faltan precios. Los
-  rangos por defecto son los de la propuesta, **todavía sin confirmar** por el equipo.
+- **Precios:** `rabbit.tarifa.almacenamiento.pequeno|mediano|grande`, **por defecto $10, $30 y $90** por unidad y por día
+  (ejemplo: 100 unidades pequeñas todo un mes de 30 días = 100 × 30 × $10 = $30.000). Se cambian sin redesplegar; con los tres
+  en 0 el almacenamiento no se cobra y la liquidación lo muestra en $0 junto con las unidades-día. Rangos por defecto: pequeño
+  hasta 1 kg, 25 cm y 3 L; mediano hasta 10 kg, 60 cm y 50 L; grande hasta 50 kg, 150 cm y 500 L; más que eso es fuera de rango.
 - **Sin implementar (faltan sus valores):** días gratis al ingresar el stock y recargo por stock antiguo (la referencia de
-  Mercado Libre Full: más de N días sin venderse). El documento deja ambos como ideas; hace falta definir cuántos días y cuánto.
+  Mercado Libre Full: más de N días sin venderse). Quedan como ideas; hace falta definir cuántos días y cuánto.
   Tampoco se decidió desde qué mes se cobra (se recomendó: el siguiente a cargar las medidas).
 - **Consecuencias:** al desplegar, todo el stock existente no tiene medidas y cuenta como mediano: conviene cargarlas antes de
   poner precios. La mercadería que entra por una orden de recepción (ADR-058) llega sin medidas (el anuncio no las pide) y
   también cuenta como mediana hasta que el personal las cargue. La primera foto es la del día del despliegue: lo anterior no
   se reconstruye (los meses ya liquidados no cambian). La foto es del día y no del instante: una unidad que entra y sale entre
-  dos fotos no se cobra. Cobrar de verdad un mes con datos a medias sería injusto: no activar los precios antes de que las
-  medidas estén cargadas.
+  dos fotos no se cobra. Cobrar un mes con datos a medias sería injusto: como los precios ya vienen activos, conviene cargar las
+  medidas del stock existente antes de que se liquide el mes.

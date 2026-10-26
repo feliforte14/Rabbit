@@ -1190,7 +1190,7 @@ Fuente: `README.md`, "Cómo levantar el sistema" y "Credenciales y cuentas neces
 - Transportista legado SOAP y moderno REST (`SimuladorDeEnvios`, avance por tiempo).
 - ERP: no existe uno real; se simula desde Pedidos, "Simular un pedido del ERP", o con Postman/curl.
 
-**Limitaciones documentadas** (`docs/PROXIMOS-PASOS.md` §1, `docs/consigna/DESAFIOS-OPCIONALES.md` "Limitaciones", `docs/integraciones/MENSAJERIA-SINCRONICA.md`):
+**Limitaciones documentadas** (`docs/consigna/DESAFIOS-OPCIONALES.md` "Limitaciones", `docs/integraciones/MENSAJERIA-SINCRONICA.md`):
 
 - Cobro prepago huérfano si se pierde la respuesta del banco tras el timeout. Falta una clave de idempotencia en `autorizarPago`.
 - La reversa que falla queda solo logueada.
