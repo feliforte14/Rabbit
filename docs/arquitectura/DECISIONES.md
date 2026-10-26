@@ -3,6 +3,70 @@
 Formato: contexto → decisión → consecuencias. Estado: Aceptada,
 Propuesta o Reemplazada.
 
+## Índice
+
+| ADR | Decisión | Estado |
+|---|---|---|
+| [ADR-001](#adr-001-cola-jms--polling-de-respaldo-para-sincronizar-pedidos) | Cola JMS + polling de respaldo para sincronizar pedidos | Aceptada |
+| [ADR-002](#adr-002-el-envío-del-mensaje-no-comparte-transacción-con-el-guardado) | El envío del mensaje no comparte transacción con el guardado | Aceptada |
+| [ADR-003](#adr-003-timeout-del-padrón-fiscal-no-bloquea-el-alta) | Timeout del padrón fiscal no bloquea el alta | Reemplazada |
+| [ADR-004](#adr-004-importe-y-medio-de-pago-vienen-del-erp) | Importe y medio de pago vienen del ERP | Aceptada |
+| [ADR-005](#adr-005-máquina-de-estados-del-pedido-en-el-enum) | Máquina de estados del pedido en el enum | Aceptada |
+| [ADR-006](#adr-006-tópico-para-los-cambios-de-estado-del-pedido) | Tópico para los cambios de estado del pedido | Aceptada |
+| [ADR-007](#adr-007-endpoint-rest-de-entrada-reemplaza-al-formulario-del-erp) | Endpoint REST de entrada reemplaza al formulario del ERP | Aceptada |
+| [ADR-008](#adr-008-restricciones-check-de-columnas-enum-alineadas-al-desplegar) | Restricciones CHECK de columnas enum alineadas al desplegar | Aceptada |
+| [ADR-009](#adr-009-suscripciones-durables-y-selector-en-el-tópico-de-estados) | Suscripciones durables y selector en el tópico de estados | Aceptada |
+| [ADR-010](#adr-010-cobro-por-soap-en-un-banco-legado-con-reversa-compensatoria) | Cobro por SOAP en un banco legado, con reversa compensatoria | Aceptada |
+| [ADR-011](#adr-011-circuit-breaker-propio-frente-al-banco-legado) | Circuit breaker propio frente al banco legado | Aceptada |
+| [ADR-012](#adr-012-sin-alta-pública-de-usuarios) | Sin alta pública de usuarios | Aceptada |
+| [ADR-013](#adr-013-vistas-por-tipo-de-usuario-y-ruteo-mínimo) | Vistas por tipo de usuario y ruteo mínimo | Aceptada |
+| [ADR-014](#adr-014-escalar-el-consumidor-de-la-cola-con-consumidores-competidores) | Escalar el consumidor de la cola con consumidores competidores | Aceptada |
+| [ADR-015](#adr-015-banco-legado-en-nodejs-detrás-del-mismo-wsdl) | Banco legado en Node.js, detrás del mismo WSDL | Aceptada |
+| [ADR-016](#adr-016-transportistas-externos-con-un-adapter-por-tecnología-y-seguimiento-por-polling) | Transportistas externos con un Adapter por tecnología y seguimiento por polling | Aceptada |
+| [ADR-017](#adr-017-zonas-por-rango-de-código-postal-y-despacho-según-la-cobertura) | Zonas por rango de código postal y despacho según la cobertura | Aceptada |
+| [ADR-018](#adr-018-api-rest-del-erp-versionada-idempotente-y-atada-al-comercio) | API REST del ERP versionada, idempotente y atada al comercio | Aceptada |
+| [ADR-019](#adr-019-https-obligatorio-salvo-los-sistemas-externos-simulados) | HTTPS obligatorio, salvo los sistemas externos simulados | Aceptada |
+| [ADR-020](#adr-020-cotización-con-los-transportistas-antes-de-derivar) | Cotización con los transportistas antes de derivar | Aceptada |
+| [ADR-021](#adr-021-página-pública-de-seguimiento-y-tablas-como-tarjetas-en-el-celular) | Página pública de seguimiento y tablas como tarjetas en el celular | Aceptada |
+| [ADR-022](#adr-022-webhook-de-novedades-y-transportista-moderno-como-servicio-aparte) | Webhook de novedades y transportista moderno como servicio aparte | Reemplazada |
+| [ADR-023](#adr-023-las-contraseñas-solo-en-el-realm-límite-de-intentos-en-el-login) | Las contraseñas, solo en el realm; límite de intentos en el login | Aceptada |
+| [ADR-024](#adr-024-sin-catálogo-de-productos-en-rabbit) | Sin catálogo de productos en Rabbit | Aceptada |
+| [ADR-025](#adr-025-mismo-orden-de-bloqueo-pedido--envío-en-cancelación-y-novedades) | Mismo orden de bloqueo (pedido → envío) en cancelación y novedades | Aceptada |
+| [ADR-026](#adr-026-cierre-de-una-reserva-de-stock-con-el-mismo-bloqueo-que-abrirla) | Cierre de una reserva de stock, con el mismo bloqueo que abrirla | Aceptada |
+| [ADR-027](#adr-027-consultas-de-stock-en-un-ejb-stateless-separado-de-la-reserva) | Consultas de stock en un EJB @Stateless, separado de la reserva | Aceptada |
+| [ADR-028](#adr-028-un-comercio-con-solo-pedidos-cancelados-se-puede-eliminar) | Un comercio con solo pedidos cancelados se puede eliminar | Aceptada |
+| [ADR-029](#adr-029-seguimiento-de-envíos-solo-por-polling-sin-webhook) | Seguimiento de envíos solo por polling (sin webhook) | Aceptada |
+| [ADR-030](#adr-030-la-heterogeneidad-tecnológica-en-una-rama-aparte) | La heterogeneidad tecnológica, en una rama aparte | Aceptada |
+| [ADR-031](#adr-031-las-cuentas-en-la-base-compartida-realm-jdbc-con-bcrypt) | Las cuentas, en la base compartida (realm JDBC con bcrypt) | Aceptada |
+| [ADR-032](#adr-032-peso-de-los-bultos-y-capacidad-del-vehículo-del-repartidor) | Peso de los bultos y capacidad del vehículo del repartidor | Aceptada |
+| [ADR-033](#adr-033-la-entrega-se-registra-con-la-foto-del-remito-y-solo-quien-estuvo-ahí) | La entrega se registra con la foto del remito, y solo quien estuvo ahí | Aceptada |
+| [ADR-034](#adr-034-liquidación-mensual-a-comercios) | Liquidación mensual a comercios | Aceptada |
+| [ADR-035](#adr-035-ubicación-del-repartidor-en-vivo-y-mapa) | Ubicación del repartidor en vivo y mapa | Aceptada |
+| [ADR-036](#adr-036-el-administrador-puede-eliminar-usuarios-repartidores-y-zonas) | El administrador puede eliminar usuarios, repartidores y zonas | Aceptada |
+| [ADR-037](#adr-037-lista-de-espera-hora-de-corte-y-devolución-al-depósito) | Lista de espera, hora de corte y devolución al depósito | Aceptada |
+| [ADR-038](#adr-038-hoja-de-ruta-recomendada-del-repartidor) | Hoja de ruta recomendada del repartidor | Aceptada |
+| [ADR-039](#adr-039-datos-de-quien-recibe-el-pedido) | Datos de quien recibe el pedido | Aceptada |
+| [ADR-040](#adr-040-avisos-a-quien-recibe-con-un-tercer-suscriptor-del-tópico) | Avisos a quien recibe, con un tercer suscriptor del tópico | Aceptada |
+| [ADR-041](#adr-041-entrega-fallida-con-motivo-fijo-intentos-y-devolución-al-comercio) | Entrega fallida con motivo fijo, intentos y devolución al comercio | Aceptada |
+| [ADR-042](#adr-042-fecha-prometida-con-la-hora-de-corte) | Fecha prometida con la hora de corte | Aceptada |
+| [ADR-043](#adr-043-horario-estimado-en-el-seguimiento-parada-n-de-m) | Horario estimado en el seguimiento (parada N de M) | Aceptada |
+| [ADR-044](#adr-044-tablero-de-indicadores-de-entrega) | Tablero de indicadores de entrega | Aceptada |
+| [ADR-045](#adr-045-evidencia-de-la-visita-fallida-y-un-motivo-para-cada-caso) | Evidencia de la visita fallida y un motivo para cada caso | Aceptada |
+| [ADR-046](#adr-046-hoja-de-ruta-por-distancia-con-openstreetmap) | Hoja de ruta por distancia, con OpenStreetMap | Aceptada |
+| [ADR-047](#adr-047-mails-reales-por-smtp-con-login-y-tls-gmail) | Mails reales por SMTP con login y TLS (Gmail) | Aceptada |
+| [ADR-048](#adr-048-un-pedido-que-salió-a-reparto-no-se-cancela) | Un pedido que salió a reparto no se cancela | Aceptada |
+| [ADR-049](#adr-049-editar-y-eliminar-el-stock-de-un-depósito) | Editar y eliminar el stock de un depósito | Aceptada |
+| [ADR-050](#adr-050-logs-sin-datos-personales-y-hsts) | Logs sin datos personales y HSTS | Aceptada |
+| [ADR-051](#adr-051-los-avisos-se-ven-en-una-campana-de-notificaciones) | Los avisos se ven en una campana de notificaciones | Aceptada |
+| [ADR-052](#adr-052-calificación-de-la-entrega-en-el-seguimiento-público) | Calificación de la entrega en el seguimiento público | Aceptada |
+| [ADR-053](#adr-053-retiro-en-depósito) | Retiro en depósito | Aceptada |
+| [ADR-054](#adr-054-mejoras-de-diseño-visual) | Mejoras de diseño visual | Aceptada |
+| [ADR-055](#adr-055-prueba-de-entrega-reforzada-código-de-4-dígitos-y-ubicación) | Prueba de entrega reforzada: código de 4 dígitos y ubicación | Aceptada |
+| [ADR-056](#adr-056-etiquetas-con-qr-por-bulto) | Etiquetas con QR por bulto | Aceptada |
+| [ADR-057](#adr-057-opciones-de-quien-recibe-desde-el-seguimiento) | Opciones de quien recibe desde el seguimiento | Aceptada |
+| [ADR-058](#adr-058-órdenes-de-recepción-de-mercadería) | Órdenes de recepción de mercadería | Aceptada |
+| [ADR-059](#adr-059-cobro-por-almacenamiento) | Cobro por almacenamiento | Aceptada |
+
 ## ADR-001: Cola JMS + polling de respaldo para sincronizar pedidos
 
 - **Estado:** Aceptada.
@@ -1569,7 +1633,7 @@ Propuesta o Reemplazada.
   ve el comentario en las pantallas del comercio ni del personal. Un enlace de seguimiento compartido
   permite calificar a quien lo tenga; es el mismo alcance que tiene ver el estado.
 
-## ADR-053 — Retiro en depósito
+## ADR-053: Retiro en depósito
 
 - **Estado:** Aceptada (21/10/2026). Pedido del equipo (Trello).
 - **Contexto:** todos los pedidos salían a reparto. Hay compradores que prefieren
@@ -1603,7 +1667,7 @@ Propuesta o Reemplazada.
   hay vencimiento ni cobro por almacenamiento todavía). La prueba de entrega es solo el
   código, más débil que la foto del remito; el código lo conoce quien tenga el enlace.
 
-## ADR-054 — Mejoras de diseño visual
+## ADR-054: Mejoras de diseño visual
 
 - **Estado:** Aceptada (22/10/2026). Surge de una revisión del diseño de toda la aplicación.
 - **Contexto:** la revisión encontró contraste insuficiente (texto blanco sobre el naranja de la
@@ -1643,7 +1707,7 @@ Propuesta o Reemplazada.
   La búsqueda y el filtro actúan sobre la página cargada, no sobre la base: con miles de
   pedidos habrá que paginar en el servidor.
 
-## ADR-055 — Prueba de entrega reforzada: código de 4 dígitos y ubicación
+## ADR-055: Prueba de entrega reforzada: código de 4 dígitos y ubicación
 
 - **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencias: Mercado Libre Flex
   (código) y Onfleet (firma y ubicación).
@@ -1677,7 +1741,7 @@ Propuesta o Reemplazada.
   darla imprecisa: por eso se guarda con su precisión. No se compara contra la dirección de
   entrega (queda como mejora: marcar entregas lejos del domicilio).
 
-## ADR-056 — Etiquetas con QR por bulto
+## ADR-056: Etiquetas con QR por bulto
 
 - **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencias: Andreani y Onfleet
   (escaneo al retirar y al entregar).
@@ -1705,7 +1769,7 @@ Propuesta o Reemplazada.
   seguimiento público, no al login; tiene que tener abierta su sesión. El escaneo al entregar sigue
   siendo por Mis entregas (código de 4 dígitos y foto, ADR-055).
 
-## ADR-057 — Opciones de quien recibe desde el seguimiento
+## ADR-057: Opciones de quien recibe desde el seguimiento
 
 - **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencia: DHL On Demand Delivery.
 - **Contexto:** quien recibe el pedido solo podía mirarlo. No podía pedir otro día, avisar cómo
@@ -1736,7 +1800,7 @@ Propuesta o Reemplazada.
   mejora, y sería la mitigación natural contra un cambio hecho por un tercero. Reprogramar no
   retiene el pedido hasta esa fecha: lo decide el personal al confirmar y asignar.
 
-## ADR-058 — Órdenes de recepción de mercadería
+## ADR-058: Órdenes de recepción de mercadería
 
 - **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencia: ShipBob (orden de
   recepción con cantidades esperadas, recibidas y guardadas).
@@ -1766,7 +1830,7 @@ Propuesta o Reemplazada.
   tiene que coincidir con el del stock para sumarse a la misma fila; si difiere en una letra se crea otra.
   No se avisa por mail al personal ni al comercio de cada cambio. No se controlan lotes ni vencimientos.
 
-## ADR-059 — Cobro por almacenamiento
+## ADR-059: Cobro por almacenamiento
 
 - **Estado:** Aceptada (22/10/2026). Precios por defecto fijados el 26/10/2026 ($10, $30 y $90). Pedido del equipo
   (Trello). Referencia: Mercado Libre Full.
