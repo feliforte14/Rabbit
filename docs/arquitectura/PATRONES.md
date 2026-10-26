@@ -3,6 +3,69 @@
 Para cada patrón: qué problema concreto resuelve en Rabbit, dónde está y
 qué alternativa se descartó.
 
+## Catálogo
+
+Todos los patrones que se aplican, de un vistazo. Los que tienen sección propia más abajo llevan enlace; el resto se
+explican en una línea.
+
+### GoF
+
+| Patrón | Dónde está | Detalle |
+|---|---|---|
+| **State** (comportamiento) | `EstadoDelPedido` y sus seis estados, en `pedidos/datos/model` | [Sección](#máquina-de-estados-state) |
+| **Observer** (comportamiento) | Eventos CDI (`EstadoPedidoCambiado`, `PedidoExternoRegistrado`, `EstadoEnvioCambiado`) y eventos síncronos de eliminación | [Sección](#observer-eventos-cdi) |
+| **Adapter** (estructural) | `IAdaptadorTransportista` con su adaptador REST y su adaptador SOAP legado; el cliente del banco legado | [Sección](#adapter) |
+| **Facade** (estructural) | `IGestionPedidos`, `IConsultaStock`, `IRegistroComercios`, `IRegistroUsuarios` | [Sección](#facade) |
+| **Singleton** (creacional) | `@Singleton @Startup` del contenedor: timers, `CircuitBreakerBanco`, `AsignadorDeEspera` | [Sección](#singleton) |
+| **Factory / Provider** (creacional) | `Instance<IReservaStock>` en `PedidoService`; métodos de fábrica estáticos como `EstadoDelPedido.de(...)` y `TarifaMensual.vigente()` | [Sección](#provider-instancet-como-fábrica) |
+| **Chain of Responsibility** (comportamiento) | `FiltroHsts`, un filtro de servlet dentro de la cadena de filtros | Una línea: agrega la cabecera HSTS y deja seguir la cadena |
+| **Proxy** (estructural) | Lo provee el contenedor (EJB y CDI); no hay código propio | — |
+
+### GRASP y principios
+
+| Patrón | Dónde está |
+|---|---|
+| **Fabricación pura** | `ReglaDeCancelacion`, `ReglaDeCalificacion`, `ReglaDeOpcionesDeEntrega`, `ReglaDeRetiro`: clases sin estado ni contenedor que se prueban solas |
+| **Controlador** | `PedidoService` coordina el caso de uso; los beans de JSF y los recursos REST solo traducen |
+| **Indirección y Variaciones protegidas** | Las interfaces `I*` entre componentes, `IAdaptadorTransportista`, `IBancoClient` y los eventos |
+| **Bajo acoplamiento** | Los componentes se hablan por interfaces inyectadas, sin `new` de servicios concretos |
+
+### Arquitectura (PoEAA)
+
+| Patrón | Dónde está | Detalle |
+|---|---|---|
+| **Repository / DAO** | Un repositorio por componente (`PedidoRepository`, …) | [Sección](#dao-repository) |
+| **DTO** | Las clases `*DTO` entre capas y hacia la API | [Sección](#dto) |
+| **Service Layer** | Los servicios `@Stateless` (`PedidoService`, `PagoService`, …) | — |
+| **MVC / Backing Bean** | Vistas JSF (`.xhtml`) y beans de presentación | — |
+| **Data Mapper y Unit of Work** | JPA: las entidades y el `EntityManager` | — |
+| **Value Object** | `record` inmutables, por ejemplo `TarifaMensual` | — |
+| **Exception Mapper** | `ProblemaMapper`: todos los errores de la API salen como Problem Details (RFC 9457) | [Sección](#exception-mapper-traductor-de-errores) |
+
+### Integración y mensajería (EIP)
+
+| Patrón | Dónde está | Detalle |
+|---|---|---|
+| **Publish/Subscribe** | El tópico `topico.pedidos.estado` y sus suscriptores (Notificaciones, Pagos, Destinatario) | [Observer](#observer-eventos-cdi) |
+| **Point-to-Point Channel y Message-Driven Bean** | La cola `cola.pedidos.externos` y `PedidoExternoListener` | — |
+| **Idempotent Receiver** | `Idempotency-Key` más una huella del pedido y una restricción única | [Sección](#idempotency-key) |
+| **Polling de respaldo** | `SincronizadorDePedidos`, por timer, por si falla la cola | — |
+| **Gateway** | `BancoClient` oculta el SOAP del banco legado | — |
+
+### Resiliencia y concurrencia
+
+| Patrón | Dónde está | Detalle |
+|---|---|---|
+| **Circuit Breaker** | `CircuitBreakerBanco` | [Sección](#circuit-breaker) |
+| **Timeout y degradación controlada** | Corte a los 5 s; la falta de respuesta viaja como resultado (`NO_DISPONIBLE`) | — |
+| **Transacción compensatoria** | `ReversasBancarias` y `CancelacionesDeEnvios` | [Sección](#transacción-compensatoria) |
+| **Bloqueo pesimista** | Stock y estado del pedido (`PESSIMISTIC`) | — |
+
+### Lo que no se aplica
+
+- **Strategy real:** no hay clases intercambiables (ver la aclaración en la sección Strategy).
+- **Builder, Decorator, Command, Template Method y Transactional Outbox:** no aparecen en el código.
+
 ## DAO (Repository)
 
 - **Problema:** que las reglas de negocio no dependan de JPQL ni del
