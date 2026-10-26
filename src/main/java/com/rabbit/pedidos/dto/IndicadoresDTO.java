@@ -113,7 +113,6 @@ public class IndicadoresDTO {
         public String getNombre() { return nombre; }
         public int getEntregas() { return entregas; }
         public BigDecimal getHorasPromedio() { return horasPromedio; }
-        public String getHorasPromedioTexto() { return horas(horasPromedio); }
         public Integer getPorcentajeATiempo() { return porcentaje(aTiempo, conPromesa); }
         public Integer getPorcentajePrimerIntento() { return porcentaje(alPrimerIntento, terminados); }
         public int getCalificaciones() { return calificaciones; }

@@ -13,7 +13,6 @@ package com.rabbit.pedidos.negocio;
  * Implementada por {@link PedidoService}.
  */
 
-import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
 import com.rabbit.pedidos.dto.RemitoDTO;

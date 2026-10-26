@@ -284,23 +284,6 @@ public class InventarioRepository {
     }
 
     /**
-     * Reservas de un item que siguen marcadas VIGENTE, sin importar si ya
-     * vencieron. Sirve para auditar cuanto stock hay comprometido.
-     *
-     * @param idItem ID del item de inventario
-     * @return reservas en estado VIGENTE de ese item
-     */
-    public List<ReservaStock> listarReservasVigentesDeItem(Long idItem) {
-        return em.createQuery(
-                "SELECT r FROM ReservaStock r WHERE r.item.id = :idItem AND r.estado = :estado "
-                        + "ORDER BY r.fechaCreacion",
-                ReservaStock.class)
-                .setParameter("idItem", idItem)
-                .setParameter("estado", EstadoReserva.VIGENTE)
-                .getResultList();
-    }
-
-    /**
      * HISTORIAL: todas las reservas que cumplen los criterios recibidos,
      * de la mas reciente a la mas vieja.
      *
