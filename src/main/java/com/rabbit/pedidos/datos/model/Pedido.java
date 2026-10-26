@@ -218,6 +218,21 @@ public class Pedido {
     public void setLineas(List<LineaPedido> lineas) { this.lineas = lineas; }
     public EstadoPedido getEstado() { return estado; }
     public void setEstado(EstadoPedido estado) { this.estado = estado; }
+
+    // Ciclo de vida (State): el pedido delega en el objeto estado, que decide si la operación se
+    // permite y a qué estado lleva. Lanzan TransicionInvalidaException si el estado actual no la permite.
+    public EstadoDelPedido estadoActual() { return EstadoDelPedido.de(estado); }
+    public void confirmar() { transicionar(estadoActual().confirmar(this)); }
+    public void despachar() { transicionar(estadoActual().despachar(this)); }
+    public void entregar() { transicionar(estadoActual().entregar(this)); }
+    public void cancelar() { transicionar(estadoActual().cancelar(this)); }
+    public void devolverADeposito() { transicionar(estadoActual().devolverADeposito(this)); }
+    public void devolverAlComercio() { transicionar(estadoActual().devolverAlComercio(this)); }
+
+    private void transicionar(EstadoDelPedido nuevo) {
+        this.estado = nuevo.codigo();
+        nuevo.alEntrar(this);
+    }
     public BigDecimal getImporte() { return importe; }
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public BigDecimal getPesoKg() { return pesoKg; }

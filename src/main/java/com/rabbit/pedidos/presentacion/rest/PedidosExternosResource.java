@@ -54,6 +54,7 @@ import com.rabbit.pedidos.negocio.CuentaErpSinComercioException;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.PedidoNoEncontradoException;
+import com.rabbit.pedidos.negocio.TransicionNoPermitidaException;
 import com.rabbit.pedidos.negocio.ValidacionException;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.RolesAllowed;
@@ -190,6 +191,10 @@ public class PedidosExternosResource {
         } catch (CancelacionNoPermitidaException e) {
             return Problema.de(Response.Status.CONFLICT, "cancelacion-no-permitida",
                     "El pedido ya no se puede cancelar", e.getMessage()).respuesta();
+        } catch (TransicionNoPermitidaException e) {
+            // El estado cambió entre la consulta y la cancelación: es un conflicto, no un dato inválido.
+            return Problema.de(Response.Status.CONFLICT, "transicion-no-permitida",
+                    "El estado del pedido no lo permite", e.getMessage()).respuesta();
         } catch (CuentaErpSinComercioException e) {
             return sinComercio(e);
         } catch (ConflictoDeStockException e) {
