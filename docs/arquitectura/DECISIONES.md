@@ -76,8 +76,10 @@ Propuesta o Reemplazada.
   `TransicionNoPermitidaException` (409 en la API del ERP al cancelar). La
   columna de la base sigue siendo el enum. Se descartó el enum con métodos por
   constante porque los estados consultan el pedido (retiro en depósito).
-  Quedan como `switch` sobre el estado los mensajes de "por qué no se puede
-  cancelar" (`ReglaDeCancelacion` y `porQueNoSeCancela`).
+  Los mensajes de "por qué no se puede cancelar" también viven en cada estado
+  (`motivoParaNoCancelar`, para el personal y el ERP, y `queLeQuedaAlErp`, para
+  el detalle del 409 de la API); `ReglaDeCancelacion` solo le pregunta al
+  estado y ya no tiene `switch`.
 - **Nota de despliegue:** Hibernate crea un `CHECK` con los valores del
   enum que `hbm2ddl=update` no regenera; ver README (sección "Cómo
   levantar el sistema").
