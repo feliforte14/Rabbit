@@ -92,6 +92,8 @@ public class Geocodificador {
     private void ubicarPendientes() {
         // clave -> {dirección, código postal}
         Map<String, String[]> direcciones = new LinkedHashMap<>();
+        ParadaDTO salida = ruteo.depositoDeSalida();
+        sumar(direcciones, salida.direccion, salida.codigoPostal);
         for (HojaDeRutaDTO hoja : ruteo.listarEntregasEnCurso()) {
             if (hoja.paradasRetiro != null) {
                 for (ParadaDTO retiro : hoja.paradasRetiro) {

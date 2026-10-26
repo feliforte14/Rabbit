@@ -86,6 +86,16 @@ public class ConsultaStockService implements IConsultaStock {
         return repository.guardarDeposito(deposito).getId();
     }
 
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void marcarBaseDeSalida(Long idDeposito) {
+        Deposito elegido = obtenerDepositoOFallar(idDeposito);
+        for (Deposito d : repository.listarDepositos()) {
+            d.setBaseDeSalida(d.getId().equals(elegido.getId()));
+        }
+    }
+
     // Devuelve el depósito como DTO (nunca expone la entidad directamente)
     @Override
     public DepositoDTO obtenerDeposito(Long idDeposito) {

@@ -43,6 +43,15 @@ public interface IConsultaStock {
     Long registrarDeposito(DatosDepositoDTO datos);
 
     /**
+     * Marca un deposito como la base de salida de los camiones (de ahi
+     * arranca la hoja de ruta del dia) y le saca la marca al que la tenia:
+     * hay una sola.
+     *
+     * @throws ValidacionException si el deposito no existe
+     */
+    void marcarBaseDeSalida(Long idDeposito);
+
+    /**
      * @param idDeposito identificador del deposito
      * @return el deposito como DTO
      * @throws ValidacionException si no existe

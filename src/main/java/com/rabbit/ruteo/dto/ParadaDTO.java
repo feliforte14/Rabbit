@@ -5,13 +5,14 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Una parada del recorrido del repartidor: un lugar de retiro (depósito o
+ * Una parada del recorrido del repartidor: la salida del depósito Rabbit, un lugar de retiro (depósito o
  * punto de picking) o una dirección de entrega. Si varios pedidos van al
  * mismo lugar, es una sola parada con todos esos pedidos.
  */
 public class ParadaDTO {
 
-    public enum Tipo { RETIRO, ENTREGA }
+    // SALIDA: el depósito de Rabbit, donde arranca el día (ver DepositoRabbit).
+    public enum Tipo { SALIDA, RETIRO, ENTREGA }
 
     public Tipo tipo;
     // Lo que se muestra ("Depósito Central — Av. Siempre Viva 123, CABA").
@@ -37,11 +38,14 @@ public class ParadaDTO {
     }
 
     public Tipo getTipo() { return tipo; }
+    public boolean isSalida() { return tipo == Tipo.SALIDA; }
     public boolean isRetiro() { return tipo == Tipo.RETIRO; }
     public String getDescripcion() { return descripcion; }
     public String getDireccion() { return direccion; }
     public String getCodigoPostal() { return codigoPostal; }
     public List<Long> getPedidos() { return pedidos; }
+    public Double getLatitud() { return latitud; }
+    public Double getLongitud() { return longitud; }
     public boolean isUbicada() { return latitud != null && longitud != null; }
 
     /** "#12, #15". */

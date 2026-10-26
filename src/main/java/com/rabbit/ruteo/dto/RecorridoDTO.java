@@ -18,5 +18,13 @@ public class RecorridoDTO {
     public List<ParadaDTO> getParadas() { return paradas; }
     public List<String> getTramos() { return tramos; }
     public List<Long> getSinDireccion() { return sinDireccion; }
+    /** Primera sección del día: la salida del depósito Rabbit y los retiros. */
+    public List<ParadaDTO> getSalidaYRetiros() {
+        return paradas.stream().filter(p -> p.tipo != ParadaDTO.Tipo.ENTREGA).collect(java.util.stream.Collectors.toList());
+    }
+    /** Segunda sección: las entregas, desde el último retiro. */
+    public List<ParadaDTO> getEntregas() {
+        return paradas.stream().filter(p -> p.tipo == ParadaDTO.Tipo.ENTREGA).collect(java.util.stream.Collectors.toList());
+    }
     public boolean isVacio() { return paradas.isEmpty(); }
 }

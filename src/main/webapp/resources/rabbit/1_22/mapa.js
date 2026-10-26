@@ -53,7 +53,7 @@ var RabbitMapa = (function () {
         var limites = [];
         lista.forEach(function (p) {
             L.circleMarker([p.lat, p.lng], {
-                radius: 9, weight: 3, color: '#ffffff', fillColor: '#c2410c', fillOpacity: 1
+                radius: 9, weight: 3, color: '#ffffff', fillColor: p.color || '#c2410c', fillOpacity: 1
             }).bindPopup(popup(p)).bindTooltip(p.titulo || '').addTo(capa);
             limites.push([p.lat, p.lng]);
         });

@@ -2,6 +2,7 @@ package com.rabbit.ruteo.negocio;
 
 import com.rabbit.ruteo.dto.GrupoZonaDTO;
 import com.rabbit.ruteo.dto.HojaDeRutaDTO;
+import com.rabbit.ruteo.dto.ParadaDTO;
 import com.rabbit.ruteo.dto.RecorridoDTO;
 import com.rabbit.ruteo.dto.ResultadoDespachoDTO;
 import jakarta.ejb.Local;
@@ -46,6 +47,12 @@ public interface IRuteo {
      * posición del pedido y la franja (ADR-043).
      */
     RecorridoDTO recorridoDeRepartidor(Long idRepartidor);
+
+    /**
+     * La parada de salida del día: el depósito marcado como base de salida
+     * (Depósitos y stock), con su ubicación en el mapa si ya se conoce.
+     */
+    ParadaDTO depositoDeSalida();
 
     /** Entregas terminadas (ENTREGADO, CANCELADO o DEVUELTO_AL_COMERCIO) del repartidor que llama. */
     List<HojaDeRutaDTO> historialDelRepartidor();
