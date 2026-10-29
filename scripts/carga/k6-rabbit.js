@@ -4,7 +4,12 @@
 //
 //   k6 run -e ERP_USUARIO=demo.erp -e ERP_CLAVE=... -e ITEM=<id> scripts/carga/k6-rabbit.js
 //
-// Opcionales: -e BASE=https://localhost:8443/Rabbit -e VUS=50 -e DURACION=5m
+// Opcionales: -e BASE=https://localhost:8443/Rabbit -e VUS=50 -e VUS_ERP=5 -e DURACION=5m
+//
+// Mezcla: VUS_ERP usuarios hacen de ERP (alta y consulta con BASIC) y el
+// resto consulta el seguimiento público. El ERP es una integración, no 50
+// personas: con BASIC cada request verifica bcrypt (costo 10, ~70 ms de CPU),
+// y 50 usuarios con el mismo login medían la CPU del runner, no a Rabbit.
 // Contra el compose (base local), no contra Supabase: la latencia a la base
 // remota se come el p95.
 //
@@ -20,6 +25,7 @@ import { Trend } from 'k6/metrics';
 
 const BASE = __ENV.BASE || 'https://localhost:8443/Rabbit';
 const VUS = Number(__ENV.VUS || 50);
+const VUS_ERP = Math.min(Number(__ENV.VUS_ERP || 5), VUS);
 const DURACION = __ENV.DURACION || '5m';
 const ITEM = Number(__ENV.ITEM);
 const AUTH = 'Basic ' + encoding.b64encode(`${__ENV.ERP_USUARIO}:${__ENV.ERP_CLAVE}`);
@@ -31,16 +37,8 @@ const seguimiento = new Trend('rabbit_seguimiento_ms', true);
 export const options = {
   insecureSkipTLSVerify: true, // certificado autofirmado de WildFly en local
   scenarios: {
-    carga: {
-      executor: 'ramping-vus',
-      startVUs: 0,
-      stages: [
-        { duration: '30s', target: VUS },
-        { duration: DURACION, target: VUS },
-        { duration: '15s', target: 0 },
-      ],
-      gracefulRampDown: '10s',
-    },
+    erp: escenario('erp', VUS_ERP),
+    publico: escenario('publico', VUS - VUS_ERP),
   },
   thresholds: {
     http_req_duration: ['p(95)<500'],
@@ -51,6 +49,20 @@ export const options = {
     rabbit_seguimiento_ms: ['p(95)<500'],
   },
 };
+
+function escenario(exec, usuarios) {
+  return {
+    executor: 'ramping-vus',
+    exec,
+    startVUs: 0,
+    stages: [
+      { duration: '30s', target: usuarios },
+      { duration: DURACION, target: usuarios },
+      { duration: '15s', target: 0 },
+    ],
+    gracefulRampDown: '10s',
+  };
+}
 
 export function setup() {
   if (!__ENV.ERP_USUARIO || !__ENV.ERP_CLAVE || !ITEM) {
@@ -92,8 +104,8 @@ function registrar() {
   );
 }
 
-export default function (datos) {
-  // Mezcla de lectura y escritura: 1 alta cada 5 iteraciones, el resto consultas.
+// ERP: 1 alta cada 5 iteraciones, el resto consultas.
+export function erp(datos) {
   if (__ITER % 5 === 0) {
     const r = registrar();
     alta.add(r.timings.duration);
@@ -107,6 +119,11 @@ export default function (datos) {
   consulta.add(c.timings.duration);
   check(c, { 'consulta: 200': (x) => x.status === 200 });
 
+  sleep(1);
+}
+
+// Destinatario que sigue su pedido, sin login.
+export function publico(datos) {
   const s = http.get(`${BASE}/api/v1/seguimiento/${datos.codigo}`, { tags: { endpoint: 'seguimiento' } });
   seguimiento.add(s.timings.duration);
   check(s, { 'seguimiento: 200': (x) => x.status === 200 });
@@ -123,7 +140,7 @@ export function handleSummary(datos) {
   const req = m('http_reqs');
   const err = m('http_req_failed');
   const md = [
-    `### Carga (k6): ${VUS} usuarios, ${DURACION}`,
+    `### Carga (k6): ${VUS} usuarios (${VUS_ERP} del ERP), ${DURACION}`,
     '',
     '| Endpoint | Mediana (ms) | p95 (ms) | Máx (ms) |',
     '|---|---|---|---|',

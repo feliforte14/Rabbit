@@ -1,6 +1,7 @@
 # =====================================================================
 # Prueba de carga (eje C): k6 con 50 usuarios durante 5 minutos sobre tres
-# endpoints, contra el compose (base local). Umbrales en el script:
+# endpoints (5 hacen de ERP, el resto seguimiento público), contra el
+# compose (base local). Umbrales en el script:
 # p95 < 500 ms, errores < 1%. No corre en cada push porque tarda ~8 min.
 # =====================================================================
 name: Carga
@@ -22,6 +23,9 @@ on:
       usuarios:
         description: Usuarios virtuales
         default: "50"
+      usuarios_erp:
+        description: De esos, cuántos hacen de ERP (BASIC + bcrypt en cada request)
+        default: "5"
       duracion:
         description: Duración de la meseta (k6, por ejemplo 5m)
         default: "5m"
@@ -48,12 +52,13 @@ jobs:
       - name: k6
         env:
           VUS: ${{ inputs.usuarios || '50' }}
+          VUS_ERP: ${{ inputs.usuarios_erp || '5' }}
           DURACION: ${{ inputs.duracion || '5m' }}
         run: |
           set -a; . ./.env; set +a
           mkdir -p target/k6
           k6 run -e BASE=https://localhost:8443/Rabbit -e ERP_USUARIO=demo.erp -e ERP_CLAVE="$DEMO_PASSWORD" \
-            -e ITEM="$ITEM_CARGA" -e VUS="$VUS" -e DURACION="$DURACION" scripts/carga/k6-rabbit.js
+            -e ITEM="$ITEM_CARGA" -e VUS="$VUS" -e VUS_ERP="$VUS_ERP" -e DURACION="$DURACION" scripts/carga/k6-rabbit.js
       - name: Resumen
         if: always()
         run: |
