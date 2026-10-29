@@ -83,6 +83,72 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
             </plugin>
+            <!--
+                Cobertura de los tests unitarios (criterios de testing, eje B: ≥ 80% de
+                líneas y ≥ 70% de ramas en la capa de negocio). El agente se engancha al
+                surefire y el reporte queda en target/site/jacoco/ (index.html y jacoco.csv)
+                al terminar "mvn test".
+            -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.13</version>
+                <executions>
+                    <execution>
+                        <id>preparar-agente</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                        <configuration>
+                            <!-- Clases internas del JDK: con un JDK más nuevo que el que
+                                 soporta JaCoCo fallan al instrumentarse y solo ensucian la salida. -->
+                            <excludes>
+                                <exclude>sun/**</exclude>
+                                <exclude>jdk/**</exclude>
+                            </excludes>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>reporte</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <!--
+                Mutation testing sobre el dominio (eje B: mutation score ≥ 60%). No corre en
+                el build normal porque tarda: "mvn test-compile pitest:mutationCoverage".
+                Reporte en target/pit-reports/index.html.
+            -->
+            <plugin>
+                <groupId>org.pitest</groupId>
+                <artifactId>pitest-maven</artifactId>
+                <version>1.17.1</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.pitest</groupId>
+                        <artifactId>pitest-junit5-plugin</artifactId>
+                        <version>1.2.1</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <targetClasses>
+                        <param>com.rabbit.*.negocio.*</param>
+                        <param>com.rabbit.*.datos.model.*</param>
+                    </targetClasses>
+                    <targetTests>
+                        <param>com.rabbit.*</param>
+                    </targetTests>
+                    <threads>4</threads>
+                    <timestampedReports>false</timestampedReports>
+                    <outputFormats>
+                        <param>HTML</param>
+                        <param>XML</param>
+                    </outputFormats>
+                </configuration>
+            </plugin>
             <plugin>
                 <groupId>org.wildfly.plugins</groupId>
                 <artifactId>wildfly-maven-plugin</artifactId>
