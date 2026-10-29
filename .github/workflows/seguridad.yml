@@ -6,7 +6,9 @@
 #                 runtime); las de test quedan como aviso.
 #                 Dependency-Check (OWASP) si existe el secret NVD_API_KEY.
 #   imagen        Trivy sobre la imagen de Docker (WildFly + WAR), informe.
-#   zap           ZAP baseline contra Rabbit levantado con el compose.
+#   zap           ZAP baseline (pasivo) contra Rabbit levantado con el compose.
+#   zap-api       ZAP API scan (activo) sobre openapi.yaml, autenticado como
+#                 un ERP demo: ataca cada operación (inyección, XSS, etc.).
 #
 # Corre en main, en cada PR, una vez por semana y a mano.
 # =====================================================================
@@ -162,3 +164,52 @@ jobs:
           name: zap
           path: zap/
           retention-days: 14
+
+  zap-api:
+    name: ZAP API scan (activo, autenticado)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/levantar-rabbit
+      - name: ZAP API scan
+        run: |
+          set -a; . ./.env; set +a
+          mkdir -p zap && chmod 777 zap
+          AUTH="Basic $(printf '%s' "demo.erp:$DEMO_PASSWORD" | base64 -w0)"
+          echo "::add-mask::$AUTH"
+          # El replacer de ZAP agrega el header Authorization a cada request.
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" -v "$PWD/docs/integraciones:/zap/api:ro" \
+            -v "$PWD/.zap:/zap/conf:ro" \
+            ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
+            -t /zap/api/openapi.yaml -f openapi -O https://localhost:8443/Rabbit/api \
+            -c /zap/conf/reglas-api.tsv -I -r zap-api.html -w zap-api.md -J zap-api.json \
+            -z "-config replacer.full_list(0).description=auth \
+                -config replacer.full_list(0).enabled=true \
+                -config replacer.full_list(0).matchtype=REQ_HEADER \
+                -config replacer.full_list(0).matchstr=Authorization \
+                -config replacer.full_list(0).regex=false \
+                -config replacer.full_list(0).replacement=$AUTH"
+      - name: Resumen
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          try:
+              datos = json.load(open("zap/zap-api.json"))
+          except FileNotFoundError:
+              raise SystemExit(0)
+          riesgo = {"3": "Alto", "2": "Medio", "1": "Bajo", "0": "Info"}
+          filas = sorted(((a["riskcode"], f"| {riesgo.get(a['riskcode'], a['riskcode'])} | {a['alert']} | {a['count']} |")
+                          for s in datos.get("site", []) for a in s.get("alerts", [])), reverse=True)
+          md = "### ZAP API scan (activo, autenticado)\n\n| Riesgo | Alerta | Instancias |\n|---|---|---|\n" + "\n".join(f for _, f in filas) + "\n"
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(md); print(md)
+          EOF
+          docker compose down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-api
+          path: zap/
+          retention-days: 14
+
