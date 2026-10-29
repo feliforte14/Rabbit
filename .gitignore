@@ -14,3 +14,6 @@ docs/CREDENCIALES.md
 
 # Variables del compose (contraseñas locales): solo .env.example va al repo
 .env
+
+# Pruebas E2E (Playwright): dependencias locales
+e2e/node_modules/

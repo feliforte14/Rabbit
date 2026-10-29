@@ -7,6 +7,8 @@
 #             (perfil integracion) y Newman con la colección del repo
 #   contrato  SOAP: WSDL publicado = versionado y cada operación según el XSD.
 #             REST: Schemathesis contra docs/integraciones/openapi.yaml
+#   e2e       Playwright: 5 escenarios de punta a punta (bloquean), axe y
+#             Lighthouse con responsive a 360/768/1280 (informan)
 #   mutacion  PIT con JDK 17 (lo pide pitest); manual o en main
 #   sonar     SonarCloud, apagado hasta que exista el proyecto
 #
@@ -223,6 +225,64 @@ jobs:
         with:
           name: contrato
           path: target/contrato/
+          retention-days: 14
+
+  e2e:
+    name: E2E y accesibilidad
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - uses: ./.github/actions/levantar-rabbit
+      - name: Instalar Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Escenarios E2E
+        working-directory: e2e
+        run: |
+          set -a; . ../.env; set +a
+          npx playwright test tests/flujos.spec.js
+      - name: Accesibilidad (axe) y responsive
+        # Informa sin cortar mientras sigan abiertos los defectos A11Y-01 a 04.
+        continue-on-error: true
+        working-directory: e2e
+        run: |
+          set -a; . ../.env; set +a
+          npx playwright test tests/accesibilidad.spec.js
+      - name: Lighthouse
+        continue-on-error: true
+        working-directory: e2e
+        run: |
+          set -a; . ../.env; set +a
+          node lighthouse.js
+      - name: Resumen
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import glob, json, os
+          md = ["### Accesibilidad (axe)", "", "| Pantalla | Violaciones |", "|---|---|"]
+          for f in sorted(glob.glob("target/e2e/axe/*.json")):
+              r = json.load(open(f))
+              v = "; ".join(f"{x['id']} ({x['impacto']})" for x in r["violaciones"]) or "ninguna"
+              md.append(f"| {r['pantalla']} | {v} |")
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("\n".join(md) + "\n\n")
+          EOF
+          [ -f target/lighthouse/resumen.md ] && cat target/lighthouse/resumen.md >> "$GITHUB_STEP_SUMMARY"
+          docker compose down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e
+          path: |
+            target/e2e/
+            target/lighthouse/
           retention-days: 14
 
   mutacion:
