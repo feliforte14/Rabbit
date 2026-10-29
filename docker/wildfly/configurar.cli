@@ -29,6 +29,14 @@ data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --dr
 /subsystem=elytron/security-domain=ApplicationDomain:write-attribute(name=realms, value=[{realm=RabbitRealmCompartido, role-decoder=groups-to-roles}, {realm=local}])
 /subsystem=elytron/security-domain=ApplicationDomain:write-attribute(name=default-realm, value=RabbitRealmCompartido)
 
+# Fuera de /Rabbit: sin la página de bienvenida de WildFly (expone la versión)
+# y con HSTS en todo el host, también en los 404. Dentro de /Rabbit manda
+# FiltroHsts, que pisa este valor. Mismo max-age que FiltroHsts (SEC-05).
+/subsystem=undertow/server=default-server/host=default-host/location=\/:remove
+/subsystem=undertow/configuration=handler/file=welcome-content:remove
+/subsystem=undertow/configuration=filter/response-header=hsts:add(header-name=Strict-Transport-Security, header-value="max-age=31536000")
+/subsystem=undertow/server=default-server/host=default-host/filter-ref=hsts:add(predicate=secure)
+
 # Demos y pruebas durante el día: sin hora de corte (README, paso 7b).
 /system-property=rabbit.ruteo.hora-corte:add(value="${env.RABBIT_HORA_CORTE:ninguno}")
 
