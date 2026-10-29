@@ -12,11 +12,13 @@ package com.rabbit.pedidos.presentacion.rest;
  * igual: esto solo corta antes, con un 400 que dice qué campo está mal.
  */
 
+import com.rabbit.infraestructura.NumerosEstrictos;
 import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.TipoEntrega;
 import com.rabbit.pedidos.dto.DatosLineaPedidoDTO;
 import com.rabbit.pedidos.dto.DatosPedidoExternoDTO;
+import jakarta.json.bind.annotation.JsonbTypeDeserializer;
 import jakarta.validation.Constraint;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
@@ -46,6 +48,7 @@ public class PedidoExternoRequest {
     public OrigenPedido origen = OrigenPedido.STOCK_CONSIGNADO;
 
     // Obligatorio con origen PUNTO_PICKING (lo valida PedidoService).
+    @JsonbTypeDeserializer(NumerosEstrictos.Largo.class)
     public Long idPuntoPicking;
 
     @NotEmpty(message = "El pedido debe tener al menos un producto")
@@ -67,6 +70,7 @@ public class PedidoExternoRequest {
     // Cuántas cajas o paquetes forman el pedido: una etiqueta con QR por bulto (ADR-056). Por defecto, 1.
     @Min(value = 1, message = "La cantidad de bultos tiene que ser al menos 1")
     @Max(value = 99, message = "Un pedido admite hasta 99 bultos")
+    @JsonbTypeDeserializer(NumerosEstrictos.Entero.class)
     public Integer bultos;
 
     // Obligatoria a domicilio (ver ConDireccionSiEsADomicilio); en un retiro se ignora.
@@ -126,7 +130,10 @@ public class PedidoExternoRequest {
     }
 
     public static class Linea {
-        // STOCK_CONSIGNADO: el ítem consignado en Rabbit.
+        // STOCK_CONSIGNADO: el ítem consignado en Rabbit. Un número fuera de
+        // rango corta antes, al leer el JSON (CON-02, ver NumerosEstrictos).
+        @Positive(message = "El ítem tiene que ser un id mayor a cero")
+        @JsonbTypeDeserializer(NumerosEstrictos.Largo.class)
         public Long idItem;
 
         // PUNTO_PICKING: qué se retira (descripción libre).
@@ -134,6 +141,7 @@ public class PedidoExternoRequest {
         public String producto;
 
         @Positive(message = "La cantidad debe ser mayor a cero")
+        @JsonbTypeDeserializer(NumerosEstrictos.Entero.class)
         public int cantidad;
     }
 
