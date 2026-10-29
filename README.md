@@ -313,7 +313,7 @@ Cuando el log muestre `[Semilla] Listo`, entrá a
 el navegador muestra una advertencia la primera vez: aceptala.
 
 - **Administrador:** el usuario `ADMIN_USER` del `.env` (por defecto
-  `admin`), con la contraseña `ADMIN_PASSWORD`.
+  `admin`), con la contraseña que pusiste en `ADMIN_PASSWORD`.
 - **Cuentas demo:** si completaste `DEMO_PASSWORD`, todas entran con esa
   contraseña.
   - `demo.operador`: personal.
