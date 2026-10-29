@@ -119,6 +119,9 @@
                             <excludes>
                                 <exclude>sun/**</exclude>
                                 <exclude>jdk/**</exclude>
+                                <exclude>com/sun/**</exclude>
+                                <!-- Clases que genera Mockito en tiempo de ejecución. -->
+                                <exclude>**/*$MockitoMock$*</exclude>
                             </excludes>
                         </configuration>
                     </execution>
