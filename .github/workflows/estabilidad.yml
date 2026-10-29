@@ -37,7 +37,8 @@ jobs:
   comparar:
     name: Comparar las 3 vueltas
     needs: vuelta
-    if: always()
+    # Con fallas sí compara (para ver si son estables); si se canceló, no hay nada que comparar.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -84,8 +85,8 @@ jobs:
               md += [f"| `{t}` | {v.get('1', '—')} | {v.get('2', '—')} | {v.get('3', '—')} |" for t, v in sorted(inestables.items())]
           open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("\n".join(md) + "\n")
           print("\n".join(md))
-          if not resultados:
-              raise SystemExit("No se encontraron reportes JUnit de las vueltas")
+          if not resultados or incompletos:
+              raise SystemExit("Faltan reportes JUnit de alguna vuelta: no se puede afirmar que la suite sea estable")
           if inestables:
               raise SystemExit(f"{len(inestables)} tests inestables")
           EOF
