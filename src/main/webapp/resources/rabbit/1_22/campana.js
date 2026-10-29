@@ -56,13 +56,16 @@
                     nuevos++;
                 }
             });
+            // El aria-label repite el número tal como se ve ("9+" y no "15"):
+            // quien usa control por voz dice lo que ve (WCAG 2.5.3, A11Y-02).
+            var visible = nuevos > 9 ? "9+" : String(nuevos);
             if (contador) {
-                contador.textContent = nuevos > 9 ? "9+" : String(nuevos);
+                contador.textContent = visible;
                 contador.hidden = nuevos === 0;
             }
             campana.querySelector(".campana-boton").setAttribute(
                 "aria-label",
-                nuevos === 0 ? "Notificaciones" : "Notificaciones, " + nuevos + (nuevos === 1 ? " nueva" : " nuevas")
+                nuevos === 0 ? "Notificaciones" : "Notificaciones, " + visible + (nuevos === 1 ? " nueva" : " nuevas")
             );
         }
 
