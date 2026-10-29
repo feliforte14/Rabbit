@@ -101,6 +101,12 @@ public class PedidosExternosResource {
     // Un UUID entra holgado; la lista blanca evita guardar cualquier cosa.
     private static final Pattern CLAVE_VALIDA = Pattern.compile("[A-Za-z0-9_-]{8,100}");
 
+    // Solo dígitos, y hasta 18 para que siempre entre en un Long. Cualquier
+    // otra cosa (un espacio, "abc", un número gigante) no matchea la ruta y
+    // el runtime responde 404 en Problem Details (ProblemaMapper). Antes un
+    // id en blanco llegaba como null y terminaba en un 500 (CON-01).
+    private static final String ID = "{id: [0-9]{1,18}}";
+
     @Inject
     private IGestionPedidos gestion;
 
@@ -165,7 +171,7 @@ public class PedidosExternosResource {
      * (con el motivo) o Cancelado.
      */
     @GET
-    @Path("{id}")
+    @Path(ID)
     public Response consultar(@PathParam("id") Long id, @Context UriInfo uri) {
         try {
             return Response.ok(representacion(seguimiento.consultarPedidoExterno(id), uri)).build();
@@ -182,7 +188,7 @@ public class PedidosExternosResource {
      * cancelado). Repetirlo devuelve lo mismo.
      */
     @POST
-    @Path("{id}/cancelacion")
+    @Path(ID + "/cancelacion")
     public Response cancelar(@PathParam("id") Long id, @Context UriInfo uri) {
         try {
             return Response.ok(representacion(gestion.cancelarPedidoExterno(id), uri)).build();
