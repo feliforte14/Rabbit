@@ -52,7 +52,7 @@ casos nuevos; sirve a mano, para buscar defectos, pero no en el CI.
 | Id | Qué pasa | Esperado | Dónde |
 |---|---|---|---|
 | CON-01 | `GET /v1/pedidos-externos/%20` y `POST /v1/pedidos-externos/%20/cancelacion` (un espacio como id) responden **500** | 400 o 404 en Problem Details | `PedidosExternosResource` / `PedidoService` (log: `WFLYEJB0034`) |
-| CON-02 | `POST /v1/pedidos-externos` con `"idItem": -9223372036854775809` (fuera del rango de `long`) responde **201** y crea el pedido. El contrato pide `idItem` ≥ 1 y `PedidoExternoRequest.Linea.idItem` no tiene validación. Lo encontró Schemathesis en una vuelta de estabilidad (semilla `88224330309137619937126695567329018867`) | 400 en Problem Details | `PedidoExternoRequest.Linea` (falta `@Positive`; revisar también cómo se convierte un número fuera de rango) |
+| CON-02 | `POST /v1/pedidos-externos` con `"idItem": -9223372036854775809` (fuera del rango de `long`) responde **201** y crea el pedido, con el `idItem` guardado como `9223372036854775807`: el desborde le cambia el signo sin avisar, y el pedido termina Descartado ("ítem no encontrado"). También se aceptan `0` y `-5` (verificado el 29/10). El contrato pide `idItem` ≥ 1 y `PedidoExternoRequest.Linea.idItem` no tiene validación. Lo encontró Schemathesis en una vuelta de estabilidad (semilla `88224330309137619937126695567329018867`) | 400 en Problem Details | `PedidoExternoRequest.Linea` (falta `@Positive`; revisar también cómo se convierte un número fuera de rango) |
 
 Mientras siga abierto, el paso de Schemathesis informa sin cortar el CI
 (`continue-on-error`). Cuando se corrija, se saca esa línea del workflow.
