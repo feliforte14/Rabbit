@@ -32,4 +32,6 @@ description = "Marcadores de posición de la documentación, no secretos"
 regexTarget = "secret"
 regexes = [
   '''^(CONTRASEÑA|CONTRASENA|USUARIO|<[^>]*>|\.\.\.|\*+)$''',
+  # Nombres de variables de entorno (ADMIN_PASSWORD, DEMO_PASSWORD): nombran el dato, no son el valor.
+  '''^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$''',
 ]
