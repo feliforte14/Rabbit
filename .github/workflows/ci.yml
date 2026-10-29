@@ -149,7 +149,15 @@ jobs:
           echo "Rabbit no respondió en 6 minutos (último código: $codigo)"; exit 1
       - name: La semilla terminó bien
         run: |
-          docker compose wait semilla | grep -qx 0
+          # "docker compose wait" no ve contenedores que ya terminaron: se lee el estado.
+          id=$(docker compose ps -aq semilla)
+          for _ in $(seq 1 24); do
+            [ "$(docker inspect -f '{{.State.Status}}' "$id")" = "exited" ] && break
+            sleep 5
+          done
+          codigo=$(docker inspect -f '{{.State.ExitCode}}' "$id")
+          echo "La semilla terminó con código $codigo"
+          [ "$codigo" = 0 ]
           docker compose exec -T db psql -U rabbit -d rabbit -tAc \
             "SELECT count(*) FROM usuarios WHERE username='admin.ci' AND rol='ADMINISTRADOR' AND hash_clave LIKE '\$2%'" | grep -qx 1
           echo "Semilla: administrador creado con bcrypt" >> "$GITHUB_STEP_SUMMARY"
