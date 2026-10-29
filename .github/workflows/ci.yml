@@ -1,10 +1,12 @@
 # =====================================================================
-# CI de Rabbit: corre en cada push y en cada PR.
+# CI de Rabbit: corre en main, en cada PR y a mano.
 #
 #   build     mvn -B verify (tests unitarios) + cobertura JaCoCo con umbral
 #   secretos  gitleaks con .gitleaks.toml, solo sobre los commits nuevos
 #   compose   docker compose up + semilla, y contra esa app: los *IT
 #             (perfil integracion) y Newman con la colección del repo
+#   contrato  SOAP: WSDL publicado = versionado y cada operación según el XSD.
+#             REST: Schemathesis contra docs/integraciones/openapi.yaml
 #   mutacion  PIT con JDK 17 (lo pide pitest); manual o en main
 #   sonar     SonarCloud, apagado hasta que exista el proyecto
 #
@@ -14,8 +16,9 @@
 name: CI
 
 on:
+  # En main y en cada PR (no en cada push de rama: con PR abierta corría dos veces).
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -176,6 +179,51 @@ jobs:
             target/failsafe-reports/
             target/newman/
           retention-days: 7
+
+  contrato:
+    name: Contrato (OpenAPI y WSDL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/levantar-rabbit
+      - uses: astral-sh/setup-uv@v6
+      - name: SOAP (WSDL)
+        run: uv run --quiet --with zeep scripts/contrato/soap.py http://localhost:8080/Rabbit
+      - name: REST (Schemathesis)
+        # Informa sin cortar mientras siga abierto el defecto del id con
+        # espacios (500 en GET y cancelación): ver docs/pruebas/CONTRATO.md.
+        continue-on-error: true
+        run: |
+          set -a; . ./.env; set +a
+          mkdir -p target/contrato
+          uvx --from schemathesis==4.32.7 schemathesis run docs/integraciones/openapi.yaml \
+            --url https://localhost:8443/Rabbit/api --tls-verify false \
+            --auth "demo.erp:$DEMO_PASSWORD" --max-examples 50 \
+            --checks all --exclude-checks positive_data_acceptance,unsupported_method \
+            --report junit --report-dir target/contrato
+      - name: Resumen
+        if: always()
+        run: |
+          [ -f target/contrato/soap.md ] && cat target/contrato/soap.md >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'EOF'
+          import glob, os, xml.etree.ElementTree as ET
+          for x in glob.glob("target/contrato/*.xml"):
+              r = ET.parse(x).getroot()
+              suites = [r] if r.tag == "testsuite" else list(r)
+              casos = [c for su in suites for c in su.iter("testcase")]
+              malos = [c.get("name") for c in casos if c.find("failure") is not None or c.find("error") is not None]
+              md = f"\n### Contrato REST (Schemathesis)\n\n{len(casos) - len(malos)}/{len(casos)} operaciones sin fallas"
+              md += ("; con fallas: " + ", ".join(f"`{m}`" for m in malos)) if malos else ""
+              open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(md + "\n")
+          EOF
+          docker compose down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contrato
+          path: target/contrato/
+          retention-days: 14
 
   mutacion:
     name: Mutación (PIT)

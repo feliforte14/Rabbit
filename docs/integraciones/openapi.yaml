@@ -137,6 +137,7 @@ paths:
                     title: Clave de idempotencia reutilizada
                     status: 422
                     detail: La clave de idempotencia "7f3c9e1a-..." ya se usó con otro pedido
+        '415': { $ref: '#/components/responses/FormatoNoAdmitido' }
         '500': { $ref: '#/components/responses/ErrorInterno' }
 
   /v1/pedidos-externos/{id}:
@@ -229,6 +230,7 @@ paths:
                     title: El stock cambió al mismo tiempo, reintentá
                     status: 409
                     detail: "No se pudo devolver el stock del pedido: Otro usuario acaba de modificar el stock de \"Afeitadoras eléctricas\" al mismo tiempo. Volvé a intentarlo para ver el stock actualizado."
+        '415': { $ref: '#/components/responses/FormatoNoAdmitido' }
         '500': { $ref: '#/components/responses/ErrorInterno' }
 
   /v1/seguimiento/{codigo}:
@@ -307,6 +309,17 @@ components:
             title: Pedido externo inexistente
             status: 404
             detail: No hay ningún pedido externo 42 de tu comercio
+    FormatoNoAdmitido:
+      description: El cuerpo no viene como application/json (o falta el Content-Type).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: /problemas/formato-no-admitido
+            title: Unsupported Media Type
+            status: 415
+            detail: La API recibe application/json.
     ErrorInterno:
       description: Falla de Rabbit. El detalle queda en el log del servidor, nunca en la respuesta.
       content:
@@ -318,6 +331,14 @@ components:
     PedidoExternoRequest:
       type: object
       required: [lineas, importe, medioPago, emailDestinatario]
+      # La dirección es obligatoria salvo en un retiro en depósito.
+      if:
+        required: [tipoEntrega]
+        properties:
+          tipoEntrega: { const: RETIRO_EN_DEPOSITO }
+      then: {}
+      else:
+        required: [direccionEntrega]
       properties:
         origen:
           type: string
@@ -356,6 +377,7 @@ components:
           description: Cuántas cajas o paquetes forman el pedido. Rabbit imprime una etiqueta con QR por bulto.
         direccionEntrega:
           type: string
+          minLength: 1
           maxLength: 200
           description: Obligatoria con tipoEntrega DOMICILIO (el valor por defecto). En un retiro en depósito se ignora.
         codigoPostalEntrega:
