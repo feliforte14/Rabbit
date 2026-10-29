@@ -130,58 +130,7 @@ jobs:
           node-version: "22"
       - name: Instalar Newman
         run: npm install -g newman@6
-      - name: .env de prueba (contraseñas descartables, generadas en el runner)
-        run: |
-          {
-            echo "DB_NAME=rabbit"
-            echo "DB_USER=rabbit"
-            echo "DB_PASSWORD=$(openssl rand -hex 16)"
-            echo "ADMIN_USER=admin.ci"
-            echo "ADMIN_PASSWORD=$(openssl rand -hex 16)"
-            echo "DEMO_PASSWORD=$(openssl rand -hex 16)"
-            echo "RABBIT_HORA_CORTE=ninguno"
-          } > .env
-      - name: Construir y levantar
-        run: |
-          inicio=$(date +%s)
-          docker compose up -d --build
-          echo "INICIO=$inicio" >> "$GITHUB_ENV"
-      - name: Esperar a que Rabbit responda
-        run: |
-          for _ in $(seq 1 72); do
-            codigo=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost:8443/Rabbit/ || true)
-            if [ "$codigo" = "200" ]; then
-              echo "Rabbit respondió 200 en $(( $(date +%s) - INICIO )) s"
-              echo "Rabbit levantó en $(( $(date +%s) - INICIO )) s (build incluido)" >> "$GITHUB_STEP_SUMMARY"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "Rabbit no respondió en 6 minutos (último código: $codigo)"; exit 1
-      - name: La semilla terminó bien
-        run: |
-          # "docker compose wait" no ve contenedores que ya terminaron: se lee el estado.
-          id=$(docker compose ps -aq semilla)
-          for _ in $(seq 1 24); do
-            [ "$(docker inspect -f '{{.State.Status}}' "$id")" = "exited" ] && break
-            sleep 5
-          done
-          codigo=$(docker inspect -f '{{.State.ExitCode}}' "$id")
-          echo "La semilla terminó con código $codigo"
-          [ "$codigo" = 0 ]
-          docker compose exec -T db psql -U rabbit -d rabbit -tAc \
-            "SELECT count(*) FROM usuarios WHERE username='admin.ci' AND rol='ADMINISTRADOR' AND hash_clave LIKE '\$2%'" | grep -qx 1
-          echo "Semilla: administrador creado con bcrypt" >> "$GITHUB_STEP_SUMMARY"
-      - name: Sin errores al desplegar
-        run: |
-          docker compose logs wildfly > wildfly.log
-          grep -q 'Deployed "Rabbit.war"' wildfly.log
-          ! grep -E 'WFLYCTL0013|WFLYSRV0021|Deployment .* failed' wildfly.log
-      - name: IDs de la semilla
-        run: |
-          q() { docker compose exec -T db psql -U rabbit -d rabbit -tAc "$1"; }
-          echo "ITEM=$(q "SELECT i.id FROM items_inventario i JOIN comercios c ON c.id=i.idcomercio WHERE c.nombre='Almacén Demo 1' AND i.producto='Yerba mate 1 kg'")" >> "$GITHUB_ENV"
-          echo "PUNTO=$(q "SELECT p.id FROM puntos_picking p JOIN comercios c ON c.id=p.comercio_id WHERE c.nombre='Almacén Demo 1' AND p.nombre='Local Palermo'")" >> "$GITHUB_ENV"
+      - uses: ./.github/actions/levantar-rabbit
       - name: Tests de integración (*IT)
         run: |
           set -a; . ./.env; set +a

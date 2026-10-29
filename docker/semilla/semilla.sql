@@ -45,7 +45,9 @@ SELECT nextval('items_inventario_seq'), c.id, d.id, v.producto, v.cantidad, 0,
 FROM (VALUES
   ('Almacén Demo 1', 'Yerba mate 1 kg',     500, 1.0, 25, 12, 8),
   ('Almacén Demo 1', 'Caja de zapatillas',  200, 1.2, 35, 22, 13),
-  ('Almacén Demo 2', 'Café molido 500 g',   300, 0.5, 18, 10, 6)
+  ('Almacén Demo 2', 'Café molido 500 g',   300, 0.5, 18, 10, 6),
+  -- Para la prueba de carga (k6): stock de sobra para miles de altas.
+  ('Almacén Demo 1', 'Producto de carga', 1000000, 0.2, 10, 10, 5)
 ) AS v(comercio, producto, cantidad, peso, largo, ancho, alto)
 JOIN comercios c ON c.nombre = v.comercio
 CROSS JOIN (SELECT id FROM depositos WHERE nombre = 'Depósito Central') d
@@ -86,4 +88,6 @@ SELECT 'punto_picking=' || p.id FROM puntos_picking p JOIN comercios c ON c.id =
  WHERE c.nombre = 'Almacén Demo 1' AND p.nombre = 'Local Palermo';
 SELECT 'item=' || i.id FROM items_inventario i JOIN comercios c ON c.id = i.idcomercio
  WHERE c.nombre = 'Almacén Demo 1' AND i.producto = 'Yerba mate 1 kg';
+SELECT 'item_carga=' || i.id FROM items_inventario i JOIN comercios c ON c.id = i.idcomercio
+ WHERE c.nombre = 'Almacén Demo 1' AND i.producto = 'Producto de carga';
 SELECT 'cuentas=' || count(*) FROM usuarios;
