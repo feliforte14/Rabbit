@@ -411,7 +411,7 @@ components:
         estadoPedido:
           type: string
           enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO, DEVUELTO_AL_COMERCIO]
-          description: DEVUELTO_AL_COMERCIO es final: se agotaron las visitas o el cliente lo rechazó (ADR-041).
+          description: "DEVUELTO_AL_COMERCIO es final: se agotaron las visitas o el cliente lo rechazó (ADR-041)."
         fechaPrometida:
           type: string
           format: date
