@@ -21,8 +21,14 @@ En local, con Rabbit corriendo:
 uvx --from schemathesis==4.32.7 schemathesis run docs/integraciones/openapi.yaml \
   --url https://localhost:8443/Rabbit/api --tls-verify false \
   --auth demo.erp:<contraseña> --max-examples 50 \
+  --seed 20261110 --generation-deterministic \
   --checks all --exclude-checks positive_data_acceptance,unsupported_method
 ```
+
+Con `--seed` fija y `--generation-deterministic`, cada corrida genera los
+mismos casos: así el CI da el mismo resultado en las 3 vueltas de
+estabilidad y un hallazgo se reproduce. Sin la semilla, cada corrida explora
+casos nuevos; sirve a mano, para buscar defectos, pero no en el CI.
 
 ### Desvíos aceptados (checks excluidos)
 
@@ -46,6 +52,7 @@ uvx --from schemathesis==4.32.7 schemathesis run docs/integraciones/openapi.yaml
 | Id | Qué pasa | Esperado | Dónde |
 |---|---|---|---|
 | CON-01 | `GET /v1/pedidos-externos/%20` y `POST /v1/pedidos-externos/%20/cancelacion` (un espacio como id) responden **500** | 400 o 404 en Problem Details | `PedidosExternosResource` / `PedidoService` (log: `WFLYEJB0034`) |
+| CON-02 | `POST /v1/pedidos-externos` con `"idItem": -9223372036854775809` (fuera del rango de `long`) responde **201** y crea el pedido. El contrato pide `idItem` ≥ 1 y `PedidoExternoRequest.Linea.idItem` no tiene validación. Lo encontró Schemathesis en una vuelta de estabilidad (semilla `88224330309137619937126695567329018867`) | 400 en Problem Details | `PedidoExternoRequest.Linea` (falta `@Positive`; revisar también cómo se convierte un número fuera de rango) |
 
 Mientras siga abierto, el paso de Schemathesis informa sin cortar el CI
 (`continue-on-error`). Cuando se corrija, se saca esa línea del workflow.

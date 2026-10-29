@@ -200,8 +200,10 @@ jobs:
       - name: SOAP (WSDL)
         run: uv run --quiet --with zeep scripts/contrato/soap.py http://localhost:8080/Rabbit
       - name: REST (Schemathesis)
-        # Informa sin cortar mientras siga abierto el defecto del id con
-        # espacios (500 en GET y cancelación): ver docs/pruebas/CONTRATO.md.
+        # Informa sin cortar mientras sigan abiertos CON-01 y CON-02: ver
+        # docs/pruebas/CONTRATO.md. Semilla fija y generación determinista:
+        # cada corrida prueba los mismos casos (la de estabilidad lo exige).
+        # Para explorar casos nuevos, a mano con otra --seed.
         continue-on-error: true
         run: |
           set -a; . ./.env; set +a
@@ -209,6 +211,7 @@ jobs:
           uvx --from schemathesis==4.32.7 schemathesis run docs/integraciones/openapi.yaml \
             --url https://localhost:8443/Rabbit/api --tls-verify false \
             --auth "demo.erp:$DEMO_PASSWORD" --max-examples 50 \
+            --seed 20261110 --generation-deterministic \
             --checks all --exclude-checks positive_data_acceptance,unsupported_method \
             --report junit --report-dir target/contrato
       - name: Resumen
