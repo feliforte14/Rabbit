@@ -17,13 +17,17 @@ export PGHOST="${DB_HOST:-db}" PGPORT="${DB_PORT:-5432}" PGDATABASE="${DB_NAME:-
 # La contraseña del administrador sale del .env en cada arranque y se
 # convierte en bcrypt dentro de la base: en el repo no queda ni la
 # contraseña ni su hash. Un marcador de .env.example sin reemplazar corta acá.
-for valor in "$DB_PASSWORD" "$ADMIN_PASSWORD"; do
+DEMO_PASSWORD="${DEMO_PASSWORD:-}"
+for valor in "$DB_PASSWORD" "$ADMIN_PASSWORD" "$DEMO_PASSWORD"; do
   case "$valor" in
     "<"*">") echo "[Semilla] Hay un <marcador> de .env.example sin reemplazar en .env" >&2; exit 1 ;;
   esac
 done
 if [ "${#ADMIN_PASSWORD}" -lt 8 ]; then
   echo "[Semilla] ADMIN_PASSWORD tiene que tener al menos 8 caracteres" >&2; exit 1
+fi
+if [ -n "$DEMO_PASSWORD" ] && [ "${#DEMO_PASSWORD}" -lt 8 ]; then
+  echo "[Semilla] DEMO_PASSWORD tiene que tener al menos 8 caracteres (o quedar vacía)" >&2; exit 1
 fi
 
 echo "[Semilla] Esperando a que Rabbit cree las tablas..."
@@ -39,5 +43,9 @@ done
 
 psql -v ON_ERROR_STOP=1 -q \
      -v admin_user="$ADMIN_USER" -v admin_password="$ADMIN_PASSWORD" \
+     -v demo_password="$DEMO_PASSWORD" \
      -f /semilla/semilla.sql
 echo "[Semilla] Listo: entrá a https://localhost:8443/Rabbit con ${ADMIN_USER}"
+if [ -n "$DEMO_PASSWORD" ]; then
+  echo "[Semilla] Cuentas demo (con DEMO_PASSWORD): demo.operador, demo.erp, demo.erp2, demo.comercio, demo.comercio2, demo.repartidor"
+fi

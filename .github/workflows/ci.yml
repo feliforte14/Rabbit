@@ -3,13 +3,13 @@
 #
 #   build     mvn -B verify (tests unitarios) + cobertura JaCoCo con umbral
 #   secretos  gitleaks con .gitleaks.toml, solo sobre los commits nuevos
-#   compose   docker compose up: la app arranca y la semilla crea al admin
+#   compose   docker compose up + semilla, y contra esa app: los *IT
+#             (perfil integracion) y Newman con la colección del repo
 #   mutacion  PIT con JDK 17 (lo pide pitest); manual o en main
 #   sonar     SonarCloud, apagado hasta que exista el proyecto
 #
-# Los *IT (perfil integracion) no corren acá todavía: necesitan la app
-# levantada y una cuenta ERP en la semilla. Van en un job aparte sobre el
-# compose cuando la semilla esté completa.
+# Los *IT no corren en "build": necesitan la app levantada. Corren en
+# "compose", contra el compose con las cuentas demo de la semilla.
 # =====================================================================
 name: CI
 
@@ -115,11 +115,21 @@ jobs:
         run: gitleaks dir --config .gitleaks.toml --redact --no-banner .
 
   compose:
-    name: docker compose up
+    name: Compose, integración y Newman
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Instalar Newman
+        run: npm install -g newman@6
       - name: .env de prueba (contraseñas descartables, generadas en el runner)
         run: |
           {
@@ -128,6 +138,7 @@ jobs:
             echo "DB_PASSWORD=$(openssl rand -hex 16)"
             echo "ADMIN_USER=admin.ci"
             echo "ADMIN_PASSWORD=$(openssl rand -hex 16)"
+            echo "DEMO_PASSWORD=$(openssl rand -hex 16)"
             echo "RABBIT_HORA_CORTE=ninguno"
           } > .env
       - name: Construir y levantar
@@ -166,6 +177,42 @@ jobs:
           docker compose logs wildfly > wildfly.log
           grep -q 'Deployed "Rabbit.war"' wildfly.log
           ! grep -E 'WFLYCTL0013|WFLYSRV0021|Deployment .* failed' wildfly.log
+      - name: IDs de la semilla
+        run: |
+          q() { docker compose exec -T db psql -U rabbit -d rabbit -tAc "$1"; }
+          echo "ITEM=$(q "SELECT i.id FROM items_inventario i JOIN comercios c ON c.id=i.idcomercio WHERE c.nombre='Almacén Demo 1' AND i.producto='Yerba mate 1 kg'")" >> "$GITHUB_ENV"
+          echo "PUNTO=$(q "SELECT p.id FROM puntos_picking p JOIN comercios c ON c.id=p.comercio_id WHERE c.nombre='Almacén Demo 1' AND p.nombre='Local Palermo'")" >> "$GITHUB_ENV"
+      - name: Tests de integración (*IT)
+        run: |
+          set -a; . ./.env; set +a
+          # -Dtest=NoHayUnitarios: los unitarios ya corrieron en "build"; acá solo failsafe.
+          mvn -B -ntp verify -Pintegracion -Dtest=NoHayUnitarios -Dsurefire.failIfNoSpecifiedTests=false \
+            -Drabbit.base=https://localhost:8443/Rabbit -Drabbit.soap.base=http://localhost:8080/Rabbit \
+            -Drabbit.erp.usuario=demo.erp -Drabbit.erp.clave="$DEMO_PASSWORD" \
+            -Drabbit.erp2.usuario=demo.erp2 -Drabbit.erp2.clave="$DEMO_PASSWORD" \
+            -Drabbit.comercio.usuario=demo.comercio2 -Drabbit.comercio.clave="$DEMO_PASSWORD" \
+            -Drabbit.punto="$PUNTO"
+      - name: Newman
+        if: success() || failure()
+        run: |
+          set -a; . ./.env; set +a
+          scripts/ci/newman.sh
+      - name: Resumen de integración
+        if: success() || failure()
+        run: |
+          python3 - <<'EOF'
+          import glob, os, xml.etree.ElementTree as ET
+          filas = []
+          for nombre, patron in (("*IT (failsafe)", "target/failsafe-reports/TEST-*.xml"), ("Newman", "target/newman/*.xml")):
+              t = f = s = 0
+              for x in glob.glob(patron):
+                  r = ET.parse(x).getroot()
+                  suites = [r] if r.tag == "testsuite" else list(r)
+                  for su in suites:
+                      t += int(su.get("tests", 0)); f += int(su.get("failures", 0)) + int(su.get("errors", 0)); s += int(su.get("skipped", 0))
+              filas.append(f"| {nombre} | {t} | {f} | {s} |")
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("### Integración\n\n| Suite | Tests | Fallas | Saltados |\n|---|---|---|---|\n" + "\n".join(filas) + "\n")
+          EOF
       - name: Logs
         if: always()
         run: |
@@ -174,8 +221,11 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: logs-compose
-          path: compose.log
+          name: integracion
+          path: |
+            compose.log
+            target/failsafe-reports/
+            target/newman/
           retention-days: 7
 
   mutacion:

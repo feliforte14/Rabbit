@@ -62,6 +62,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       ADMIN_USER: ${ADMIN_USER:?Falta ADMIN_USER en .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD en .env}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
     volumes:
       - ./docker/semilla:/semilla:ro
     entrypoint: ["sh", "/semilla/cargar.sh"]
