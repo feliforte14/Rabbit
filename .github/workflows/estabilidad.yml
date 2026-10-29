@@ -53,7 +53,7 @@ jobs:
           # resultados[test][vuelta] = "pasa" | "falla" | "saltado"
           resultados = defaultdict(dict)
           for xml in glob.glob("vueltas/*/**/*.xml", recursive=True):
-              m = re.search(r"vueltas/[a-z-]+-(\d)/", xml)
+              m = re.search(r"vueltas/[a-z0-9-]+?-(\d)/", xml)  # e2e-1, reportes-tests-2, ...
               if not m:
                   continue
               vuelta = m.group(1)

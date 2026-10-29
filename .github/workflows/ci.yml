@@ -256,6 +256,8 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Escenarios E2E
         working-directory: e2e
+        env:
+          JUNIT: ../target/e2e/junit-flujos.xml
         run: |
           set -a; . ../.env; set +a
           npx playwright test tests/flujos.spec.js
@@ -263,6 +265,8 @@ jobs:
         # Informa sin cortar mientras sigan abiertos los defectos A11Y-01 a 04.
         continue-on-error: true
         working-directory: e2e
+        env:
+          JUNIT: ../target/e2e/junit-accesibilidad.xml
         run: |
           set -a; . ../.env; set +a
           npx playwright test tests/accesibilidad.spec.js

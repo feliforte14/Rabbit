@@ -9,7 +9,7 @@ module.exports = defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: 0, // sin reintentos: un test inestable tiene que verse (eje B)
-  reporter: [['list'], ['junit', { outputFile: '../target/e2e/junit.xml' }], ['html', { outputFolder: '../target/e2e/html', open: 'never' }]],
+  reporter: [['list'], ['junit', { outputFile: process.env.JUNIT || '../target/e2e/junit.xml' }], ['html', { outputFolder: '../target/e2e/html', open: 'never' }]],
   outputDir: '../target/e2e/resultados',
   use: {
     baseURL: (process.env.BASE || 'https://localhost:8443/Rabbit') + '/',
