@@ -1,0 +1,35 @@
+# Reglas de gitleaks para Rabbit: las de siempre más dos propias.
+# Las por defecto no detectaron la contraseña de la base que estuvo en el
+# README (atributo password="..." de un XML de WildFly). Ver
+# docs/seguridad/INCIDENTE-2026-10-27-CONTRASENA-EN-HISTORIAL.md.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "rabbit-password-atributo-xml"
+description = "Contraseña en un atributo password=\"...\" (datasource y realms de WildFly)"
+regex = '''(?i)\bpassword\s*=\s*"([^"\s$<{][^"\s]{5,})"'''
+secretGroup = 1
+keywords = ["password"]
+
+[[rules]]
+id = "rabbit-password-cli"
+description = "Contraseña en una opción --password= o -p de jboss-cli / add-user.sh"
+regex = '''(?i)(?:--password=|add-user\.sh[^\n]*\s-p\s+)['"]?([^\s'"$<{]{6,})'''
+secretGroup = 1
+keywords = ["--password=", "add-user"]
+
+[[rules]]
+id = "rabbit-contrasena-en-tabla"
+description = "Valor junto a la palabra Contraseña en una tabla o lista de Markdown"
+regex = '''(?i)contrase(?:ñ|n)a\s*\|?\s*[:|]?\s*`([^`\s<]{6,})`'''
+secretGroup = 1
+keywords = ["contraseña", "contrasena"]
+
+[allowlist]
+description = "Marcadores de posición de la documentación, no secretos"
+regexTarget = "secret"
+regexes = [
+  '''^(CONTRASEÑA|CONTRASENA|USUARIO|<[^>]*>|\.\.\.|\*+)$''',
+]

@@ -11,3 +11,6 @@ node_modules/
 
 # Credenciales de prueba: solo locales (el repositorio es público)
 docs/CREDENCIALES.md
+
+# Variables del compose (contraseñas locales): solo .env.example va al repo
+.env
