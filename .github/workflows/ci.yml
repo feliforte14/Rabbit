@@ -1,0 +1,223 @@
+# =====================================================================
+# CI de Rabbit: corre en cada push y en cada PR.
+#
+#   build     mvn -B verify (tests unitarios) + cobertura JaCoCo con umbral
+#   secretos  gitleaks con .gitleaks.toml, solo sobre los commits nuevos
+#   compose   docker compose up: la app arranca y la semilla crea al admin
+#   mutacion  PIT con JDK 17 (lo pide pitest); manual o en main
+#   sonar     SonarCloud, apagado hasta que exista el proyecto
+#
+# Los *IT (perfil integracion) no corren acá todavía: necesitan la app
+# levantada y una cuenta ERP en la semilla. Van en un job aparte sobre el
+# compose cuando la semilla esté completa.
+# =====================================================================
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Umbrales del eje B sobre la capa de negocio (com.rabbit.*.negocio)
+  COBERTURA_LINEAS_MIN: "80"
+  COBERTURA_RAMAS_MIN: "70"
+  GITLEAKS_VERSION: "8.30.1"
+
+jobs:
+  build:
+    name: Build, tests y cobertura
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: mvn verify
+        run: mvn -B -ntp verify
+      - name: Cobertura de la capa de negocio
+        run: |
+          python3 - <<'EOF'
+          import csv, os
+          filas = list(csv.DictReader(open("target/site/jacoco/jacoco.csv")))
+          def pct(f, tipo):
+              cub = sum(int(r[f"{tipo}_COVERED"]) for r in f)
+              tot = cub + sum(int(r[f"{tipo}_MISSED"]) for r in f)
+              return 100.0 * cub / tot if tot else 100.0
+          negocio = [r for r in filas if r["PACKAGE"].endswith(".negocio")]
+          lin, ram = pct(negocio, "LINE"), pct(negocio, "BRANCH")
+          tl, tr = pct(filas, "LINE"), pct(filas, "BRANCH")
+          minl, minr = float(os.environ["COBERTURA_LINEAS_MIN"]), float(os.environ["COBERTURA_RAMAS_MIN"])
+          resumen = (
+              "### Cobertura (JaCoCo)\n\n"
+              "| Alcance | Líneas | Ramas |\n|---|---|---|\n"
+              f"| Capa de negocio | {lin:.1f}% (mín. {minl:.0f}%) | {ram:.1f}% (mín. {minr:.0f}%) |\n"
+              f"| Todo el proyecto | {tl:.1f}% | {tr:.1f}% |\n"
+          )
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(resumen)
+          print(resumen)
+          if lin < minl or ram < minr:
+              raise SystemExit("La cobertura de la capa de negocio está debajo del umbral")
+          EOF
+      - name: Reportes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-tests
+          path: |
+            target/site/jacoco/
+            target/surefire-reports/
+          retention-days: 14
+
+  secretos:
+    name: Secretos (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Instalar gitleaks
+        run: |
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+      - name: Escanear los commits nuevos
+        env:
+          ANTES: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Solo lo nuevo: el historial ya se revisó y se limpió el 29/10
+          # (docs/seguridad/INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md).
+          if [ -z "$ANTES" ] || [ "$ANTES" = "0000000000000000000000000000000000000000" ]; then
+            git fetch -q origin main
+            RANGO="origin/main..HEAD"
+          else
+            RANGO="$ANTES..HEAD"
+          fi
+          echo "Rango escaneado: $RANGO"
+          gitleaks git --config .gitleaks.toml --log-opts="$RANGO" --redact --no-banner .
+      - name: Escanear los archivos actuales
+        run: gitleaks dir --config .gitleaks.toml --redact --no-banner .
+
+  compose:
+    name: docker compose up
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: .env de prueba (contraseñas descartables, generadas en el runner)
+        run: |
+          {
+            echo "DB_NAME=rabbit"
+            echo "DB_USER=rabbit"
+            echo "DB_PASSWORD=$(openssl rand -hex 16)"
+            echo "ADMIN_USER=admin.ci"
+            echo "ADMIN_PASSWORD=$(openssl rand -hex 16)"
+            echo "RABBIT_HORA_CORTE=ninguno"
+          } > .env
+      - name: Construir y levantar
+        run: |
+          inicio=$(date +%s)
+          docker compose up -d --build
+          echo "INICIO=$inicio" >> "$GITHUB_ENV"
+      - name: Esperar a que Rabbit responda
+        run: |
+          for _ in $(seq 1 72); do
+            codigo=$(curl -sk -o /dev/null -w '%{http_code}' https://localhost:8443/Rabbit/ || true)
+            if [ "$codigo" = "200" ]; then
+              echo "Rabbit respondió 200 en $(( $(date +%s) - INICIO )) s"
+              echo "Rabbit levantó en $(( $(date +%s) - INICIO )) s (build incluido)" >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Rabbit no respondió en 6 minutos (último código: $codigo)"; exit 1
+      - name: La semilla terminó bien
+        run: |
+          docker compose wait semilla | grep -qx 0
+          docker compose exec -T db psql -U rabbit -d rabbit -tAc \
+            "SELECT count(*) FROM usuarios WHERE username='admin.ci' AND rol='ADMINISTRADOR' AND hash_clave LIKE '\$2%'" | grep -qx 1
+          echo "Semilla: administrador creado con bcrypt" >> "$GITHUB_STEP_SUMMARY"
+      - name: Sin errores al desplegar
+        run: |
+          docker compose logs wildfly > wildfly.log
+          grep -q 'Deployed "Rabbit.war"' wildfly.log
+          ! grep -E 'WFLYCTL0013|WFLYSRV0021|Deployment .* failed' wildfly.log
+      - name: Logs
+        if: always()
+        run: |
+          docker compose logs --no-color > compose.log 2>&1 || true
+          docker compose down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: logs-compose
+          path: compose.log
+          retention-days: 7
+
+  mutacion:
+    name: Mutación (PIT)
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: PIT
+        run: mvn -B -ntp test-compile org.pitest:pitest-maven:mutationCoverage
+      - name: Mutation score
+        run: |
+          python3 - <<'EOF'
+          import os, xml.etree.ElementTree as ET
+          m = ET.parse("target/pit-reports/mutations.xml").getroot()
+          total = len(m); muertas = sum(1 for x in m if x.get("detected") == "true")
+          linea = f"### Mutación (PIT)\n\n{muertas}/{total} mutantes detectados: **{100.0*muertas/total:.1f}%** (meta ≥ 60%)\n"
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(linea); print(linea)
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-pit
+          path: target/pit-reports/
+          retention-days: 14
+
+  sonar:
+    name: SonarCloud
+    # Se prende al cargar en el repo la variable SONAR_ORGANIZATION y el
+    # secret SONAR_TOKEN (Settings → Secrets and variables → Actions).
+    if: vars.SONAR_ORGANIZATION != '' && github.event_name != 'pull_request' || vars.SONAR_ORGANIZATION != '' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Análisis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+          -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY || format('{0}_Rabbit', vars.SONAR_ORGANIZATION) }}
+          -Dsonar.qualitygate.wait=true
