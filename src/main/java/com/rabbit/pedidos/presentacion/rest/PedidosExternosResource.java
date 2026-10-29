@@ -30,9 +30,10 @@ package com.rabbit.pedidos.presentacion.rest;
  * SEGURIDAD: solo usuarios con rol ERP (HTTP Basic contra el
  * ApplicationRealm, ver web.xml), y cada cuenta ERP representa a UN
  * comercio: solo carga y ve los pedidos de ese comercio (lo impone
- * PedidoService, no este recurso). Se exige en dos lugares: el
- * security-constraint de web.xml (401 sin credenciales) y @RolesAllowed en
- * este EJB, que no depende de cómo se configure la URL.
+ * PedidoService, no este recurso). Se exige en dos lugares:
+ * FiltroAutenticacionErp (401 sin credenciales o incorrectas, 429 con
+ * demasiados intentos fallidos) y @RolesAllowed en este EJB, que no depende
+ * de cómo se configure la URL.
  *
  * ERRORES: Problem Details (application/problem+json, ver Problema).
  *   400 formato (cuerpo, header, campos)   404 no existe o es de otro comercio
