@@ -23,9 +23,16 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  # Lo llama estabilidad.yml para correr la suite varias veces seguidas.
+  workflow_call:
+    inputs:
+      vuelta:
+        type: string
+        default: ""
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # Cada vuelta de estabilidad.yml tiene su propio grupo: si no, se cancelarían entre sí.
+  group: ci-${{ github.ref }}-${{ inputs.vuelta || 'normal' }}
   cancel-in-progress: true
 
 permissions:
@@ -84,7 +91,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: reportes-tests
+          name: reportes-tests${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
           path: |
             target/site/jacoco/
             target/surefire-reports/
@@ -175,7 +182,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: integracion
+          name: integracion${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
           path: |
             compose.log
             target/failsafe-reports/
@@ -223,7 +230,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: contrato
+          name: contrato${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
           path: target/contrato/
           retention-days: 14
 
@@ -279,7 +286,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: e2e
+          name: e2e${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
           path: |
             target/e2e/
             target/lighthouse/
@@ -287,7 +294,8 @@ jobs:
 
   mutacion:
     name: Mutación (PIT)
-    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+    # No en las vueltas de estabilidad.yml: PIT tarda y no es lo que se mide ahí.
+    if: (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main') && inputs.vuelta == ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -311,7 +319,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: reporte-pit
+          name: reporte-pit${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
           path: target/pit-reports/
           retention-days: 14
 
@@ -319,7 +327,7 @@ jobs:
     name: SonarCloud
     # Se prende al cargar en el repo la variable SONAR_ORGANIZATION y el
     # secret SONAR_TOKEN (Settings → Secrets and variables → Actions).
-    if: vars.SONAR_ORGANIZATION != '' && github.event_name != 'pull_request' || vars.SONAR_ORGANIZATION != '' && github.event.pull_request.head.repo.full_name == github.repository
+    if: inputs.vuelta == '' && vars.SONAR_ORGANIZATION != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 15

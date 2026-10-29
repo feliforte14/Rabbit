@@ -1,0 +1,91 @@
+# =====================================================================
+# Estabilidad (eje B): la suite completa del CI corrida 3 veces seguidas
+# tiene que dar el mismo resultado en cada test. Un test que pasa en una
+# vuelta y falla en otra es inestable (flaky) y se reporta.
+# A mano, en la PR que lo toque y una vez por semana.
+# =====================================================================
+name: Estabilidad
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/estabilidad.yml
+  schedule:
+    - cron: "0 10 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: estabilidad-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  vuelta:
+    name: Vuelta ${{ matrix.vuelta }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        vuelta: ["1", "2", "3"]
+    uses: ./.github/workflows/ci.yml
+    with:
+      vuelta: ${{ matrix.vuelta }}
+    secrets: inherit
+
+  comparar:
+    name: Comparar las 3 vueltas
+    needs: vuelta
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: vueltas
+      - name: Mismo resultado en cada vuelta
+        run: |
+          python3 - <<'EOF'
+          import glob, os, re, xml.etree.ElementTree as ET
+          from collections import defaultdict
+          # resultados[test][vuelta] = "pasa" | "falla" | "saltado"
+          resultados = defaultdict(dict)
+          for xml in glob.glob("vueltas/*/**/*.xml", recursive=True):
+              m = re.search(r"vueltas/[a-z-]+-(\d)/", xml)
+              if not m:
+                  continue
+              vuelta = m.group(1)
+              try:
+                  raiz = ET.parse(xml).getroot()
+              except ET.ParseError:
+                  continue
+              for c in raiz.iter("testcase"):
+                  nombre = f"{c.get('classname', '')}::{c.get('name')}"
+                  if c.find("failure") is not None or c.find("error") is not None:
+                      estado = "falla"
+                  elif c.find("skipped") is not None:
+                      estado = "saltado"
+                  else:
+                      estado = "pasa"
+                  resultados[nombre][vuelta] = estado
+          inestables = {t: v for t, v in resultados.items() if len(set(v.values())) > 1}
+          incompletos = {t: v for t, v in resultados.items() if len(v) < 3}
+          fallan = {t: v for t, v in resultados.items() if set(v.values()) == {"falla"}}
+          md = [
+              "### Estabilidad: 3 vueltas de la suite", "",
+              f"- Tests comparados: **{len(resultados)}**",
+              f"- Inestables (distinto resultado entre vueltas): **{len(inestables)}**",
+              f"- Fallan en las 3 vueltas (estables, pero en rojo): {len(fallan)}",
+              f"- Presentes en menos de 3 vueltas: {len(incompletos)}", "",
+          ]
+          if inestables:
+              md += ["| Test | Vuelta 1 | Vuelta 2 | Vuelta 3 |", "|---|---|---|---|"]
+              md += [f"| `{t}` | {v.get('1', '—')} | {v.get('2', '—')} | {v.get('3', '—')} |" for t, v in sorted(inestables.items())]
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("\n".join(md) + "\n")
+          print("\n".join(md))
+          if not resultados:
+              raise SystemExit("No se encontraron reportes JUnit de las vueltas")
+          if inestables:
+              raise SystemExit(f"{len(inestables)} tests inestables")
+          EOF
