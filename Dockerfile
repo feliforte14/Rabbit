@@ -28,7 +28,9 @@ RUN curl -fsSL -o /tmp/postgresql.jar \
       "https://repo1.maven.org/maven2/org/postgresql/postgresql/${POSTGRES_DRIVER}/postgresql-${POSTGRES_DRIVER}.jar"
 
 COPY --chown=jboss:root docker/wildfly/configurar.cli /tmp/configurar.cli
-RUN /opt/jboss/wildfly/bin/jboss-cli.sh --file=/tmp/configurar.cli \
+# DB_PASSWORD descartable: el servidor embebido necesita resolver la
+# expresión para instalar el datasource. En el XML queda ${env.DB_PASSWORD}.
+RUN DB_PASSWORD=solo-construccion /opt/jboss/wildfly/bin/jboss-cli.sh --file=/tmp/configurar.cli \
  && rm -rf /opt/jboss/wildfly/standalone/configuration/standalone_xml_history \
            /opt/jboss/wildfly/standalone/data /opt/jboss/wildfly/standalone/log \
            /tmp/postgresql.jar /tmp/configurar.cli

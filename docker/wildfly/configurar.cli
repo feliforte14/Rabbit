@@ -9,7 +9,9 @@
 # Sin credenciales: ${env.X} se resuelve al arrancar el contenedor.
 # =====================================================================
 
-embed-server --server-config=standalone-full.xml --std-out=echo
+# --admin-only=false: el jdbc-realm de Elytron necesita el servicio del
+# datasource, y en modo admin-only los datasources no se instalan.
+embed-server --server-config=standalone-full.xml --std-out=echo --admin-only=false
 
 module add --name=org.postgresql --resources=/tmp/postgresql.jar --dependencies=jakarta.transaction.api
 
