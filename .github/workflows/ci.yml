@@ -3,6 +3,8 @@
 #
 #   build     mvn -B verify (tests unitarios) + cobertura JaCoCo con umbral
 #   secretos  gitleaks con .gitleaks.toml, solo sobre los commits nuevos
+#   env       G1: un .env incompleto corta "docker compose up" al principio,
+#             con un mensaje que dice qué corregir
 #   compose   docker compose up + semilla, y contra esa app: los *IT
 #             (perfil integracion) y Newman con la colección del repo
 #   contrato  SOAP: WSDL publicado = versionado y cada operación según el XSD.
@@ -125,6 +127,46 @@ jobs:
           gitleaks git --config .gitleaks.toml --log-opts="$RANGO" --redact --no-banner .
       - name: Escanear los archivos actuales
         run: gitleaks dir --config .gitleaks.toml --redact --no-banner .
+
+  env:
+    name: Configuración del .env (G1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Un .env incompleto corta el arranque con un mensaje claro
+        run: |
+          # Solo "config" y "db": no hace falta construir WildFly para ver que
+          # la base ni arranca si el .env está mal.
+          probar() {  # <caso> <archivo .env> <texto que tiene que aparecer>
+            if docker compose -p env-ci --env-file "$2" up --no-build config db > salida.txt 2>&1; then
+              cat salida.txt; echo "::error::$1: docker compose up no cortó"; exit 1
+            fi
+            if ! grep -qF "$3" salida.txt; then
+              cat salida.txt; echo "::error::$1: falta el mensaje \"$3\""; exit 1
+            fi
+            if [ -n "$(docker compose -p env-ci ps -q --status running db)" ]; then
+              echo "::error::$1: la base arrancó igual"; exit 1
+            fi
+            docker compose -p env-ci down -v > /dev/null 2>&1
+            echo "$1: corta con \"$3\""
+          }
+          # Valores al azar y descartables: nada que parezca una contraseña en el repo.
+          sed -e "s/<contraseña-de-la-base-local>/$(openssl rand -hex 12)/" \
+              -e "s/<contraseña-del-primer-administrador>/$(openssl rand -hex 12)/" \
+              -e "s/<contraseña-de-las-cuentas-demo>/$(openssl rand -hex 12)/" .env.example > completo.env
+          sed "s/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=$(openssl rand -hex 2)/" completo.env > corta.env
+          grep -v '^DEMO_PASSWORD=' completo.env > sin-demo.env
+          : > vacio.env
+
+          probar "Sin .env" vacio.env "Falta DB_PASSWORD en .env"
+          probar ".env.example copiado sin completar" .env.example "DB_PASSWORD todavía tiene el marcador"
+          probar "Contraseña corta" corta.env "ADMIN_PASSWORD tiene que tener al menos 8 caracteres"
+          probar "Sin DEMO_PASSWORD" sin-demo.env "Falta DEMO_PASSWORD en .env"
+
+          # Completo: "config" termina bien (el resto lo prueba el job compose).
+          docker compose -p env-ci --env-file completo.env up --no-build --exit-code-from config config
+          docker compose -p env-ci down -v > /dev/null 2>&1
 
   compose:
     name: Compose, integración y Newman

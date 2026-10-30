@@ -1,7 +1,7 @@
 # =====================================================================
 # Rabbit completo en local: base PostgreSQL + WildFly 41 con la app.
 #
-#   cp .env.example .env      # y completá las contraseñas
+#   cp .env.example .env      # y completá las tres contraseñas
 #   docker compose up --build
 #
 # Después: https://localhost:8443/Rabbit (certificado autofirmado).
@@ -10,8 +10,25 @@
 # =====================================================================
 
 services:
+  # Revisa el .env antes de levantar nada (docker/config/validar.sh): con un
+  # <marcador> sin reemplazar o una contraseña corta, el arranque corta acá.
+  config:
+    image: postgres:16-alpine
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD:?Falta DB_PASSWORD en .env}
+      ADMIN_USER: ${ADMIN_USER:?Falta ADMIN_USER en .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD en .env}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?Falta DEMO_PASSWORD en .env}
+    volumes:
+      - ./docker/config:/config:ro
+    entrypoint: ["sh", "/config/validar.sh"]
+    restart: "no"
+
   db:
     image: postgres:16-alpine
+    depends_on:
+      config:
+        condition: service_completed_successfully
     environment:
       POSTGRES_DB: ${DB_NAME:-rabbit}
       POSTGRES_USER: ${DB_USER:-rabbit}
@@ -62,7 +79,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       ADMIN_USER: ${ADMIN_USER:?Falta ADMIN_USER en .env}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Falta ADMIN_PASSWORD en .env}
-      DEMO_PASSWORD: ${DEMO_PASSWORD:-}
+      DEMO_PASSWORD: ${DEMO_PASSWORD:?Falta DEMO_PASSWORD en .env}
     volumes:
       - ./docker/semilla:/semilla:ro
     entrypoint: ["sh", "/semilla/cargar.sh"]

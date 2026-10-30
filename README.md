@@ -300,13 +300,45 @@ instalado a mano y la base compartida del equipo.
 ### Con Docker (un comando)
 
 Necesitás Docker con Compose v2 (Docker Desktop, OrbStack o Docker Engine)
-y git. No hace falta tener Java, Maven ni WildFly instalados.
+y git. No hace falta tener Java, Maven ni WildFly instalados. Los puertos
+5432, 8080, 8443 y 9990 tienen que estar libres (por ejemplo, sin otro
+WildFly ni otro PostgreSQL corriendo).
 
-```bash
-git clone https://github.com/feliforte14/Rabbit.git && cd Rabbit
-cp .env.example .env          # y reemplazá cada <marcador> por una contraseña
-docker compose up --build     # la primera vez tarda unos minutos (baja imágenes y compila)
-```
+1. Clonar el repo:
+
+   ```bash
+   git clone https://github.com/feliforte14/Rabbit.git && cd Rabbit
+   ```
+
+2. Crear el `.env` a partir del ejemplo:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Abrí `.env` y reemplazá los tres `<marcadores>` por contraseñas que
+   inventes, de **al menos 8 caracteres** cada una:
+
+   | Variable | Para qué es |
+   |---|---|
+   | `DB_PASSWORD` | La base PostgreSQL local del compose |
+   | `ADMIN_PASSWORD` | El administrador de Rabbit (usuario `ADMIN_USER`, por defecto `admin`) |
+   | `DEMO_PASSWORD` | Las cuentas de prueba (la misma para todas) |
+
+   El resto de las variables puede quedar como está; cada una está
+   explicada en [`.env.example`](.env.example). El `.env` no se sube al
+   repo (`.gitignore`).
+
+3. Levantar todo:
+
+   ```bash
+   docker compose up --build
+   ```
+
+   La primera vez tarda unos minutos: baja las imágenes y compila. Si falta
+   una variable, queda un `<marcador>` o una contraseña es más corta, corta
+   enseguida con un mensaje `[Config]` que dice cuál corregir; arreglá el
+   `.env` y volvé a correr el mismo comando.
 
 Cuando el log muestre `[Semilla] Listo`, entrá a
 **https://localhost:8443/Rabbit**. El certificado es autofirmado, así que
@@ -314,8 +346,8 @@ el navegador muestra una advertencia la primera vez: aceptala.
 
 - **Administrador:** el usuario `ADMIN_USER` del `.env` (por defecto
   `admin`), con la contraseña que pusiste en `ADMIN_PASSWORD`.
-- **Cuentas demo:** si completaste `DEMO_PASSWORD`, todas entran con esa
-  contraseña.
+- **Cuentas de prueba:** todas entran con la contraseña de
+  `DEMO_PASSWORD`.
   - `demo.operador`: personal.
   - `demo.erp` y `demo.erp2`: API del ERP de cada comercio.
   - `demo.comercio` (Almacén Demo 1) y `demo.comercio2` (Almacén Demo 2).
