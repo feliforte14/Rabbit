@@ -159,7 +159,9 @@ jobs:
           grep -v '^DEMO_PASSWORD=' completo.env > sin-demo.env
           : > vacio.env
 
-          probar "Sin .env" vacio.env "Falta DB_PASSWORD en .env"
+          # Sin .env faltan varias: Compose avisa por la primera que encuentra,
+          # y no siempre es la misma.
+          probar "Sin .env" vacio.env "is missing a value: Falta"
           probar ".env.example copiado sin completar" .env.example "DB_PASSWORD todavía tiene el marcador"
           probar "Contraseña corta" corta.env "ADMIN_PASSWORD tiene que tener al menos 8 caracteres"
           probar "Sin DEMO_PASSWORD" sin-demo.env "Falta DEMO_PASSWORD en .env"
