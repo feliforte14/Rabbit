@@ -23,7 +23,7 @@ todo lo demás se hace por la pantalla.
 | E2E-4 | Comercio | Ve en "Mis pedidos" el pedido que mandó su ERP. |
 | E2E-5 | Otro comercio | No ve ese pedido (BOLA) y no puede entrar a una pantalla del personal (BFLA). |
 
-## Accesibilidad y responsive (informan)
+## Accesibilidad y responsive (bloquean el CI)
 
 - **axe-core** (WCAG 2.1 A y AA) sobre 8 pantallas: login, seguimiento,
   4 del personal y 2 del comercio. Se considera falla toda violación de
@@ -43,15 +43,14 @@ Resultado del 29/10/2026:
 | personal/pedidos | **88** | 100 |
 | comercio/mis-pedidos | 95 | 96 |
 
-### Defectos abiertos
+### Defectos encontrados (corregidos en la PR #15)
 
-| Id | Regla (impacto) | Dónde | Qué falta |
+| Id | Regla (impacto) | Dónde | Corrección |
 |---|---|---|---|
 | A11Y-01 | `html-has-lang` (serious) | Las 8 pantallas: `WEB-INF/plantillas/template.xhtml`, `login.xhtml`, `seguimiento.xhtml` | `lang="es"` en `<html>` |
-| A11Y-02 | `label-content-name-mismatch` (serious) | Campana de notificaciones de la cabecera (6 pantallas) | El `aria-label` ("Notificaciones, 15 nuevas") tiene que incluir el texto visible del botón |
-| A11Y-03 | `label` (critical) | `personal/pedidos.xhtml`, alta manual: campo "cantidad" de cada línea | Un `<label for>` o un `aria-label` |
-| A11Y-04 | `select-name` (critical) | `personal/pedidos.xhtml`, alta manual: select de producto de cada línea | Un `<label for>` o un `aria-label` |
+| A11Y-02 | `label-content-name-mismatch` (serious) | Campana de notificaciones de la cabecera (6 pantallas) | El `aria-label` incluye el texto visible del botón |
+| A11Y-03 | `label` (critical) | `personal/pedidos.xhtml`, alta manual: campo "cantidad" de cada línea | Etiqueta accesible |
+| A11Y-04 | `select-name` (critical) | `personal/pedidos.xhtml`, alta manual: select de producto de cada línea | Etiqueta accesible |
 
-Mientras sigan abiertos, los pasos de axe y Lighthouse informan sin cortar
-el CI (`continue-on-error`). Cuando se corrijan, se saca esa línea del
-workflow y pasan a bloquear.
+Desde entonces axe y Lighthouse cortan el CI: una violación grave nueva o
+una pantalla debajo de 90 lo dejan en rojo.

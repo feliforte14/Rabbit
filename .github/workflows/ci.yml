@@ -200,11 +200,9 @@ jobs:
       - name: SOAP (WSDL)
         run: uv run --quiet --with zeep scripts/contrato/soap.py http://localhost:8080/Rabbit
       - name: REST (Schemathesis)
-        # Informa sin cortar mientras sigan abiertos CON-01 y CON-02: ver
-        # docs/pruebas/CONTRATO.md. Semilla fija y generación determinista:
-        # cada corrida prueba los mismos casos (la de estabilidad lo exige).
-        # Para explorar casos nuevos, a mano con otra --seed.
-        continue-on-error: true
+        # Semilla fija y generación determinista: cada corrida prueba los
+        # mismos casos (la de estabilidad lo exige). Para explorar casos
+        # nuevos, a mano con otra --seed (docs/pruebas/CONTRATO.md).
         run: |
           set -a; . ./.env; set +a
           mkdir -p target/contrato
@@ -262,8 +260,6 @@ jobs:
           set -a; . ../.env; set +a
           npx playwright test tests/flujos.spec.js
       - name: Accesibilidad (axe) y responsive
-        # Informa sin cortar mientras sigan abiertos los defectos A11Y-01 a 04.
-        continue-on-error: true
         working-directory: e2e
         env:
           JUNIT: ../target/e2e/junit-accesibilidad.xml
@@ -271,7 +267,8 @@ jobs:
           set -a; . ../.env; set +a
           npx playwright test tests/accesibilidad.spec.js
       - name: Lighthouse
-        continue-on-error: true
+        # También si axe falló: así el informe trae las dos miradas.
+        if: ${{ !cancelled() }}
         working-directory: e2e
         run: |
           set -a; . ../.env; set +a

@@ -36,6 +36,17 @@ data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --dr
 /subsystem=undertow/configuration=handler/file=welcome-content:remove
 /subsystem=undertow/configuration=filter/response-header=hsts:add(header-name=Strict-Transport-Security, header-value="max-age=31536000")
 /subsystem=undertow/server=default-server/host=default-host/filter-ref=hsts:add(predicate=secure)
+# Fuera de /Rabbit (los 404 de /robots.txt, /sitemap.xml, ...) también las
+# cabeceras de FiltroCabecerasDeSeguridad, con la CSP más cerrada: ahí no hay
+# nada que cargar. Dentro de /Rabbit las manda el filtro de la app.
+/subsystem=undertow/configuration=filter/response-header=csp-host:add(header-name=Content-Security-Policy, header-value="default-src 'none'; frame-ancestors 'none'")
+/subsystem=undertow/configuration=filter/response-header=nosniff-host:add(header-name=X-Content-Type-Options, header-value=nosniff)
+/subsystem=undertow/configuration=filter/response-header=marcos-host:add(header-name=X-Frame-Options, header-value=DENY)
+/subsystem=undertow/configuration=filter/response-header=permisos-host:add(header-name=Permissions-Policy, header-value="camera=(), geolocation=(), microphone=()")
+/subsystem=undertow/server=default-server/host=default-host/filter-ref=csp-host:add(predicate="not path-prefix(/Rabbit)")
+/subsystem=undertow/server=default-server/host=default-host/filter-ref=nosniff-host:add(predicate="not path-prefix(/Rabbit)")
+/subsystem=undertow/server=default-server/host=default-host/filter-ref=marcos-host:add(predicate="not path-prefix(/Rabbit)")
+/subsystem=undertow/server=default-server/host=default-host/filter-ref=permisos-host:add(predicate="not path-prefix(/Rabbit)")
 
 # Demos y pruebas durante el día: sin hora de corte (README, paso 7b).
 /system-property=rabbit.ruteo.hora-corte:add(value="${env.RABBIT_HORA_CORTE:ninguno}")
