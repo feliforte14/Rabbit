@@ -81,6 +81,22 @@ class PedidoExternoRequestTest {
     }
 
     @Test
+    void elItemTieneQueSerUnIdMayorACero() {
+        // CON-02: 0 y negativos se aceptaban con 201.
+        for (long mal : new long[] {0, -5, Long.MIN_VALUE}) {
+            PedidoExternoRequest r = valido();
+            r.lineas.get(0).idItem = mal;
+            Set<ConstraintViolation<PedidoExternoRequest>> errores = validador.validate(r);
+            assertEquals(Set.of("lineas[0].idItem"), camposConError(r), "idItem " + mal);
+            assertEquals("El ítem tiene que ser un id mayor a cero", errores.iterator().next().getMessage());
+        }
+        // Con PUNTO_PICKING no viene: sigue siendo válido.
+        PedidoExternoRequest r = valido();
+        r.lineas.get(0).idItem = null;
+        assertTrue(validador.validate(r).isEmpty());
+    }
+
+    @Test
     void quienRecibeEsOpcionalPeroElEmailTieneQueSerValido() {
         // ADR-039: sin destinatario sigue siendo válido (no rompe a los ERP de antes).
         PedidoExternoRequest r = valido();

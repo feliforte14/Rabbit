@@ -77,6 +77,7 @@
         <cookie-config>
             <http-only>true</http-only>
             <secure>true</secure>
+            <!-- SameSite=Lax: lo agrega Undertow, ver WEB-INF/undertow-handlers.conf. -->
         </cookie-config>
         <!--
             La sesion viaja SOLO en la cookie, nunca en la URL
