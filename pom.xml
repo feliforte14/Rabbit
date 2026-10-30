@@ -36,6 +36,15 @@
             <version>5.11.3</version>
             <scope>test</scope>
         </dependency>
+        <!-- Dobles de prueba para los tests de los servicios: simulan repositorios, eventos y
+             las interfaces de otros componentes. Nunca la clase que se prueba (los criterios
+             de testing anulan esos tests). -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-junit-jupiter</artifactId>
+            <version>5.14.2</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Implementación de Bean Validation para probar las reglas del DTO de la API
              (en el servidor la pone WildFly). -->
         <dependency>
@@ -82,6 +91,11 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.5.2</version>
+                <configuration>
+                    <!-- @{argLine} conserva el agente de JaCoCo. El flag de Byte Buddy deja que
+                         Mockito funcione con un JDK más nuevo que el que soporta oficialmente. -->
+                    <argLine>@{argLine} -Dnet.bytebuddy.experimental=true</argLine>
+                </configuration>
             </plugin>
             <!--
                 Cobertura de los tests unitarios (criterios de testing, eje B: ≥ 80% de
@@ -105,6 +119,9 @@
                             <excludes>
                                 <exclude>sun/**</exclude>
                                 <exclude>jdk/**</exclude>
+                                <exclude>com/sun/**</exclude>
+                                <!-- Clases que genera Mockito en tiempo de ejecución. -->
+                                <exclude>**/*$MockitoMock$*</exclude>
                             </excludes>
                         </configuration>
                     </execution>

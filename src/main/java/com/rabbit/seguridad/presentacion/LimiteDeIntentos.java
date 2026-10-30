@@ -10,8 +10,9 @@ package com.rabbit.seguridad.presentacion;
  *
  * Vive en memoria (@ApplicationScoped): en un cluster cada nodo lleva su
  * propia cuenta, y un redeploy la reinicia. Alcanza para frenar a alguien
- * que prueba contraseñas a mano o con un script contra la pantalla; la API
- * del ERP (HTTP Basic) la autentica el servidor y no pasa por acá.
+ * que prueba contraseñas a mano o con un script. La usan el login web
+ * (LoginBean) y la API del ERP (FiltroAutenticacionErp): es la misma
+ * contraseña, así que los fallos de los dos lados suman a la misma cuenta.
  */
 
 import jakarta.enterprise.context.ApplicationScoped;

@@ -100,6 +100,9 @@
         (personal/usuarios.xhtml, tipo "ERP"), asociado al comercio al que
         representa: un usuario ERP creado a mano con add-user.sh no tiene
         comercio y la API le responde 403.
+        Sin auth-constraint a proposito: el HTTP Basic lo atiende
+        FiltroAutenticacionErp, que cuenta los intentos fallidos y bloquea
+        con 429 (fuerza bruta). El rol ERP lo exige @RolesAllowed en el EJB.
     -->
     <security-constraint>
         <web-resource-collection>
@@ -107,9 +110,6 @@
             <url-pattern>/api/v1/pedidos-externos</url-pattern>
             <url-pattern>/api/v1/pedidos-externos/*</url-pattern>
         </web-resource-collection>
-        <auth-constraint>
-            <role-name>ERP</role-name>
-        </auth-constraint>
         <!-- Mas especifico que "/": hay que repetir la exigencia de HTTPS. -->
         <user-data-constraint>
             <transport-guarantee>CONFIDENTIAL</transport-guarantee>
@@ -155,9 +155,21 @@
         </user-data-constraint>
     </security-constraint>
 
+    <!--
+        FORM y no BASIC: con BASIC el contenedor intenta autenticar todo
+        pedido que traiga Authorization y responde el 401 el mismo, antes de
+        FiltroAutenticacionErp, que asi no podria contar los fallidos. Como
+        ninguna URL tiene auth-constraint, el FORM nunca se dispara: el login
+        web lo hace LoginBean y el de la API el filtro, los dos con
+        request.login contra este realm.
+    -->
     <login-config>
-        <auth-method>BASIC</auth-method>
+        <auth-method>FORM</auth-method>
         <realm-name>ApplicationRealm</realm-name>
+        <form-login-config>
+            <form-login-page>/login.xhtml</form-login-page>
+            <form-error-page>/login.xhtml</form-error-page>
+        </form-login-config>
     </login-config>
 
     <security-role>
