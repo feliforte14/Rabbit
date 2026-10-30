@@ -74,6 +74,14 @@
             <version>5.5.0</version>
             <scope>test</scope>
         </dependency>
+        <!-- REST Assured trae commons-lang3 3.11, que OSV marca (CVE-2025-48924): se fija una
+             versión corregida. Solo tests; no llega al WAR. -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+            <version>3.20.0</version>
+            <scope>test</scope>
+        </dependency>
         <!-- REST Assured necesita una biblioteca JSON para armar los cuerpos de los requests. -->
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
