@@ -61,7 +61,7 @@
                 </h:column>
                 <h:column>
                     <f:facet name="header">Base de salida</f:facet>
-                    <h:outputText value="Base de salida" styleClass="etiqueta" rendered="#{d.baseDeSalida}" />
+                    <h:outputText value="Base de salida" styleClass="badge badge-verde" rendered="#{d.baseDeSalida}" />
                     <h:commandButton value="Usar como base de salida" styleClass="btn btn-secondary"
                                      rendered="#{not d.baseDeSalida}"
                                      action="#{depositoBean.marcarBaseDeSalida(d.id)}" />

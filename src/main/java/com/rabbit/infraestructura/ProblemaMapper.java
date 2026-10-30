@@ -12,12 +12,16 @@ package com.rabbit.infraestructura;
  *     WebApplicationException del runtime JAX-RS): mismo status, en JSON;
  *   - cuerpo que no es JSON o no encaja con el DTO: 400;
  *   - un EJB que niega el acceso (@RolesAllowed): 403;
+ *   - una transición de estado que el pedido no admite: 409 (los recursos
+ *     ya la atrapan; esto cubre la que se escape, para que nunca sea 500);
  *   - cualquier otra cosa: 500 genérico, y el detalle solo en el log.
  *
  * Los recursos son EJB: lo que se les escapa llega envuelto en una
  * EJBException, así que primero se desenvuelve.
  */
 
+import com.rabbit.pedidos.datos.model.TransicionInvalidaException;
+import com.rabbit.pedidos.negocio.TransicionNoPermitidaException;
 import jakarta.ejb.EJBAccessException;
 import jakarta.ejb.EJBException;
 import jakarta.json.JsonException;
@@ -48,17 +52,27 @@ public class ProblemaMapper implements ExceptionMapper<Throwable> {
             return Problema.de(status, tipoSegun(status), titulo, detalleSegun(status))
                     .aplicarA(Response.fromResponse(original));
         }
+        return problemaPara(excepcion).respuesta();
+    }
+
+    /** El problema para todo lo que no es una WebApplicationException del runtime. */
+    static Problema problemaPara(Throwable excepcion) {
+        Throwable e = desenvolver(excepcion);
         if (esCuerpoInvalido(e)) {
             return Problema.de(Response.Status.BAD_REQUEST, "cuerpo-invalido", "Cuerpo inválido",
-                    "El cuerpo no es JSON válido o algún campo tiene un tipo o valor no admitido").respuesta();
+                    "El cuerpo no es JSON válido o algún campo tiene un tipo o valor no admitido");
         }
         if (e instanceof EJBAccessException) {
             return Problema.de(Response.Status.FORBIDDEN, "acceso-denegado", "Acceso denegado",
-                    "Tu usuario no tiene permiso para esta operación").respuesta();
+                    "Tu usuario no tiene permiso para esta operación");
+        }
+        if (e instanceof TransicionNoPermitidaException || e instanceof TransicionInvalidaException) {
+            return Problema.de(Response.Status.CONFLICT, "transicion-no-permitida",
+                    "El estado del pedido no lo permite", e.getMessage());
         }
         LOG.log(Level.SEVERE, "[API REST] Error no controlado", excepcion);
         return Problema.de(Response.Status.INTERNAL_SERVER_ERROR, "error-interno", "Error interno",
-                "No se pudo procesar el pedido. Si el problema sigue, avisá a Rabbit.").respuesta();
+                "No se pudo procesar el pedido. Si el problema sigue, avisá a Rabbit.");
     }
 
     private static Throwable desenvolver(Throwable e) {

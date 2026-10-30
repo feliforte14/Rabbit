@@ -30,13 +30,21 @@ package com.rabbit.pedidos.presentacion.rest;
  * SEGURIDAD: solo usuarios con rol ERP (HTTP Basic contra el
  * ApplicationRealm, ver web.xml), y cada cuenta ERP representa a UN
  * comercio: solo carga y ve los pedidos de ese comercio (lo impone
- * PedidoService, no este recurso). Se exige en dos lugares: el
- * security-constraint de web.xml (401 sin credenciales) y @RolesAllowed en
- * este EJB, que no depende de cómo se configure la URL.
+ * PedidoService, no este recurso). Se exige en dos lugares:
+ * FiltroAutenticacionErp (401 sin credenciales o incorrectas, 429 con
+ * demasiados intentos fallidos) y @RolesAllowed en este EJB, que no depende
+ * de cómo se configure la URL.
  *
  * ERRORES: Problem Details (application/problem+json, ver Problema).
  *   400 formato (cuerpo, header, campos)   404 no existe o es de otro comercio
  *   409 ya no se puede cancelar            422 regla de negocio o clave reutilizada
+ *
+ * CONCURRENCIA (ETag): cada respuesta con un pedido lleva su ETag, un hash
+ * de su estado. Quien cancela puede mandar If-Match con el ETag que leyó: si
+ * el pedido cambió desde entonces (lo confirmó el personal, se sincronizó),
+ * responde 412 con el ETag actual en vez de cancelar algo que ya no es lo
+ * que vio. Sin If-Match cancela igual (los ERP de antes no lo mandan). Un GET
+ * con If-None-Match igual al ETag responde 304 sin cuerpo.
  *
  * TRANSACCIONES: NOT_SUPPORTED a propósito. Cada operación de negocio
  * abre y confirma su propia transacción, así un error al confirmar (por
@@ -78,10 +86,16 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.Context;
+import jakarta.ws.rs.core.EntityTag;
 import jakarta.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.Request;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.core.UriInfo;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.HexFormat;
 import java.util.Comparator;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -100,6 +114,12 @@ public class PedidosExternosResource {
 
     // Un UUID entra holgado; la lista blanca evita guardar cualquier cosa.
     private static final Pattern CLAVE_VALIDA = Pattern.compile("[A-Za-z0-9_-]{8,100}");
+
+    // Solo dígitos, y hasta 18 para que siempre entre en un Long. Cualquier
+    // otra cosa (un espacio, "abc", un número gigante) no matchea la ruta y
+    // el runtime responde 404 en Problem Details (ProblemaMapper). Antes un
+    // id en blanco llegaba como null y terminaba en un 500 (CON-01).
+    private static final String ID = "{id: [0-9]{1,18}}";
 
     @Inject
     private IGestionPedidos gestion;
@@ -152,9 +172,10 @@ public class PedidosExternosResource {
             return Problema.de(422, "datos-invalidos", "El pedido no cumple las reglas de Rabbit",
                     e.getMessage()).respuesta();
         }
-        PedidoExternoDTO externo = seguimiento.consultarPedidoExterno(id);
+        JsonObject externo = representacion(seguimiento.consultarPedidoExterno(id), uri);
         return Response.created(enlace(uri, id))
-                .entity(representacion(externo, uri))
+                .entity(externo)
+                .tag(etag(externo))
                 .build();
     }
 
@@ -165,10 +186,17 @@ public class PedidosExternosResource {
      * (con el motivo) o Cancelado.
      */
     @GET
-    @Path("{id}")
-    public Response consultar(@PathParam("id") Long id, @Context UriInfo uri) {
+    @Path(ID)
+    public Response consultar(@PathParam("id") Long id, @Context UriInfo uri, @Context Request request) {
         try {
-            return Response.ok(representacion(seguimiento.consultarPedidoExterno(id), uri)).build();
+            JsonObject externo = representacion(seguimiento.consultarPedidoExterno(id), uri);
+            EntityTag tag = etag(externo);
+            // If-None-Match igual al ETag: 304, el ERP ya tiene esta versión.
+            Response.ResponseBuilder sinCambios = request.evaluatePreconditions(tag);
+            if (sinCambios != null) {
+                return sinCambios.tag(tag).build();
+            }
+            return Response.ok(externo).tag(tag).build();
         } catch (PedidoNoEncontradoException e) {
             return noEncontrado(id);
         } catch (CuentaErpSinComercioException e) {
@@ -182,10 +210,23 @@ public class PedidosExternosResource {
      * cancelado). Repetirlo devuelve lo mismo.
      */
     @POST
-    @Path("{id}/cancelacion")
-    public Response cancelar(@PathParam("id") Long id, @Context UriInfo uri) {
+    @Path(ID + "/cancelacion")
+    public Response cancelar(@PathParam("id") Long id, @HeaderParam("If-Match") String ifMatch,
+                             @Context UriInfo uri, @Context Request request) {
         try {
-            return Response.ok(representacion(gestion.cancelarPedidoExterno(id), uri)).build();
+            if (ifMatch != null) {
+                EntityTag actual = etag(representacion(seguimiento.consultarPedidoExterno(id), uri));
+                if (request.evaluatePreconditions(actual) != null) {
+                    return Response.fromResponse(Problema.de(Response.Status.PRECONDITION_FAILED,
+                                    "pedido-modificado", "El pedido cambió desde que lo consultaste",
+                                    "Volvé a consultarlo (GET) y decidí con el estado actual; el ETag nuevo va en esta respuesta")
+                                    .respuesta())
+                            .tag(actual)
+                            .build();
+                }
+            }
+            JsonObject externo = representacion(gestion.cancelarPedidoExterno(id), uri);
+            return Response.ok(externo).tag(etag(externo)).build();
         } catch (PedidoNoEncontradoException e) {
             return noEncontrado(id);
         } catch (CancelacionNoPermitidaException e) {
@@ -272,6 +313,25 @@ public class PedidosExternosResource {
                             .path(externo.codigoSeguimiento).build().toString()));
         }
         return json.add("_links", links).build();
+    }
+
+    /**
+     * ETag fuerte: SHA-256 del pedido sin los _links (que dependen del host
+     * con el que se llamó, no del estado). Cambia con cualquier dato que el
+     * ERP ve: resultado, estado del pedido real, intentos, motivo...
+     */
+    private static EntityTag etag(JsonObject externo) {
+        return new EntityTag(huella(externo));
+    }
+
+    static String huella(JsonObject externo) {
+        String estado = Json.createObjectBuilder(externo).remove("_links").build().toString();
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(estado.getBytes(StandardCharsets.UTF_8));
+            return HexFormat.of().formatHex(hash, 0, 16);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("La JVM no trae SHA-256", e);
+        }
     }
 
     private static URI enlace(UriInfo uri, Long id) {

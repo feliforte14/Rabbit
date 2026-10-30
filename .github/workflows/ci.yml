@@ -1,0 +1,399 @@
+# =====================================================================
+# CI de Rabbit: corre en main, en cada PR y a mano.
+#
+#   build     mvn -B verify (tests unitarios) + cobertura JaCoCo con umbral
+#   secretos  gitleaks con .gitleaks.toml, solo sobre los commits nuevos
+#   env       G1: un .env incompleto corta "docker compose up" al principio,
+#             con un mensaje que dice qué corregir
+#   compose   docker compose up + semilla, y contra esa app: los *IT
+#             (perfil integracion) y Newman con la colección del repo
+#   contrato  SOAP: WSDL publicado = versionado y cada operación según el XSD.
+#             REST: Schemathesis contra docs/integraciones/openapi.yaml
+#   e2e       Playwright: 5 escenarios de punta a punta (bloquean), axe y
+#             Lighthouse con responsive a 360/768/1280 (informan)
+#   mutacion  PIT con JDK 17 (lo pide pitest); manual o en main
+#   sonar     SonarCloud, apagado hasta que exista el proyecto
+#
+# Los *IT no corren en "build": necesitan la app levantada. Corren en
+# "compose", contra el compose con las cuentas demo de la semilla.
+# =====================================================================
+name: CI
+
+on:
+  # En main y en cada PR (no en cada push de rama: con PR abierta corría dos veces).
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # Lo llama estabilidad.yml para correr la suite varias veces seguidas.
+  workflow_call:
+    inputs:
+      vuelta:
+        type: string
+        default: ""
+
+concurrency:
+  # Cada vuelta de estabilidad.yml tiene su propio grupo: si no, se cancelarían entre sí.
+  group: ci-${{ github.ref }}-${{ inputs.vuelta || 'normal' }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Umbrales del eje B sobre la capa de negocio (com.rabbit.*.negocio)
+  COBERTURA_LINEAS_MIN: "80"
+  COBERTURA_RAMAS_MIN: "70"
+  # Debajo de los umbrales, el build falla.
+  COBERTURA_BLOQUEA: "true"
+  GITLEAKS_VERSION: "8.30.1"
+
+jobs:
+  build:
+    name: Build, tests y cobertura
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: mvn verify
+        run: mvn -B -ntp verify
+      - name: Cobertura de la capa de negocio
+        run: |
+          python3 - <<'EOF'
+          import csv, os
+          filas = list(csv.DictReader(open("target/site/jacoco/jacoco.csv")))
+          def pct(f, tipo):
+              cub = sum(int(r[f"{tipo}_COVERED"]) for r in f)
+              tot = cub + sum(int(r[f"{tipo}_MISSED"]) for r in f)
+              return 100.0 * cub / tot if tot else 100.0
+          negocio = [r for r in filas if r["PACKAGE"].endswith(".negocio")]
+          lin, ram = pct(negocio, "LINE"), pct(negocio, "BRANCH")
+          tl, tr = pct(filas, "LINE"), pct(filas, "BRANCH")
+          minl, minr = float(os.environ["COBERTURA_LINEAS_MIN"]), float(os.environ["COBERTURA_RAMAS_MIN"])
+          resumen = (
+              "### Cobertura (JaCoCo)\n\n"
+              "| Alcance | Líneas | Ramas |\n|---|---|---|\n"
+              f"| Capa de negocio | {lin:.1f}% (mín. {minl:.0f}%) | {ram:.1f}% (mín. {minr:.0f}%) |\n"
+              f"| Todo el proyecto | {tl:.1f}% | {tr:.1f}% |\n"
+          )
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(resumen)
+          print(resumen)
+          if lin < minl or ram < minr:
+              msj = f"Cobertura de la capa de negocio debajo del umbral: {lin:.1f}% líneas, {ram:.1f}% ramas"
+              if os.environ["COBERTURA_BLOQUEA"] == "true":
+                  raise SystemExit(msj)
+              print(f"::warning title=Cobertura::{msj}")
+          EOF
+      - name: Reportes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reportes-tests${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
+          path: |
+            target/site/jacoco/
+            target/surefire-reports/
+          retention-days: 14
+
+  secretos:
+    name: Secretos (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Instalar gitleaks
+        run: |
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C /usr/local/bin gitleaks
+      - name: Escanear los commits nuevos
+        env:
+          ANTES: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          # Solo lo nuevo: el historial ya se revisó y se limpió el 29/10
+          # (docs/seguridad/INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md).
+          if [ -z "$ANTES" ] || [ "$ANTES" = "0000000000000000000000000000000000000000" ]; then
+            git fetch -q origin main
+            RANGO="origin/main..HEAD"
+          else
+            RANGO="$ANTES..HEAD"
+          fi
+          echo "Rango escaneado: $RANGO"
+          gitleaks git --config .gitleaks.toml --log-opts="$RANGO" --redact --no-banner .
+      - name: Escanear los archivos actuales
+        run: gitleaks dir --config .gitleaks.toml --redact --no-banner .
+
+  env:
+    name: Configuración del .env (G1)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Un .env incompleto corta el arranque con un mensaje claro
+        run: |
+          # Solo "config" y "db": no hace falta construir WildFly para ver que
+          # la base ni arranca si el .env está mal.
+          probar() {  # <caso> <archivo .env> <texto que tiene que aparecer>
+            if docker compose -p env-ci --env-file "$2" up --no-build config db > salida.txt 2>&1; then
+              cat salida.txt; echo "::error::$1: docker compose up no cortó"; exit 1
+            fi
+            if ! grep -qF "$3" salida.txt; then
+              cat salida.txt; echo "::error::$1: falta el mensaje \"$3\""; exit 1
+            fi
+            if [ -n "$(docker compose -p env-ci ps -q --status running db)" ]; then
+              echo "::error::$1: la base arrancó igual"; exit 1
+            fi
+            docker compose -p env-ci down -v > /dev/null 2>&1
+            echo "$1: corta con \"$3\""
+          }
+          # Valores al azar y descartables: nada que parezca una contraseña en el repo.
+          sed -e "s/<contraseña-de-la-base-local>/$(openssl rand -hex 12)/" \
+              -e "s/<contraseña-del-primer-administrador>/$(openssl rand -hex 12)/" \
+              -e "s/<contraseña-de-las-cuentas-demo>/$(openssl rand -hex 12)/" .env.example > completo.env
+          sed "s/^ADMIN_PASSWORD=.*/ADMIN_PASSWORD=$(openssl rand -hex 2)/" completo.env > corta.env
+          grep -v '^DEMO_PASSWORD=' completo.env > sin-demo.env
+          : > vacio.env
+
+          # Sin .env faltan varias: Compose avisa por la primera que encuentra,
+          # y no siempre es la misma.
+          probar "Sin .env" vacio.env "is missing a value: Falta"
+          probar ".env.example copiado sin completar" .env.example "DB_PASSWORD todavía tiene el marcador"
+          probar "Contraseña corta" corta.env "ADMIN_PASSWORD tiene que tener al menos 8 caracteres"
+          probar "Sin DEMO_PASSWORD" sin-demo.env "Falta DEMO_PASSWORD en .env"
+
+          # Completo: "config" termina bien (el resto lo prueba el job compose).
+          docker compose -p env-ci --env-file completo.env up --no-build --exit-code-from config config
+          docker compose -p env-ci down -v > /dev/null 2>&1
+
+  compose:
+    name: Compose, integración y Newman
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Instalar Newman
+        run: npm install -g newman@6
+      - uses: ./.github/actions/levantar-rabbit
+      - name: Tests de integración (*IT)
+        run: |
+          set -a; . ./.env; set +a
+          # -Dtest=NoHayUnitarios: los unitarios ya corrieron en "build"; acá solo failsafe.
+          mvn -B -ntp verify -Pintegracion -Dtest=NoHayUnitarios -Dsurefire.failIfNoSpecifiedTests=false \
+            -Drabbit.base=https://localhost:8443/Rabbit -Drabbit.soap.base=http://localhost:8080/Rabbit \
+            -Drabbit.erp.usuario=demo.erp -Drabbit.erp.clave="$DEMO_PASSWORD" \
+            -Drabbit.erp2.usuario=demo.erp2 -Drabbit.erp2.clave="$DEMO_PASSWORD" \
+            -Drabbit.comercio.usuario=demo.comercio2 -Drabbit.comercio.clave="$DEMO_PASSWORD" \
+            -Drabbit.punto="$PUNTO"
+      - name: Newman
+        if: success() || failure()
+        run: |
+          set -a; . ./.env; set +a
+          scripts/ci/newman.sh
+      - name: Resumen de integración
+        if: success() || failure()
+        run: |
+          python3 - <<'EOF'
+          import glob, os, xml.etree.ElementTree as ET
+          filas = []
+          for nombre, patron in (("*IT (failsafe)", "target/failsafe-reports/TEST-*.xml"), ("Newman", "target/newman/*.xml")):
+              t = f = s = 0
+              for x in glob.glob(patron):
+                  r = ET.parse(x).getroot()
+                  suites = [r] if r.tag == "testsuite" else list(r)
+                  for su in suites:
+                      t += int(su.get("tests", 0)); f += int(su.get("failures", 0)) + int(su.get("errors", 0)); s += int(su.get("skipped", 0))
+              filas.append(f"| {nombre} | {t} | {f} | {s} |")
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("### Integración\n\n| Suite | Tests | Fallas | Saltados |\n|---|---|---|---|\n" + "\n".join(filas) + "\n")
+          EOF
+      - name: Logs
+        if: always()
+        run: |
+          docker compose logs --no-color > compose.log 2>&1 || true
+          docker compose down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integracion${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
+          path: |
+            compose.log
+            target/failsafe-reports/
+            target/newman/
+          retention-days: 7
+
+  contrato:
+    name: Contrato (OpenAPI y WSDL)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/levantar-rabbit
+      - uses: astral-sh/setup-uv@v6
+      - name: SOAP (WSDL)
+        run: uv run --quiet --with zeep scripts/contrato/soap.py http://localhost:8080/Rabbit
+      - name: REST (Schemathesis)
+        # Semilla fija y generación determinista: cada corrida prueba los
+        # mismos casos (la de estabilidad lo exige). Para explorar casos
+        # nuevos, a mano con otra --seed (docs/pruebas/CONTRATO.md).
+        run: |
+          set -a; . ./.env; set +a
+          mkdir -p target/contrato
+          uvx --from schemathesis==4.32.7 schemathesis run docs/integraciones/openapi.yaml \
+            --url https://localhost:8443/Rabbit/api --tls-verify false \
+            --auth "demo.erp:$DEMO_PASSWORD" --max-examples 50 \
+            --seed 20261110 --generation-deterministic \
+            --checks all --exclude-checks positive_data_acceptance,unsupported_method \
+            --report junit --report-dir target/contrato
+      - name: Resumen
+        if: always()
+        run: |
+          [ -f target/contrato/soap.md ] && cat target/contrato/soap.md >> "$GITHUB_STEP_SUMMARY"
+          python3 - <<'EOF'
+          import glob, os, xml.etree.ElementTree as ET
+          for x in glob.glob("target/contrato/*.xml"):
+              r = ET.parse(x).getroot()
+              suites = [r] if r.tag == "testsuite" else list(r)
+              casos = [c for su in suites for c in su.iter("testcase")]
+              malos = [c.get("name") for c in casos if c.find("failure") is not None or c.find("error") is not None]
+              md = f"\n### Contrato REST (Schemathesis)\n\n{len(casos) - len(malos)}/{len(casos)} operaciones sin fallas"
+              md += ("; con fallas: " + ", ".join(f"`{m}`" for m in malos)) if malos else ""
+              open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(md + "\n")
+          EOF
+          docker compose down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: contrato${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
+          path: target/contrato/
+          retention-days: 14
+
+  e2e:
+    name: E2E y accesibilidad
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+      - uses: ./.github/actions/levantar-rabbit
+      - name: Instalar Playwright
+        working-directory: e2e
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Escenarios E2E
+        working-directory: e2e
+        env:
+          JUNIT: ../target/e2e/junit-flujos.xml
+        run: |
+          set -a; . ../.env; set +a
+          npx playwright test tests/flujos.spec.js
+      - name: Accesibilidad (axe) y responsive
+        working-directory: e2e
+        env:
+          JUNIT: ../target/e2e/junit-accesibilidad.xml
+        run: |
+          set -a; . ../.env; set +a
+          npx playwright test tests/accesibilidad.spec.js
+      - name: Lighthouse
+        # También si axe falló: así el informe trae las dos miradas.
+        if: ${{ !cancelled() }}
+        working-directory: e2e
+        run: |
+          set -a; . ../.env; set +a
+          node lighthouse.js
+      - name: Resumen
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import glob, json, os
+          md = ["### Accesibilidad (axe)", "", "| Pantalla | Violaciones |", "|---|---|"]
+          for f in sorted(glob.glob("target/e2e/axe/*.json")):
+              r = json.load(open(f))
+              v = "; ".join(f"{x['id']} ({x['impacto']})" for x in r["violaciones"]) or "ninguna"
+              md.append(f"| {r['pantalla']} | {v} |")
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write("\n".join(md) + "\n\n")
+          EOF
+          [ -f target/lighthouse/resumen.md ] && cat target/lighthouse/resumen.md >> "$GITHUB_STEP_SUMMARY"
+          docker compose down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
+          path: |
+            target/e2e/
+            target/lighthouse/
+          retention-days: 14
+
+  mutacion:
+    name: Mutación (PIT)
+    # No en las vueltas de estabilidad.yml: PIT tarda y no es lo que se mide ahí.
+    if: (github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main') && inputs.vuelta == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: maven
+      - name: PIT
+        run: mvn -B -ntp test-compile org.pitest:pitest-maven:mutationCoverage
+      - name: Mutation score
+        run: |
+          python3 - <<'EOF'
+          import os, xml.etree.ElementTree as ET
+          m = ET.parse("target/pit-reports/mutations.xml").getroot()
+          total = len(m); muertas = sum(1 for x in m if x.get("detected") == "true")
+          linea = f"### Mutación (PIT)\n\n{muertas}/{total} mutantes detectados: **{100.0*muertas/total:.1f}%** (meta ≥ 60%)\n"
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(linea); print(linea)
+          EOF
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reporte-pit${{ inputs.vuelta && format('-{0}', inputs.vuelta) || '' }}
+          path: target/pit-reports/
+          retention-days: 14
+
+  sonar:
+    name: SonarCloud
+    # Se prende al cargar en el repo la variable SONAR_ORGANIZATION y el
+    # secret SONAR_TOKEN (Settings → Secrets and variables → Actions).
+    if: inputs.vuelta == '' && vars.SONAR_ORGANIZATION != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Análisis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: >
+          mvn -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
+          -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY || format('{0}_Rabbit', vars.SONAR_ORGANIZATION) }}
+          -Dsonar.qualitygate.wait=true

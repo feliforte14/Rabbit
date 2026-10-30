@@ -538,9 +538,14 @@
                 -->
                 <h:dataTable value="#{pedidoBean.nuevoPedido.lineas}" var="linea"
                              styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par">
+                    <!--
+                        Cada línea repite los campos: el encabezado de la columna no
+                        los etiqueta para un lector de pantalla, así que llevan
+                        aria-label (A11Y-03 y A11Y-04).
+                    -->
                     <h:column>
                         <f:facet name="header">Producto</f:facet>
-                        <h:inputText id="producto" value="#{linea.producto}" label="Producto"
+                        <h:inputText id="producto" value="#{linea.producto}" label="Producto" pt:aria-label="Producto"
                                      rendered="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}"
                                      required="#{pedidoBean.nuevoPedido.origen == 'PUNTO_PICKING'}"
                                      requiredMessage="Indicá qué producto se retira" />
@@ -548,7 +553,7 @@
                             Solo el stock consignado por el comercio elegido: el ERP
                             de un comercio nunca pediria mercaderia de otro.
                         -->
-                        <h:selectOneMenu id="item" value="#{linea.idItem}" label="Producto"
+                        <h:selectOneMenu id="item" value="#{linea.idItem}" label="Producto" pt:aria-label="Producto"
                                          rendered="#{pedidoBean.nuevoPedido.origen != 'PUNTO_PICKING'}"
                                          required="#{pedidoBean.nuevoPedido.origen != 'PUNTO_PICKING'}"
                                          requiredMessage="Elegí un producto">
@@ -563,7 +568,7 @@
                     </h:column>
                     <h:column styleClass="col-cantidad">
                         <f:facet name="header">Cantidad</f:facet>
-                        <h:inputText id="cantidad" value="#{linea.cantidad}" required="true" label="Cantidad"
+                        <h:inputText id="cantidad" value="#{linea.cantidad}" required="true" label="Cantidad" pt:aria-label="Cantidad"
                                      requiredMessage="Ingresá la cantidad" />
                     </h:column>
                     <h:column styleClass="acciones">
