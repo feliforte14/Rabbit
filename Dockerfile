@@ -15,6 +15,7 @@ FROM maven:3.9-eclipse-temurin-21 AS compilacion
 WORKDIR /fuente
 # Primero el pom solo: las dependencias quedan en caché mientras no cambie.
 COPY pom.xml .
+COPY .mvn ./.mvn
 RUN mvn -q -B dependency:go-offline
 COPY src ./src
 RUN mvn -q -B -DskipTests package
