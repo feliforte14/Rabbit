@@ -293,6 +293,66 @@ Node.js, transportista en Python) están en la rama
 
 ## Cómo levantar el sistema
 
+Hay dos formas: con Docker, en un comando y con una base local (la
+recomendada para probar, corregir y hacer la demo), o con un WildFly
+instalado a mano y la base compartida del equipo.
+
+### Con Docker (un comando)
+
+Necesitás Docker con Compose v2 (Docker Desktop, OrbStack o Docker Engine)
+y git. No hace falta tener Java, Maven ni WildFly instalados.
+
+```bash
+git clone https://github.com/feliforte14/Rabbit.git && cd Rabbit
+cp .env.example .env          # y reemplazá cada <marcador> por una contraseña
+docker compose up --build     # la primera vez tarda unos minutos (baja imágenes y compila)
+```
+
+Cuando el log muestre `[Semilla] Listo`, entrá a
+**https://localhost:8443/Rabbit**. El certificado es autofirmado, así que
+el navegador muestra una advertencia la primera vez: aceptala.
+
+- **Administrador:** el usuario `ADMIN_USER` del `.env` (por defecto
+  `admin`), con la contraseña que pusiste en `ADMIN_PASSWORD`.
+- **Cuentas demo:** si completaste `DEMO_PASSWORD`, todas entran con esa
+  contraseña.
+  - `demo.operador`: personal.
+  - `demo.erp` y `demo.erp2`: API del ERP de cada comercio.
+  - `demo.comercio` (Almacén Demo 1) y `demo.comercio2` (Almacén Demo 2).
+  - `demo.repartidor`.
+- **Datos de ejemplo:** la semilla carga además dos comercios, un
+  depósito, stock, un punto de picking y un repartidor
+  ([`docker/semilla/semilla.sql`](docker/semilla/semilla.sql)).
+
+Qué levanta el compose ([`docker-compose.yml`](docker-compose.yml)):
+
+| Servicio | Qué es | Puertos |
+|---|---|---|
+| `db` | PostgreSQL 16, con los datos en el volumen `datos` | 5432 |
+| `wildfly` | WildFly 41 (`standalone-full`) con Rabbit desplegado, el broker JMS y el banco y los transportistas simulados | 8443 (app), 8080 (simuladores), 9990 (management, solo localhost) |
+| `semilla` | Espera a que Rabbit cree las tablas, carga los datos de ejemplo y termina | — |
+
+La configuración de WildFly (driver, datasource, login contra la tabla
+`usuarios`, HSTS) se aplica al construir la imagen:
+[`docker/wildfly/configurar.cli`](docker/wildfly/configurar.cli). Las
+contraseñas se leen del `.env` al arrancar: no quedan en la imagen ni en
+el repo.
+
+Comandos útiles:
+
+```bash
+docker compose logs -f wildfly                                    # log de Rabbit
+docker compose exec wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect   # jboss-cli (demo de la cola, etc.)
+docker compose down           # apagar (los datos quedan)
+docker compose down -v        # apagar y borrar la base: el próximo up arranca de cero
+docker compose up --build -d  # después de cambiar el código
+```
+
+### Con WildFly instalado (base compartida)
+
+Los pasos 1 a 8 configuran un WildFly instalado a mano contra la base del
+equipo en Supabase.
+
 ### Requisitos
 
 - Java 17 o superior (el proyecto compila con `--release 17`; probado con
@@ -578,7 +638,7 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.cont
 ## Tests
 
 ```bash
-mvn test                       # 151 tests unitarios (JUnit 5), sin servidor
+mvn test                       # tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos
@@ -593,7 +653,7 @@ comercio, cuándo no se puede cancelar un pedido (ADR-048), cuánto se
 puede corregir o eliminar del stock de un depósito (ADR-049) e
 indicadores (con la comparación contra el período anterior).
 
-17 tests de integración de la API REST (REST Assured), contra Rabbit ya
+Tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:
 
 ```bash
@@ -614,7 +674,26 @@ Para probar a mano, de punta a punta: [FLUJO-DE-PRUEBAS.md](docs/pruebas/FLUJO-D
 sistemas externos hay una colección de Postman lista para importar:
 [`Rabbit.postman_collection.json`](docs/pruebas/Rabbit.postman_collection.json).
 
+## Integración continua
+
+Cada PR y cada push a `main` corren tres workflows en GitHub Actions. El
+resultado de cada corrida, con cobertura, tiempos y hallazgos, queda en
+la página del run.
+
+| Workflow | Jobs |
+|---|---|
+| [CI](.github/workflows/ci.yml) | Build y tests unitarios con cobertura (JaCoCo); secretos (gitleaks con [`.gitleaks.toml`](.gitleaks.toml)); compose con los `*IT` y Newman; contrato (Schemathesis y WSDL, ver [CONTRATO.md](docs/pruebas/CONTRATO.md)); E2E con Playwright, axe y Lighthouse (ver [E2E.md](docs/pruebas/E2E.md)); mutación (PIT, en `main` o a mano); SonarCloud |
+| [Seguridad](.github/workflows/seguridad.yml) | Dependencias (OSV-Scanner y Dependency-Check), imagen (Trivy) y ZAP baseline. También corre una vez por semana |
+| [Carga](.github/workflows/carga.yml) | k6 con 50 usuarios durante 5 minutos, p95 < 500 ms (en `main`, a mano o si cambia la prueba de carga) |
+
+Todos los jobs que prueban la app la levantan con el mismo compose de
+arriba ([`.github/actions/levantar-rabbit`](.github/actions/levantar-rabbit/action.yml)),
+con contraseñas generadas en el runner y descartadas al terminar.
+
 ## Apagar todo
+
+Con Docker: `docker compose down`. Con WildFly instalado:
+
 
 ```bash
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command=":shutdown"   # WildFly (Rabbit, broker y simulados)

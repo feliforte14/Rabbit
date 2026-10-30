@@ -1,0 +1,45 @@
+# =====================================================================
+# Configuración de WildFly para Rabbit dentro de la imagen de Docker.
+# Corre una sola vez, al construir la imagen, con WildFly apagado
+# (embed-server). Replica los pasos 2 y 5 del README:
+#   1. Driver de PostgreSQL y datasource RabbitDS.
+#   2. Login contra la tabla usuarios (lo mismo que
+#      scripts/configurar-realm-compartido.cli, ADR-031).
+#
+# Sin credenciales: ${env.X} se resuelve al arrancar el contenedor.
+# =====================================================================
+
+# --admin-only=false: el jdbc-realm de Elytron necesita el servicio del
+# datasource, y en modo admin-only los datasources no se instalan.
+embed-server --server-config=standalone-full.xml --std-out=echo --admin-only=false
+
+module add --name=org.postgresql --resources=/tmp/postgresql.jar --dependencies=jakarta.transaction.api
+
+batch
+
+/subsystem=datasources/jdbc-driver=postgresql:add(driver-name=postgresql, driver-module-name=org.postgresql, driver-class-name=org.postgresql.Driver, driver-xa-datasource-class-name=org.postgresql.xa.PGXADataSource)
+
+data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --driver-name=postgresql --connection-url="jdbc:postgresql://${env.DB_HOST:db}:${env.DB_PORT:5432}/${env.DB_NAME:rabbit}" --user-name="${env.DB_USER:rabbit}" --password="${env.DB_PASSWORD}" --use-ccm=false --max-pool-size=20 --valid-connection-checker-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLValidConnectionChecker --exception-sorter-class-name=org.jboss.jca.adapters.jdbc.extensions.postgres.PostgreSQLExceptionSorter --background-validation=true --background-validation-millis=30000 --idle-timeout-minutes=5
+
+/subsystem=datasources/data-source=RabbitDS/connection-properties=socketTimeout:add(value=30)
+/subsystem=datasources/data-source=RabbitDS/connection-properties=connectTimeout:add(value=10)
+
+/subsystem=elytron/jdbc-realm=RabbitRealmBase:add(principal-query=[{sql="SELECT hash_clave FROM usuarios WHERE username = ? AND activo AND hash_clave IS NOT NULL", data-source=RabbitDS, modular-crypt-mapper={password-index=1}}, {sql="SELECT rol FROM usuarios WHERE username = ? AND (hash_clave IS NOT NULL OR NOT activo)", data-source=RabbitDS, attribute-mapping=[{index=1, to=groups}]}])
+/subsystem=elytron/distributed-realm=RabbitRealmCompartido:add(realms=[RabbitRealmBase, ApplicationRealm])
+/subsystem=elytron/security-domain=ApplicationDomain:write-attribute(name=realms, value=[{realm=RabbitRealmCompartido, role-decoder=groups-to-roles}, {realm=local}])
+/subsystem=elytron/security-domain=ApplicationDomain:write-attribute(name=default-realm, value=RabbitRealmCompartido)
+
+# Fuera de /Rabbit: sin la página de bienvenida de WildFly (expone la versión)
+# y con HSTS en todo el host, también en los 404. Dentro de /Rabbit manda
+# FiltroHsts, que pisa este valor. Mismo max-age que FiltroHsts (SEC-05).
+/subsystem=undertow/server=default-server/host=default-host/location=\/:remove
+/subsystem=undertow/configuration=handler/file=welcome-content:remove
+/subsystem=undertow/configuration=filter/response-header=hsts:add(header-name=Strict-Transport-Security, header-value="max-age=31536000")
+/subsystem=undertow/server=default-server/host=default-host/filter-ref=hsts:add(predicate=secure)
+
+# Demos y pruebas durante el día: sin hora de corte (README, paso 7b).
+/system-property=rabbit.ruteo.hora-corte:add(value="${env.RABBIT_HORA_CORTE:ninguno}")
+
+run-batch
+
+stop-embedded-server

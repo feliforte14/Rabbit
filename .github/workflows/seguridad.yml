@@ -1,0 +1,215 @@
+# =====================================================================
+# Seguridad (eje D): dependencias y escaneo dinámico.
+#
+#   dependencias  OSV-Scanner sobre pom.xml. Falla solo si la vulnerabilidad
+#                 está en una dependencia que llega al WAR (scope compile o
+#                 runtime); las de test quedan como aviso.
+#                 Dependency-Check (OWASP) si existe el secret NVD_API_KEY.
+#   imagen        Trivy sobre la imagen de Docker (WildFly + WAR), informe.
+#   zap           ZAP baseline (pasivo) contra Rabbit levantado con el compose.
+#   zap-api       ZAP API scan (activo) sobre openapi.yaml, autenticado como
+#                 un ERP demo: ataca cada operación (inyección, XSS, etc.).
+#
+# Corre en main, en cada PR, una vez por semana y a mano.
+# =====================================================================
+name: Seguridad
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 9 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: seguridad-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dependencias:
+    name: Dependencias (OSV + Dependency-Check)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - name: Instalar OSV-Scanner
+        run: |
+          curl -fsSL -o /usr/local/bin/osv-scanner \
+            https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64
+          chmod +x /usr/local/bin/osv-scanner
+      - name: Dependencias que van en el WAR
+        run: |
+          mvn -B -ntp -q dependency:list -DincludeScope=runtime -DoutputFile=target/runtime.txt
+          grep -oE '[a-zA-Z0-9_.-]+:[a-zA-Z0-9_.-]+:jar' target/runtime.txt | sed 's/:jar$//' | sort -u > target/runtime-paquetes.txt
+          echo "Dependencias en el WAR o del servidor (provided no cuenta):"; cat target/runtime-paquetes.txt
+      - name: OSV-Scanner
+        run: |
+          osv-scanner scan source -r --format json --output target/osv.json . || true
+          osv-scanner scan source -r --format markdown --output target/osv.md . || true
+          python3 - <<'EOF'
+          import json, os
+          runtime = set(open("target/runtime-paquetes.txt").read().split())
+          datos = json.load(open("target/osv.json"))
+          filas, bloquean = [], 0
+          for r in datos.get("results", []):
+              for p in r.get("packages", []):
+                  nombre = p["package"]["name"]; version = p["package"]["version"]
+                  en_war = nombre in runtime
+                  for v in p.get("vulnerabilities", []):
+                      bloquean += en_war
+                      filas.append(f"| {v['id']} | {nombre} {version} | {'**sí**' if en_war else 'no (test)'} |")
+          md = "### Dependencias (OSV-Scanner)\n\n"
+          md += ("| Vulnerabilidad | Paquete | En el WAR |\n|---|---|---|\n" + "\n".join(filas) + "\n") if filas else "Sin vulnerabilidades conocidas.\n"
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(md)
+          print(md)
+          if bloquean:
+              raise SystemExit(f"{bloquean} vulnerabilidades en dependencias que llegan al WAR")
+          if filas:
+              print(f"::warning title=OSV::{len(filas)} vulnerabilidades en dependencias de test (no van en el WAR)")
+          EOF
+      - name: Dependency-Check (OWASP)
+        env:
+          NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
+        run: |
+          if [ -z "$NVD_API_KEY" ]; then
+            echo "Sin NVD_API_KEY: Dependency-Check no corre (sin la clave, bajar la base del NVD tarda demasiado)." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          mvn -B -ntp org.owasp:dependency-check-maven:13.0.0:check \
+            -DnvdApiKey="$NVD_API_KEY" -DskipTestScope=true -DfailBuildOnCVSS=7 \
+            -Dformats=HTML,JSON -DoutputDirectory=target/dependency-check
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependencias
+          path: |
+            target/osv.json
+            target/osv.md
+            target/dependency-check/
+          retention-days: 14
+
+  imagen:
+    name: Imagen de Docker (Trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir la imagen
+        run: docker build -t rabbit:ci .
+      - name: Trivy
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: rabbit:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          output: trivy.txt
+          exit-code: "0"
+      - name: Resumen
+        run: |
+          { echo "### Imagen (Trivy, CRITICAL/HIGH con arreglo disponible)"; echo; echo '```'; tail -n 40 trivy.txt; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trivy
+          path: trivy.txt
+          retention-days: 14
+
+  zap:
+    name: ZAP baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/levantar-rabbit
+      - name: ZAP baseline
+        run: |
+          mkdir -p zap && chmod 777 zap
+          # -I: los avisos (WARN) no cortan; un FAIL de .zap/reglas.tsv sí.
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" -v "$PWD/.zap:/zap/conf:ro" \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t https://localhost:8443/Rabbit/ -c /zap/conf/reglas.tsv -I -j \
+            -r zap.html -w zap.md -J zap.json
+      - name: Resumen
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          try:
+              datos = json.load(open("zap/zap.json"))
+          except FileNotFoundError:
+              raise SystemExit(0)
+          riesgo = {"3": "Alto", "2": "Medio", "1": "Bajo", "0": "Info"}
+          filas = []
+          for sitio in datos.get("site", []):
+              for a in sitio.get("alerts", []):
+                  filas.append((a["riskcode"], f"| {riesgo.get(a['riskcode'], a['riskcode'])} | {a['alert']} | {a['count']} |"))
+          filas.sort(reverse=True)
+          md = "### ZAP baseline\n\n| Riesgo | Alerta | Instancias |\n|---|---|---|\n" + "\n".join(f for _, f in filas) + "\n"
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(md); print(md)
+          EOF
+          docker compose down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap
+          path: zap/
+          retention-days: 14
+
+  zap-api:
+    name: ZAP API scan (activo, autenticado)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/levantar-rabbit
+      - name: ZAP API scan
+        run: |
+          set -a; . ./.env; set +a
+          mkdir -p zap && chmod 777 zap
+          AUTH="Basic $(printf '%s' "demo.erp:$DEMO_PASSWORD" | base64 -w0)"
+          echo "::add-mask::$AUTH"
+          # El replacer de ZAP agrega el header Authorization a cada request.
+          docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" -v "$PWD/docs/integraciones:/zap/api:ro" \
+            -v "$PWD/.zap:/zap/conf:ro" \
+            ghcr.io/zaproxy/zaproxy:stable zap-api-scan.py \
+            -t /zap/api/openapi.yaml -f openapi -O https://localhost:8443/Rabbit/api \
+            -c /zap/conf/reglas-api.tsv -I -r zap-api.html -w zap-api.md -J zap-api.json \
+            -z "-config replacer.full_list(0).description=auth \
+                -config replacer.full_list(0).enabled=true \
+                -config replacer.full_list(0).matchtype=REQ_HEADER \
+                -config replacer.full_list(0).matchstr=Authorization \
+                -config replacer.full_list(0).regex=false \
+                -config replacer.full_list(0).replacement=$AUTH"
+      - name: Resumen
+        if: always()
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          try:
+              datos = json.load(open("zap/zap-api.json"))
+          except FileNotFoundError:
+              raise SystemExit(0)
+          riesgo = {"3": "Alto", "2": "Medio", "1": "Bajo", "0": "Info"}
+          filas = sorted(((a["riskcode"], f"| {riesgo.get(a['riskcode'], a['riskcode'])} | {a['alert']} | {a['count']} |")
+                          for s in datos.get("site", []) for a in s.get("alerts", [])), reverse=True)
+          md = "### ZAP API scan (activo, autenticado)\n\n| Riesgo | Alerta | Instancias |\n|---|---|---|\n" + "\n".join(f for _, f in filas) + "\n"
+          open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(md); print(md)
+          EOF
+          docker compose down -v || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: zap-api
+          path: zap/
+          retention-days: 14
+
