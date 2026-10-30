@@ -42,8 +42,8 @@ env:
   # Umbrales del eje B sobre la capa de negocio (com.rabbit.*.negocio)
   COBERTURA_LINEAS_MIN: "80"
   COBERTURA_RAMAS_MIN: "70"
-  # "false" mientras los tests de la PR #12 no estén en main: avisa sin cortar el build.
-  COBERTURA_BLOQUEA: "false"
+  # Debajo de los umbrales, el build falla.
+  COBERTURA_BLOQUEA: "true"
   GITLEAKS_VERSION: "8.30.1"
 
 jobs:
