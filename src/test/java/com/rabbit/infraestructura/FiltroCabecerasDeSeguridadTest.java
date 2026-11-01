@@ -1,11 +1,18 @@
 package com.rabbit.infraestructura;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.util.Arrays;
 import java.util.Map;
 import java.util.stream.Collectors;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.Test;
+import org.mockito.InOrder;
 
 /** SEC-05 y eje D: CSP, nosniff, anti-clickjacking y Permissions-Policy. */
 class FiltroCabecerasDeSeguridadTest {
@@ -56,5 +63,22 @@ class FiltroCabecerasDeSeguridadTest {
         assertTrue(permisos.contains("camera=(self)"));
         assertTrue(permisos.contains("microphone=()"));
         assertTrue(permisos.contains("payment=()"));
+    }
+
+    @Test
+    void poneLasCabecerasAntesDeSeguirConLaCadena() throws Exception {
+        ServletRequest request = mock(ServletRequest.class);
+        HttpServletResponse response = mock(HttpServletResponse.class);
+        FilterChain chain = mock(FilterChain.class);
+
+        new FiltroCabecerasDeSeguridad().doFilter(request, response, chain);
+
+        InOrder orden = inOrder(response, chain);
+        orden.verify(response).setHeader("Content-Security-Policy", FiltroCabecerasDeSeguridad.CSP);
+        orden.verify(chain).doFilter(request, response);
+        verify(response).setHeader("X-Content-Type-Options", "nosniff");
+        verify(response).setHeader("X-Frame-Options", "DENY");
+        verify(response).setHeader("Permissions-Policy", FiltroCabecerasDeSeguridad.PERMISOS);
+        verify(response).setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
     }
 }

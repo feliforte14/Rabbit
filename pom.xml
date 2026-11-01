@@ -45,6 +45,15 @@
             <version>5.14.2</version>
             <scope>test</scope>
         </dependency>
+        <!-- Implementación de JAX-RS para los tests unitarios de los recursos REST y de
+             ProblemaMapper: Response, UriBuilder y EntityTag necesitan un RuntimeDelegate (en el
+             servidor lo pone WildFly). La 6.2 es la de Jakarta EE 10, como el API de arriba. -->
+        <dependency>
+            <groupId>org.jboss.resteasy</groupId>
+            <artifactId>resteasy-core</artifactId>
+            <version>6.2.14.Final</version>
+            <scope>test</scope>
+        </dependency>
         <!-- Implementación de Bean Validation para probar las reglas del DTO de la API
              (en el servidor la pone WildFly). -->
         <dependency>
