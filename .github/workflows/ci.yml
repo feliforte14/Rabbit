@@ -109,7 +109,7 @@ jobs:
           fetch-depth: 0
       - name: Instalar gitleaks
         run: |
-          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+          curl -fsSL --proto '=https' --tlsv1.2 "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | tar -xz -C /usr/local/bin gitleaks
       - name: Escanear los commits nuevos
         env:
@@ -185,7 +185,8 @@ jobs:
         with:
           node-version: "22"
       - name: Instalar Newman
-        run: npm install -g newman@6
+        # Versión exacta y sin scripts de instalación (newman no los necesita).
+        run: npm install -g --ignore-scripts newman@6.2.3
       - uses: ./.github/actions/levantar-rabbit
       - name: Tests de integración (*IT)
         run: |
@@ -240,9 +241,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/levantar-rabbit
-      - uses: astral-sh/setup-uv@v6
+      # Acción de terceros fijada al commit (un tag se puede mover).
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       - name: SOAP (WSDL)
-        run: uv run --quiet --with zeep scripts/contrato/soap.py http://localhost:8080/Rabbit
+        # zeep con versión exacta y solo wheels (--no-build: no corre setup.py de nadie).
+        run: uv run --quiet --no-build --with zeep==4.3.3 scripts/contrato/soap.py http://localhost:8080/Rabbit
       - name: REST (Schemathesis)
         # Semilla fija y generación determinista: cada corrida prueba los
         # mismos casos (la de estabilidad lo exige). Para explorar casos
@@ -293,23 +296,26 @@ jobs:
       - uses: ./.github/actions/levantar-rabbit
       - name: Instalar Playwright
         working-directory: e2e
+        # npm ci respeta el package-lock; sin scripts de instalación (ningún paquete los
+        # tiene). Playwright se corre desde node_modules, no con npx (que podría bajar
+        # otra versión).
         run: |
-          npm ci
-          npx playwright install --with-deps chromium
+          npm ci --ignore-scripts
+          node_modules/.bin/playwright install --with-deps chromium
       - name: Escenarios E2E
         working-directory: e2e
         env:
           JUNIT: ../target/e2e/junit-flujos.xml
         run: |
           set -a; . ../.env; set +a
-          npx playwright test tests/flujos.spec.js
+          node_modules/.bin/playwright test tests/flujos.spec.js
       - name: Accesibilidad (axe) y responsive
         working-directory: e2e
         env:
           JUNIT: ../target/e2e/junit-accesibilidad.xml
         run: |
           set -a; . ../.env; set +a
-          npx playwright test tests/accesibilidad.spec.js
+          node_modules/.bin/playwright test tests/accesibilidad.spec.js
       - name: Lighthouse
         # También si axe falló: así el informe trae las dos miradas.
         if: ${{ !cancelled() }}

@@ -43,7 +43,7 @@ jobs:
           cache: maven
       - name: Instalar OSV-Scanner
         run: |
-          curl -fsSL -o /usr/local/bin/osv-scanner \
+          curl -fsSL --proto '=https' --tlsv1.2 -o /usr/local/bin/osv-scanner \
             https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64
           chmod +x /usr/local/bin/osv-scanner
       - name: Dependencias que van en el WAR
@@ -106,7 +106,8 @@ jobs:
       - name: Construir la imagen
         run: docker build -t rabbit:ci .
       - name: Trivy
-        uses: aquasecurity/trivy-action@v0.36.0
+        # Acción de terceros fijada al commit (un tag se puede mover).
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: rabbit:ci
           severity: CRITICAL,HIGH
@@ -133,7 +134,8 @@ jobs:
       - uses: ./.github/actions/levantar-rabbit
       - name: ZAP baseline
         run: |
-          mkdir -p zap && chmod 777 zap
+          # La carpeta es del usuario del contenedor de ZAP (uid 1000), sin escritura para todos.
+          mkdir -p zap && sudo chown 1000:1000 zap
           # -I: los avisos (WARN) no cortan; un FAIL de .zap/reglas.tsv sí.
           docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" -v "$PWD/.zap:/zap/conf:ro" \
             ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
@@ -175,7 +177,8 @@ jobs:
       - name: ZAP API scan
         run: |
           set -a; . ./.env; set +a
-          mkdir -p zap && chmod 777 zap
+          # La carpeta es del usuario del contenedor de ZAP (uid 1000), sin escritura para todos.
+          mkdir -p zap && sudo chown 1000:1000 zap
           AUTH="Basic $(printf '%s' "demo.erp:$DEMO_PASSWORD" | base64 -w0)"
           echo "::add-mask::$AUTH"
           # El replacer de ZAP agrega el header Authorization a cada request.
