@@ -68,8 +68,9 @@ completo se actualiza cuando la rama se mergea a `main`. Hasta entonces, esta ta
 **Cobertura en SonarCloud.** El PR de las correcciones falló el gate por `new_coverage` (2,8 % contra 80 %): subir de versión
 la carpeta `resources/rabbit` (1_22 a 1_23) hizo que 1330 líneas de JavaScript contaran como código nuevo, y SonarCloud
 no mide cobertura de JavaScript. Se resolvió con dos cambios: se **excluyó `src/main/webapp/resources/**` solo de la
-métrica de cobertura** (sigue analizándose para bugs y vulnerabilidades) y se agregaron 9 pruebas unitarias para el código
-Java que había cambiado (`ServletsDeImagenTest` y `AlineadorDeRestriccionesEnumTest`). La cobertura de la capa de negocio
+métrica de cobertura** (sigue analizándose para bugs y vulnerabilidades) y se agregaron 13 pruebas unitarias para el código
+Java que había cambiado (`ServletsDeImagenTest`, `AlineadorDeRestriccionesEnumTest`, `PedidoRepositoryTest` y una de
+`BancoClientTest`). La cobertura de la capa de negocio
 (punto 2) la mide JaCoCo y no cambia.
 
 **Nota.** El Quality Gate por defecto de SonarCloud evalúa el código nuevo, y por eso salió verde en cada PR. Los criterios

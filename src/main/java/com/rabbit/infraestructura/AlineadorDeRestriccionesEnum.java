@@ -111,7 +111,13 @@ public class AlineadorDeRestriccionesEnum {
         LOG.info("[Esquema] Restricciones CHECK de columnas enum alineadas: " + ok + "/" + COLUMNAS.size());
     }
 
-    private static String literal(Enum<?> valor) {
+    static void validarIdentificador(String identificador) {
+        if (identificador == null || !IDENTIFICADOR.matcher(identificador).matches()) {
+            throw new IllegalStateException("Identificador SQL inválido en COLUMNAS: " + identificador);
+        }
+    }
+
+    static String literal(Enum<?> valor) {
         if (!VALOR_ENUM.matcher(valor.name()).matches()) {
             throw new IllegalStateException("Constante de enum inválida: " + valor.name());
         }
@@ -123,9 +129,8 @@ public class AlineadorDeRestriccionesEnum {
         String restriccion = c.tabla() + "_" + c.columna() + "_check";
         // Un identificador SQL no se puede pasar como parámetro. Salen de la lista fija COLUMNAS y de los
         // nombres de las constantes de un enum del código, nunca de un dato de usuario; igual se validan.
-        if (!IDENTIFICADOR.matcher(c.tabla()).matches() || !IDENTIFICADOR.matcher(c.columna()).matches()) {
-            throw new IllegalStateException("Identificador SQL inválido en COLUMNAS: " + c.tabla() + "." + c.columna());
-        }
+        validarIdentificador(c.tabla());
+        validarIdentificador(c.columna());
         String valores = Arrays.stream(c.tipo().getEnumConstants())
                 .map(AlineadorDeRestriccionesEnum::literal)
                 .collect(Collectors.joining(","));

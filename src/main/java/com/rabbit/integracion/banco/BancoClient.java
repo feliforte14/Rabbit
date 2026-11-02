@@ -122,9 +122,13 @@ public class BancoClient implements IBancoClient {
     private static Service obtenerService() throws MalformedURLException {
         Service local = SERVICE_CACHE.get();
         if (local == null) {
-            Service creado = Service.create(new URL(WSDL_LOCATION), SERVICE_QNAME);
-            local = SERVICE_CACHE.compareAndSet(null, creado) ? creado : SERVICE_CACHE.get();
+            local = primeroEnGuardarse(SERVICE_CACHE, Service.create(new URL(WSDL_LOCATION), SERVICE_QNAME));
         }
         return local;
+    }
+
+    // Si dos hilos crearon el Service a la vez, todos usan el que se guardó primero.
+    static Service primeroEnGuardarse(AtomicReference<Service> cache, Service creado) {
+        return cache.compareAndSet(null, creado) ? creado : cache.get();
     }
 }

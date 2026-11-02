@@ -64,4 +64,18 @@ class AlineadorDeRestriccionesEnumTest {
         verify(tx, times(19)).rollback();
         verify(tx, times(0)).commit();
     }
+
+    private enum Valores { PENDIENTE, en_camino }
+
+    @Test
+    void soloAceptaIdentificadoresYValoresDeEnumSeguros() {
+        AlineadorDeRestriccionesEnum.validarIdentificador("pedidos_externos");
+        for (String malo : new String[] {"pedidos; DROP TABLE usuarios", "Pedidos", "1pedidos", "", "a b", "a'b", null}) {
+            org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                    () -> AlineadorDeRestriccionesEnum.validarIdentificador(malo), String.valueOf(malo));
+        }
+        assertEquals("'PENDIENTE'", AlineadorDeRestriccionesEnum.literal(Valores.PENDIENTE));
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class,
+                () -> AlineadorDeRestriccionesEnum.literal(Valores.en_camino));
+    }
 }
