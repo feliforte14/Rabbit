@@ -108,20 +108,29 @@ jobs:
             echo "Sin NVD_API_KEY: Dependency-Check no corre (sin la clave, bajar la base del NVD tarda demasiado)." | tee -a "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
+          mkdir -p target
           set +e
           timeout --signal=INT --kill-after=60s "${MINUTOS_NVD}m" \
             mvn -B -ntp org.owasp:dependency-check-maven:13.0.0:check \
               -DnvdApiKey="$NVD_API_KEY" -DdataDirectory="$HOME/.dependency-check-data" \
               -DossindexAnalyzerEnabled=false \
               -DskipTestScope=true -DfailBuildOnCVSS=7 \
-              -Dformats=HTML,JSON -DoutputDirectory=target/dependency-check
-          codigo=$?
+              -Dformats=HTML,JSON 2>&1 | tee target/dependency-check.log
+          codigo=${PIPESTATUS[0]}
           set -e
-          if [ "$codigo" -eq 124 ] || [ "$codigo" -eq 137 ]; then
-            mensaje="Dependency-Check: la base del NVD no terminó de bajar en ${MINUTOS_NVD} minutos (API del NVD lenta). No se analizó; OSV-Scanner sí revisó las dependencias. La corrida semanal o una manual (Actions > Seguridad > Run workflow) arma la base en la caché."
-            echo "::warning title=Dependency-Check::$mensaje"
-            echo "$mensaje" >> "$GITHUB_STEP_SUMMARY"
+          sin_nvd() {
+            echo "::warning title=Dependency-Check::$1"
+            echo "$1" >> "$GITHUB_STEP_SUMMARY"
             exit 0
+          }
+          if [ "$codigo" -eq 124 ] || [ "$codigo" -eq 137 ]; then
+            sin_nvd "Dependency-Check: la base del NVD no terminó de bajar en ${MINUTOS_NVD} minutos (API del NVD lenta). No se analizó con la base completa; OSV-Scanner sí revisó las dependencias. La corrida semanal o una manual (Actions > Seguridad > Run workflow) arma la base en la caché."
+          fi
+          # La API del NVD caída (503 después de los reintentos) no es una
+          # vulnerabilidad: mismo trato que el corte por tiempo, y la base a medio
+          # actualizar no se guarda.
+          if [ "$codigo" -ne 0 ] && grep -q "Error updating the NVD Data" target/dependency-check.log; then
+            sin_nvd "Dependency-Check: la API del NVD no respondió ($(grep -o 'NVD Returned Status Code: [0-9]*' target/dependency-check.log | tail -1)). No se analizó con la base completa; OSV-Scanner sí revisó las dependencias."
           fi
           echo "base_completa=true" >> "$GITHUB_OUTPUT"
           exit "$codigo"
@@ -138,7 +147,8 @@ jobs:
           path: |
             target/osv.json
             target/osv.md
-            target/dependency-check/
+            target/dependency-check-report.*
+            target/dependency-check.log
           retention-days: 14
 
   imagen:
