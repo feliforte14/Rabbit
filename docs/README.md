@@ -72,6 +72,7 @@ docs/
 ### [seguridad/](seguridad/)
 
 - [SEGURIDAD.md](seguridad/SEGURIDAD.md): Autenticación, roles, `@RolesAllowed`, operaciones sensibles, límite de intentos de login y HTTPS
+- [INFORME-SEGURIDAD.md](seguridad/INFORME-SEGURIDAD.md): Matriz del Eje D (CUMPLE / NO CUMPLE / NO VERIFICABLE) con evidencia, hallazgos y alertas justificadas
 
 ### [pruebas/](pruebas/)
 
