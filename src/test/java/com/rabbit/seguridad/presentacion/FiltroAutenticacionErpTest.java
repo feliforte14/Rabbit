@@ -57,9 +57,8 @@ class FiltroAutenticacionErpTest {
             @Override public Clock withZone(java.time.ZoneId zona) { return this; }
             @Override public Instant instant() { return ahora; }
         });
-        var campo = FiltroAutenticacionErp.class.getDeclaredField("limite");
-        campo.setAccessible(true);
-        campo.set(filtro, limite);
+        // Lo mismo que hace CDI: inyectar por el método inicializador.
+        filtro.usarLimiteDeIntentos(limite);
         when(response.getWriter()).thenReturn(new PrintWriter(cuerpo, true));
         when(request.getRemoteAddr()).thenReturn("10.0.0.9");
         doThrow(new ServletException("incorrecta")).when(request).login(anyString(), anyString());
