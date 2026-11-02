@@ -437,7 +437,7 @@ public class RuteoService implements IRuteo {
                         pedidos.consultarEstadoPedido(idPedido).getMotivoEspera()
                                 + ". Se asigna solo en cuanto se pueda.");
             }
-            RepartidorDTO asignado = idRepartidor != null ? despacho.repartidores.get(idRepartidor) : null;
+            RepartidorDTO asignado = despacho.repartidores.get(idRepartidor);
             if (asignado != null) {
                 asignado.sumar(idPedido, pedido.getPesoKg(), pedido.getCantidadTotal());
             }

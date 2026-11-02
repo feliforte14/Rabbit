@@ -191,8 +191,8 @@
                                  pt:inputmode="numeric" pt:pattern="[0-9]{4}" pt:required="required" pt:placeholder="4 dígitos" />
                     <p class="ayuda">Pedile a quien recibe el código de 4 dígitos que le llegó por mail. Sin el código correcto no se puede registrar la entrega.</p>
                 </div>
-                <h:inputHidden id="latitud" value="#{misEntregasBean.latitudEntrega}" />
-                <h:inputHidden id="longitud" value="#{misEntregasBean.longitudEntrega}" />
+                <h:inputHidden id="latitudEntrega" value="#{misEntregasBean.latitudEntrega}" />
+                <h:inputHidden id="longitudEntrega" value="#{misEntregasBean.longitudEntrega}" />
                 <h:inputHidden id="precision" value="#{misEntregasBean.precisionEntrega}" />
                 <p class="ayuda" id="ubicacionEntrega" aria-live="polite"></p>
                 <div class="form-acciones">
@@ -211,10 +211,10 @@
         <dialog id="dialogoDevolucion" class="dialogo" aria-labelledby="dialogoDevolucionTitulo">
             <h:form id="formDevolucion" enctype="multipart/form-data" styleClass="formulario">
                 <h2 id="dialogoDevolucionTitulo">Devolver el pedido <span data-numero-pedido=""></span></h2>
-                <h:inputHidden id="pedido" value="#{misEntregasBean.idPedidoADevolver}" />
-                <h:inputHidden id="latitud" value="#{misEntregasBean.latitudVisita}" />
-                <h:inputHidden id="longitud" value="#{misEntregasBean.longitudVisita}" />
-                <h:inputHidden id="precision" value="#{misEntregasBean.precisionVisita}" />
+                <h:inputHidden id="pedidoDevolucion" value="#{misEntregasBean.idPedidoADevolver}" />
+                <h:inputHidden id="latitudVisita" value="#{misEntregasBean.latitudVisita}" />
+                <h:inputHidden id="longitudVisita" value="#{misEntregasBean.longitudVisita}" />
+                <h:inputHidden id="precisionVisita" value="#{misEntregasBean.precisionVisita}" />
                 <div class="campo">
                     <h:outputLabel styleClass="obligatorio" for="motivo" value="¿Qué pasó?" />
                     <h:selectOneMenu id="motivo" value="#{misEntregasBean.motivoDevolucion}" pt:required="required">
@@ -277,7 +277,7 @@
                 });
                 document.querySelectorAll('[data-devolver]').forEach(function (boton) {
                     boton.addEventListener('click', function () {
-                        abrir('dialogoDevolucion', 'formDevolucion:pedido', boton.getAttribute('data-devolver'));
+                        abrir('dialogoDevolucion', 'formDevolucion:pedidoDevolucion', boton.getAttribute('data-devolver'));
                         // entrega-fallida.js: toma la ubicacion y arma las ayudas.
                         document.dispatchEvent(new CustomEvent('rabbit:entrega-fallida', { detail: {
                             enCamino: boton.getAttribute('data-en-camino') === 'true',

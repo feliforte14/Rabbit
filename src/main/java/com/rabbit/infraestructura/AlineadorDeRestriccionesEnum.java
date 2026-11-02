@@ -60,6 +60,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -72,6 +73,10 @@ public class AlineadorDeRestriccionesEnum {
     // Tabla y columna tal como quedan en PostgreSQL (sin comillas, en
     // minúsculas: medioPago -> mediopago) y el enum que las respalda.
     private record ColumnaEnum(String tabla, String columna, Class<? extends Enum<?>> tipo) {}
+
+    // Lo único que puede llegar a una sentencia armada con texto (ver alinear).
+    private static final Pattern IDENTIFICADOR = Pattern.compile("[a-z][a-z0-9_]*");
+    private static final Pattern VALOR_ENUM = Pattern.compile("[A-Z][A-Z0-9_]*");
 
     private static final List<ColumnaEnum> COLUMNAS = List.of(
             new ColumnaEnum("pedidos", "estado", EstadoPedido.class),
@@ -106,18 +111,30 @@ public class AlineadorDeRestriccionesEnum {
         LOG.info("[Esquema] Restricciones CHECK de columnas enum alineadas: " + ok + "/" + COLUMNAS.size());
     }
 
+    private static String literal(Enum<?> valor) {
+        if (!VALOR_ENUM.matcher(valor.name()).matches()) {
+            throw new IllegalStateException("Constante de enum inválida: " + valor.name());
+        }
+        return "'" + valor.name() + "'";
+    }
+
     private boolean alinear(ColumnaEnum c) {
         // Mismo nombre que le pone PostgreSQL al CHECK que genera Hibernate.
         String restriccion = c.tabla() + "_" + c.columna() + "_check";
+        // Un identificador SQL no se puede pasar como parámetro. Salen de la lista fija COLUMNAS y de los
+        // nombres de las constantes de un enum del código, nunca de un dato de usuario; igual se validan.
+        if (!IDENTIFICADOR.matcher(c.tabla()).matches() || !IDENTIFICADOR.matcher(c.columna()).matches()) {
+            throw new IllegalStateException("Identificador SQL inválido en COLUMNAS: " + c.tabla() + "." + c.columna());
+        }
         String valores = Arrays.stream(c.tipo().getEnumConstants())
-                .map(v -> "'" + v.name() + "'")
+                .map(AlineadorDeRestriccionesEnum::literal)
                 .collect(Collectors.joining(","));
         try {
             tx.begin();
             em.joinTransaction();
-            em.createNativeQuery("ALTER TABLE " + c.tabla() + " DROP CONSTRAINT IF EXISTS " + restriccion)
+            em.createNativeQuery("ALTER TABLE " + c.tabla() + " DROP CONSTRAINT IF EXISTS " + restriccion) // NOSONAR: identificadores fijos y validados (ver arriba)
                     .executeUpdate();
-            em.createNativeQuery("ALTER TABLE " + c.tabla() + " ADD CONSTRAINT " + restriccion
+            em.createNativeQuery("ALTER TABLE " + c.tabla() + " ADD CONSTRAINT " + restriccion // NOSONAR: identificadores fijos y validados (ver arriba)
                     + " CHECK (" + c.columna() + " IN (" + valores + "))")
                     .executeUpdate();
             tx.commit();

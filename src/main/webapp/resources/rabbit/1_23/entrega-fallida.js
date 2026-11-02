@@ -74,18 +74,18 @@
     }
 
     function tomarUbicacion() {
-        campo('latitud').value = '';
-        campo('longitud').value = '';
-        campo('precision').value = '';
+        campo('latitudVisita').value = '';
+        campo('longitudVisita').value = '';
+        campo('precisionVisita').value = '';
         if (!navigator.geolocation) {
             estadoUbicacion.textContent = 'Este navegador no da la ubicación: se usa la última que compartiste.';
             return;
         }
         estadoUbicacion.textContent = 'Tomando tu ubicación…';
         navigator.geolocation.getCurrentPosition(function (p) {
-            campo('latitud').value = p.coords.latitude.toFixed(6);
-            campo('longitud').value = p.coords.longitude.toFixed(6);
-            campo('precision').value = Math.round(p.coords.accuracy);
+            campo('latitudVisita').value = p.coords.latitude.toFixed(6);
+            campo('longitudVisita').value = p.coords.longitude.toFixed(6);
+            campo('precisionVisita').value = Math.round(p.coords.accuracy);
             estadoUbicacion.textContent = 'Ubicación tomada (±' + Math.round(p.coords.accuracy) + ' m). Queda como prueba de la visita.';
         }, function (error) {
             estadoUbicacion.textContent = error.code === error.PERMISSION_DENIED

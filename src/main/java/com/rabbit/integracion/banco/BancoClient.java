@@ -30,6 +30,7 @@ import jakarta.xml.ws.WebServiceException;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
@@ -55,7 +56,9 @@ public class BancoClient implements IBancoClient {
 
     // El WSDL se descarga y parsea una sola vez. Service.create no tiene
     // timeout propio: es el único punto que puede demorar más de TIMEOUT_MS.
-    private static volatile Service serviceCache;
+    // Sin synchronized (la especificación de EJB no lo permite): si dos hilos
+    // llegan a la vez, ambos crean el Service y gana el primero en guardarlo.
+    private static final AtomicReference<Service> SERVICE_CACHE = new AtomicReference<>();
 
     @Inject
     private CircuitBreakerBanco circuito;
@@ -117,15 +120,10 @@ public class BancoClient implements IBancoClient {
     }
 
     private static Service obtenerService() throws MalformedURLException {
-        Service local = serviceCache;
+        Service local = SERVICE_CACHE.get();
         if (local == null) {
-            synchronized (BancoClient.class) {
-                local = serviceCache;
-                if (local == null) {
-                    local = Service.create(new URL(WSDL_LOCATION), SERVICE_QNAME);
-                    serviceCache = local;
-                }
-            }
+            Service creado = Service.create(new URL(WSDL_LOCATION), SERVICE_QNAME);
+            local = SERVICE_CACHE.compareAndSet(null, creado) ? creado : SERVICE_CACHE.get();
         }
         return local;
     }

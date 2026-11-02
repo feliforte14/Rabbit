@@ -20,7 +20,9 @@ import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.datos.model.OrigenUbicacion;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 final class EvidenciaDeVisita {
 
@@ -36,6 +38,22 @@ final class EvidenciaDeVisita {
 
     /** Una foto ya validada. */
     record Foto(byte[] imagen, String tipo) {
+        // Un record compara los arrays por referencia: se compara el contenido.
+        @Override
+        public boolean equals(Object otro) {
+            return otro instanceof Foto f && Arrays.equals(imagen, f.imagen) && Objects.equals(tipo, f.tipo);
+        }
+
+        @Override
+        public int hashCode() {
+            return 31 * Arrays.hashCode(imagen) + Objects.hashCode(tipo);
+        }
+
+        // Sin los bytes: una foto no va a un log.
+        @Override
+        public String toString() {
+            return "Foto[" + (imagen == null ? 0 : imagen.length) + " bytes, " + tipo + "]";
+        }
     }
 
     /** Dónde estaba el repartidor. precisionMetros puede ser null. */

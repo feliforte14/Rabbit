@@ -238,6 +238,13 @@ public class PedidoRepository {
                 .setParameter("id", idComercio).getSingleResult();
     }
 
+    // Sentencias fijas, una por entidad: sin armar JPQL con texto.
+    private static final List<String> BORRADOS_DE_PEDIDO = List.of(
+            "DELETE FROM RemitoEntrega x WHERE x.idPedido IN :ids",
+            "DELETE FROM FotoIntentoEntrega x WHERE x.idPedido IN :ids",
+            "DELETE FROM IntentoEntrega x WHERE x.idPedido IN :ids",
+            "DELETE FROM CalificacionEntrega x WHERE x.idPedido IN :ids");
+
     /**
      * Borra los pedidos y los pedidos del ERP de un comercio que se elimina
      * (ver ComercioEliminado). Uno por uno con remove, no con un DELETE
@@ -250,8 +257,8 @@ public class PedidoRepository {
                 .setParameter("id", idComercio).getResultList();
         if (!pedidos.isEmpty()) {
             List<Long> ids = pedidos.stream().map(Pedido::getId).toList();
-            for (String entidad : List.of("RemitoEntrega", "FotoIntentoEntrega", "IntentoEntrega", "CalificacionEntrega")) {
-                em.createQuery("DELETE FROM " + entidad + " x WHERE x.idPedido IN :ids")
+            for (String borrado : BORRADOS_DE_PEDIDO) {
+                em.createQuery(borrado)
                         .setParameter("ids", ids)
                         .executeUpdate();
             }

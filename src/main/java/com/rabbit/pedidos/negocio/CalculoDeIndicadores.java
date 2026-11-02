@@ -18,6 +18,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -26,6 +27,9 @@ import java.util.Map;
 import java.util.TreeMap;
 
 final class CalculoDeIndicadores {
+
+    // Las fechas son LocalDateTime del servidor: se pasan a esa zona para medir la duración real.
+    private static final ZoneId ZONA = ZoneId.systemDefault();
 
     private CalculoDeIndicadores() {
     }
@@ -158,7 +162,7 @@ final class CalculoDeIndicadores {
         if (p.getFechaCreacion() == null || p.getFechaEntrega() == null) {
             return null;
         }
-        return Math.max(0, Duration.between(p.getFechaCreacion(), p.getFechaEntrega()).toMinutes());
+        return Math.max(0, Duration.between(p.getFechaCreacion().atZone(ZONA), p.getFechaEntrega().atZone(ZONA)).toMinutes());
     }
 
     private static BigDecimal horas(long minutos, long cantidad) {

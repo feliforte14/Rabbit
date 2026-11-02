@@ -52,6 +52,17 @@ class SimuladorDeEnviosTest {
         assertEquals(SimuladorDeEnvios.Estado.CANCELADO, simulador.estado(codigo));
     }
 
+    // El código viene de la URL: lo que se escribe en el log no puede traer saltos de línea ni ser larguísimo.
+    @Test
+    void elCodigoQueVaAlLogNoPuedeFalsearUnaLinea() {
+        assertEquals("PR-1_FALSO", SimuladorDeEnvios.paraLog("PR-1\nFALSO"));
+        assertEquals("a_b_c", SimuladorDeEnvios.paraLog("a\r\tb\u0000c").replace("__", "_"));
+        assertEquals("null", SimuladorDeEnvios.paraLog(null));
+        String largo = SimuladorDeEnvios.paraLog("x".repeat(500));
+        assertEquals(63, largo.length());
+        assertTrue(largo.endsWith("..."));
+    }
+
     // Hallazgo 1 de la revisión: lo entregado no se puede dar por cancelado.
     @Test
     void loEntregadoNoSeCancela() throws InterruptedException {

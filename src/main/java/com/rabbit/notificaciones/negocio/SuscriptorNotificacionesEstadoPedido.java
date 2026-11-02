@@ -23,6 +23,7 @@ import jakarta.jms.TextMessage;
 import jakarta.json.Json;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 import java.io.StringReader;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -52,8 +53,9 @@ public class SuscriptorNotificacionesEstadoPedido implements MessageListener {
                 LOG.severe("[Notificaciones][JMS] Mensaje de tipo inesperado: " + mensaje.getClass().getName());
                 return;
             }
-            try (StringReader reader = new StringReader(texto.getText())) {
-                json = Json.createReader(reader).readObject();
+            try (StringReader reader = new StringReader(texto.getText());
+                    JsonReader lector = Json.createReader(reader)) {
+                json = lector.readObject();
             }
             notificaciones.avisarCambioDeEstado(
                     json.getJsonNumber("idPedido").longValue(),
