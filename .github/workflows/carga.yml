@@ -47,7 +47,7 @@ jobs:
       - uses: ./.github/actions/levantar-rabbit
       - name: Instalar k6
         run: |
-          curl -fsSL --proto '=https' --tlsv1.2 https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-linux-amd64.tar.gz \
+          curl -fsSL --tlsv1.2 --proto =https https://github.com/grafana/k6/releases/download/v2.3.0/k6-v2.3.0-linux-amd64.tar.gz \
             | tar -xz --strip-components=1 -C /usr/local/bin k6-v2.3.0-linux-amd64/k6
       - name: k6
         env:

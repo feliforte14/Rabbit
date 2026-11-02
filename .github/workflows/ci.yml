@@ -109,7 +109,7 @@ jobs:
           fetch-depth: 0
       - name: Instalar gitleaks
         run: |
-          curl -fsSL --proto '=https' --tlsv1.2 "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+          curl -fsSL --tlsv1.2 --proto =https "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
             | tar -xz -C /usr/local/bin gitleaks
       - name: Escanear los commits nuevos
         env:

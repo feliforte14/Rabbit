@@ -43,7 +43,7 @@ jobs:
           cache: maven
       - name: Instalar OSV-Scanner
         run: |
-          curl -fsSL --proto '=https' --tlsv1.2 -o /usr/local/bin/osv-scanner \
+          curl -fsSL --tlsv1.2 --proto =https -o /usr/local/bin/osv-scanner \
             https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64
           chmod +x /usr/local/bin/osv-scanner
       - name: Dependencias que van en el WAR
