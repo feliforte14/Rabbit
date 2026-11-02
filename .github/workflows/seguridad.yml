@@ -181,10 +181,13 @@ jobs:
           # La carpeta es del usuario del contenedor de ZAP (uid 1000), sin escritura para todos.
           mkdir -p zap && sudo chown 1000:1000 zap
           # -I: los avisos (WARN) no cortan; un FAIL de .zap/reglas.tsv sí.
+          # El token anti-CSRF de JSF es el campo jakarta.faces.ViewState (aleatorio por
+          # vista, guardado en la sesión): se le avisa a ZAP para que lo reconozca.
           docker run --rm --network host -v "$PWD/zap:/zap/wrk:rw" -v "$PWD/.zap:/zap/conf:ro" \
             ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
             -t https://localhost:8443/Rabbit/ -c /zap/conf/reglas.tsv -I -j \
-            -r zap.html -w zap.md -J zap.json
+            -r zap.html -w zap.md -J zap.json \
+            -z "-config anticsrf.tokens.token(0).name=jakarta.faces.ViewState -config anticsrf.tokens.token(0).enabled=true"
       - name: Resumen
         if: always()
         run: |
@@ -201,6 +204,15 @@ jobs:
                   filas.append((a["riskcode"], f"| {riesgo.get(a['riskcode'], a['riskcode'])} | {a['alert']} | {a['count']} |"))
           filas.sort(reverse=True)
           md = "### ZAP baseline\n\n| Riesgo | Alerta | Instancias |\n|---|---|---|\n" + "\n".join(f for _, f in filas) + "\n"
+          # Dónde aparece cada alerta media o alta: hay que justificarlas una por una.
+          detalle = []
+          for sitio in datos.get("site", []):
+              for a in sitio.get("alerts", []):
+                  if a["riskcode"] in ("2", "3"):
+                      urls = sorted({i.get("uri", "") for i in a.get("instances", [])})
+                      detalle.append(f"- **{a['alert']}**: " + ", ".join(urls[:6]))
+          if detalle:
+              md += "\nAlertas medias o altas, por URL:\n\n" + "\n".join(detalle) + "\n"
           open(os.environ["GITHUB_STEP_SUMMARY"], "a").write(md); print(md)
           EOF
           docker compose down -v || true

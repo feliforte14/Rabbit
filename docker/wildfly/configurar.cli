@@ -39,7 +39,7 @@ data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --dr
 # Fuera de /Rabbit (los 404 de /robots.txt, /sitemap.xml, ...) también las
 # cabeceras de FiltroCabecerasDeSeguridad, con la CSP más cerrada: ahí no hay
 # nada que cargar. Dentro de /Rabbit las manda el filtro de la app.
-/subsystem=undertow/configuration=filter/response-header=csp-host:add(header-name=Content-Security-Policy, header-value="default-src 'none'; frame-ancestors 'none'")
+/subsystem=undertow/configuration=filter/response-header=csp-host:add(header-name=Content-Security-Policy, header-value="default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 /subsystem=undertow/configuration=filter/response-header=nosniff-host:add(header-name=X-Content-Type-Options, header-value=nosniff)
 /subsystem=undertow/configuration=filter/response-header=marcos-host:add(header-name=X-Frame-Options, header-value=DENY)
 /subsystem=undertow/configuration=filter/response-header=permisos-host:add(header-name=Permissions-Policy, header-value="camera=(), geolocation=(), microphone=()")
