@@ -310,6 +310,14 @@ jobs:
         run: |
           set -a; . ../.env; set +a
           node_modules/.bin/playwright test tests/flujos.spec.js
+      - name: Seguridad en el navegador (XSS, cookie de sesión)
+        if: ${{ !cancelled() }}
+        working-directory: e2e
+        env:
+          JUNIT: ../target/e2e/junit-seguridad.xml
+        run: |
+          set -a; . ../.env; set +a
+          node_modules/.bin/playwright test tests/seguridad.spec.js
       - name: Accesibilidad (axe) y responsive
         working-directory: e2e
         env:

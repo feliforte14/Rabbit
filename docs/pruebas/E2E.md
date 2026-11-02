@@ -25,7 +25,7 @@ todo lo demás se hace por la pantalla.
 
 ## Accesibilidad y responsive (bloquean el CI)
 
-- **axe-core** (WCAG 2.1 A y AA) sobre 8 pantallas: login, seguimiento,
+- **axe-core** (WCAG 2.2 A y AA, que incluye 2.0 y 2.1) sobre 8 pantallas: login, seguimiento,
   4 del personal y 2 del comercio. Se considera falla toda violación de
   impacto *serious* o *critical*.
 - **Responsive:** en cada una de esas pantallas, sin scroll horizontal a
@@ -43,7 +43,7 @@ Resultado del 29/10/2026:
 | personal/pedidos | **88** | 100 |
 | comercio/mis-pedidos | 95 | 96 |
 
-### Defectos encontrados (corregidos en la PR #15)
+### Defectos encontrados (A11Y-01 a 04 corregidos en la PR #15; A11Y-05 en la PR #17)
 
 | Id | Regla (impacto) | Dónde | Corrección |
 |---|---|---|---|
@@ -51,6 +51,18 @@ Resultado del 29/10/2026:
 | A11Y-02 | `label-content-name-mismatch` (serious) | Campana de notificaciones de la cabecera (6 pantallas) | El `aria-label` incluye el texto visible del botón |
 | A11Y-03 | `label` (critical) | `personal/pedidos.xhtml`, alta manual: campo "cantidad" de cada línea | Etiqueta accesible |
 | A11Y-04 | `select-name` (critical) | `personal/pedidos.xhtml`, alta manual: select de producto de cada línea | Etiqueta accesible |
+| A11Y-05 | `target-size` (serious, WCAG 2.2 · 2.5.8) | Menú lateral de 6 pantallas, en ventanas de hasta 740 px de alto: cada opción medía 23 px | `min-height: 24px` en `.sidebar-nav a` (`estilos.css`). Apareció al sumar las reglas de WCAG 2.2 a axe |
 
 Desde entonces axe y Lighthouse cortan el CI: una violación grave nueva o
 una pantalla debajo de 90 lo dejan en rojo.
+
+## Seguridad en el navegador (bloquean el CI)
+
+En [`e2e/tests/seguridad.spec.js`](../../e2e/tests/seguridad.spec.js), paso propio del job.
+
+| Id | Escenario |
+|---|---|
+| SEG-1 | Un pedido del ERP con HTML en la dirección y en el nombre de quien recibe se muestra como texto en el portal del comercio: no corre ningún script ni aparece ningún diálogo. |
+| SEG-2 | El `mapa.js` desplegado muestra como texto el título de un punto con HTML (nombre de un repartidor o descripción de un depósito). Falla con el `mapa.js` anterior: era un XSS (defecto SEG-01, corregido en la PR #17). |
+| SEG-3 | La cookie de sesión es `Secure`, `HttpOnly` y `SameSite=Lax`, JavaScript no la lee, y después del logout la misma cookie no entra desde otro navegador. |
+| SEG-4 | Con la sesión vencida, un botón de la página abierta lleva al login y no a la página de error (defecto SES-01, corregido en la PR #17). |
