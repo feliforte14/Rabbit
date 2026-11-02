@@ -20,17 +20,21 @@ package com.rabbit.notificaciones.negocio;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 
 final class AvisosDeFalla {
 
     // La fecha viaja por JMS y la base puede recortar los nanosegundos.
     private static final Duration TOLERANCIA = Duration.ofMillis(1);
 
+    // Las fechas son LocalDateTime del servidor: se pasan a esa zona para medir la duración real.
+    private static final ZoneId ZONA = ZoneId.systemDefault();
+
     private AvisosDeFalla() {
     }
 
     static boolean esDeLaFalla(LocalDateTime fechaCambio, LocalDateTime fechaUltimaFalla) {
         return fechaCambio != null && fechaUltimaFalla != null
-                && Duration.between(fechaUltimaFalla, fechaCambio).abs().compareTo(TOLERANCIA) <= 0;
+                && Duration.between(fechaUltimaFalla.atZone(ZONA), fechaCambio.atZone(ZONA)).abs().compareTo(TOLERANCIA) <= 0;
     }
 }

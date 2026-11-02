@@ -108,4 +108,15 @@ class BancoClientTest {
         assertFalse(cliente.reversar("AUT-123"));
         verify(banco, never()).reversarPago(anyString());
     }
+
+    @org.junit.jupiter.api.Test
+    void siDosHilosCreanElServiceGanaElPrimeroEnGuardarse() {
+        var cache = new java.util.concurrent.atomic.AtomicReference<jakarta.xml.ws.Service>();
+        jakarta.xml.ws.Service primero = mock(jakarta.xml.ws.Service.class);
+        jakarta.xml.ws.Service segundo = mock(jakarta.xml.ws.Service.class);
+
+        org.junit.jupiter.api.Assertions.assertSame(primero, BancoClient.primeroEnGuardarse(cache, primero));
+        org.junit.jupiter.api.Assertions.assertSame(primero, BancoClient.primeroEnGuardarse(cache, segundo));
+        org.junit.jupiter.api.Assertions.assertSame(primero, cache.get());
+    }
 }

@@ -86,4 +86,19 @@ class EvidenciaDeVisitaTest {
         // Sin precisión informada, la del celular sirve igual.
         assertNotNull(EvidenciaDeVisita.ubicacion(-34.6, -58.4, null, null, null, null, AHORA));
     }
+
+    // Un record compara los arrays por referencia: dos fotos con los mismos bytes tienen que ser iguales.
+    @Test
+    void dosFotosConLosMismosBytesSonIguales() {
+        EvidenciaDeVisita.Foto a = new EvidenciaDeVisita.Foto(new byte[] {1, 2, 3}, "image/jpeg");
+        EvidenciaDeVisita.Foto b = new EvidenciaDeVisita.Foto(new byte[] {1, 2, 3}, "image/jpeg");
+        EvidenciaDeVisita.Foto otra = new EvidenciaDeVisita.Foto(new byte[] {1, 2, 4}, "image/jpeg");
+
+        assertEquals(a, b);
+        assertEquals(a.hashCode(), b.hashCode());
+        assertNotEquals(a, otra);
+        assertNotEquals(a, new EvidenciaDeVisita.Foto(new byte[] {1, 2, 3}, "image/png"));
+        // El texto no lleva los bytes de la foto: solo su tamaño.
+        assertEquals("Foto[3 bytes, image/jpeg]", a.toString());
+    }
 }

@@ -57,6 +57,7 @@ import jakarta.jms.TextMessage;
 import jakarta.json.Json;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 
 import java.io.StringReader;
 import java.util.logging.Level;
@@ -124,8 +125,9 @@ public class PedidoExternoListener implements MessageListener {
                         + mensaje.getClass().getName());
                 return null;
             }
-            try (StringReader reader = new StringReader(texto.getText())) {
-                JsonObject json = Json.createReader(reader).readObject();
+            try (StringReader reader = new StringReader(texto.getText());
+                    JsonReader lector = Json.createReader(reader)) {
+                JsonObject json = lector.readObject();
                 return json.getJsonNumber("idPedidoExterno").longValue();
             }
         } catch (JMSException | JsonException | ClassCastException | NullPointerException e) {

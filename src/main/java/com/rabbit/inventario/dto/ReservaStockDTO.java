@@ -10,7 +10,8 @@ package com.rabbit.inventario.dto;
 
 import com.rabbit.inventario.datos.model.ReservaStock;
 import java.time.Duration;
-import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 
 public class ReservaStockDTO {
@@ -59,7 +60,7 @@ public class ReservaStockDTO {
 
         if (r.getFechaExpiracion() != null) {
             dto.fechaExpiracion = r.getFechaExpiracion().format(HORA);
-            long segundos = Duration.between(LocalDateTime.now(), r.getFechaExpiracion()).getSeconds();
+            long segundos = Duration.between(ZonedDateTime.now(), r.getFechaExpiracion().atZone(ZoneId.systemDefault())).getSeconds();
             dto.segundosRestantes = Math.max(segundos, 0);
         }
         return dto;

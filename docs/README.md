@@ -35,6 +35,7 @@ docs/
 ├── integraciones/   ← mensajería con otros sistemas y contrato de la API
 ├── seguridad/       ← autenticación, roles, protección de la API y cómo se prueba (PRUEBAS-DE-SEGURIDAD.md)
 ├── pruebas/         ← recorrido de prueba, comandos y colección de Postman
+├── testing/         ← entregables de la prueba del sistema: plan, matriz, casos, informe, defectos y lecciones
 └── consigna/        ← cumplimiento de la consigna, desafíos y uso de IA
 ```
 
@@ -94,6 +95,11 @@ docs/
 - [CONTRATO.md](pruebas/CONTRATO.md): Pruebas de contrato del CI: la API REST contra `openapi.yaml` (Schemathesis) y los servicios SOAP contra sus WSDL
 - [E2E.md](pruebas/E2E.md): Pruebas de punta a punta (Playwright), accesibilidad (axe) y Lighthouse, con el código en `e2e/`
 - [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json): Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos, más una carpeta automatizada de contrato y seguridad (64 requests)
+
+### [testing/](testing/)
+
+- [README.md](testing/README.md): Los entregables de la prueba del sistema (Clase 15) y el estado de cada uno
+- [PLAN-DE-PRUEBAS.md](testing/PLAN-DE-PRUEBAS.md), [MATRIZ-DE-TRAZABILIDAD.md](testing/MATRIZ-DE-TRAZABILIDAD.md), [ESPECIFICACION-DE-CASOS.md](testing/ESPECIFICACION-DE-CASOS.md), [INFORME-DE-EJECUCION.md](testing/INFORME-DE-EJECUCION.md), [REGISTRO-DE-DEFECTOS.md](testing/REGISTRO-DE-DEFECTOS.md) y [LECCIONES-APRENDIDAS.md](testing/LECCIONES-APRENDIDAS.md)
 
 ### [consigna/](consigna/)
 

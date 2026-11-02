@@ -102,15 +102,24 @@ final class SimuladorDeEnvios {
             return ResultadoCancelacion.INEXISTENTE;
         }
         if (estado == Estado.ENTREGADO) {
-            LOG.warning("[" + nombre + "] Envío " + codigo + " ya entregado: no se puede cancelar");
+            LOG.warning("[" + nombre + "] Envío " + paraLog(codigo) + " ya entregado: no se puede cancelar");
             return ResultadoCancelacion.YA_ENTREGADO;
         }
         if (estado != Estado.CANCELADO) {
             Envio envio = envios.get(codigo);
             envios.put(codigo, new Envio(envio.referencia(), envio.creado(), true));
-            LOG.info("[" + nombre + "] Envío " + codigo + " cancelado (" + envio.referencia() + ")");
+            LOG.info("[" + nombre + "] Envío " + paraLog(codigo) + " cancelado (" + paraLog(envio.referencia()) + ")");
         }
         return ResultadoCancelacion.CANCELADO;
+    }
+
+    // El código viene de la URL: sin saltos de línea ni caracteres de control no puede falsear una línea del log.
+    static String paraLog(String texto) {
+        if (texto == null) {
+            return "null";
+        }
+        String limpio = texto.replaceAll("\\p{Cntrl}", "_");
+        return limpio.length() > 60 ? limpio.substring(0, 60) + "..." : limpio;
     }
 
     private static long segundosPorPaso() {

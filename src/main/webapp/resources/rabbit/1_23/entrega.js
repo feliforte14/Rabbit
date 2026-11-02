@@ -16,15 +16,15 @@
     }
 
     function tomarUbicacion() {
-        ['latitud', 'longitud', 'precision'].forEach(function (n) { if (campo(n)) { campo(n).value = ''; } });
+        ['latitudEntrega', 'longitudEntrega', 'precision'].forEach(function (n) { if (campo(n)) { campo(n).value = ''; } });
         if (!navigator.geolocation) {
             aviso('Este navegador no puede dar la ubicación: la entrega se registra sin ella.');
             return;
         }
         aviso('Tomando tu ubicación…');
         navigator.geolocation.getCurrentPosition(function (p) {
-            campo('latitud').value = p.coords.latitude.toFixed(6);
-            campo('longitud').value = p.coords.longitude.toFixed(6);
+            campo('latitudEntrega').value = p.coords.latitude.toFixed(6);
+            campo('longitudEntrega').value = p.coords.longitude.toFixed(6);
             campo('precision').value = Math.round(p.coords.accuracy);
             aviso('Ubicación tomada (precisión de unos ' + Math.round(p.coords.accuracy) + ' m): queda guardada con la entrega.');
         }, function () {
