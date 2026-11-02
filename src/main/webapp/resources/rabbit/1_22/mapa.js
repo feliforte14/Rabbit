@@ -19,6 +19,15 @@ var RabbitMapa = (function () {
         }
     }
 
+    // Leaflet pone un string de bindTooltip/bindPopup como HTML (innerHTML):
+    // con un nombre como "<img src=x onerror=...>" se ejecutaria. Un nodo de
+    // texto se muestra tal cual.
+    function texto(valor) {
+        var span = document.createElement('span');
+        span.textContent = valor || '';
+        return span;
+    }
+
     function popup(punto) {
         var caja = document.createElement('div');
         var titulo = document.createElement('strong');
@@ -54,7 +63,7 @@ var RabbitMapa = (function () {
         lista.forEach(function (p) {
             L.circleMarker([p.lat, p.lng], {
                 radius: 9, weight: 3, color: '#ffffff', fillColor: p.color || '#c2410c', fillOpacity: 1
-            }).bindPopup(popup(p)).bindTooltip(p.titulo || '').addTo(capa);
+            }).bindPopup(popup(p)).bindTooltip(texto(p.titulo)).addTo(capa);
             limites.push([p.lat, p.lng]);
         });
         // Solo la primera vez: despues no se le mueve el mapa a quien lo esta mirando.
