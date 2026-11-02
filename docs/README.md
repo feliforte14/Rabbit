@@ -33,7 +33,7 @@ docs/
 ├── pdf/             ← los PDF que se entregan (y el script que los genera)
 ├── arquitectura/    ← cómo está construido Rabbit y por qué
 ├── integraciones/   ← mensajería con otros sistemas y contrato de la API
-├── seguridad/       ← autenticación, roles y protección de la API
+├── seguridad/       ← autenticación, roles, protección de la API y cómo se prueba (PRUEBAS-DE-SEGURIDAD.md)
 ├── pruebas/         ← recorrido de prueba, comandos y colección de Postman
 └── consigna/        ← cumplimiento de la consigna, desafíos y uso de IA
 ```

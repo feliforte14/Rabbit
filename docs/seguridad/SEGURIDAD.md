@@ -1,5 +1,8 @@
 # Seguridad
 
+> Cómo se comprueba todo esto (estado de la matriz SEC, las pruebas del eje D y los comandos para
+> repetirlas en una máquina propia): [PRUEBAS-DE-SEGURIDAD.md](PRUEBAS-DE-SEGURIDAD.md).
+
 ## Autenticación
 
 - El login (`request.login`) lo valida WildFly con el dominio
