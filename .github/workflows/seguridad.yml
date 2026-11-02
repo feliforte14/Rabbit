@@ -33,7 +33,11 @@ jobs:
   dependencias:
     name: Dependencias (OSV + Dependency-Check)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # La primera corrida de Dependency-Check baja la base entera del NVD (más de
+    # 20 minutos); después la caché de abajo la deja en un par de minutos.
+    timeout-minutes: 45
+    env:
+      HAY_NVD: ${{ secrets.NVD_API_KEY != '' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -76,6 +80,16 @@ jobs:
           if filas:
               print(f"::warning title=OSV::{len(filas)} vulnerabilidades en dependencias de test (no van en el WAR)")
           EOF
+      # La base del NVD queda en caché entre corridas: cada una restaura la última
+      # y solo baja lo que cambió. Se guarda aunque Dependency-Check corte por una
+      # vulnerabilidad (si no, la próxima la bajaría entera de nuevo).
+      - name: Restaurar la base del NVD
+        if: env.HAY_NVD == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.dependency-check-data
+          key: nvd-${{ runner.os }}-${{ github.run_id }}
+          restore-keys: nvd-${{ runner.os }}-
       - name: Dependency-Check (OWASP)
         env:
           NVD_API_KEY: ${{ secrets.NVD_API_KEY }}
@@ -85,8 +99,16 @@ jobs:
             exit 0
           fi
           mvn -B -ntp org.owasp:dependency-check-maven:13.0.0:check \
-            -DnvdApiKey="$NVD_API_KEY" -DskipTestScope=true -DfailBuildOnCVSS=7 \
+            -DnvdApiKey="$NVD_API_KEY" -DdataDirectory="$HOME/.dependency-check-data" \
+            -DossindexAnalyzerEnabled=false \
+            -DskipTestScope=true -DfailBuildOnCVSS=7 \
             -Dformats=HTML,JSON -DoutputDirectory=target/dependency-check
+      - name: Guardar la base del NVD
+        if: always() && env.HAY_NVD == 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.dependency-check-data
+          key: nvd-${{ runner.os }}-${{ github.run_id }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
