@@ -107,7 +107,8 @@ public class BancoClient implements IBancoClient {
         }
     }
 
-    private BancoLegadoService puerto() throws MalformedURLException {
+    // Package-private para que el test la reemplace por un doble del banco.
+    BancoLegadoService puerto() throws MalformedURLException {
         BancoLegadoService port = obtenerService().getPort(PORT_QNAME, BancoLegadoService.class);
         BindingProvider bp = (BindingProvider) port;
         bp.getRequestContext().put("jakarta.xml.ws.client.connectionTimeout", TIMEOUT_MS);

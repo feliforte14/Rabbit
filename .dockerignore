@@ -1,0 +1,8 @@
+target/
+target */
+.git/
+.env
+docs/
+node_modules/
+*.class
+.DS_Store

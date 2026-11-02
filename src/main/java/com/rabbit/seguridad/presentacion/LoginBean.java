@@ -54,6 +54,9 @@ public class LoginBean implements Serializable {
         java.time.Duration espera = limite.esperaPara(username);
         if (!espera.isZero()) {
             long minutos = Math.max(1, (espera.getSeconds() + 59) / 60);
+            // 429 Too Many Requests: la pantalla igual se muestra con el aviso.
+            facesContext.getExternalContext().setResponseStatus(429);
+            facesContext.getExternalContext().setResponseHeader("Retry-After", String.valueOf(espera.getSeconds() + 1));
             Mensajes.error("Demasiados intentos fallidos. Probá de nuevo en " + minutos
                     + (minutos == 1 ? " minuto." : " minutos."));
             return;

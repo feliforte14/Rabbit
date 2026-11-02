@@ -1,0 +1,6 @@
+# Falsos positivos de gitleaks, uno por línea: <commit>:<archivo>:<regla>:<línea>.
+# Cada uno, con el motivo; un secreto real se rota, no se agrega acá.
+
+# README: "con la contraseña `ADMIN_PASSWORD`" nombra la variable del .env, no
+# es un valor. La redacción se cambió en el commit siguiente.
+8fb123a662d74dda6502a52716cdff72ce6327dc:README.md:rabbit-contrasena-en-tabla:316
