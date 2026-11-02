@@ -187,6 +187,63 @@ class ApiRestIT {
                 .body("$", not(hasKey("importe")));
     }
 
+    /**
+     * Eje D, mass assignment: los campos que el ERP no puede fijar (comercio, estado, resultado, id) se
+     * ignoran; el pedido queda del comercio de la cuenta y empieza como cualquier alta.
+     */
+    @Test
+    void losCamposNoPermitidosEnElCuerpoSeIgnoran() {
+        Map<String, Object> cuerpo = new java.util.HashMap<>(pedido(1500));
+        cuerpo.put("idComercio", 999999);
+        cuerpo.put("idPedidoExterno", 1);
+        cuerpo.put("resultado", "Sincronizado");
+        cuerpo.put("estadoPedido", "ENTREGADO");
+        cuerpo.put("idPedido", 1);
+
+        Response r = alta(cuerpo, UUID.randomUUID().toString());
+
+        r.then().statusCode(201).body("estadoPedido", anyOf(nullValue(), equalTo("PENDIENTE")));
+        int id = r.path("idPedidoExterno");
+        erp().get("/pedidos-externos/" + id).then().statusCode(200)
+                .body("estadoPedido", anyOf(nullValue(), equalTo("PENDIENTE")));
+    }
+
+    /** Eje C: cancelar con un ETag desactualizado es 412 y no cancela; con el actual, cancela. */
+    @Test
+    void cancelarConUnETagDesactualizadoEs412() {
+        int id = alta(pedido(1500), UUID.randomUUID().toString()).then().statusCode(201).extract().path("idPedidoExterno");
+
+        erp().header("If-Match", "\"no-es-el-actual\"").post("/pedidos-externos/" + id + "/cancelacion").then()
+                .statusCode(412).contentType(startsWith(PROBLEMA))
+                .body("type", equalTo("/problemas/pedido-modificado"))
+                .header("ETag", notNullValue());
+
+        String actual = erp().get("/pedidos-externos/" + id).then().statusCode(200).extract().header("ETag");
+        erp().header("If-None-Match", actual).get("/pedidos-externos/" + id).then().statusCode(304);
+        erp().header("If-Match", actual).post("/pedidos-externos/" + id + "/cancelacion").then().statusCode(200);
+    }
+
+    /** Eje D, inyección: un código de seguimiento con SQL o HTML no rompe nada (4xx, nunca 500). */
+    @Test
+    void unCodigoDeSeguimientoConInyeccionNoRompeNada() {
+        for (String codigo : new String[] {"' OR '1'='1", "RB-1' OR 1=1--", "<script>alert(1)</script>"}) {
+            int status = given().urlEncodingEnabled(true).get("/seguimiento/{codigo}", codigo)
+                    .then().extract().statusCode();
+            assertTrue(status >= 400 && status < 500, codigo + " respondió " + status);
+        }
+    }
+
+    /** Eje D, inyección: SQL y HTML en un campo de texto se guardan como texto, sin ejecutarse. */
+    @Test
+    void unaDireccionConSqlYHtmlSeGuardaComoTexto() {
+        Map<String, Object> cuerpo = new java.util.HashMap<>(pedido(1500));
+        cuerpo.put("direccionEntrega", "[TEST] Calle 1'; DROP TABLE pedidos;-- <script>alert(1)</script>");
+
+        alta(cuerpo, UUID.randomUUID().toString()).then().statusCode(201);
+        // La tabla sigue ahí: otra alta funciona.
+        alta(pedido(1500), UUID.randomUUID().toString()).then().statusCode(201);
+    }
+
     @Test
     void urlInexistenteEs404EnProblemDetails() {
         given().get("/no-existe").then().statusCode(404).contentType(startsWith(PROBLEMA));
