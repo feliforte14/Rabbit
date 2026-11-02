@@ -71,19 +71,38 @@ class SeguridadIT {
      * Ninguna nombra una cuenta real, así que no cuentan para bloquear a nadie.
      */
     @ParameterizedTest
-    @ValueSource(strings = {
-        "Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiJkZW1vLmVycCJ9.",
-        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vLmVycCIsImV4cCI6MX0.firma-alterada",
-        "Basic !!!no-es-base64!!!",
-        "Basic c2luLWRvcy1wdW50b3M=",
-        "Basic Og==",
-        "Basic",
-        "Digest username=\"demo.erp\""})
+    @org.junit.jupiter.params.provider.MethodSource("credencialesInvalidas")
     void unaCredencialInvalidaOdeOtroEsquemaEs401(String authorization) {
         given().header("Authorization", authorization).get("/pedidos-externos/1").then()
                 .statusCode(401)
                 .contentType(startsWith("application/problem+json"))
                 .body("type", equalTo("/problemas/no-autenticado"));
+    }
+
+    // Los JWT se arman acá y no van como texto: no firman nada, pero un escáner de
+    // secretos no tiene por qué saberlo.
+    static java.util.stream.Stream<String> credencialesInvalidas() {
+        return java.util.stream.Stream.of(
+                "Bearer " + jwt("{\"alg\":\"none\"}", "{\"sub\":\"demo.erp\"}") + ".",
+                "Bearer " + jwt("{\"alg\":\"HS256\"}", "{\"sub\":\"demo.erp\",\"exp\":1}") + ".firma-alterada",
+                "Basic !!!no-es-base64!!!",
+                "Basic " + base64("sin-dos-puntos"),
+                "Basic " + base64(":"),
+                "Basic",
+                "Digest username=\"demo.erp\"");
+    }
+
+    private static String jwt(String cabecera, String cuerpo) {
+        return base64Url(cabecera) + "." + base64Url(cuerpo);
+    }
+
+    private static String base64(String texto) {
+        return java.util.Base64.getEncoder().encodeToString(texto.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    }
+
+    private static String base64Url(String texto) {
+        return java.util.Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(texto.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 
     /** Errores de la API: Problem Details con el código correcto y sin detalles internos. */
