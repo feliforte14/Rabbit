@@ -47,8 +47,15 @@ public class FiltroAutenticacionErp implements Filter {
     static final String DESAFIO = "Basic realm=\"ApplicationRealm\", charset=\"UTF-8\"";
     static final int DEMASIADOS_INTENTOS = 429;
 
-    @Inject
     private LimiteDeIntentos limite;
+
+    // Inyección por método inicializador y no por constructor: el contenedor
+    // de servlets crea el filtro con el constructor sin argumentos, y Weld
+    // inyecta después los campos y los métodos @Inject.
+    @Inject
+    void usarLimiteDeIntentos(LimiteDeIntentos limite) {
+        this.limite = limite;
+    }
 
     record Credenciales(String usuario, String clave) {}
 
