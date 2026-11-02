@@ -175,6 +175,11 @@
                     <targetTests>
                         <param>com.rabbit.*</param>
                     </targetTests>
+                    <!-- Los *IT necesitan la app levantada (perfil integracion): sin servidor fallan
+                         y PIT, que exige una suite en verde antes de mutar, no arranca. -->
+                    <excludedTestClasses>
+                        <param>com.rabbit.**.*IT</param>
+                    </excludedTestClasses>
                     <threads>4</threads>
                     <timestampedReports>false</timestampedReports>
                     <outputFormats>
