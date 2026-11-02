@@ -244,8 +244,9 @@ jobs:
       # Acción de terceros fijada al commit (un tag se puede mover).
       - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       - name: SOAP (WSDL)
-        # zeep con versión exacta y solo wheels (--no-build: no corre setup.py de nadie).
-        run: uv run --quiet --no-build --with zeep==4.3.3 scripts/contrato/soap.py http://localhost:8080/Rabbit
+        # Dependencias fijadas con hashes en scripts/contrato/soap.py.lock (--locked: falla si
+        # no coincide) y solo wheels (--no-build: no corre setup.py de nadie).
+        run: uv run --quiet --locked --no-build --script scripts/contrato/soap.py http://localhost:8080/Rabbit
       - name: REST (Schemathesis)
         # Semilla fija y generación determinista: cada corrida prueba los
         # mismos casos (la de estabilidad lo exige). Para explorar casos

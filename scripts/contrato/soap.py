@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.10"
+# dependencies = ["zeep==4.3.3"]
+# ///
 """Pruebas de contrato de los servicios SOAP de Rabbit (banco y transportista legado).
 
 1. El WSDL que publica la app es igual al versionado en docs/integraciones/wsdl/
@@ -5,7 +9,10 @@
 2. Cada operación responde según el WSDL: zeep valida el pedido y la respuesta
    contra el XSD del WSDL, y los errores de negocio llegan como soap:Fault.
 
-    uv run --with zeep scripts/contrato/soap.py [http://localhost:8080/Rabbit]
+    uv run --locked --no-build --script scripts/contrato/soap.py [http://localhost:8080/Rabbit]
+
+Las dependencias (zeep y todo lo que trae, con hashes) están fijadas en
+soap.py.lock; se regenera con "uv lock --script scripts/contrato/soap.py".
 """
 import difflib
 import pathlib
