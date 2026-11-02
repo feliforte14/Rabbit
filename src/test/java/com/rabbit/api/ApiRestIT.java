@@ -202,10 +202,14 @@ class ApiRestIT {
 
         Response r = alta(cuerpo, UUID.randomUUID().toString());
 
-        r.then().statusCode(201).body("estadoPedido", anyOf(nullValue(), equalTo("PENDIENTE")));
+        // El comercio sale de la cuenta del ERP, nunca del cuerpo: el 999999 inventado no se persiste.
+        r.then().statusCode(201)
+                .body("estadoPedido", anyOf(nullValue(), equalTo("PENDIENTE")))
+                .body("idComercio", org.hamcrest.Matchers.not(equalTo(999999)));
         int id = r.path("idPedidoExterno");
         erp().get("/pedidos-externos/" + id).then().statusCode(200)
-                .body("estadoPedido", anyOf(nullValue(), equalTo("PENDIENTE")));
+                .body("estadoPedido", anyOf(nullValue(), equalTo("PENDIENTE")))
+                .body("idComercio", org.hamcrest.Matchers.not(equalTo(999999)));
     }
 
     /** Eje C: cancelar con un ETag desactualizado es 412 y no cancela; con el actual, cancela. */

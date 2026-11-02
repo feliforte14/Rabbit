@@ -17,3 +17,7 @@ docs/CREDENCIALES.md
 
 # Pruebas E2E (Playwright): dependencias locales
 e2e/node_modules/
+
+# Salidas de las pruebas de seguridad locales (docs/seguridad/PRUEBAS-DE-SEGURIDAD.md)
+zap/
+resultado-seguridad.json

@@ -35,13 +35,15 @@ jobs:
     runs-on: ubuntu-latest
     # Bajar la base entera del NVD tarda entre 15 minutos y varias horas según
     # cómo esté la API del NVD; con la caché de abajo, cada corrida baja solo lo
-    # que cambió. En PR y push, Dependency-Check tiene 30 minutos; la corrida
-    # semanal y la manual (workflow_dispatch) tienen 5 horas para armar la base
-    # completa y dejarla en la caché de main, que leen todas las demás.
-    timeout-minutes: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 320 || 50 }}
+    # que cambió. En PR y push, Dependency-Check tiene 10 minutos (el criterio de la
+    # cátedra pide que el pipeline no pase de 15; OSV-Scanner revisa las mismas
+    # dependencias y sí corta); la corrida semanal y la manual (workflow_dispatch)
+    # tienen 5 horas para armar la base completa y dejarla en la caché de main,
+    # que leen todas las demás.
+    timeout-minutes: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 320 || 25 }}
     env:
       HAY_NVD: ${{ secrets.NVD_API_KEY != '' }}
-      MINUTOS_NVD: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 300 || 30 }}
+      MINUTOS_NVD: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 300 || 10 }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

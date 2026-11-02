@@ -1,5 +1,8 @@
 # Seguridad
 
+> Cómo se comprueba todo esto (estado de la matriz SEC, las pruebas del eje D y los comandos para
+> repetirlas en una máquina propia): [PRUEBAS-DE-SEGURIDAD.md](PRUEBAS-DE-SEGURIDAD.md).
+
 ## Autenticación
 
 - El login (`request.login`) lo valida WildFly con el dominio
@@ -27,8 +30,10 @@
 - **Límite de intentos de login:** 5 intentos fallidos seguidos bloquean
   ese usuario 15 minutos (`LimiteDeIntentos`); el login ni consulta al
   realm mientras dura. El mensaje es el mismo exista o no el usuario. Vive
-  en memoria de cada servidor; la API del ERP (HTTP Basic) la autentica
-  WildFly y no pasa por ese freno.
+  en memoria de cada servidor. La API del ERP (HTTP Basic) usa el mismo
+  contador a través de `FiltroAutenticacionErp`: bloqueada la cuenta, responde
+  `429` con `Retry-After`, sin consultar al realm (probado en `SeguridadIT` y
+  `FiltroAutenticacionErpTest`).
 
 ## Roles
 
@@ -241,9 +246,15 @@ mucho tiempo. Reglas:
   JavaMail, que a veces traen la dirección que falló, pasan por
   `DatosPersonales.sinEmails`.
 - La **dirección de entrega no se escribe** en ningún log (tampoco en los
-  simuladores de transportistas).
+  simuladores de transportistas). Tampoco sus **coordenadas**: el
+  geocodificador (`Geocodificador`) solo registra «dirección ubicada» o «no
+  encontrada», y ante una falla de Nominatim, el tipo de error y no su
+  mensaje (el de una URI inválida trae la dirección entera). Hasta el
+  02/11/2026 registraba el texto de la dirección y sus coordenadas; se
+  corrigió al revisar el log de un arranque.
 
-Probado en `DatosPersonalesTest`.
+Probado en `DatosPersonalesTest` y, para el geocodificador, en
+`RuteoServiciosTest.elLogNoTraeLaDireccionNiLasCoordenadas`.
 
 ### Mensajes JMS mínimos (SEC-08)
 
@@ -302,10 +313,12 @@ Además, el login y la página de error, que tienen que verse sin sesión.
 - Las cuentas que siguen en los archivos de add-user.sh (el administrador
   inicial, las viejas sin migrar) tienen un MD5 de
   `usuario:ApplicationRealm:contraseña`, rápido de probar. Las de la base
-  usan bcrypt. Mínimo de 6 caracteres.
+  usan bcrypt. Mínimo de 8 caracteres (ASVS 5.0, V6.2.1). Para que una
+  cuenta vieja pase a bcrypt, un administrador le restablece la contraseña
+  desde `personal/usuarios.xhtml`.
 - El límite de intentos vive en memoria de cada servidor: se pierde al
-  reiniciar y, con varios nodos, cada uno cuenta por su lado. La API del
-  ERP (HTTP Basic, autenticada por WildFly) no tiene ese freno.
+  reiniciar y, con varios nodos, cada uno cuenta por su lado. Lo comparten
+  el login web y la API del ERP.
 - El banco simulado (`BancoLegadoService`) se publica sin autenticación.
   En producción no viviría dentro de Rabbit: Rabbit lo puede reemplazar
   por otro con el mismo WSDL apuntando `rabbit.banco.wsdl` (en la

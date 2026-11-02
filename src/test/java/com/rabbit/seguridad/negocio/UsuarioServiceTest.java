@@ -232,13 +232,13 @@ class UsuarioServiceTest {
         }
 
         @Test
-        void exigeAlMenosSeisCaracteresDeContrasena() {
+        void exigeAlMenosOchoCaracteresDeContrasena() {
             ValidacionException e = assertThrows(ValidacionException.class,
-                    () -> servicio.registrarUsuario(datos("ana.op", "12345", Rol.OPERADOR)));
-            assertEquals("La contraseña debe tener al menos 6 caracteres", e.getMessage());
+                    () -> servicio.registrarUsuario(datos("ana.op", "1234567", Rol.OPERADOR)));
+            assertEquals("La contraseña debe tener al menos 8 caracteres", e.getMessage());
 
             when(repository.guardar(any())).thenAnswer(inv -> conId(inv.getArgument(0), 1L));
-            assertEquals(1L, servicio.registrarUsuario(datos("ana.op", "123456", Rol.OPERADOR)));
+            assertEquals(1L, servicio.registrarUsuario(datos("ana.op", "12345678", Rol.OPERADOR)));
         }
 
         @Test
@@ -388,7 +388,7 @@ class UsuarioServiceTest {
         void alReactivarValidaLaContrasenaNueva() {
             when(repository.buscarPorId(4L)).thenReturn(usuario(4L, "ana.op", Rol.OPERADOR, false));
 
-            assertEquals("La contraseña debe tener al menos 6 caracteres",
+            assertEquals("La contraseña debe tener al menos 8 caracteres",
                     assertThrows(ValidacionException.class, () -> servicio.reactivarUsuario(4L, "123")).getMessage());
         }
 

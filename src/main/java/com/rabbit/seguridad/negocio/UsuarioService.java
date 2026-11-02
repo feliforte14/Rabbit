@@ -267,14 +267,17 @@ public class UsuarioService implements IConsultaUsuarios, IRegistroUsuarios {
         }
     }
 
+    // Mínimo de 8 caracteres (OWASP ASVS 5.0, V6.2.1).
+    static final int LARGO_MINIMO_CLAVE = 8;
+
     // Password obligatoria y con un mínimo de longitud — la única regla de
     // complejidad que exige este alcance.
     private void validarPassword(String password) {
         if (password == null || password.isBlank()) {
             throw new ValidacionException("La contraseña es obligatoria");
         }
-        if (password.length() < 6) {
-            throw new ValidacionException("La contraseña debe tener al menos 6 caracteres");
+        if (password.length() < LARGO_MINIMO_CLAVE) {
+            throw new ValidacionException("La contraseña debe tener al menos " + LARGO_MINIMO_CLAVE + " caracteres");
         }
     }
 

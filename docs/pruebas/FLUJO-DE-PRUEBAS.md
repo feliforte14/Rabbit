@@ -54,14 +54,10 @@ WildFly de los demás (ADR-031).
 ejemplo `claude-cb-erp`) no tienen comercio: la API les responde `403`
 ("Cuenta ERP sin comercio"). Hay que crear una nueva desde la app (2.5).
 
-**Una línea de log que podés ignorar:** al cargar **Pedidos**
-(`personal/pedidos.xhtml`) vas a ver un `SEVERE`
-`parseBigDecimal="true" Unhandled by MetaTagHandler for type
-jakarta.faces.convert.NumberConverter`. Es un wart conocido de esta
-versión de Mojarra (el atributo igual se aplica correctamente — el campo
-Importe sigue parseando a `BigDecimal` sin problema); no indica que algo
-haya fallado. Está documentado como comentario en el propio
-`pedidos.xhtml`.
+**Ya no hay un `SEVERE` al cargar Pedidos.** Antes, `personal/pedidos.xhtml`
+registraba `parseBigDecimal="true" Unhandled by MetaTagHandler` porque ese
+atributo no existe en el `NumberConverter`; se quitó (no cambiaba nada, se
+ignoraba). Si lo volvés a ver en el log, es una regresión.
 
 ---
 
