@@ -379,6 +379,10 @@ h2 {
     display: flex;
     align-items: center;
     gap: 0.65rem;
+    /* WCAG 2.2, 2.5.8 (tamaño mínimo del objetivo): nunca menos de 24 px de alto,
+       tampoco en los escalones compactos de ventanas bajas. */
+    min-height: 24px;
+    box-sizing: border-box;
     padding: 0.38rem 0.75rem;
     border-radius: var(--radio-chico);
     color: var(--sidebar-texto-suave);

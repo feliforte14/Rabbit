@@ -1,5 +1,5 @@
 // Accesibilidad (eje A): axe-core sobre las pantallas principales, sin
-// violaciones serias ni críticas de WCAG 2.1 A/AA, y sin scroll horizontal
+// violaciones serias ni críticas de WCAG 2.2 A/AA (incluye 2.0 y 2.1), y sin scroll horizontal
 // a 360, 768 y 1280 px de ancho (responsive).
 const { test, expect } = require('@playwright/test');
 const AxeBuilder = require('@axe-core/playwright').default;
@@ -10,7 +10,7 @@ const ANCHOS = [360, 768, 1280];
 const SALIDA = '../target/e2e/axe';
 
 async function revisar(page, nombre) {
-  const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
+  const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22a', 'wcag22aa']).analyze();
   const graves = axe.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
   // Un archivo por pantalla, antes de la aserción: un test que falla reinicia el worker.
   fs.mkdirSync(SALIDA, { recursive: true });
