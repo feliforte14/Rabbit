@@ -406,9 +406,13 @@ jobs:
       - name: Análisis
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        # El JavaScript y el CSS de resources/ siguen analizándose (bugs y vulnerabilidades), pero no entran en la métrica
+        # de cobertura: SonarCloud no mide cobertura de JavaScript y subir de versión esa carpeta (1_22 a 1_23)
+        # los contaba como código nuevo sin cubrir. La cobertura del dominio la mide JaCoCo.
         run: >
           mvn -B -ntp verify org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
           -Dsonar.host.url=https://sonarcloud.io
           -Dsonar.organization=${{ vars.SONAR_ORGANIZATION }}
           -Dsonar.projectKey=${{ vars.SONAR_PROJECT_KEY || format('{0}_Rabbit', vars.SONAR_ORGANIZATION) }}
           -Dsonar.qualitygate.wait=true
+          -Dsonar.coverage.exclusions=src/main/webapp/resources/**
