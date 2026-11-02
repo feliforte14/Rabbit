@@ -1,0 +1,25 @@
+/* Estilo de impresión de los documentos de docs/ (BRD, funcional, manual). */
+@page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+:root { --azul: #1e3a5f; --naranja: #c2410c; --gris: #555; --borde: #d0d7de; --fondo: #f6f8fa; }
+html { font-family: "Inter", "Segoe UI", Arial, sans-serif; font-size: 10.5pt; color: #1f2328; line-height: 1.45; }
+body { margin: 0; }
+header#title-block-header { display: none; }
+h1 { color: var(--azul); font-size: 22pt; margin: 0 0 4pt; border-bottom: 3px solid var(--naranja); padding-bottom: 6pt; }
+h2 { color: var(--azul); font-size: 15pt; margin: 18pt 0 6pt; border-bottom: 1px solid var(--borde); padding-bottom: 3pt; page-break-after: avoid; }
+h3 { color: var(--azul); font-size: 12.5pt; margin: 14pt 0 4pt; page-break-after: avoid; }
+h4 { color: var(--naranja); font-size: 11pt; margin: 12pt 0 3pt; page-break-after: avoid; }
+p { margin: 4pt 0 6pt; }
+a { color: var(--azul); }
+table { border-collapse: collapse; width: 100%; margin: 6pt 0 10pt; font-size: 9pt; page-break-inside: auto; }
+tr { page-break-inside: avoid; }
+th { background: var(--azul); color: #fff; text-align: left; padding: 4pt 5pt; font-weight: 600; }
+td { border: 1px solid var(--borde); padding: 3.5pt 5pt; vertical-align: top; }
+tr:nth-child(even) td { background: var(--fondo); }
+code { font-family: "JetBrains Mono", Consolas, monospace; font-size: 8.6pt; background: var(--fondo); padding: 0 2pt; border-radius: 2pt; }
+pre { background: #0f1b2d; color: #e6edf3; padding: 7pt 9pt; border-radius: 4pt; font-size: 8.4pt; line-height: 1.4; white-space: pre-wrap; page-break-inside: avoid; margin: 4pt 0 8pt; }
+pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+pre code .kw, pre code span.kw { color: #f0a868; font-weight: 600; }
+pre code span.st { color: #9ed39e; }
+ul, ol { margin: 3pt 0 7pt 16pt; padding: 0; }
+li { margin: 1.5pt 0; }
+strong { color: #111; }

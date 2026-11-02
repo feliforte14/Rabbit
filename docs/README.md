@@ -28,6 +28,9 @@ están en el [README principal](../README.md).
 
 ```
 docs/
+├── negocio/         ← BRD: el "por qué" (objetivos, alcance, requisitos de negocio BR-xx)
+├── funcional/       ← documentación funcional: HU en Gherkin, reglas, RNF y matriz de trazabilidad
+├── pdf/             ← los PDF que se entregan (y el script que los genera)
 ├── arquitectura/    ← cómo está construido Rabbit y por qué
 ├── integraciones/   ← mensajería con otros sistemas y contrato de la API
 ├── seguridad/       ← autenticación, roles y protección de la API
@@ -37,6 +40,9 @@ docs/
 
 ## ¿Qué documento me sirve?
 
+- Entender qué problema de negocio resuelve Rabbit y cómo se mide → leé el [BRD](negocio/BRD.md).
+- Ver qué hace cada usuario, con sus criterios de aceptación y su test → leé la
+  [documentación funcional](funcional/DOCUMENTACION-FUNCIONAL.md).
 - Entender cómo está armado Rabbit → leé [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md).
 - Saber por qué se decidió algo y qué alternativas se descartaron → leé [DECISIONES.md](arquitectura/DECISIONES.md) (con índice de ADR).
 - Ver qué patrones de diseño se aplican y dónde → leé [PATRONES.md](arquitectura/PATRONES.md) (con catálogo).
