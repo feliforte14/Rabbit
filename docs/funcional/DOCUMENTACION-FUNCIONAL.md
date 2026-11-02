@@ -921,7 +921,7 @@ Cada RNF tiene una métrica y la evidencia que la mide hoy. Los valores son de l
 
 ## 6. Prototipo
 
-El prototipo navegable en Figma está pendiente de enlace: *(completar con el link de Figma)*. Mientras tanto, la aplicación desplegada con `docker compose up` cubre las 35 historias y es la referencia visual; el [manual de usuario](../manual/) muestra cada pantalla con capturas.
+El prototipo navegable en Figma está pendiente de enlace: *(completar con el link de Figma)*. Mientras tanto, la aplicación desplegada con `docker compose up` cubre las 35 historias y es la referencia visual (el manual de usuario con capturas se retiró del repositorio).
 
 ## 7. Matriz de trazabilidad BR → HU → CA → CP
 

@@ -50,10 +50,21 @@ docs/
 - Saber con qué tecnología se integra cada sistema y por qué → leé [MENSAJERIA-JUSTIFICACION.md](integraciones/MENSAJERIA-JUSTIFICACION.md).
 - Consultar el contrato de la API REST → leé [openapi.yaml](integraciones/openapi.yaml).
 - Ver los roles, permisos y protecciones → leé [SEGURIDAD.md](seguridad/SEGURIDAD.md).
+- Ver qué se probó en seguridad y cómo repetirlo → leé [INFORME-SEGURIDAD.md](seguridad/INFORME-SEGURIDAD.md) (matriz del Eje D) y [PRUEBAS-DE-SEGURIDAD.md](seguridad/PRUEBAS-DE-SEGURIDAD.md) (comandos).
 - Levantar el sistema y probarlo → leé [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md) y [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md).
+- Ver las pruebas automatizadas del CI (contrato, punta a punta, accesibilidad) → leé [CONTRATO.md](pruebas/CONTRATO.md) y [E2E.md](pruebas/E2E.md).
 - Ubicar cómo se cumple cada requisito de la consigna → leé [CHECKLIST.md](consigna/CHECKLIST.md).
 
 ## Índice
+
+### [negocio/](negocio/) y [funcional/](funcional/)
+
+- [BRD.md](negocio/BRD.md): Documento de requisitos de negocio: objetivos, alcance y requisitos BR-xx
+- [DOCUMENTACION-FUNCIONAL.md](funcional/DOCUMENTACION-FUNCIONAL.md): 35 historias de usuario en Gherkin, reglas de negocio, requisitos no funcionales y matriz de trazabilidad BR → HU → CA → CP
+
+### [pdf/](pdf/)
+
+- `Rabbit-BRD.pdf` y `Rabbit-Documentacion-Funcional.pdf`: versiones para entregar de los dos documentos de arriba. Se generan con `pdf/generar.sh` (estilos en `estilo.css`); si cambia el Markdown, hay que regenerarlos.
 
 ### [arquitectura/](arquitectura/)
 
@@ -73,11 +84,15 @@ docs/
 
 - [SEGURIDAD.md](seguridad/SEGURIDAD.md): Autenticación, roles, `@RolesAllowed`, operaciones sensibles, límite de intentos de login y HTTPS
 - [INFORME-SEGURIDAD.md](seguridad/INFORME-SEGURIDAD.md): Matriz del Eje D (CUMPLE / NO CUMPLE / NO VERIFICABLE) con evidencia, hallazgos y alertas justificadas
+- [PRUEBAS-DE-SEGURIDAD.md](seguridad/PRUEBAS-DE-SEGURIDAD.md): Estado de cada prueba de seguridad y los comandos para repetirla en una máquina propia
+- [INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md](seguridad/INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md): Dos contraseñas halladas en el historial de Git: cómo se detectaron, se rotaron y se evitó que se repita (G6)
 
 ### [pruebas/](pruebas/)
 
 - [FLUJO-DE-PRUEBAS.md](pruebas/FLUJO-DE-PRUEBAS.md): Recorrido manual de punta a punta sobre la app desplegada, para verificar y para la demo. Los tests automatizados están en `src/test` (ver el README principal)
 - [PRUEBAS-Y-COMANDOS.md](pruebas/PRUEBAS-Y-COMANDOS.md): Comandos para prender y apagar cada sistema, perillas de las demos y la lista completa de pruebas para marcar
+- [CONTRATO.md](pruebas/CONTRATO.md): Pruebas de contrato del CI: la API REST contra `openapi.yaml` (Schemathesis) y los servicios SOAP contra sus WSDL
+- [E2E.md](pruebas/E2E.md): Pruebas de punta a punta (Playwright), accesibilidad (axe) y Lighthouse, con el código en `e2e/`
 - [Rabbit.postman_collection.json](pruebas/Rabbit.postman_collection.json): Colección de Postman: API del ERP, validaciones, seguimiento y llamados directos a los transportistas y bancos, más una carpeta automatizada de contrato y seguridad (64 requests)
 
 ### [consigna/](consigna/)

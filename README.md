@@ -129,8 +129,12 @@ Fuera de la aplicación:
 
 ```
 src/test/java/             ← tests unitarios (*Test) y de integración de la API (*IT)
-docs/                      ← documentación técnica por tema (ver docs/README.md)
-scripts/                   ← prueba de escalabilidad y limpieza de datos de prueba
+docs/                      ← documentación por tema (ver docs/README.md)
+e2e/                       ← pruebas de punta a punta (Playwright), accesibilidad y Lighthouse
+scripts/                   ← carga (k6), contrato, seguridad, CI, escalabilidad, realm compartido y limpieza de datos de prueba
+docker/                    ← configuración de WildFly y semilla de datos para el compose
+.github/                   ← workflows de CI y la acción que levanta Rabbit
+.zap/                      ← reglas de ZAP (baseline y API); .gitleaks.toml: reglas del escaneo de secretos
 ```
 
 - **Comercios**
@@ -203,8 +207,9 @@ El detalle y la justificación de cada decisión están en
 
 - **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (59 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MENSAJERIA-JUSTIFICACION.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
-- **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
-- **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
+- **Negocio y funcional** (`docs/negocio/`, `docs/funcional/`, `docs/pdf/`): [BRD](docs/negocio/BRD.md), [Documentación funcional](docs/funcional/DOCUMENTACION-FUNCIONAL.md) (35 historias de usuario en Gherkin y matriz de trazabilidad) y sus PDF para entregar.
+- **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md) (qué protege Rabbit), [Informe de seguridad](docs/seguridad/INFORME-SEGURIDAD.md) (matriz del Eje D con evidencia), [Pruebas de seguridad](docs/seguridad/PRUEBAS-DE-SEGURIDAD.md) (cómo repetirlas) y el [incidente de secretos en el historial](docs/seguridad/INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md).
+- **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar, y las pruebas del CI: [contrato](docs/pruebas/CONTRATO.md) y [punta a punta y accesibilidad](docs/pruebas/E2E.md).
 - **Consigna** (`docs/consigna/`): [Checklist](docs/consigna/CHECKLIST.md) de requisitos (Sección 6 y anexo), [Desafíos opcionales](docs/consigna/DESAFIOS-OPCIONALES.md) y [Uso de IA](docs/consigna/USO-DE-IA.md).
 
 ## Cumplimiento de la consigna
@@ -689,11 +694,13 @@ Tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:
 
 ```bash
-mvn verify -Pintegracion -Drabbit.erp.usuario=<erp> -Drabbit.erp.clave=<clave> -Drabbit.punto=<id punto de picking>
+mvn verify -Pintegracion -Drabbit.erp.usuario=<erp> -Drabbit.erp.clave=<clave> -Drabbit.punto=<id punto de picking> \
+  -Drabbit.erp2.usuario=<erp de OTRO comercio> -Drabbit.erp2.clave=<clave> \
+  -Drabbit.comercio.usuario=<usuario con rol COMERCIO> -Drabbit.comercio.clave=<clave>
 ```
 
-Prueban alta, idempotencia, errores en Problem Details, pertenencia,
-cancelación y seguimiento público (`ApiRestIT`), y los datos de quien
+Prueban alta, idempotencia, errores en Problem Details, pertenencia (con `erp2`: un pedido de otro comercio responde 404; con la cuenta `COMERCIO`: 403),
+cancelación y seguimiento público (`ApiRestIT`), y la seguridad de la API: fuerza bruta (429), credenciales inválidas, CORS, XXE en SOAP e inyección (`SeguridadIT`), y los datos de quien
 recibe (con el email obligatorio), la fecha prometida y que el
 seguimiento no exponga a quien recibe (`MejorasUltimaMillaIT`). Los pedidos que crean llevan
 `[TEST]` en la dirección. Conviene correrlos contra una base local, no contra la
@@ -708,15 +715,16 @@ sistemas externos hay una colección de Postman lista para importar:
 
 ## Integración continua
 
-Cada PR y cada push a `main` corren tres workflows en GitHub Actions. El
+Cada PR y cada push a `main` corren los workflows de GitHub Actions (más uno semanal y uno manual). El
 resultado de cada corrida, con cobertura, tiempos y hallazgos, queda en
 la página del run.
 
 | Workflow | Jobs |
 |---|---|
 | [CI](.github/workflows/ci.yml) | Build y tests unitarios con cobertura (JaCoCo); secretos (gitleaks con [`.gitleaks.toml`](.gitleaks.toml)); compose con los `*IT` y Newman; contrato (Schemathesis y WSDL, ver [CONTRATO.md](docs/pruebas/CONTRATO.md)); E2E con Playwright, axe y Lighthouse (ver [E2E.md](docs/pruebas/E2E.md)); mutación (PIT, en `main` o a mano); SonarCloud |
-| [Seguridad](.github/workflows/seguridad.yml) | Dependencias (OSV-Scanner y Dependency-Check), imagen (Trivy) y ZAP baseline. También corre una vez por semana |
+| [Seguridad](.github/workflows/seguridad.yml) | Dependencias (OSV-Scanner y Dependency-Check si hay `NVD_API_KEY`), imagen (Trivy), ZAP baseline y ZAP API scan activo y autenticado. También corre una vez por semana |
 | [Carga](.github/workflows/carga.yml) | k6 con 50 usuarios durante 5 minutos, p95 < 500 ms (en `main`, a mano o si cambia la prueba de carga) |
+| [Estabilidad](.github/workflows/estabilidad.yml) | La suite completa del CI corrida 3 veces seguidas: un test que cambia de resultado es inestable (a mano, en la PR que la toque y una vez por semana) |
 
 Todos los jobs que prueban la app la levantan con el mismo compose de
 arriba ([`.github/actions/levantar-rabbit`](.github/actions/levantar-rabbit/action.yml)),
