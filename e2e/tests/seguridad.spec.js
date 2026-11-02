@@ -76,3 +76,16 @@ test('SEG-3 · La cookie de sesión es Secure, HttpOnly y SameSite=Lax, y el log
   await expect(intruso).toHaveURL(/login\.xhtml/);
   await otro.close();
 });
+
+// Prueba exploratoria de la cátedra: "sesión expirada". Con la página abierta,
+// la sesión vence (acá se borra la cookie, que es lo que ve el servidor) y el
+// usuario aprieta un botón: tiene que volver al login, no a "Algo salió mal".
+test('SEG-4 · Con la sesión vencida, un botón de la página abierta lleva al login', async ({ page, context }) => {
+  await ingresar(page, cuentas.comercio());
+  await expect(page).toHaveURL(/comercio\/mis-pedidos\.xhtml/);
+  await context.clearCookies();
+
+  await page.evaluate(() => document.querySelector('form[method=post]').submit());
+  await expect(page).toHaveURL(/login\.xhtml/);
+  await expect(page.getByText('Algo salió mal')).toHaveCount(0);
+});
