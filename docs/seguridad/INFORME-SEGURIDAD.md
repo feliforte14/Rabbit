@@ -22,7 +22,7 @@ aplica (no hay app móvil nativa en este alcance).
 | 8 | ZAP baseline + activo autenticado | CUMPLE en el CI | Jobs `zap` y `zap-api` de `seguridad.yml`; reglas en `.zap/`. Medium: ver "Alertas justificadas". |
 | 9 | Dependencias (0 CVE críticas o altas sin mitigación) | CUMPLE | OSV-Scanner bloquea si la vulnerabilidad llega al WAR; Trivy sobre la imagen. Dependency-Check solo corre con el secret `NVD_API_KEY`; sin él, la cobertura es OSV. |
 | 10 | Headers, CORS y cookies | CUMPLE | `FiltroCabecerasDeSeguridad` (CSP, `nosniff`, `X-Frame-Options`, `Permissions-Policy`, `Referrer-Policy`), `FiltroHsts`, cookie `Secure`/`HttpOnly`/`SameSite`; `unOrigenAjenoNoRecibeCabecerasCors`; `laCookieDeSesionYLasCabecerasDeSeguridad`. |
-| 11 | Logs y errores sin stack traces, PII ni tokens | CUMPLE (parcial en logs) | Errores: `losErroresNoMuestranDetallesInternos`, `ProblemaMapper`, `error.html`. Logs: `DatosPersonales` (email enmascarado, sin dirección), probado en `DatosPersonalesTest`. Que ningún log escriba credenciales no está cubierto por un test: NO VERIFICABLE. |
+| 11 | Logs y errores sin stack traces, PII ni tokens | CUMPLE (parcial en logs) | Errores: `losErroresNoMuestranDetallesInternos`, `ProblemaMapper`, `error.html`. Logs: `DatosPersonales` (email enmascarado), probado en `DatosPersonalesTest`; el geocodificador no escribe direcciones ni coordenadas, probado en `RuteoServiciosTest.elLogNoTraeLaDireccionNiLasCoordenadas` (ver hallazgos). Que ningún log escriba credenciales no está cubierto por un test: NO VERIFICABLE. |
 | 12 | Cifrado en tránsito | CUMPLE | `transport-guarantee CONFIDENTIAL` (HTTP redirige a HTTPS); `SeguridadIT.porHttpRedirigeAHttps`. |
 | 13 | Contraseñas con hash adaptativo | **NO CUMPLE (parcial)** | Las cuentas de la base usan bcrypt (costo 10, `ClavesTest`). Las cuentas que siguen en los archivos de `add-user.sh` (el administrador inicial y las anteriores a ADR-031) están en MD5. |
 | 14 | Datos sensibles minimizados | CUMPLE | Mensajes JMS mínimos (`MensajesJmsMinimosTest`); el seguimiento público no muestra datos de quien recibe. |
@@ -36,6 +36,8 @@ aplica (no hay app móvil nativa en este alcance).
 | Contraseña mínima de 6 caracteres | Menor | **Corregido**: ahora 8 (ASVS 5.0, V6.2.1). `UsuarioService.LARGO_MINIMO_CLAVE`, probado en `UsuarioServiceTest`. |
 | Documentación decía que la API del ERP no tenía freno de intentos | Menor | **Corregido** en `SEGURIDAD.md`: lo tiene (`FiltroAutenticacionErp`). |
 | Test de mass assignment no verificaba el comercio | Menor | **Corregido**: ahora verifica que `idComercio` no sea el del cuerpo. |
+| El geocodificador escribía en el log el texto de las direcciones (incluidas las de entrega) y sus coordenadas, contra SEC-09. Se vio al revisar el log de un arranque | Mayor | **Corregido**: ya no se loguean la dirección ni las coordenadas, con un test que lo verifica. |
+| Error `SEVERE` al cargar Pedidos (`parseBigDecimal` no existe en `f:convertNumber`) | Menor | **Corregido**: se quitó el atributo, que Mojarra ignoraba. |
 | Límite de intentos en memoria de cada servidor | Menor | Aceptado y documentado: se pierde al reiniciar y no se comparte entre nodos. |
 | Certificado HTTPS autofirmado; HSTS sin efecto en desarrollo | Menor | Aceptado y documentado; en producción iría un certificado válido. |
 | Banco y transportistas simulados sin autenticación | Menor | Aceptado: son sistemas de terceros simulados en el mismo WAR. |

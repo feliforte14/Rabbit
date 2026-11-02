@@ -28,7 +28,7 @@ máquina propia (macOS o Linux con Docker). Qué protege Rabbit y cómo está en
 | SEC-06 | Errores en Problem Details sin detalles internos | CUMPLE | `ApiRestIT`, `SeguridadIT.losErroresNoMuestranDetallesInternos` |
 | SEC-07 | Banco sin respuesta en 5 s → el pedido no se confirma | CUMPLE | `CircuitBreakerBancoTest`, `BancoClientTest`; prueba manual (sección 4.7) |
 | SEC-08 | Mensajes JMS con el mínimo de datos | CUMPLE | `MensajesJmsMinimosTest` |
-| SEC-09 | Logs sin datos personales | CUMPLE | `DatosPersonalesTest`; `revisar_logs.sh` (sección 4.2) |
+| SEC-09 | Logs sin datos personales | CUMPLE | `DatosPersonalesTest`, `RuteoServiciosTest.elLogNoTraeLaDireccionNiLasCoordenadas` (el geocodificador escribía direcciones y coordenadas hasta el 02/11; corregido); `revisar_logs.sh` (sección 4.2) |
 | SEC-10 | Seguimiento público sin datos de quien recibe | CUMPLE | `MejorasUltimaMillaIT.elSeguimientoPublicoNoMuestraAQuienRecibe`, E2E-3 |
 
 ### Las 12 pruebas del eje D

@@ -117,7 +117,8 @@ public class Geocodificador {
             try {
                 coordenadas = consultar(base, d[0], d[1]);
             } catch (IOException | IllegalArgumentException e) {
-                LOG.warning("[Ruteo][Mapa] Nominatim no respondió bien (" + e.getMessage()
+                // Solo el tipo de falla: el mensaje de una URI inválida trae la dirección entera.
+                LOG.warning("[Ruteo][Mapa] Nominatim no respondió bien (" + e.getClass().getSimpleName()
                         + "): se reintenta en la próxima pasada");
                 return;
             } catch (InterruptedException e) {
@@ -126,9 +127,10 @@ public class Geocodificador {
             }
             cache.guardar(clave, coordenadas);
             consultadas++;
-            LOG.info("[Ruteo][Mapa] " + d[0] + (coordenadas != null
-                    ? String.format(java.util.Locale.ROOT, " -> %.5f, %.5f", coordenadas[0], coordenadas[1])
-                    : ": no se encontró"));
+            // Ni la dirección ni las coordenadas van al log: una dirección de entrega es un dato
+            // personal (SEC-09, docs/seguridad/SEGURIDAD.md).
+            LOG.info("[Ruteo][Mapa] " + (coordenadas != null ? "dirección ubicada" : "dirección no encontrada")
+                    + " (" + consultadas + " de " + Math.min(faltan.size(), POR_PASADA) + ")");
         }
     }
 

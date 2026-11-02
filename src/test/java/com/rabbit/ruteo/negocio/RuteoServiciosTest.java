@@ -722,6 +722,34 @@ class RuteoServiciosTest {
             verify(cache, never()).guardar(any(), any());
         }
 
+        /** SEC-09: ni la dirección ni las coordenadas se escriben en el log, ubique o falle. */
+        @Test
+        void elLogNoTraeLaDireccionNiLasCoordenadas() {
+            java.util.logging.Logger log = java.util.logging.Logger.getLogger(Geocodificador.class.getName());
+            List<String> mensajes = new ArrayList<>();
+            java.util.logging.Handler captura = new java.util.logging.Handler() {
+                @Override public void publish(java.util.logging.LogRecord r) { mensajes.add(r.getMessage()); }
+                @Override public void flush() { }
+                @Override public void close() { }
+            };
+            log.addHandler(captura);
+            try {
+                geocodificador.cadaMinuto();          // la ubica
+                respuesta = "[]";
+                geocodificador.cadaMinuto();          // no la encuentra
+                estado = 503;
+                geocodificador.cadaMinuto();          // el servicio falla
+            } finally {
+                log.removeHandler(captura);
+            }
+
+            assertEquals(3, mensajes.size(), mensajes.toString());
+            for (String m : mensajes) {
+                assertFalse(m.contains("Siempreviva") || m.contains("742") || m.contains("1640"), m);
+                assertFalse(m.contains("-34.6") || m.contains("-58.3"), m);
+            }
+        }
+
         @Test
         void sePuedeApagarPorConfiguracion() {
             System.setProperty(Geocodificador.PROPIEDAD, "ninguna");

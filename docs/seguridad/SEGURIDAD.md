@@ -246,9 +246,15 @@ mucho tiempo. Reglas:
   JavaMail, que a veces traen la dirección que falló, pasan por
   `DatosPersonales.sinEmails`.
 - La **dirección de entrega no se escribe** en ningún log (tampoco en los
-  simuladores de transportistas).
+  simuladores de transportistas). Tampoco sus **coordenadas**: el
+  geocodificador (`Geocodificador`) solo registra «dirección ubicada» o «no
+  encontrada», y ante una falla de Nominatim, el tipo de error y no su
+  mensaje (el de una URI inválida trae la dirección entera). Hasta el
+  02/11/2026 registraba el texto de la dirección y sus coordenadas; se
+  corrigió al revisar el log de un arranque.
 
-Probado en `DatosPersonalesTest`.
+Probado en `DatosPersonalesTest` y, para el geocodificador, en
+`RuteoServiciosTest.elLogNoTraeLaDireccionNiLasCoordenadas`.
 
 ### Mensajes JMS mínimos (SEC-08)
 
