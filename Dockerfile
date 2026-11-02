@@ -16,7 +16,9 @@ WORKDIR /fuente
 # Primero el pom solo: las dependencias quedan en caché mientras no cambie.
 COPY pom.xml .
 COPY .mvn ./.mvn
-RUN mvn -q -B dependency:go-offline
+# Coordenadas completas y no el prefijo "dependency:": resolver el prefijo
+# depende de la metadata remota de Maven Central, y una vez falló en el CI.
+RUN mvn -q -B org.apache.maven.plugins:maven-dependency-plugin:3.8.1:go-offline
 COPY src ./src
 RUN mvn -q -B -DskipTests package
 
