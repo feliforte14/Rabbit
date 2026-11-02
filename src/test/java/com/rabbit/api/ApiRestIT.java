@@ -244,6 +244,39 @@ class ApiRestIT {
         alta(pedido(1500), UUID.randomUUID().toString()).then().statusCode(201);
     }
 
+    /**
+     * Eje D, inyección en todos los campos de texto: cada uno con SQL, HTML y una expresión EL.
+     * Los que tienen formato (código postal, teléfono, email) lo rechazan con 400/422; los libres
+     * lo aceptan como texto. Nunca 500, y la base sigue funcionando.
+     */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {
+        "x' OR '1'='1' --", "x'); DROP TABLE pedidos; --", "\"><img src=x onerror=alert(1)>", "#{7*7}${7*7}"})
+    void cadaCampoDeTextoAguantaUnaInyeccion(String carga) {
+        for (String campo : java.util.List.of("direccionEntrega", "codigoPostalEntrega", "nombreDestinatario",
+                "telefonoDestinatario", "emailDestinatario", "producto")) {
+            Map<String, Object> cuerpo = new java.util.HashMap<>(pedido(1500));
+            if (campo.equals("producto")) {
+                cuerpo.put("lineas", java.util.List.of(Map.of("producto", "[TEST] " + carga, "cantidad", 1)));
+            } else {
+                cuerpo.put(campo, campo.equals("direccionEntrega") ? "[TEST] " + carga : carga);
+            }
+            int codigo = alta(cuerpo, UUID.randomUUID().toString()).then().extract().statusCode();
+            assertTrue(codigo == 201 || codigo == 400 || codigo == 422, campo + " con " + carga + " respondió " + codigo);
+        }
+        alta(pedido(1500), UUID.randomUUID().toString()).then().statusCode(201);
+    }
+
+    /** Eje D, errores: un cuerpo roto o enorme es 400 en Problem Details, sin detalles internos. */
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"{\"origen\": ", "{\"importe\": 1e400}", "[]", "null"})
+    void unCuerpoMalFormadoEs400SinDetallesInternos(String cuerpo) {
+        erp().header("Idempotency-Key", UUID.randomUUID().toString()).body(cuerpo).post("/pedidos-externos").then()
+                .statusCode(400)
+                .contentType(startsWith(PROBLEMA))
+                .body(not(matchesPattern("(?s).*(Exception|\\bat (com|org|java|jakarta)\\.|org\\.jboss|\\.java:\\d).*")));
+    }
+
     @Test
     void urlInexistenteEs404EnProblemDetails() {
         given().get("/no-existe").then().statusCode(404).contentType(startsWith(PROBLEMA));

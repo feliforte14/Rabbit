@@ -4,6 +4,8 @@ import static io.restassured.RestAssured.given;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.matchesPattern;
+import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 
 import io.restassured.RestAssured;
@@ -14,6 +16,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
@@ -60,6 +63,76 @@ class SeguridadIT {
                 .statusCode(401)
                 .header("WWW-Authenticate", startsWith("Basic"))
                 .body("type", equalTo("/problemas/no-autenticado"));
+    }
+
+    /**
+     * El equivalente a "JWT vencido, con firma alterada o alg=none" (Rabbit no usa JWT: la API
+     * es HTTP Basic): cualquier credencial que no sea un Basic válido es 401, nunca 500 ni 200.
+     * Ninguna nombra una cuenta real, así que no cuentan para bloquear a nadie.
+     */
+    @ParameterizedTest
+    @ValueSource(strings = {
+        "Bearer eyJhbGciOiJub25lIn0.eyJzdWIiOiJkZW1vLmVycCJ9.",
+        "Bearer eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJkZW1vLmVycCIsImV4cCI6MX0.firma-alterada",
+        "Basic !!!no-es-base64!!!",
+        "Basic c2luLWRvcy1wdW50b3M=",
+        "Basic Og==",
+        "Basic",
+        "Digest username=\"demo.erp\""})
+    void unaCredencialInvalidaOdeOtroEsquemaEs401(String authorization) {
+        given().header("Authorization", authorization).get("/pedidos-externos/1").then()
+                .statusCode(401)
+                .contentType(startsWith("application/problem+json"))
+                .body("type", equalTo("/problemas/no-autenticado"));
+    }
+
+    /** Errores de la API: Problem Details con el código correcto y sin detalles internos. */
+    @ParameterizedTest
+    @CsvSource({
+        "POST, /seguimiento/RB-AAAAAAAAAA, application/json, 405",
+        "GET,  /seguimiento/RB-AAAAAAAAAA, text/csv,         406",
+        "GET,  /no-existe,                 application/json, 404",
+        "GET,  /seguimiento/..%2F..%2Fetc%2Fpasswd, application/json, 404"})
+    void losErroresNoMuestranDetallesInternos(String metodo, String ruta, String accept, int codigo) {
+        given().accept(accept).urlEncodingEnabled(false).request(metodo, ruta).then()
+                .statusCode(codigo)
+                .contentType(startsWith("application/problem+json"))
+                .body(not(matchesPattern("(?s).*(Exception|\\bat (com|org|java|jakarta)\\.|org\\.jboss|WFLY|\\.java:\\d).*")));
+    }
+
+    /** CORS: un origen ajeno no recibe permiso (ni comodín ni su propio origen reflejado). */
+    @Test
+    void unOrigenAjenoNoRecibeCabecerasCors() {
+        given().header("Origin", "https://otro-sitio.example")
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers", "authorization")
+                .options("/pedidos-externos").then()
+                .header("Access-Control-Allow-Origin", nullValue())
+                .header("Access-Control-Allow-Credentials", nullValue());
+        given().header("Origin", "https://otro-sitio.example").get("/seguimiento/RB-AAAAAAAAAA").then()
+                .header("Access-Control-Allow-Origin", nullValue());
+    }
+
+    /** Cifrado en tránsito: por HTTP, las pantallas de Rabbit redirigen a HTTPS. */
+    @Test
+    void porHttpRedirigeAHttps() {
+        given().baseUri(soap).basePath("").redirects().follow(false).get("/login.xhtml").then()
+                .statusCode(302)
+                .header("Location", startsWith("https://"));
+    }
+
+    /** Cookie de sesión: Secure, HttpOnly y SameSite=Lax; y las cabeceras de seguridad en la respuesta. */
+    @Test
+    void laCookieDeSesionYLasCabecerasDeSeguridad() {
+        given().basePath("").get("/login.xhtml").then()
+                .statusCode(200)
+                .header("Set-Cookie", matchesPattern("(?i)JSESSIONID=[^;]+;.*\\bsecure\\b.*"))
+                .header("Set-Cookie", matchesPattern("(?i).*\\bHttpOnly\\b.*"))
+                .header("Set-Cookie", matchesPattern("(?i).*\\bSameSite=Lax\\b.*"))
+                .header("Strict-Transport-Security", startsWith("max-age="))
+                .header("Content-Security-Policy", containsString("frame-ancestors 'none'"))
+                .header("X-Content-Type-Options", equalTo("nosniff"))
+                .header("X-Frame-Options", equalTo("DENY"));
     }
 
     /** Una entidad externa que apunta a un archivo local: el parser no tiene que leerlo. */
