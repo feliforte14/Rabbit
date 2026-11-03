@@ -17,7 +17,8 @@ import java.util.regex.Pattern;
 public final class DatosPersonales {
 
     private static final String ASTERISCOS = "******";
-    private static final Pattern EMAIL = Pattern.compile("[^\\s,;<>\"'()]+@[^\\s,;<>\"'()]+");
+    // Largos acotados (el máximo de un email): sin cotas, un texto largo sin «@» se reescaneaba desde cada posición.
+    private static final Pattern EMAIL = Pattern.compile("[^\\s,;<>\"'()]{1,254}@[^\\s,;<>\"'()]{1,255}");
 
     private DatosPersonales() {
     }

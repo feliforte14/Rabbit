@@ -59,4 +59,17 @@ class DatosPersonalesTest {
         assertEquals("Connection refused", DatosPersonales.sinEmails("Connection refused"));
         assertEquals("", DatosPersonales.sinEmails(null));
     }
+
+    // Con la expresión sin cotas, un texto largo sin «@» tardaba un tiempo cuadrático (se reescaneaba desde cada posición).
+    @Test
+    void unTextoLargoSinArrobaSeProcesaAlInstante() {
+        String largo = "x".repeat(300_000);
+        assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> assertEquals(largo, DatosPersonales.sinEmails(largo)));
+    }
+
+    @Test
+    void sigueEnmascarandoUnEmailRodeadoDeTexto() {
+        assertEquals("No se pudo enviar a c******@correo.test: rechazado",
+                DatosPersonales.sinEmails("No se pudo enviar a cliente@correo.test: rechazado"));
+    }
 }

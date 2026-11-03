@@ -33,4 +33,18 @@ class CodigosPostalesTest {
         assertFalse(CodigosPostales.esInvalido(null));
         assertFalse(CodigosPostales.esInvalido("C1414ABC"));
     }
+
+    @Test
+    void elCodigoRotuladoSigueResolviendoseConEspaciosYDosPuntos() {
+        assertEquals("1414", CodigosPostales.resolver(null, "Av. Corrientes 1234, CP 1414"));
+        assertEquals("1414", CodigosPostales.resolver(null, "Av. Corrientes 1234, C.P.: 1414"));
+        assertEquals("1414", CodigosPostales.resolver(null, "Av. Corrientes 1234, c.p :   1414"));
+    }
+
+    // Con \s*:?\s* sin posesivos, una racha larga de espacios se repartía entre dos cuantificadores: tiempo cuadrático.
+    @Test
+    void unaRachaLargaDeEspaciosNoLaTrabaYNoDaCodigo() {
+        String direccion = "Calle falsa, CP" + " ".repeat(100_000) + "sin numero";
+        assertTimeoutPreemptively(java.time.Duration.ofSeconds(2), () -> assertNull(CodigosPostales.resolver(null, direccion)));
+    }
 }

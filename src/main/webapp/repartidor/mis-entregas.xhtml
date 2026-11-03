@@ -281,7 +281,7 @@
                         // entrega-fallida.js: toma la ubicacion y arma las ayudas.
                         document.dispatchEvent(new CustomEvent('rabbit:entrega-fallida', { detail: {
                             enCamino: boton.getAttribute('data-en-camino') === 'true',
-                            visitas: parseInt(boton.getAttribute('data-visitas') || '0', 10)
+                            visitas: Number.parseInt(boton.getAttribute('data-visitas') || '0', 10)
                         } }));
                     });
                 });
