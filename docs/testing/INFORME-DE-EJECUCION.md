@@ -49,21 +49,25 @@ Sobre `com.rabbit.*.negocio.*` y `com.rabbit.*.datos.model.*`, en el job «Mutac
 
 ## 4. Análisis estático
 
-CodeQL en verde sobre el commit (Java, JavaScript, Python y Actions). SonarCloud, medido el 02/11/2026 sobre el análisis
-de `8b97ec6`:
+CodeQL en verde sobre el commit (Java, JavaScript, Python y Actions). SonarCloud, **medido el 03/11/2026 sobre el
+análisis de `26f3995`** (el commit que incorporó las correcciones de la rama `fix/sonar-analisis-estatico`):
 
 | Criterio de la cátedra | Umbral | Medido sobre **todo** el proyecto | Resultado |
 |---|---|---|---|
-| Quality Gate | Aprobado | **OK**, pero ese gate solo mide el *código nuevo* de cada cambio | Cumple en el gate; ver la nota |
-| Bugs Blocker o Critical | 0 | **3 Blocker y 7 Critical** abiertos (de 15 bugs) | **No cumple** |
-| Vulnerabilidades | 0 | **13** abiertas (3 de tipo «consulta SQL armada dinámicamente», 2 de inyección en el log, 8 de manejo de excepciones en servlets) | **No cumple** |
-| Rating de confiabilidad / seguridad | A / A | **E / C** | **No cumple** |
+| Quality Gate | Aprobado | **OK** | Cumple |
+| Bugs Blocker o Critical | 0 | **0 bugs** abiertos | Cumple |
+| Vulnerabilidades | 0 | **0** | Cumple |
+| Rating de confiabilidad / seguridad | A / A | **A / A** (mantenibilidad: A) | Cumple |
 | Duplicación | ≤ 3 % | 0,7 % | Cumple |
-| Security hotspots revisados | 100 % | 100 % (0 pendientes) | Cumple |
+| Security hotspots revisados | 100 % | 100 % | Cumple |
 
-**Corrección.** Los 28 issues se corrigieron en la rama `fix/sonar-analisis-estatico` (commit `ecde3fe`, defectos SON-01 a
-SON-05 del [registro](REGISTRO-DE-DEFECTOS.md)). **Todavía no están confirmados por SonarCloud**: el análisis del proyecto
-completo se actualiza cuando la rama se mergea a `main`. Hasta entonces, esta tabla sigue siendo la medición vigente.
+**Antes de las correcciones** (medido el 02/11/2026 sobre `8b97ec6`, y esto quedó registrado para que se vea el cambio): 15
+bugs (3 Blocker y 7 Critical), 13 vulnerabilidades, ratings E de confiabilidad y C de seguridad. El Quality Gate daba OK
+igual, porque el gate por defecto de SonarCloud solo evalúa el *código nuevo* de cada cambio. Las correcciones son
+SON-01 a SON-05 del [registro de defectos](REGISTRO-DE-DEFECTOS.md).
+
+**Pendiente menor.** El nuevo análisis dejó un *code smell* de severidad Blocker (`S1845`, dos nombres que se diferencian
+solo por las mayúsculas); no es un bug ni una vulnerabilidad, y se corrigió después (SON-06).
 
 **Cobertura en SonarCloud.** El PR de las correcciones falló el gate por `new_coverage` (2,8 % contra 80 %): subir de versión
 la carpeta `resources/rabbit` (1_22 a 1_23) hizo que 1330 líneas de JavaScript contaran como código nuevo, y SonarCloud
@@ -117,8 +121,8 @@ El workflow Estabilidad corre la suite 3 veces seguidas y compara cada prueba. S
 
 ## 8. Conclusión
 
-Cumplen los umbrales de cobertura, mutación, rendimiento, tiempos y estabilidad. **No cumple el análisis estático
-medido sobre todo el proyecto** (bugs Blocker/Critical, vulnerabilidades y ratings de SonarCloud, punto 4). Tampoco se debe
-leer esto como «el sistema está probado de punta a punta»: lo manual y la resiliencia con el broker real siguen
-pendientes, y hay un defecto mayor abierto (SEG-04, cuentas con hash MD5) con alternativa documentada. El detalle está en el
+Sobre lo automatizado, **cumplen todos los umbrales medidos**: cobertura, mutación, rendimiento, tiempos, estabilidad y
+análisis estático sobre todo el proyecto (SonarCloud, punto 4, tras las correcciones SON-01 a SON-05). Eso no equivale a
+«el sistema está probado de punta a punta»: lo manual y la resiliencia con el broker real siguen pendientes, y hay un
+defecto mayor abierto (SEG-04, cuentas con hash MD5) con alternativa documentada. El detalle está en el
 [registro de defectos](REGISTRO-DE-DEFECTOS.md).

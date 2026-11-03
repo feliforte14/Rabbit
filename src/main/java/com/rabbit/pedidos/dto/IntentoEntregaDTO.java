@@ -16,7 +16,7 @@ import java.util.Locale;
 
 public class IntentoEntregaDTO {
 
-    private static final DateTimeFormatter FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private static final DateTimeFormatter FORMATO_FECHA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final DateTimeFormatter HORA = DateTimeFormatter.ofPattern("HH:mm");
 
     public Long id;
@@ -53,7 +53,7 @@ public class IntentoEntregaDTO {
     }
 
     public Long getId() { return id; }
-    public String getFechaTexto() { return fecha != null ? fecha.format(FECHA) : ""; }
+    public String getFechaTexto() { return fecha != null ? fecha.format(FORMATO_FECHA) : ""; }
     public String getMotivo() { return motivo; }
     public String getComentario() { return comentario; }
     public int getNumeroVisita() { return numeroVisita; }
