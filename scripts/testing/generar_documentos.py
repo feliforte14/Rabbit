@@ -57,8 +57,8 @@ def cargar():
 
 
 hus, casos, src = cargar()
-CI = "https://github.com/feliforte14/Rabbit/actions/runs/41496170001"
-COMMIT = "8b97ec6"
+CI = "https://github.com/feliforte14/Rabbit/actions/runs/41564819013"
+COMMIT = "b696023"
 
 # ---- matriz de la sección 7 ----
 filas = {}
@@ -83,7 +83,7 @@ L = ["# Matriz de trazabilidad", "",
      "Entregable 2 de los *Criterios de Testing* (Clase 15). Cada historia de usuario (HU) llega a sus criterios de",
      "aceptación (CA), sus casos de prueba (CP, ver [ESPECIFICACION-DE-CASOS.md](ESPECIFICACION-DE-CASOS.md)), la prueba",
      "automatizada que la cubre (clase o ruta), el resultado, la evidencia y el defecto vinculado, si lo hay.", "",
-     f"Resultados: corrida del CI sobre el commit `{COMMIT}` (el de la etiqueta `v1.0-testing`). **«Sin ejecutar (manual)»**",
+     f"Resultados: corrida del CI sobre el commit `{COMMIT}`, el último que cambió código (la etiqueta `v1.0-testing` apunta a un commit posterior que solo corrige documentación). **«Sin ejecutar (manual)»**",
      "significa que la HU solo tiene prueba manual y todavía no se ejecutó: no es un pase. Las pruebas manuales se",
      "ejecutan con [FLUJO-DE-PRUEBAS.md](../pruebas/FLUJO-DE-PRUEBAS.md) y el resultado se anota acá y en Jira.", "",
      "**Alcance del resultado:** es por historia, no criterio por criterio. «Pasa» quiere decir que las pruebas automatizadas de",

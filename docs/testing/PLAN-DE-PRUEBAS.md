@@ -31,7 +31,7 @@ ActiveMQ Artemis, API REST, SOAP y vistas JSF). Versión: etiqueta `v1.0-testing
 
 | Nivel | Herramienta | Dónde corre | Qué prueba |
 |---|---|---|---|
-| Unitario | JUnit 5 + Mockito | Job «Build, tests y cobertura» | Reglas de negocio, validaciones, estados, textos, límites (963 pruebas) |
+| Unitario | JUnit 5 + Mockito | Job «Build, tests y cobertura» | Reglas de negocio, validaciones, estados, textos, límites (1022 pruebas) |
 | Integración | REST Assured (`*IT`) contra el sistema levantado con `docker compose` (base PostgreSQL y broker Artemis reales) | Job «Compose, integración y Newman» | API REST, SOAP, seguridad, errores, pertenencia (51 pruebas) |
 | API | Postman + Newman, colección versionada en el repo | Mismo job | 50 requests y 71 aserciones |
 | Contrato | Schemathesis (OpenAPI) y `scripts/contrato/soap.py` (WSDL) | Job «Contrato» | Respuestas contra `openapi.yaml` y los WSDL publicados |
