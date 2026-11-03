@@ -1,5 +1,6 @@
 package com.rabbit.pedidos.negocio;
 
+import com.rabbit.infraestructura.FormatoDeEmail;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
@@ -26,7 +27,6 @@ final class Destinatarios {
     static final int MAX_EMAIL = 120;
 
     private static final Pattern TELEFONO = Pattern.compile("\\+?[0-9(][0-9 ()-]{5,29}");
-    private static final Pattern EMAIL = Pattern.compile("[^@\\s]+@[^@\\s]+\\.[^@\\s]+");
 
     private Destinatarios() {
     }
@@ -53,7 +53,7 @@ final class Destinatarios {
         if (email == null) {
             return null;
         }
-        if (email.length() > MAX_EMAIL || !EMAIL.matcher(email).matches()) {
+        if (email.length() > MAX_EMAIL || !FormatoDeEmail.tieneFormato(email)) {
             throw new ValidacionException("El email de quien recibe no es válido (por ejemplo, ana@correo.com)");
         }
         return email.toLowerCase(Locale.ROOT);
