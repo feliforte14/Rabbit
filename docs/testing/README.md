@@ -16,7 +16,8 @@ uno. El PDF único que se sube a Teams (`Clase15_Grupo<N>_<Dominio>_Testing.pdf`
 
 ## Reglas de este directorio
 
-- Los números salen de corridas reales del CI sobre el commit `8b97ec6` (etiqueta `v1.0-testing`). Si se mueve la etiqueta,
+- Los números salen de corridas reales del CI sobre el commit `b696023`, el último que cambió código (la etiqueta `v1.0-testing`
+  apunta a un commit posterior que solo corrige documentación, así que el código es el mismo). Si cambia el código,
   hay que actualizar los resultados.
 - `MATRIZ-DE-TRAZABILIDAD.md` y `ESPECIFICACION-DE-CASOS.md` se generan desde
   [DOCUMENTACION-FUNCIONAL.md](../funcional/DOCUMENTACION-FUNCIONAL.md) con

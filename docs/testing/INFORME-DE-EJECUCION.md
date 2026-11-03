@@ -1,19 +1,21 @@
 # Informe de ejecución
 
-Entregable 4 de los *Criterios de Testing* (Clase 15). Versión probada: etiqueta `v1.0-testing`, commit `8b97ec6` en
-`main`. Los resultados salen de las corridas del CI sobre ese commit, salvo que se indique otra fuente.
+Entregable 4 de los *Criterios de Testing* (Clase 15). Versión probada: etiqueta `v1.0-testing`. Los resultados se
+midieron sobre el commit **`b696023`** de `main`, que es el último que cambió código. La etiqueta apunta a un commit
+posterior que solo corrige referencias en la documentación (`docs/`), así que el código es idéntico y los números valen
+igual. Los resultados salen de las corridas del CI sobre `b696023`, salvo que se indique otra fuente.
 
-Evidencia (corridas sobre `8b97ec6`):
-[CI](https://github.com/feliforte14/Rabbit/actions/runs/41496170001) ·
-[Seguridad](https://github.com/feliforte14/Rabbit/actions/runs/41496169996) ·
-[Carga](https://github.com/feliforte14/Rabbit/actions/runs/41496169964) ·
-[CodeQL](https://github.com/feliforte14/Rabbit/actions/runs/41496169702)
+Evidencia (corridas sobre `b696023`):
+[CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) ·
+[Seguridad](https://github.com/feliforte14/Rabbit/actions/runs/41564819042) ·
+[Carga](https://github.com/feliforte14/Rabbit/actions/runs/41564819073) ·
+[CodeQL](https://github.com/feliforte14/Rabbit/actions/runs/41564818522)
 
 ## 1. Totales por nivel
 
 | Nivel | Ejecutados | Pasados | Fallados | Bloqueados | Observaciones |
 |---|---|---|---|---|---|
-| Unitario (JUnit 5) | 963 | 963 | 0 | 0 | 0 omitidos |
+| Unitario (JUnit 5) | 1022 | 1022 | 0 | 0 | 0 omitidos |
 | Integración (`*IT`, REST Assured) | 51 | 51 | 0 | 0 | Contra el sistema real levantado con compose |
 | API (Newman) | 50 requests | 71 aserciones, todas | 0 | 0 | |
 | Contrato REST (Schemathesis) | 4 operaciones × 3 fases (ejemplos, cobertura, fuzzing) | todas | 0 | 0 | Con semilla fija (ver CON-02) |
@@ -30,9 +32,9 @@ negocio:
 
 | Métrica | Medido | Mínimo | Resultado |
 |---|---|---|---|
-| Cobertura de líneas, capa de negocio | **97,9 %** (3649 de 3727) | 80 % | Cumple |
-| Cobertura de ramas, capa de negocio | **91,9 %** (1919 de 2089) | 70 % | Cumple |
-| Cobertura de líneas, todo el código | 63,6 % (5578 de 8774) | — | Informativo: incluye vistas, DTO y simuladores |
+| Cobertura de líneas, capa de negocio | **97,7 %** (3676 de 3761) | 80 % | Cumple |
+| Cobertura de ramas, capa de negocio | **91,8 %** (1924 de 2095) | 70 % | Cumple |
+| Cobertura de líneas, todo el código | 64,4 % (5669 de 8804) | — | Informativo: incluye vistas, DTO y simuladores |
 
 ## 3. Mutación (PIT)
 
@@ -40,17 +42,17 @@ Sobre `com.rabbit.*.negocio.*` y `com.rabbit.*.datos.model.*`, en el job «Mutac
 
 | Métrica | Valor |
 |---|---|
-| Mutantes generados | 2566 |
-| Mutantes detectados | **2259 (88 %)**, mínimo exigido 60 % |
+| Mutantes generados | 2574 |
+| Mutantes detectados | **2264 (88 %)**, mínimo exigido 60 % |
 | Mutantes sin cobertura | 47 |
 | Test strength | 90 % |
-| Cobertura de líneas de las clases mutadas | 97 % |
-| Duración | 5 min 33 s |
+| Cobertura de líneas de las clases mutadas | 97 % (4333 de 4484) |
+| Duración | 7 min 8 s |
 
 ## 4. Análisis estático
 
 CodeQL en verde sobre el commit (Java, JavaScript, Python y Actions). SonarCloud, **medido el 03/11/2026 sobre el
-análisis de `26f3995`** (el commit que incorporó las correcciones de la rama `fix/sonar-analisis-estatico`):
+análisis de `b696023`**, con los resultados de las correcciones SON-01 a SON-07:
 
 | Criterio de la cátedra | Umbral | Medido sobre **todo** el proyecto | Resultado |
 |---|---|---|---|
@@ -58,6 +60,7 @@ análisis de `26f3995`** (el commit que incorporó las correcciones de la rama `
 | Bugs Blocker o Critical | 0 | **0 bugs** abiertos | Cumple |
 | Vulnerabilidades | 0 | **0** | Cumple |
 | Rating de confiabilidad / seguridad | A / A | **A / A** (mantenibilidad: A) | Cumple |
+| Issues Blocker o Critical, de cualquier tipo | — | **0** | — |
 | Duplicación | ≤ 3 % | 0,7 % | Cumple |
 | Security hotspots revisados | 100 % | 100 % | Cumple |
 
@@ -66,8 +69,12 @@ bugs (3 Blocker y 7 Critical), 13 vulnerabilidades, ratings E de confiabilidad y
 igual, porque el gate por defecto de SonarCloud solo evalúa el *código nuevo* de cada cambio. Las correcciones son
 SON-01 a SON-05 del [registro de defectos](REGISTRO-DE-DEFECTOS.md).
 
-**Pendiente menor.** El nuevo análisis dejó un *code smell* de severidad Blocker (`S1845`, dos nombres que se diferencian
-solo por las mayúsculas); no es un bug ni una vulnerabilidad, y se corrigió después (SON-06).
+**Code smells: 206 abiertos, todos de severidad menor y dejados a propósito.** 201 son `java:S6813` (inyección por campo),
+que es la convención de Jakarta EE (los EJB no admiten inyección por constructor y las pruebas usan `@InjectMocks`);
+4 están en `qrcode.js`, una librería de terceros copiada al repositorio; y 1 es `java:S8786` en `FormatoDeEmailTest`, que
+conserva a propósito la expresión regular anterior para comparar sus resultados con los del código nuevo. Los criterios de
+la cátedra no piden cero code smells y el rating de mantenibilidad es A. Durante esta entrega se corrigieron un smell
+Blocker (`S1845`, SON-06) y cuatro expresiones regulares con tiempo cuadrático (`S8786`, SON-07).
 
 **Cobertura en SonarCloud.** El PR de las correcciones falló el gate por `new_coverage` (2,8 % contra 80 %): subir de versión
 la carpeta `resources/rabbit` (1_22 a 1_23) hizo que 1330 líneas de JavaScript contaran como código nuevo, y SonarCloud
@@ -77,21 +84,21 @@ Java que había cambiado (`ServletsDeImagenTest`, `AlineadorDeRestriccionesEnumT
 `BancoClientTest`). La cobertura de la capa de negocio
 (punto 2) la mide JaCoCo y no cambia.
 
-**Nota.** El Quality Gate por defecto de SonarCloud evalúa el código nuevo, y por eso salió verde en cada PR. Los criterios
-de la cátedra piden los umbrales sobre el proyecto, y ahí hay incumplimientos. El detalle de cada issue está en el
-tablero de SonarCloud (proyecto `feliforte14_Rabbit`). *(Adjuntar la captura del tablero, que los criterios piden como
-evidencia.)*
+**Nota.** El Quality Gate por defecto de SonarCloud evalúa el código nuevo, y por eso salía verde en cada PR aunque el
+proyecto tuviera issues viejos: por eso hay que medir también el proyecto completo, como se hizo acá. El detalle de cada
+issue está en el tablero de SonarCloud (proyecto `feliforte14_Rabbit`). *(Adjuntar la captura del tablero, que los criterios
+piden como evidencia.)*
 
 ## 5. Rendimiento (k6, 50 usuarios, 5 minutos)
 
 | Endpoint | Mediana (ms) | p95 (ms) | Máximo (ms) |
 |---|---|---|---|
-| Alta del ERP (POST) | 103 | 117 | 145 |
-| Consulta del ERP (GET) | 95 | 103 | 129 |
-| Seguimiento público (GET) | 2 | 5 | 36 |
-| Todos | 3 | 96 | 711 |
+| Alta del ERP (POST) | 104 | 120 | 143 |
+| Consulta del ERP (GET) | 96 | 106 | 137 |
+| Seguimiento público (GET) | 2 | 5 | 43 |
+| Todos | 2 | 98 | 432 |
 
-16 218 requests (46,7 por segundo) y **0,00 % de errores**. Umbrales: p95 < 500 ms y errores < 1 %. Cumple.
+16 216 requests (46,8 por segundo) y **0,00 % de errores**. Umbrales: p95 < 500 ms y errores < 1 %. Cumple.
 
 Accesibilidad (Lighthouse, 5 pantallas): **100** en accesibilidad en todas, mínimo exigido 90. «Buenas prácticas»: 96 en
 todas, con una auditoría que falla, `errors-in-console` (ver OBS-01 en el registro de defectos).
@@ -100,14 +107,14 @@ todas, con una auditoría que falla, `errors-in-console` (ver OBS-01 en el regis
 
 | Medida | Resultado | Umbral |
 |---|---|---|
-| Workflow CI | 6 min | pipeline ≤ 15 min |
-| Workflow Seguridad | 4 min (con la base del NVD en caché; 11,5 min sin ella) | |
-| Workflow Carga | 8 min | |
-| Pruebas inestables | 0 en las 3 corridas del workflow Estabilidad | 0 |
+| Workflow CI | 7 min 34 s (incluye la mutación, que en un PR se saltea) | pipeline ≤ 15 min |
+| Workflow Seguridad | 11 min (4 min cuando la base del NVD está en caché) | |
+| Workflow Carga | 7 min 22 s | |
+| Pruebas inestables | **0** en las 3 vueltas del workflow Estabilidad (11 min) | 0 |
 
-El workflow Estabilidad corre la suite 3 veces seguidas y compara cada prueba. Sus últimas corridas fueron en verde, pero
-**sobre commits anteriores a la etiqueta** (02/11, en el PR): hay que volver a correrlo sobre `main` antes de la entrega
-(`Actions → Estabilidad → Run workflow`).
+El workflow Estabilidad corre la suite completa 3 veces seguidas y compara cada prueba: una que cambie de resultado entre
+vueltas se reporta como inestable. Se corrió a mano sobre `main` en `b696023` (el 03/11/2026) y terminó en verde, con el
+job «Comparar las 3 vueltas» incluido: [corrida](https://github.com/feliforte14/Rabbit/actions/runs/41566041263).
 
 ## 7. Qué falta ejecutar
 

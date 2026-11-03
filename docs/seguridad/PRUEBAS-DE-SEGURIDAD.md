@@ -1,6 +1,6 @@
 # Pruebas de seguridad: estado y cómo repetirlas
 
-Estado al 02/11/2026 (commit `2f58163`, tag `v1.0-testing`) y los comandos para repetir cada prueba en una
+Estado al 02/11/2026 (medido sobre el commit `2f58163`; la etiqueta `v1.0-testing` hoy apunta a un commit posterior, con las correcciones del 02 y 03/11) y los comandos para repetir cada prueba en una
 máquina propia (macOS o Linux con Docker). Qué protege Rabbit y cómo está en [SEGURIDAD.md](SEGURIDAD.md); acá está
 **cómo se comprueba**.
 
