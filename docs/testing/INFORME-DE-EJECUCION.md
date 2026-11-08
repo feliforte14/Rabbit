@@ -122,8 +122,9 @@ job «Comparar las 3 vueltas» incluido: [corrida](https://github.com/feliforte1
   [FLUJO-DE-PRUEBAS.md](../pruebas/FLUJO-DE-PRUEBAS.md): sin ejecutar al momento de redactar este informe.
 - **Prueba exploratoria** (sesión expirada, doble clic, volver atrás, recarga en medio de una operación, concurrencia entre
   dos usuarios): se hizo en parte (generó SES-01); falta una pasada completa registrada.
-- **Resiliencia con el broker** (apagarlo y volver a levantarlo, mensaje inválido a la cola de mensajes muertos): no hay
-  prueba automatizada; se hace en vivo en la demo.
+- **Resiliencia con el broker, de punta a punta:** el outbox y la cola de mensajes muertos (punto 9) tienen pruebas
+  unitarias y una prueba manual documentada, pero **no hay una prueba automatizada con un broker real** que lo apague
+  y lo vuelva a levantar: se hace en vivo en la demo (`scripts/dlq.sh` para ver y reprocesar la DLQ).
 - **Formularios JSF**: inyección y XSS a mano (la API ya está cubierta por pruebas automatizadas).
 
 ## 8. Conclusión
@@ -133,3 +134,37 @@ análisis estático sobre todo el proyecto (SonarCloud, punto 4, tras las correc
 «el sistema está probado de punta a punta»: lo manual y la resiliencia con el broker real siguen pendientes, y hay un
 defecto mayor abierto (SEG-04, cuentas con hash MD5) con alternativa documentada. El detalle está en el
 [registro de defectos](REGISTRO-DE-DEFECTOS.md).
+
+## 9. Cambios posteriores a la medición: resiliencia del broker (PR #24, 08/11/2026)
+
+Una auditoría contra el eje C de los criterios encontró dos huecos (RES-01 y RES-02 del
+[registro de defectos](REGISTRO-DE-DEFECTOS.md)), corregidos en la PR #24 (ADR-063 y ADR-064):
+
+- **RES-01:** con el broker caído, el aviso de cambio de estado se perdía (solo un warning en el log), y con él el cobro
+  contra entrega y la notificación. Ahora el aviso se guarda en `eventos_estado_pedido` en la misma transacción del
+  cambio, se manda después del commit y un timer reenvía lo pendiente cada 15 s.
+- **RES-02:** un mensaje ilegible se consumía y se perdía. Ahora el consumidor lo relanza, el broker reintenta 5 veces
+  (2 s entre intentos) y lo manda a la DLQ.
+
+Lo que se midió sobre el último commit de la PR (`9fb763e`):
+
+| Medida | Resultado | Fuente |
+|---|---|---|
+| Pruebas unitarias | 1042 ejecutadas, 0 fallos, 0 omitidas (eran 1022: 20 nuevas) | `mvn verify`, local y CI |
+| Integración (`*IT`) | 51 de 51 | [CI](https://github.com/feliforte14/Rabbit/actions/runs/42522549921) |
+| Cobertura de la capa de negocio | 97,8 % de líneas (3728 de 3811) y 91,8 % de ramas (1927 de 2099) | JaCoCo local |
+| SonarCloud sobre el código nuevo | Quality Gate **OK**, cobertura del código nuevo 97,5 % | PR #24 |
+| Workflows CI, Seguridad y Carga | Los tres en verde | [CI](https://github.com/feliforte14/Rabbit/actions/runs/42522549921) · [Seguridad](https://github.com/feliforte14/Rabbit/actions/runs/42522549922) · [Carga](https://github.com/feliforte14/Rabbit/actions/runs/42522550004) |
+
+La primera versión de la PR (`ce08854`) falló el Quality Gate de SonarCloud por la cobertura del código nuevo (78,8 %
+contra el 80 % mínimo: faltaba probar el repositorio de la bandeja). Se agregó `EventoEstadoRepositoryTest` y pasó.
+
+Prueba manual con la aplicación levantada con Docker (no automatizada): se forzó que el tópico rechazara envíos
+(dirección llena) y se dieron de alta pedidos: se crearon igual, sus avisos quedaron pendientes con los reintentos
+contados y, al restaurar el tópico, el timer los publicó y llegaron las notificaciones. Un mensaje roto enviado a la
+cola tuvo exactamente 5 intentos y quedó en la DLQ con su cola de origen; `scripts/dlq.sh reprocesar` lo devolvió a la
+cola y volvió a la DLQ por seguir roto. Uno roto en el tópico llegó a la DLQ desde las suscripciones de Notificaciones
+(la de Pagos filtra por estado y no lo recibe).
+
+**Pendiente de medir sobre este código:** la mutación (PIT), que el CI corre solo en `main` y en la PR se saltea. Los
+números de los puntos 1 a 8 de este informe son los de `b696023`, salvo que se indique otra cosa en esta sección.
