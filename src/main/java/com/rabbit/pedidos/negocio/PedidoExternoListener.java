@@ -39,13 +39,17 @@ package com.rabbit.pedidos.negocio;
  *   igual que hace SincronizadorDePedidos, y el mensaje se consume igual:
  *   reintentarlo no lo va a arreglar solo.
  * - Mensaje ilegible (no es TextMessage, JSON roto, sin idPedidoExterno):
- *   se loguea y se consume. Reintentarlo daría siempre el mismo error y
- *   solo lo llevaría a la DLQ después de N intentos.
+ *   se loguea y se relanza (MensajeIlegibleException). Reintentarlo no lo
+ *   arregla, pero justamente por eso, después de los intentos del broker
+ *   (max-delivery-attempts, docker/wildfly/configurar.cli) pasa a la DLQ: queda
+ *   guardado para inspeccionarlo y reprocesarlo, en vez de perderse.
  * - Cualquier otra RuntimeException (por ejemplo la base caída un
  *   instante) SÍ se relanza para que el broker reintente la entrega, y
  *   aunque esa redelivery fallara para siempre, SincronizadorDePedidos
  *   igual va a encontrar la fila sin sincronizar en su próxima pasada.
  */
+
+import com.rabbit.infraestructura.MensajeIlegibleException;
 
 import jakarta.ejb.ActivationConfigProperty;
 import jakarta.ejb.MessageDriven;
@@ -80,10 +84,6 @@ public class PedidoExternoListener implements MessageListener {
     @Override
     public void onMessage(Message mensaje) {
         Long idPedidoExterno = leerIdPedidoExterno(mensaje);
-        if (idPedidoExterno == null) {
-            // Ya logueado en leerIdPedidoExterno: se consume y listo.
-            return;
-        }
         try {
             Long idPedido = gestionPedidos.sincronizarPedidoExterno(idPedidoExterno);
             LOG.info("[Pedidos][JMS] Pedido externo " + idPedidoExterno
@@ -114,16 +114,16 @@ public class PedidoExternoListener implements MessageListener {
     }
 
     /**
-     * Extrae el ID del body JSON. Devuelve null si el mensaje no se puede
-     * interpretar: no hay ID confiable para reintentar ni para descartar
-     * contra la base, y no queda ninguna fila de negocio afectada.
+     * Extrae el ID del body JSON. Si el mensaje no se puede interpretar lanza
+     * MensajeIlegibleException: no hay ID confiable para reintentar ni para
+     * descartar contra la base, así que la entrega se deshace y, agotados los
+     * reintentos del broker, el mensaje va a la DLQ (no se pierde).
      */
     private Long leerIdPedidoExterno(Message mensaje) {
         try {
             if (!(mensaje instanceof TextMessage texto)) {
-                LOG.severe("[Pedidos][JMS] Mensaje de tipo inesperado en cola.pedidos.externos: "
+                throw new MensajeIlegibleException("Mensaje de tipo inesperado en cola.pedidos.externos: "
                         + mensaje.getClass().getName());
-                return null;
             }
             try (StringReader reader = new StringReader(texto.getText());
                     JsonReader lector = Json.createReader(reader)) {
@@ -132,7 +132,7 @@ public class PedidoExternoListener implements MessageListener {
             }
         } catch (JMSException | JsonException | ClassCastException | NullPointerException e) {
             LOG.log(Level.SEVERE, "[Pedidos][JMS] Mensaje ilegible en cola.pedidos.externos", e);
-            return null;
+            throw new MensajeIlegibleException("Mensaje ilegible en cola.pedidos.externos", e);
         }
     }
 }

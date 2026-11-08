@@ -345,19 +345,21 @@ class PagoServiceTest {
         }
 
         @Test
-        void unMensajeIlegibleSeConsumeSinTocarCobros() throws JMSException {
+        void unMensajeIlegibleSeRelanzaParaQueVayaALaDLQSinTocarCobros() throws JMSException {
             when(mensaje.getLongProperty("idPedido")).thenThrow(new JMSException("sin propiedad"));
 
-            suscriptor.onMessage(mensaje);
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    com.rabbit.infraestructura.MensajeIlegibleException.class, () -> suscriptor.onMessage(mensaje));
 
             verifyNoInteractions(cobros);
         }
 
         @Test
-        void unIdQueNoEsNumeroTambienSeConsume() throws JMSException {
+        void unIdQueNoEsNumeroTambienVaALaDLQ() throws JMSException {
             when(mensaje.getLongProperty("idPedido")).thenThrow(new NumberFormatException("abc"));
 
-            suscriptor.onMessage(mensaje);
+            org.junit.jupiter.api.Assertions.assertThrows(
+                    com.rabbit.infraestructura.MensajeIlegibleException.class, () -> suscriptor.onMessage(mensaje));
 
             verifyNoInteractions(cobros);
         }

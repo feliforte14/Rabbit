@@ -64,6 +64,9 @@ Propuesta o Reemplazada.
 - [ADR-057](#adr-057-opciones-de-quien-recibe-desde-el-seguimiento): Opciones de quien recibe desde el seguimiento (Aceptada)
 - [ADR-058](#adr-058-órdenes-de-recepción-de-mercadería): Órdenes de recepción de mercadería (Aceptada)
 - [ADR-059](#adr-059-cobro-por-almacenamiento): Cobro por almacenamiento (Aceptada)
+- ADR-060 a ADR-062: son de la entrega de la Clase 12 (patrones) y no están en este archivo.
+- [ADR-063](#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado): Bandeja de salida (outbox) para los avisos de estado (Aceptada)
+- [ADR-064](#adr-064-mensajes-ilegibles-a-la-cola-de-mensajes-muertos-dlq-con-reintentos-acotados): Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados (Aceptada)
 
 ## ADR-001: Cola JMS + polling de respaldo para sincronizar pedidos
 
@@ -89,6 +92,10 @@ Propuesta o Reemplazada.
   falla del broker no afecta al pedido. Existe una ventana donde el pedido
   se guardó pero el mensaje no salió; la cubre el polling (ADR-001). Se
   descartó XA/outbox por complejidad.
+- **Actualización (08/11/2026):** esto vale para la cola de pedidos externos,
+  que tiene el polling como respaldo. El tópico de estados no tenía respaldo
+  y perdía el aviso si el broker estaba caído: ahí sí se hizo una bandeja de
+  salida (outbox, ADR-063), sin XA.
 
 ## ADR-003: Timeout del padrón fiscal no bloquea el alta
 
@@ -155,7 +162,10 @@ Propuesta o Reemplazada.
   `EstadoPedidoCambiado`; orden resuelto por `fechaCambio` en cada
   suscriptor.
 - **Consecuencias:** Pedidos no conoce a sus suscriptores. Cada suscriptor
-  tiene que ser idempotente y tolerar desorden.
+  tiene que ser idempotente y tolerar desorden. Desde la bandeja de salida
+  (ADR-063) el aviso llega "al menos una vez": un suscriptor puede recibir el
+  mismo evento dos veces, y los tres lo toleran (Pagos solo acredita un cobro
+  pendiente; los avisos descartan lo que no es más nuevo que lo ya avisado).
 
 ## ADR-007: Endpoint REST de entrada reemplaza al formulario del ERP
 
@@ -208,8 +218,11 @@ Propuesta o Reemplazada.
   caído (probado con `stop-delivery`/`start-delivery`). A cambio, el
   broker guarda mensajes por cada suscripción hasta que se consumen, y
   cambiar `clientId` o `subscriptionName` crea una suscripción nueva.
-  Si falla la publicación misma, el aviso se pierde: no hay polling de
-  respaldo como en la cola (ADR-001).
+  Si falla la publicación misma, el aviso no se pierde: se guarda antes
+  en una bandeja de salida (`eventos_estado_pedido`, en la misma
+  transacción que el cambio de estado) y un timer reenvía lo pendiente
+  cada 15 s (outbox, al menos una vez). Un mensaje ilegible se relanza y,
+  tras 5 intentos, va a la DLQ (`scripts/dlq.sh`). Ver ADR-063 y ADR-064.
 
 ## ADR-010: Cobro por SOAP en un banco legado, con reversa compensatoria
 
@@ -788,8 +801,9 @@ Propuesta o Reemplazada.
     configuración genérica; quedan en `main`.
 - **Consecuencias:** para mostrar la heterogeneidad hay que cambiar de
   rama y redesplegar. La rama hay que mantenerla al día con `main`: al
-  18/10/2026 quedó atrás (no tiene lo agregado desde el 14/10), así que
-  antes de una demo hay que hacer `git merge main` en ella.
+  08/11/2026 está 134 commits atrás de `main` (y tiene 1 propio, el que
+  vuelve a sumar los servicios), así que antes de una demo hay que hacer
+  `git merge main` en ella.
 
 ## ADR-031: Las cuentas, en la base compartida (realm JDBC con bcrypt)
 
@@ -1107,7 +1121,9 @@ Propuesta o Reemplazada.
 ## ADR-038: Hoja de ruta recomendada del repartidor
 
 - **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
-  "Testing NO OK").
+  "Testing NO OK"). El orden por código postal lo mejora ADR-046, que ordena
+  por distancia con las direcciones ubicadas en el mapa (queda el código
+  postal para las que todavía no se ubicaron).
 - **Contexto:** el repartidor tenía un link de Google Maps por pedido; con
   varios pedidos a la vez (ADR-032) no tenía un recorrido para el día.
 - **Decisión:**
@@ -1662,7 +1678,8 @@ Propuesta o Reemplazada.
     Retirado), con el depósito y el código; los mails dicen "listo para retirar" en vez de
     "ya tiene quién lo lleve".
 - **Consecuencias:** un retiro que nadie busca queda CONFIRMADO hasta que se cancele (no
-  hay vencimiento ni cobro por almacenamiento todavía). La prueba de entrega es solo el
+  hay vencimiento; mientras espera, las unidades siguen ocupando lugar y
+  cuentan para el cobro por almacenamiento, ADR-059). La prueba de entrega es solo el
   código, más débil que la foto del remito; el código lo conoce quien tenga el enlace.
 
 ## ADR-054: Mejoras de diseño visual
@@ -1861,3 +1878,87 @@ Propuesta o Reemplazada.
   se reconstruye (los meses ya liquidados no cambian). La foto es del día y no del instante: una unidad que entra y sale entre
   dos fotos no se cobra. Cobrar un mes con datos a medias sería injusto: como los precios ya vienen activos, conviene cargar las
   medidas del stock existente antes de que se liquide el mes.
+
+## ADR-063: Bandeja de salida (outbox) para los avisos de estado
+
+- **Estado:** Aceptada (08/11/2026). Sale de los *Criterios de Testing* (Clase 15,
+  eje C: "se apaga el broker y no se pierden mensajes") y completa ADR-002 y ADR-009.
+- **Contexto:** `PublicadorEstadosPedido` mandaba el aviso al tópico después del commit
+  del cambio de estado, y si el broker estaba caído lo dejaba en un warning del log.
+  Pagos y Notificaciones se enteran por ese tópico, así que un pedido podía quedar
+  ENTREGADO con el cobro contra entrega sin acreditar y sin aviso al comercio ni a quien
+  recibe. A diferencia de la cola de pedidos externos, no había polling de respaldo
+  (ADR-002), y el estado no guarda historial para reconstruir qué avisos faltaron.
+- **Decisión:** el aviso se guarda en la tabla `eventos_estado_pedido`
+  (`EventoEstadoPedido`, `BandejaDeEstados`) **dentro de la misma transacción** que el
+  cambio de estado, con un observador de CDI durante la transacción. Si el cambio se
+  deshace, el aviso también. Después del commit (`AFTER_SUCCESS`) se manda lo pendiente
+  al tópico (`EnvioDeEstadosPendientes`) y cada aviso publicado se marca con
+  `publicadoEn`. Lo que no salió queda pendiente y un timer (cada 15 s) lo reenvía.
+  - **Orden:** se envía por id (el orden en que pasó) y la pasada se corta al primer
+    fallo: si el broker está caído, el resto también fallaría, y así se conserva el orden.
+  - **Sin duplicar dentro del servidor:** `EnvioDeEstadosPendientes` es `@Singleton` con
+    la concurrencia por defecto (`WRITE`), así que el camino rápido y el timer no se pisan.
+  - **Limpieza:** los publicados se borran a los 7 días (timer diario a las 03:20); sirven
+    para auditar. Cada aviso cuenta sus `intentosFallidos`.
+  - **Prioridades:** el registro (100) corre antes que el envío (200), por si no hay
+    transacción y CDI llama a los dos observadores en el momento.
+- **Alternativas descartadas:**
+  - *XA entre la base y el broker:* ya descartado en ADR-002; suma complejidad de
+    configuración (datasource XA, recuperación) para algo que la bandeja resuelve con una
+    tabla.
+  - *Polling de reconciliación sobre los pedidos:* no se guarda qué estados se avisaron,
+    así que habría que inventar ese dato igual.
+  - *Reintentar el envío en el momento:* no ayuda si el broker sigue caído un rato, y
+    demora la respuesta al usuario.
+- **Consecuencias:** el aviso llega **al menos una vez**: dos servidores sobre la misma
+  base podrían mandar el mismo, y un envío exitoso cuya marca falló se repite. Los tres
+  suscriptores lo toleran (ver ADR-006). Con el broker de vuelta, lo pendiente sale en
+  hasta 15 s. La bandeja suma una escritura por cambio de estado en la misma transacción.
+  Probado el 08/11/2026 con la aplicación en Docker: se forzó que el tópico rechazara
+  envíos, se dieron de alta pedidos (se crearon igual, con su aviso pendiente y los
+  reintentos contados) y, al restaurarlo, el timer los publicó y llegaron todas las
+  notificaciones. En los tests: `BandejaDeEstadosTest`, `EnvioDeEstadosPendientesTest` y
+  `PublicadorEstadosPedidoTest`.
+
+## ADR-064: Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados
+
+- **Estado:** Aceptada (08/11/2026). Sale de los *Criterios de Testing* (Clase 15, eje C:
+  "mensaje inválido o que falla N veces termina en la DLQ, con registro y posibilidad de
+  reproceso").
+- **Contexto:** los cuatro consumidores (`PedidoExternoListener` y los tres suscriptores
+  del tópico) tragaban los mensajes que no podían interpretar: lo registraban en el log y
+  lo consumían, así que el mensaje se perdía y nunca llegaba a la DLQ. Los fallos
+  transitorios (la base caída un instante) ya se relanzaban para que el broker
+  reintentara, pero con los valores por defecto de WildFly (10 intentos seguidos, sin
+  espera) y sin que nada de eso estuviera configurado ni documentado.
+- **Decisión:**
+  - Un mensaje que no se puede leer (no es de texto, el JSON está roto, falta un campo)
+    lanza `MensajeIlegibleException`: la entrega se deshace y el broker la reintenta.
+  - `docker/wildfly/configurar.cli` fija en el address-setting `#` (alcanza a la cola y a
+    las suscripciones durables del tópico) `max-delivery-attempts=5` y
+    `redelivery-delay=2000`. Agotados los intentos, el mensaje pasa a `jms.queue.DLQ`
+    (que WildFly ya trae como dead-letter-address) con su cola de origen
+    (`_AMQ_ORIG_QUEUE`).
+  - `scripts/dlq.sh` lista lo que hay, lo reprocesa (lo devuelve a su cola de origen) o lo
+    descarta.
+  - Lo que **no** cambia: una `ValidacionException` (comercio de baja, sin stock) es un
+    resultado de negocio, no un fallo del transporte; sigue descartando la fila del pedido
+    externo con su motivo y consumiendo el mensaje, porque reintentarlo no lo arregla.
+- **Alternativas descartadas:**
+  - *Seguir consumiendo y logueando:* se pierde el mensaje y no hay nada que reprocesar.
+  - *Una DLQ por cola:* más configuración para el mismo resultado; con el setting `#` y el
+    dato de origen en cada mensaje alcanza.
+  - *Reproceso automático desde la DLQ:* un mensaje roto volvería a fallar en bucle; el
+    reproceso es una decisión de una persona después de ver la causa.
+- **Consecuencias:** un mensaje roto deja 5 errores en el log (uno por intento, con 2 s
+  entre sí) y después espera en la DLQ. Reprocesar sin corregir la causa lo devuelve a la
+  DLQ tras otros 5 intentos. Un fallo transitorio que dura más de unos 10 s pasa a la DLQ
+  en lugar de seguir reintentando (antes eran 10 intentos sin espera, o sea menos tiempo).
+  La configuración vive en la imagen de Docker: en un WildFly propio hay que correr
+  `/subsystem=messaging-activemq/server=default/address-setting=\#:write-attribute(name=max-delivery-attempts, value=5)`
+  y lo mismo con `redelivery-delay, value=2000`. Probado el 08/11/2026 con la aplicación
+  en Docker: un mensaje roto en la cola tuvo exactamente 5 intentos y quedó en la DLQ con
+  su cola de origen; `scripts/dlq.sh reprocesar` lo devolvió a la cola y, como seguía roto,
+  volvió a la DLQ; uno roto en el tópico llegó a la DLQ desde las suscripciones de
+  Notificaciones (la de Pagos filtra por estado y no lo recibe).
