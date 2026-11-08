@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -14,6 +15,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.rabbit.comercios.dto.ComercioDTO;
+import com.rabbit.infraestructura.MensajeIlegibleException;
 import com.rabbit.comercios.negocio.ComercioEliminado;
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.notificaciones.datos.NotificacionRepository;
@@ -364,30 +366,30 @@ class NotificacionesServiciosTest {
         @ParameterizedTest
         @ValueSource(strings = {"no es json", "{\"idPedido\":100}", "{\"idPedido\":\"x\",\"idComercio\":3,\"estado\":\"E\",\"fechaCambio\":\"2026-10-20T10:00\"}",
                 "{\"idPedido\":1,\"idComercio\":3,\"estado\":\"E\",\"fechaCambio\":\"ayer\"}"})
-        void unMensajeIlegibleSeConsumeSinAvisar(String json) throws JMSException {
-            alComercio.onMessage(mensaje(json));
-            aQuienRecibe.onMessage(mensaje(json));
+        void unMensajeIlegibleSeRelanzaParaQueVayaALaDLQSinAvisar(String json) throws JMSException {
+            assertThrows(MensajeIlegibleException.class, () -> alComercio.onMessage(mensaje(json)));
+            assertThrows(MensajeIlegibleException.class, () -> aQuienRecibe.onMessage(mensaje(json)));
 
             verifyNoInteractions(notificaciones, avisos);
         }
 
         @Test
-        void unMensajeQueNoEsDeTextoSeDescarta() throws JMSException {
+        void unMensajeQueNoEsDeTextoVaALaDLQ() throws JMSException {
             Message otro = mock(Message.class);
 
-            alComercio.onMessage(otro);
-            aQuienRecibe.onMessage(otro);
+            assertThrows(MensajeIlegibleException.class, () -> alComercio.onMessage(otro));
+            assertThrows(MensajeIlegibleException.class, () -> aQuienRecibe.onMessage(otro));
 
             verifyNoInteractions(notificaciones, avisos);
         }
 
         @Test
-        void siNoSePuedeLeerElTextoSeConsume() throws JMSException {
+        void siNoSePuedeLeerElTextoVaALaDLQ() throws JMSException {
             TextMessage m = mock(TextMessage.class);
             when(m.getText()).thenThrow(new JMSException("roto"));
 
-            alComercio.onMessage(m);
-            aQuienRecibe.onMessage(m);
+            assertThrows(MensajeIlegibleException.class, () -> alComercio.onMessage(m));
+            assertThrows(MensajeIlegibleException.class, () -> aQuienRecibe.onMessage(m));
 
             verifyNoInteractions(notificaciones, avisos);
         }

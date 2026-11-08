@@ -48,6 +48,14 @@ data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --dr
 /subsystem=undertow/server=default-server/host=default-host/filter-ref=marcos-host:add(predicate="not path-prefix(/Rabbit)")
 /subsystem=undertow/server=default-server/host=default-host/filter-ref=permisos-host:add(predicate="not path-prefix(/Rabbit)")
 
+# Mensajes que no se pueden procesar: el broker reintenta la entrega 5 veces,
+# con 2 segundos entre una y otra, y después los manda a la cola de mensajes
+# muertos (jms.queue.DLQ, que WildFly ya trae). Sin esto eran 10 intentos
+# seguidos. El setting "#" alcanza a las colas y a las suscripciones durables
+# de los tópicos. Cómo ver y reprocesar la DLQ: scripts/dlq.sh.
+/subsystem=messaging-activemq/server=default/address-setting=\#:write-attribute(name=max-delivery-attempts, value=5)
+/subsystem=messaging-activemq/server=default/address-setting=\#:write-attribute(name=redelivery-delay, value=2000)
+
 # Demos y pruebas durante el día: sin hora de corte (README, paso 7b).
 /system-property=rabbit.ruteo.hora-corte:add(value="${env.RABBIT_HORA_CORTE:ninguno}")
 

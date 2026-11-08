@@ -17,10 +17,13 @@ package com.rabbit.pedidos.negocio;
  * opuesto a cola.pedidos.externos (PublicadorPedidosExternos), donde cada
  * pedido lo tiene que procesar exactamente un consumidor.
  *
- * TRANSACCIÓN: mismo esquema que PublicadorPedidosExternos (ver su
- * comentario de método): AFTER_SUCCESS + NOT_SUPPORTED. El aviso sale
- * recién cuando el cambio de estado ya está confirmado en la base, y una
- * falla del broker no deshace el cambio.
+ * TRANSACCIÓN Y BANDEJA DE SALIDA (outbox): el aviso se guarda en la tabla
+ * eventos_estado_pedido DENTRO de la transacción del cambio de estado (si
+ * ésta se deshace, el aviso también) y recién después del commit se manda
+ * (AFTER_SUCCESS). Si el broker está caído, el aviso queda pendiente y
+ * EnvioDeEstadosPendientes lo reenvía cada 15 segundos: no se pierde.
+ * Antes solo se publicaba después del commit y, con el broker caído, el
+ * aviso se perdía (y con él el cobro contra entrega y la notificación).
  *
  * MENSAJE: TextMessage con el JSON {idPedido, idComercio, estado,
  * fechaCambio} y dos propiedades JMS (estado, idPedido): los suscriptores
@@ -28,21 +31,15 @@ package com.rabbit.pedidos.negocio;
  * ejemplo, solo se suscribe a estado = 'ENTREGADO'.
  */
 
-import jakarta.annotation.Resource;
+import jakarta.annotation.Priority;
+import jakarta.inject.Inject;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.event.TransactionPhase;
-import jakarta.jms.ConnectionFactory;
-import jakarta.jms.JMSContext;
 import jakarta.jms.JMSDestinationDefinition;
-import jakarta.jms.JMSException;
-import jakarta.jms.TextMessage;
-import jakarta.jms.Topic;
 import jakarta.json.Json;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 // El tópico lo declara la aplicación, como la cola; la connection factory
 // es la misma (declarada en PublicadorPedidosExternos, conector in-vm).
@@ -54,31 +51,28 @@ import java.util.logging.Logger;
 @Stateless
 public class PublicadorEstadosPedido {
 
-    private static final Logger LOG = Logger.getLogger(PublicadorEstadosPedido.class.getName());
+    // El registro corre antes que el envío si no hay transacción (ahí los
+    // dos observadores se llaman en el momento): primero se guarda, después se manda.
+    static final int PRIORIDAD_REGISTRO = 100;
+    static final int PRIORIDAD_ENVIO = 200;
 
-    @Resource(lookup = "java:/jms/rabbit/ConnectionFactory")
-    private ConnectionFactory connectionFactory;
+    @Inject
+    private BandejaDeEstados bandeja;
 
-    @Resource(lookup = "java:/jms/topic/EstadosPedido")
-    private Topic topicoEstados;
+    @Inject
+    private EnvioDeEstadosPendientes envio;
 
+    /** Guarda el aviso en la bandeja, en la misma transacción que el cambio de estado. */
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public void registrarCambioDeEstado(@Observes @Priority(PRIORIDAD_REGISTRO) EstadoPedidoCambiado evento) {
+        bandeja.registrar(evento);
+    }
+
+    /** Ya confirmado el cambio de estado: manda lo pendiente (este aviso y, si los hay, los que quedaron atrás). */
     @TransactionAttribute(TransactionAttributeType.NOT_SUPPORTED)
     public void publicarCambioDeEstado(
-            @Observes(during = TransactionPhase.AFTER_SUCCESS) EstadoPedidoCambiado evento) {
-        try (JMSContext contexto = connectionFactory.createContext()) {
-            TextMessage mensaje = contexto.createTextMessage(construirPayload(evento));
-            mensaje.setStringProperty("estado", evento.estado().name());
-            mensaje.setLongProperty("idPedido", evento.idPedido());
-
-            contexto.createProducer().send(topicoEstados, mensaje);
-            LOG.info("[Pedidos] Publicado en topico.pedidos.estado: pedido " + evento.idPedido()
-                    + " -> " + evento.estado());
-        } catch (RuntimeException | JMSException e) {
-            // Mismo criterio que la cola: el cambio de estado ya está guardado;
-            // lo que se pierde es el aviso (ver docs/integraciones/MENSAJERIA-ASINCRONICA.md).
-            LOG.log(Level.WARNING, "[Pedidos] No se pudo publicar el cambio de estado del pedido "
-                    + evento.idPedido() + " en el tópico", e);
-        }
+            @Observes(during = TransactionPhase.AFTER_SUCCESS) @Priority(PRIORIDAD_ENVIO) EstadoPedidoCambiado evento) {
+        envio.enviarPendientes();
     }
 
     /**

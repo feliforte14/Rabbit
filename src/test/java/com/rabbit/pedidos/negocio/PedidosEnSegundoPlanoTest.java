@@ -254,15 +254,15 @@ class PedidosEnSegundoPlanoTest {
         }
 
         @Test
-        void unMensajeIlegibleSeDescartaSinSincronizar() throws Exception {
-            listener.onMessage(mock(BytesMessage.class));
-            listener.onMessage(mensaje("no es json"));
-            listener.onMessage(mensaje("{\"otro\":1}"));
-            listener.onMessage(mensaje("{\"idPedidoExterno\":\"77\"}"));
-            listener.onMessage(mensaje(null));
+        void unMensajeIlegibleSeRelanzaParaQueElBrokerLoMandeALaDLQ() throws Exception {
             TextMessage roto = mock(TextMessage.class);
             when(roto.getText()).thenThrow(new JMSException("roto"));
-            listener.onMessage(roto);
+
+            for (jakarta.jms.Message ilegible : List.of(mock(BytesMessage.class), mensaje("no es json"),
+                    mensaje("{\"otro\":1}"), mensaje("{\"idPedidoExterno\":\"77\"}"), mensaje(null), roto)) {
+                assertThrows(com.rabbit.infraestructura.MensajeIlegibleException.class,
+                        () -> listener.onMessage(ilegible));
+            }
 
             verifyNoInteractions(gestionPedidos);
         }
@@ -333,7 +333,6 @@ class PedidosEnSegundoPlanoTest {
         @Mock private JMSContext contexto;
         @Mock private JMSProducer productor;
         @Mock private TextMessage mensaje;
-        @InjectMocks private PublicadorEstadosPedido estados;
         @InjectMocks private PublicadorPedidosExternos externos;
 
         @BeforeEach
@@ -341,20 +340,6 @@ class PedidosEnSegundoPlanoTest {
             when(connectionFactory.createContext()).thenReturn(contexto);
             when(contexto.createTextMessage(anyString())).thenReturn(mensaje);
             when(contexto.createProducer()).thenReturn(productor);
-        }
-
-        @Test
-        void publicaElCambioDeEstadoEnElTopico() throws Exception {
-            EstadoPedidoCambiado evento = new EstadoPedidoCambiado(100L, 3L, EstadoPedido.EN_CAMINO,
-                    LocalDateTime.of(2026, 10, 29, 10, 0));
-
-            estados.publicarCambioDeEstado(evento);
-
-            verify(contexto).createTextMessage(PublicadorEstadosPedido.construirPayload(evento));
-            verify(mensaje).setStringProperty("estado", "EN_CAMINO");
-            verify(mensaje).setLongProperty("idPedido", 100L);
-            verify(productor).send(topicoEstados, mensaje);
-            verify(contexto).close();
         }
 
         @Test
@@ -369,11 +354,9 @@ class PedidosEnSegundoPlanoTest {
         @Test
         void siElBrokerFallaNoRompeLaOperacion() throws Exception {
             doThrow(new JMSException("prop")).when(mensaje).setStringProperty(anyString(), anyString());
-            estados.publicarCambioDeEstado(new EstadoPedidoCambiado(100L, 3L, EstadoPedido.CANCELADO, LocalDateTime.now()));
             externos.publicarPedidoExternoRegistrado(new PedidoExternoRegistrado(77L, OrigenPedido.STOCK_CONSIGNADO));
 
             when(connectionFactory.createContext()).thenThrow(new JMSRuntimeException("caído"));
-            estados.publicarCambioDeEstado(new EstadoPedidoCambiado(100L, 3L, EstadoPedido.CANCELADO, LocalDateTime.now()));
             externos.publicarPedidoExternoRegistrado(new PedidoExternoRegistrado(77L, OrigenPedido.STOCK_CONSIGNADO));
 
             verify(productor, never()).send(any(jakarta.jms.Destination.class), any(jakarta.jms.Message.class));

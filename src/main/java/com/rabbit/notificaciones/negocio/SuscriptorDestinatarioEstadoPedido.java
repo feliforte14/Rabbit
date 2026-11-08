@@ -16,6 +16,8 @@ package com.rabbit.notificaciones.negocio;
  * AvisoDestinatarioService con fechaCambio.
  */
 
+import com.rabbit.infraestructura.MensajeIlegibleException;
+
 import jakarta.ejb.ActivationConfigProperty;
 import jakarta.ejb.MessageDriven;
 import jakarta.inject.Inject;
@@ -53,8 +55,7 @@ public class SuscriptorDestinatarioEstadoPedido implements MessageListener {
         JsonObject json;
         try {
             if (!(mensaje instanceof TextMessage texto)) {
-                LOG.severe("[Notificaciones][JMS] Mensaje de tipo inesperado: " + mensaje.getClass().getName());
-                return;
+                throw new MensajeIlegibleException("Mensaje de tipo inesperado: " + mensaje.getClass().getName());
             }
             try (StringReader reader = new StringReader(texto.getText());
                     JsonReader lector = Json.createReader(reader)) {
@@ -66,8 +67,10 @@ public class SuscriptorDestinatarioEstadoPedido implements MessageListener {
                     json.getString("estado"),
                     LocalDateTime.parse(json.getString("fechaCambio")));
         } catch (JMSException | JsonException | ClassCastException | NullPointerException | DateTimeParseException e) {
-            // Mensaje ilegible: reintentarlo no lo arregla, se consume y se loguea.
+            // Mensaje ilegible: se relanza. El broker reintenta la entrega y, agotados
+            // los intentos, lo manda a la DLQ en vez de perderlo (ver MensajeIlegibleException).
             LOG.log(Level.SEVERE, "[Notificaciones][JMS] Mensaje ilegible en topico.pedidos.estado", e);
+            throw new MensajeIlegibleException("Mensaje ilegible en topico.pedidos.estado", e);
         }
     }
 }

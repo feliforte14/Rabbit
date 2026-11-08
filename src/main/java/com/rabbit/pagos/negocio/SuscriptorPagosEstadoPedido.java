@@ -28,6 +28,8 @@ package com.rabbit.pagos.negocio;
  * que no puede llegar "después" un evento más nuevo que los contradiga.
  */
 
+import com.rabbit.infraestructura.MensajeIlegibleException;
+
 import jakarta.ejb.ActivationConfigProperty;
 import jakarta.ejb.MessageDriven;
 import jakarta.inject.Inject;
@@ -62,8 +64,9 @@ public class SuscriptorPagosEstadoPedido implements MessageListener {
             idPedido = mensaje.getLongProperty("idPedido");
             estado = mensaje.getStringProperty("estado");
         } catch (JMSException | NumberFormatException e) {
+            // Se relanza: el broker reintenta y, agotados los intentos, lo manda a la DLQ.
             LOG.log(Level.SEVERE, "[Pagos][JMS] Mensaje ilegible en topico.pedidos.estado", e);
-            return;
+            throw new MensajeIlegibleException("Mensaje ilegible en topico.pedidos.estado", e);
         }
         // Una RuntimeException (por ejemplo, la base caída) se deja propagar:
         // el contenedor no confirma el mensaje y el broker lo reintenta.

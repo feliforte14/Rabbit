@@ -133,7 +133,8 @@ consola de WildFly), entregando un pedido contra entrega (el cobro quedó
 
 ### Garantías y manejo de fallas
 
-- **El broker falla al publicar**: Se loguea; el cambio de estado ya está guardado. Se pierde el aviso (no hay polling de respaldo, a diferencia de la cola)
+- **El broker falla al publicar**: El aviso queda en la bandeja de salida (tabla `eventos_estado_pedido`, guardada en la misma transacción que el cambio de estado) y un timer lo reenvía cada 15 s hasta que sale. No se pierde (al menos una vez: los suscriptores toleran el repetido)
+- **Un mensaje no se puede leer o falla siempre**: El consumidor lo relanza, el broker reintenta 5 veces (2 s entre intentos) y lo manda a la DLQ. Se ve y se reprocesa con `scripts/dlq.sh`
 - **Un suscriptor no está activo**: La suscripción durable guarda el mensaje hasta que vuelve
 - **El mismo evento llega dos veces**: Pagos es idempotente (si ya está `ACREDITADO` o `ANULADO` no hace nada, con bloqueo pesimista sobre el cobro). Los dos suscriptores de Notificaciones descartan el repetido por `fechaCambio`
 - **Los eventos llegan desordenados**: Cada suscriptor de Notificaciones guarda la `fechaCambio` por pedido e ignora los más viejos. A Pagos no le afecta: `ENTREGADO` y `DEVUELTO_AL_COMERCIO` son finales
