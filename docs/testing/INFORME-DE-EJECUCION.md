@@ -1,9 +1,11 @@
 # Informe de ejecución
 
-Entregable 4 de los *Criterios de Testing* (Clase 15). Versión probada: etiqueta `v1.0-testing`. Los resultados se
-midieron sobre el commit **`b696023`** de `main`, que es el último que cambió código. La etiqueta apunta a un commit
-posterior que solo corrige referencias en la documentación (`docs/`), así que el código es idéntico y los números valen
-igual. Los resultados salen de las corridas del CI sobre `b696023`, salvo que se indique otra fuente.
+Entregable 4 de los *Criterios de Testing* (Clase 15). Versión probada: etiqueta `v1.0-testing`. El último commit que
+cambió código es **`62f1fd1`** de `main` (PR #24: bandeja de salida y cola de mensajes muertos, punto 9); la etiqueta
+apunta a un commit posterior que solo toca la documentación (`docs/`), así que el código es idéntico. Los puntos 1 a 8
+se midieron sobre `b696023`, el commit anterior a la PR #24, y se conservan como estaban; el punto 9 trae lo medido sobre
+`62f1fd1` (pruebas, cobertura, mutación, SonarCloud y CI), que es lo vigente y reemplaza a esos números donde difieren.
+Los resultados salen de las corridas del CI, salvo que se indique otra fuente.
 
 Evidencia (corridas sobre `b696023`):
 [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) ·
@@ -146,15 +148,19 @@ Una auditoría contra el eje C de los criterios encontró dos huecos (RES-01 y R
 - **RES-02:** un mensaje ilegible se consumía y se perdía. Ahora el consumidor lo relanza, el broker reintenta 5 veces
   (2 s entre intentos) y lo manda a la DLQ.
 
-Lo que se midió sobre el último commit de la PR (`9fb763e`):
+Lo que se midió sobre `62f1fd1` (el merge de la PR #24 en `main`):
 
 | Medida | Resultado | Fuente |
 |---|---|---|
 | Pruebas unitarias | 1042 ejecutadas, 0 fallos, 0 omitidas (eran 1022: 20 nuevas) | `mvn verify`, local y CI |
-| Integración (`*IT`) | 51 de 51 | [CI](https://github.com/feliforte14/Rabbit/actions/runs/42522549921) |
-| Cobertura de la capa de negocio | 97,8 % de líneas (3728 de 3811) y 91,8 % de ramas (1927 de 2099) | JaCoCo local |
-| SonarCloud sobre el código nuevo | Quality Gate **OK**, cobertura del código nuevo 97,5 % | PR #24 |
-| Workflows CI, Seguridad y Carga | Los tres en verde | [CI](https://github.com/feliforte14/Rabbit/actions/runs/42522549921) · [Seguridad](https://github.com/feliforte14/Rabbit/actions/runs/42522549922) · [Carga](https://github.com/feliforte14/Rabbit/actions/runs/42522550004) |
+| Integración (`*IT`) | 51 de 51 | [CI](https://github.com/feliforte14/Rabbit/actions/runs/42524223722) |
+| Cobertura de la capa de negocio | 97,8 % de líneas (3728 de 3811) y 91,8 % de ramas (1927 de 2099) | JaCoCo |
+| Mutación (PIT) | **88 %**: 2286 de 2599 mutantes detectados (mínimo 60 %); test strength 90 %; cobertura de líneas de las clases mutadas 97 % (4396 de 4549); 47 mutantes sin cobertura | job «Mutación (PIT)» del [CI](https://github.com/feliforte14/Rabbit/actions/runs/42524223722) |
+| SonarCloud, todo el proyecto | Quality Gate **OK**; 0 bugs; 0 vulnerabilidades; ratings A de confiabilidad, seguridad y mantenibilidad; duplicación 0,7 %; hotspots revisados 100 %; 0 issues Blocker o Critical | SonarCloud, análisis de `62f1fd1` |
+| Workflows CI, Seguridad y Carga | Los tres en verde, todos los jobs | [CI](https://github.com/feliforte14/Rabbit/actions/runs/42524223722) · [Seguridad](https://github.com/feliforte14/Rabbit/actions/runs/42524223692) · [Carga](https://github.com/feliforte14/Rabbit/actions/runs/42524223781) |
+
+Los code smells abiertos pasaron de 206 a **210**: las cuatro clases nuevas inyectan por campo (`java:S6813`), la misma
+convención de Jakarta EE que explica los otros 201 del punto 4. Son de severidad menor y quedan a propósito.
 
 La primera versión de la PR (`ce08854`) falló el Quality Gate de SonarCloud por la cobertura del código nuevo (78,8 %
 contra el 80 % mínimo: faltaba probar el repositorio de la bandeja). Se agregó `EventoEstadoRepositoryTest` y pasó.
@@ -165,6 +171,3 @@ contados y, al restaurar el tópico, el timer los publicó y llegaron las notifi
 cola tuvo exactamente 5 intentos y quedó en la DLQ con su cola de origen; `scripts/dlq.sh reprocesar` lo devolvió a la
 cola y volvió a la DLQ por seguir roto. Uno roto en el tópico llegó a la DLQ desde las suscripciones de Notificaciones
 (la de Pagos filtra por estado y no lo recibe).
-
-**Pendiente de medir sobre este código:** la mutación (PIT), que el CI corre solo en `main` y en la PR se saltea. Los
-números de los puntos 1 a 8 de este informe son los de `b696023`, salvo que se indique otra cosa en esta sección.
