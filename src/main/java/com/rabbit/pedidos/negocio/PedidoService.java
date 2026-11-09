@@ -176,6 +176,10 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Inject
     private Event<EstadoPedidoCambiado> estadoPedidoCambiado;
 
+    // El cambio de entrega de quien recibe: el componente de notificaciones le avisa por mail.
+    @Inject
+    private Event<EntregaModificada> entregaModificada;
+
     // Flujo de confirmación (cobrar → asignar repartidor → confirmar): los
     // dos corren con REQUIRED y se suman a la transacción de confirmarPedido.
     @Inject
@@ -1262,7 +1266,22 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         pedido.setCambiosDelCliente(pedido.getCambiosDelCliente() + 1);
         LOG.info("[Pedidos] El destinatario modificó la entrega del pedido " + pedido.getId() + ": "
                 + String.join(", ", hechos));
+        entregaModificada.fire(new EntregaModificada(pedido.getId(), pedido.getEmailDestinatario(),
+                pedido.getNombreDestinatario(), nombreDelComercio(pedido.getIdComercio()),
+                pedido.getCodigoSeguimiento(), pedido.getFechaPrometida(), pedido.getInstruccionesEntrega(),
+                pedido.getNombreAutorizado()));
         return consultarSeguimiento(pedido.getCodigoSeguimiento());
+    }
+
+    // El nombre con que el cliente final conoce al comercio, para el mail del cambio de entrega. Si no se
+    // puede leer, el aviso sale igual con un texto genérico.
+    private String nombreDelComercio(Long idComercio) {
+        try {
+            var comercio = comercios.obtenerComercio(idComercio);
+            return comercio != null && comercio.getNombre() != null ? comercio.getNombre() : "la tienda";
+        } catch (RuntimeException e) {
+            return "la tienda";
+        }
     }
 
     // Busca el pedido por su código de seguimiento, normalizado como en consultarSeguimiento.

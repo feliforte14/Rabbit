@@ -92,6 +92,7 @@ class PedidoServiceTest {
     @Mock private Instance<IReservaStock> reservaProvider;
     @Mock private Event<PedidoExternoRegistrado> pedidoExternoRegistrado;
     @Mock private Event<EstadoPedidoCambiado> estadoPedidoCambiado;
+    @Mock private Event<EntregaModificada> entregaModificada;
     @Mock private IAsignacionRepartidores repartidores;
     @Mock private IRegistroCobros cobros;
     @Mock private IEnvios envios;
@@ -1368,6 +1369,43 @@ class PedidoServiceTest {
             servicio.modificarEntrega("RB-ABC", null, null, null);
             assertNull(p.getNombreAutorizado());
             assertEquals(4, p.getCambiosDelCliente());
+        }
+
+        @Test
+        void elCambioDeEntregaAvisaUnaVezPorCambioConLoQueQuedoGuardado() {
+            Pedido p = pedido(EstadoPedido.PENDIENTE);
+            p.setFechaPrometida(LocalDate.now().plusDays(1));
+            p.setEmailDestinatario("ana@ejemplo.com");
+            p.setNombreDestinatario("Ana");
+            com.rabbit.comercios.dto.ComercioDTO tienda = new com.rabbit.comercios.dto.ComercioDTO();
+            tienda.nombre = "Tienda Feliz";
+            when(comercios.obtenerComercio(3L)).thenReturn(tienda);
+
+            servicio.modificarEntrega("RB-ABC", LocalDate.now().plusDays(3), "Timbre B", "Juan");
+
+            // El evento lleva TODO lo que necesita el mail: después del commit ya no se puede consultar nada.
+            ArgumentCaptor<EntregaModificada> evento = ArgumentCaptor.forClass(EntregaModificada.class);
+            verify(entregaModificada).fire(evento.capture());
+            assertEquals(new EntregaModificada(p.getId(), "ana@ejemplo.com", "Ana", "Tienda Feliz", "RB-ABC",
+                    LocalDate.now().plusDays(3), "Timbre B", "Juan"), evento.getValue());
+
+            // Si no se cambió nada no se avisa.
+            assertThrows(ValidacionException.class,
+                    () -> servicio.modificarEntrega("RB-ABC", LocalDate.now().plusDays(3), "Timbre B", "Juan"));
+            verify(entregaModificada, times(1)).fire(any());
+        }
+
+        @Test
+        void elCambioDeEntregaAvisaAunqueNoSePuedaLeerElNombreDelComercio() {
+            Pedido p = pedido(EstadoPedido.PENDIENTE);
+            p.setFechaPrometida(LocalDate.now().plusDays(1));
+            when(comercios.obtenerComercio(3L)).thenThrow(new RuntimeException("caído"));
+
+            servicio.modificarEntrega("RB-ABC", null, "Timbre B", null);
+
+            ArgumentCaptor<EntregaModificada> evento = ArgumentCaptor.forClass(EntregaModificada.class);
+            verify(entregaModificada).fire(evento.capture());
+            assertEquals("la tienda", evento.getValue().comercio());
         }
     }
 

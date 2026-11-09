@@ -19,6 +19,7 @@ package com.rabbit.notificaciones.negocio;
  */
 
 import com.rabbit.infraestructura.DatosPersonales;
+import com.rabbit.pedidos.negocio.EntregaModificada;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.event.TransactionPhase;
@@ -53,6 +54,18 @@ public class AvisosPorMail {
             @Observes(during = TransactionPhase.AFTER_SUCCESS) AvisoDestinatarioRegistrado aviso) {
         enviar(aviso.email(), aviso.idPedido(), aviso.asunto(), aviso.texto(), aviso.enlace(),
                 aviso.codigoSeguimiento(), aviso.codigoEntrega());
+    }
+
+    // Quien recibe cambió su entrega desde el seguimiento: se le muestra lo que quedó guardado. El evento
+    // ya trae todo (después del commit no se puede consultar nada) y no se registra en el historial de avisos
+    // porque no es un cambio de estado.
+    public void alModificarseLaEntrega(@Observes(during = TransactionPhase.AFTER_SUCCESS) EntregaModificada cambio) {
+        TextosAlDestinatario.CambioDeEntrega datos = new TextosAlDestinatario.CambioDeEntrega(cambio.nombre(),
+                cambio.comercio(), cambio.codigoSeguimiento(),
+                AvisoDestinatarioService.enlaceSeguimiento(cambio.codigoSeguimiento()), cambio.fechaPrometida(),
+                java.time.LocalDate.now(), cambio.instrucciones(), cambio.nombreAutorizado());
+        enviar(cambio.email(), cambio.idPedido(), TextosAlDestinatario.asuntoCambioDeEntrega(datos),
+                TextosAlDestinatario.cuerpoCambioDeEntrega(datos), datos.enlace(), datos.codigo(), null);
     }
 
     private void enviar(String destino, Long idPedido, String titulo, String texto, String enlace,

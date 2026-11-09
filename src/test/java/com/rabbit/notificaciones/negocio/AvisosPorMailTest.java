@@ -183,6 +183,62 @@ class AvisosPorMailTest {
     }
 
     @Test
+    @DisplayName("El cambio de entrega llega con lo que quedó guardado, sin el código de entrega")
+    void cambioDeEntrega() throws Exception {
+        try (SmtpFalso smtp = new SmtpFalso()) {
+            configurar(smtp.puerto());
+
+            new AvisosPorMail().alModificarseLaEntrega(new com.rabbit.pedidos.negocio.EntregaModificada(7L,
+                    "ana@demo.test", "Ana", "Tienda Feliz", "RB-1", java.time.LocalDate.now().plusDays(2),
+                    "Dejar en portería", "Marta Gómez"));
+
+            MimeMessage mail = smtp.esperarMensaje();
+            assertEquals("Rabbit · Guardamos los cambios de tu entrega de Tienda Feliz", mail.getSubject());
+            assertEquals("ana@demo.test", mail.getRecipients(Message.RecipientType.TO)[0].toString());
+            MimeMultipart partes = (MimeMultipart) mail.getContent();
+            assertEquals(2, partes.getCount());
+            String plano = (String) partes.getBodyPart(0).getContent();
+            assertTrue(plano.contains("Instrucciones para el repartidor: Dejar en portería"), plano);
+            assertTrue(plano.contains("Autorizaste a Marta Gómez"), plano);
+            assertTrue(plano.contains("codigo=RB-1"), plano);
+            String html = (String) partes.getBodyPart(1).getContent();
+            assertTrue(html.contains("Seguir mi pedido"));
+            assertTrue(html.contains("Dejar en portería"));
+        }
+    }
+
+    @Test
+    @DisplayName("El cambio de entrega sin email de quien recibe no intenta mandar nada")
+    void cambioDeEntregaSinEmail() {
+        // Un puerto cerrado: si intentara mandar, fallaría y quedaría un aviso en el log.
+        configurar(1);
+        List<String> mensajes = new ArrayList<>();
+        Logger logger = Logger.getLogger(AvisosPorMail.class.getName());
+        Handler captura = new Handler() {
+            @Override
+            public void publish(LogRecord registro) {
+                mensajes.add(registro.getMessage());
+            }
+
+            @Override
+            public void flush() {
+            }
+
+            @Override
+            public void close() {
+            }
+        };
+        logger.addHandler(captura);
+        try {
+            new AvisosPorMail().alModificarseLaEntrega(new com.rabbit.pedidos.negocio.EntregaModificada(7L, null,
+                    "Ana", "Tienda Feliz", "RB-1", null, null, null));
+        } finally {
+            logger.removeHandler(captura);
+        }
+        assertTrue(mensajes.isEmpty(), "no debería haber intentado enviar: " + mensajes);
+    }
+
+    @Test
     @DisplayName("Si el servidor no responde, el log trae la causa de fondo y no el email completo")
     void fallaConCausa() throws Exception {
         // Un puerto que acaba de cerrarse: la conexión se rechaza.
