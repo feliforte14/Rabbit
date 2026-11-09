@@ -121,9 +121,11 @@
                 </div>
             </ui:repeat>
             <div class="form-acciones">
-                <h:commandButton value="Agregar otro producto" styleClass="btn btn-secondary" immediate="true"
+                <!-- Sin immediate y con execute="@form": con immediate JSF no leía lo que el comercio ya había
+                     escrito y al agregar la línea se borraba todo (depósito, productos y cantidades). -->
+                <h:commandButton value="Agregar otro producto" styleClass="btn btn-secondary"
                                  action="#{anuncioDeMercaderiaBean.agregarFila}">
-                    <f:ajax render="@form" />
+                    <f:ajax execute="@form" render="@form" />
                 </h:commandButton>
             </div>
             <div class="campo">
