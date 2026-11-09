@@ -13,6 +13,7 @@ const cuentas = {
   comercio: () => ({ usuario: 'demo.comercio', clave: env('DEMO_PASSWORD') }),   // Almacén Demo 1
   comercio2: () => ({ usuario: 'demo.comercio2', clave: env('DEMO_PASSWORD') }), // Almacén Demo 2
   erp: () => ({ usuario: 'demo.erp', clave: env('DEMO_PASSWORD') }),             // ERP de Almacén Demo 1
+  repartidor: () => ({ usuario: 'demo.repartidor', clave: env('DEMO_PASSWORD') }), // el repartidor propio de la demo
 };
 
 async function ingresar(page, { usuario, clave }) {
