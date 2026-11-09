@@ -127,7 +127,7 @@
         -->
         <h:panelGroup layout="block" styleClass="seguimiento-tarjeta opciones-entrega" rendered="#{seguimientoBean.puedeModificar}">
             <h:form id="formOpciones">
-                <h:inputHidden value="#{seguimientoBean.codigo}" />
+                <input type="hidden" name="codigo" value="#{seguimientoBean.codigo}" />
                 <p class="seguimiento-titular">¿Querés cambiar algo de la entrega?</p>
                 <div class="campo">
                     <label for="fechaEntrega">Recibirlo otro día (hasta 7 días)</label>
@@ -169,7 +169,7 @@
         -->
         <h:panelGroup layout="block" styleClass="seguimiento-tarjeta calificacion" rendered="#{seguimientoBean.puedeCalificar}">
             <h:form id="formCalificacion">
-                <h:inputHidden value="#{seguimientoBean.codigo}" />
+                <input type="hidden" name="codigo" value="#{seguimientoBean.codigo}" />
                 <fieldset class="estrellas">
                     <legend class="seguimiento-titular">¿Cómo fue la entrega?</legend>
                     <div class="estrellas-opciones">
