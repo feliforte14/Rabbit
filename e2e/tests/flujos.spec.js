@@ -1,4 +1,4 @@
-// Ocho escenarios de punta a punta (eje A), cada uno desde la perspectiva de
+// Nueve escenarios de punta a punta (eje A), cada uno desde la perspectiva de
 // un actor distinto. Los pedidos se dan de alta por la API del ERP, como en
 // producción; todo lo demás se hace por la pantalla.
 const { test, expect } = require('@playwright/test');
@@ -144,4 +144,36 @@ test('E2E-8 · Quien recibe califica la entrega: se guarda, se agradece y no se 
   await page.reload();
   await expect(page.getByText('Tu calificación')).toBeVisible();
   await expect(page.locator('#formCalificacion')).toHaveCount(0);
+});
+
+test('E2E-9 · La etiqueta con QR: cualquiera ve el seguimiento y el repartidor marca el retiro', async ({ browser, page, request }) => {
+  const pedido = await pedidoDelErp(request);
+  const codigo = pedido.codigoSeguimiento;
+
+  await ingresar(page, cuentas.admin());
+  await page.goto('personal/pedidos.xhtml');
+  await page.locator('tr', { hasText: codigo }).getByRole('button', { name: 'Confirmar' }).click();
+  await expect(page.locator('tr', { hasText: codigo })).toContainText('Confirmado');
+
+  // La etiqueta lleva un QR que apunta al escaneo de ese pedido.
+  await page.goto(`personal/etiquetas.xhtml?pedido=${pedido.idPedido}`);
+  await expect(page.locator('.etiqueta-qr').first()).toHaveAttribute('data-url', new RegExp(`escaneo\\.xhtml\\?codigo=${codigo}$`));
+
+  // Quien escanea sin sesión cae en el seguimiento público.
+  const contextoAnonimo = await browser.newContext();
+  const anonimo = await contextoAnonimo.newPage();
+  await anonimo.goto(`escaneo.xhtml?codigo=${codigo}`);
+  await expect(anonimo).toHaveURL(/seguimiento\.xhtml\?codigo=/);
+  await contextoAnonimo.close();
+
+  // El repartidor con sesión llega a su pantalla y marca el retiro. Antes el escaneo comparaba contra el
+  // código del transportista (vacío en un repartidor propio) y nunca encontraba el pedido.
+  const contextoRepartidor = await browser.newContext();
+  const repartidor = await contextoRepartidor.newPage();
+  await ingresar(repartidor, cuentas.repartidor());
+  await repartidor.goto(`escaneo.xhtml?codigo=${codigo}`);
+  await expect(repartidor).toHaveURL(/repartidor\/escaneo\.xhtml/);
+  await repartidor.getByRole('button', { name: 'Marcar como retirado' }).click();
+  await expect(repartidor.getByText('ya está en camino').first()).toBeVisible();
+  await contextoRepartidor.close();
 });

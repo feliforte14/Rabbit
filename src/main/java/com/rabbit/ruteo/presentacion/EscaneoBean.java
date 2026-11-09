@@ -51,7 +51,10 @@ public class EscaneoBean implements Serializable {
             return;
         }
         for (HojaDeRutaDTO h : mias) {
-            if (codigo.equalsIgnoreCase(h.codigoSeguimiento)) {
+            // El QR lleva el código público del pedido (codigoCliente, el RB-...). codigoSeguimiento es
+            // el del transportista externo y en un repartidor propio viene vacío: con ese campo el
+            // escaneo nunca encontraba el pedido.
+            if (codigo.equalsIgnoreCase(h.codigoCliente)) {
                 pedido = h;
                 return;
             }
