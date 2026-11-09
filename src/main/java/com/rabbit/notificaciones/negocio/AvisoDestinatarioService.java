@@ -117,7 +117,8 @@ public class AvisoDestinatarioService implements IAvisosAlDestinatario {
         aviso.setMensaje(recortar(textoGuardado, 1000));
         repository.guardarAvisoDestinatario(aviso);
         LOG.info("[Notificaciones] Aviso al destinatario del pedido " + idPedido + ": " + asunto);
-        avisoRegistrado.fire(new AvisoDestinatarioRegistrado(idPedido, pedido.emailDestinatario, asunto, texto));
+        avisoRegistrado.fire(new AvisoDestinatarioRegistrado(idPedido, pedido.emailDestinatario, asunto, texto,
+                datos.enlace(), datos.codigo(), datos.codigoEntrega()));
         return true;
     }
 
