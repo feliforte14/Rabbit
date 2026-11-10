@@ -140,6 +140,26 @@ class ConsultaStockServiceTest {
             verify(repository, never()).guardarDeposito(any());
         }
 
+        @ParameterizedTest
+        @CsvSource({"nombre, el nombre del depósito", "direccion, la dirección del depósito", "provincia, la provincia del depósito",
+                "localidad, la localidad del depósito", "codigoPostal, el código postal del depósito"})
+        void unTextoMasLargoQueLaBaseOConUnByteNuloSeRechazaConUnMensaje(String campo, String nombre) throws Exception {
+            DatosDepositoDTO largo = datos();
+            DatosDepositoDTO.class.getField(campo).set(largo, "A".repeat(256));
+            assertEquals("Como máximo 255 caracteres en " + nombre,
+                    assertThrows(ValidacionException.class, () -> servicio.registrarDeposito(largo)).getMessage());
+
+            DatosDepositoDTO nulo = datos();
+            DatosDepositoDTO.class.getField(campo).set(nulo, "ab\u0000cd");
+            assertEquals("Hay caracteres no permitidos en " + nombre,
+                    assertThrows(ValidacionException.class, () -> servicio.registrarDeposito(nulo)).getMessage());
+
+            DatosDepositoDTO justo = datos();
+            DatosDepositoDTO.class.getField(campo).set(justo, "A".repeat(255));
+            when(repository.guardarDeposito(any())).thenAnswer(inv -> conId(inv.getArgument(0), 5L));
+            assertEquals(5L, servicio.registrarDeposito(justo));
+        }
+
         @Test
         void soloUnDepositoEsLaBaseDeSalida() {
             Deposito a = deposito(1L);

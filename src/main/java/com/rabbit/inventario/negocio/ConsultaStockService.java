@@ -374,11 +374,23 @@ public class ConsultaStockService implements IConsultaStock {
         }
     }
 
+    // Un texto de la base entra con hasta 255 caracteres y sin el byte nulo: PostgreSQL rechaza las dos cosas y,
+    // sin esta validación, el usuario veía un error del servidor en lugar de un mensaje.
+    private static void exigirTextoSeguro(String valor, String campo) {
+        if (valor.length() > 255) {
+            throw new ValidacionException("Como máximo 255 caracteres en " + campo);
+        }
+        if (valor.indexOf('\u0000') >= 0) {
+            throw new ValidacionException("Hay caracteres no permitidos en " + campo);
+        }
+    }
+
     // Nombre obligatorio, sin más restricción de formato.
     private void validarNombreDeposito(String nombre) {
         if (nombre == null || nombre.isBlank()) {
             throw new ValidacionException("El nombre del depósito es obligatorio");
         }
+        exigirTextoSeguro(nombre, "el nombre del depósito");
     }
 
     // Dirección obligatoria, sin más restricción de formato.
@@ -386,6 +398,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (direccion == null || direccion.isBlank()) {
             throw new ValidacionException("La dirección del depósito es obligatoria");
         }
+        exigirTextoSeguro(direccion, "la dirección del depósito");
     }
 
     // Provincia obligatoria, sin más restricción de formato.
@@ -393,6 +406,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (provincia == null || provincia.isBlank()) {
             throw new ValidacionException("La provincia del depósito es obligatoria");
         }
+        exigirTextoSeguro(provincia, "la provincia del depósito");
     }
 
     // Localidad obligatoria, sin más restricción de formato.
@@ -400,6 +414,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (localidad == null || localidad.isBlank()) {
             throw new ValidacionException("La localidad del depósito es obligatoria");
         }
+        exigirTextoSeguro(localidad, "la localidad del depósito");
     }
 
     // Código postal obligatorio, sin más restricción de formato.
@@ -407,6 +422,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (codigoPostal == null || codigoPostal.isBlank()) {
             throw new ValidacionException("El código postal del depósito es obligatorio");
         }
+        exigirTextoSeguro(codigoPostal, "el código postal del depósito");
     }
 
     // Nombre de producto obligatorio, sin más restricción de formato.
@@ -414,6 +430,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (producto == null || producto.isBlank()) {
             throw new ValidacionException("El nombre del producto es obligatorio");
         }
+        exigirTextoSeguro(producto, "el nombre del producto");
     }
 
     // Solo rechaza negativos: 0 es una carga válida (por ejemplo, para

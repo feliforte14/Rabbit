@@ -1203,8 +1203,7 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     public PedidoDTO consultarSeguimiento(String codigoSeguimiento) {
         // Normalizado acá, en el negocio: la página y la API aceptan lo mismo
         // ("rb-7kq2m9xhta", con espacios de más, etc.).
-        String codigo = codigoSeguimiento == null ? null : codigoSeguimiento.trim().toUpperCase();
-        Pedido pedido = codigo == null || codigo.isEmpty() ? null : repository.buscarPedidoPorCodigoSeguimiento(codigo);
+        Pedido pedido = buscarPorCodigo(codigoSeguimiento);
         if (pedido == null) {
             throw new PedidoNoEncontradoException("No hay ningún pedido con el código " + codigoSeguimiento);
         }
@@ -1310,9 +1309,20 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     }
 
     // Busca el pedido por su código de seguimiento, normalizado como en consultarSeguimiento.
-    private Pedido pedidoPorCodigoOFallar(String codigoSeguimiento) {
+    // Un código de seguimiento tiene la forma RB-XXXXXXXXXX. Lo que no se parece (un byte nulo, miles de caracteres)
+    // no puede existir y ni siquiera se le pregunta a la base: antes un %00 en la URL pública daba un error 500.
+    private static final java.util.regex.Pattern FORMA_DEL_CODIGO = java.util.regex.Pattern.compile("[A-Z0-9-]{1,40}");
+
+    private Pedido buscarPorCodigo(String codigoSeguimiento) {
         String codigo = codigoSeguimiento == null ? null : codigoSeguimiento.trim().toUpperCase();
-        Pedido pedido = codigo == null || codigo.isEmpty() ? null : repository.buscarPedidoPorCodigoSeguimiento(codigo);
+        if (codigo == null || !FORMA_DEL_CODIGO.matcher(codigo).matches()) {
+            return null;
+        }
+        return repository.buscarPedidoPorCodigoSeguimiento(codigo);
+    }
+
+    private Pedido pedidoPorCodigoOFallar(String codigoSeguimiento) {
+        Pedido pedido = buscarPorCodigo(codigoSeguimiento);
         if (pedido == null) {
             throw new PedidoNoEncontradoException("No hay ningún pedido con el código " + codigoSeguimiento);
         }

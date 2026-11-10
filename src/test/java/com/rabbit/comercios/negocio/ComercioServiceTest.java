@@ -328,6 +328,21 @@ class ComercioServiceTest {
         }
 
         @Test
+        void unTextoMasLargoQueLaBaseOConUnByteNuloSeRechazaConUnMensaje() {
+            when(repository.buscarPorId(4L)).thenReturn(comercio(4L, true));
+
+            assertEquals("Como máximo 255 caracteres en el nombre del punto de picking", assertThrows(ValidacionException.class,
+                    () -> servicio.registrarPuntoPicking(4L, datos("A".repeat(256), "Y"))).getMessage());
+            assertEquals("Como máximo 255 caracteres en la dirección del punto de picking", assertThrows(ValidacionException.class,
+                    () -> servicio.registrarPuntoPicking(4L, datos("X", "A".repeat(256)))).getMessage());
+            assertEquals("Hay caracteres no permitidos en el nombre del punto de picking", assertThrows(ValidacionException.class,
+                    () -> servicio.registrarPuntoPicking(4L, datos("a\u0000b", "Y"))).getMessage());
+            assertEquals("Hay caracteres no permitidos en la dirección del punto de picking", assertThrows(ValidacionException.class,
+                    () -> servicio.registrarPuntoPicking(4L, datos("X", "a\u0000b"))).getMessage());
+            verify(repository, never()).guardarPuntoPicking(any());
+        }
+
+        @Test
         void noSeAgreganPuntosAUnComercioDadoDeBaja() {
             when(repository.buscarPorId(4L)).thenReturn(comercio(4L, false));
 

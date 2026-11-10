@@ -288,11 +288,22 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
                 .collect(Collectors.toList());
     }
 
+    // Un texto de la base entra con hasta 255 caracteres y sin el byte nulo (ver ConsultaStockService).
+    private static void exigirTextoSeguro(String valor, String campo) {
+        if (valor.length() > 255) {
+            throw new ValidacionException("Como máximo 255 caracteres en " + campo);
+        }
+        if (valor.indexOf('\u0000') >= 0) {
+            throw new ValidacionException("Hay caracteres no permitidos en " + campo);
+        }
+    }
+
     // Nombre obligatorio, sin más restricción de formato.
     private void validarNombrePuntoPicking(String nombre) {
         if (nombre == null || nombre.isBlank()) {
             throw new ValidacionException("El nombre del punto de picking es obligatorio");
         }
+        exigirTextoSeguro(nombre, "el nombre del punto de picking");
     }
 
     // Dirección obligatoria, sin más restricción de formato.
@@ -300,6 +311,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
         if (direccion == null || direccion.isBlank()) {
             throw new ValidacionException("La dirección del punto de picking es obligatoria");
         }
+        exigirTextoSeguro(direccion, "la dirección del punto de picking");
     }
 
     // Lanza excepción si el punto de picking no existe — evita repetir
