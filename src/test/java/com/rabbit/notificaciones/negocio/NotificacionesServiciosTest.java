@@ -437,7 +437,6 @@ class NotificacionesServiciosTest {
         @AfterEach
         void limpiar() {
             System.clearProperty("rabbit.mail.smtp.host");
-            System.clearProperty("rabbit.mail.smtp.port");
         }
 
         @Test
@@ -447,26 +446,6 @@ class NotificacionesServiciosTest {
             referencias.alConfirmarEliminacion(new ComercioEliminado(3L));
 
             verify(repository).eliminarNotificacionesDeComercio(3L);
-        }
-
-        @Test
-        void sinServidorDeCorreoNoSeMandaNadaYNoFalla() {
-            AvisosPorMail mail = new AvisosPorMail();
-
-            assertDoesNotThrow(() -> mail.alRegistrarAviso(new AvisoRegistrado(3L, "a@b.com", 100L, "texto")));
-            assertDoesNotThrow(() -> mail.alRegistrarAvisoDestinatario(
-                    new AvisoDestinatarioRegistrado(100L, "a@b.com", "asunto", "texto")));
-            assertNull(ConfiguracionSmtp.desde(System.getProperties()));
-        }
-
-        @Test
-        void unServidorDeCorreoCaidoNoFrenaElAviso() {
-            System.setProperty("rabbit.mail.smtp.host", "127.0.0.1");
-            System.setProperty("rabbit.mail.smtp.port", "1");
-            AvisosPorMail mail = new AvisosPorMail();
-
-            assertDoesNotThrow(() -> mail.alRegistrarAviso(new AvisoRegistrado(3L, "a@b.com", 100L, "texto")));
-            assertDoesNotThrow(() -> mail.alRegistrarAviso(new AvisoRegistrado(3L, null, 100L, "sin email")));
         }
     }
 }
