@@ -25,6 +25,14 @@ public class LiquidacionDTO {
     public long unidadesDiaMediano;
     public long unidadesDiaGrande;
     public BigDecimal cargoAlmacenamiento = BigDecimal.ZERO;
+    // De esas unidades-día: cuántas fueron gratis y cuántas llevaron recargo (stock antiguo), con lo que se ahorró
+    // el comercio y lo que se cobró de más.
+    public long unidadesDiaGratis;
+    public long unidadesDiaConRecargo;
+    public BigDecimal ahorroPorDiasGratis = BigDecimal.ZERO;
+    public BigDecimal cargoPorStockAntiguo = BigDecimal.ZERO;
+    // El detalle por tamaño con el que se calculó, para liquidar sin volver a calcular. Solo en la vista previa.
+    public com.rabbit.pagos.negocio.AlmacenamientoDelMes almacenamiento;
     // Productos que todavía no tienen medidas (se cuentan como medianos). Solo en la vista previa.
     public int productosSinMedidas;
     public BigDecimal total;
@@ -48,6 +56,10 @@ public class LiquidacionDTO {
         dto.unidadesDiaMediano = l.getUnidadesDiaMediano();
         dto.unidadesDiaGrande = l.getUnidadesDiaGrande();
         dto.cargoAlmacenamiento = l.getCargoAlmacenamiento();
+        dto.unidadesDiaGratis = l.getUnidadesDiaGratis();
+        dto.unidadesDiaConRecargo = l.getUnidadesDiaConRecargo();
+        dto.ahorroPorDiasGratis = l.getAhorroPorDiasGratis();
+        dto.cargoPorStockAntiguo = l.getCargoPorStockAntiguo();
         dto.total = l.getTotal();
         dto.estado = l.getEstado() != null ? l.getEstado().name() : null;
         dto.motivo = l.getMotivo();
@@ -70,6 +82,10 @@ public class LiquidacionDTO {
     public long getUnidadesDiaGrande() { return unidadesDiaGrande; }
     public long getUnidadesDia() { return unidadesDiaPequeno + unidadesDiaMediano + unidadesDiaGrande; }
     public BigDecimal getCargoAlmacenamiento() { return cargoAlmacenamiento; }
+    public long getUnidadesDiaGratis() { return unidadesDiaGratis; }
+    public long getUnidadesDiaConRecargo() { return unidadesDiaConRecargo; }
+    public BigDecimal getAhorroPorDiasGratis() { return ahorroPorDiasGratis; }
+    public BigDecimal getCargoPorStockAntiguo() { return cargoPorStockAntiguo; }
     public int getProductosSinMedidas() { return productosSinMedidas; }
     public BigDecimal getTotal() { return total; }
     public String getEstado() { return estado; }

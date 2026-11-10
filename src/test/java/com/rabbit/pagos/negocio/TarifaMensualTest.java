@@ -119,4 +119,66 @@ class TarifaMensualTest {
             System.clearProperty("rabbit.tarifa.almacenamiento.grande");
         }
     }
+
+    // ---- Días gratis y recargo por stock antiguo ----
+
+    private static TarifaMensual conRecargo(String porcentaje) {
+        return new TarifaMensual(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, new BigDecimal("10"),
+                new BigDecimal("30"), new BigDecimal("90"), new BigDecimal(porcentaje));
+    }
+
+    @Test
+    void lasUnidadesGratisNoSeCobran() {
+        AlmacenamientoDelMes a = new AlmacenamientoDelMes(100, 0, 0, 40, 0, 0, 0, 0, 0);
+        // (100 - 40) x 10
+        assertEquals(new BigDecimal("600.00"), conRecargo("50").cargoAlmacenamiento(a));
+        assertEquals(new BigDecimal("400.00"), conRecargo("50").ahorroPorDiasGratis(a));
+    }
+
+    @Test
+    void elStockAntiguoSeCobraConElRecargoEncima() {
+        AlmacenamientoDelMes a = new AlmacenamientoDelMes(100, 0, 0, 0, 0, 0, 20, 0, 0);
+        // 100 x 10 + 20 x 10 x 50 %
+        assertEquals(new BigDecimal("1100.00"), conRecargo("50").cargoAlmacenamiento(a));
+        assertEquals(new BigDecimal("100.00"), conRecargo("50").cargoPorStockAntiguo(a));
+    }
+
+    @Test
+    void combinaGratisYRecargoEnCadaTamano() {
+        AlmacenamientoDelMes a = new AlmacenamientoDelMes(100, 10, 2, 10, 0, 1, 20, 4, 0);
+        // pequeño: 90 x 10 + 20 x 5 = 1000 | mediano: 10 x 30 + 4 x 15 = 360 | grande: 1 x 90 = 90
+        assertEquals(new BigDecimal("1450.00"), conRecargo("50").cargoAlmacenamiento(a));
+        assertEquals(new BigDecimal("1450.00"), conRecargo("50").total(0, BigDecimal.ZERO, a));
+    }
+
+    @Test
+    void losBeneficiosNuncaSuperanAlTotalDelTamano() {
+        AlmacenamientoDelMes a = new AlmacenamientoDelMes(10, 0, 0, 50, 0, 0, 50, 0, 0);
+        assertEquals(new BigDecimal("0.00"), conRecargo("50").cargoAlmacenamiento(a));
+    }
+
+    @Test
+    void sinRecargoConfiguradoElStockAntiguoNoCuesta() {
+        AlmacenamientoDelMes a = new AlmacenamientoDelMes(100, 0, 0, 0, 0, 0, 100, 0, 0);
+        assertEquals(new BigDecimal("1000.00"), conRecargo("0").cargoAlmacenamiento(a));
+        assertEquals(new BigDecimal("0.00"), conRecargo("0").cargoPorStockAntiguo(a));
+        // Los constructores viejos no tienen recargo.
+        TarifaMensual vieja = new TarifaMensual(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                BigDecimal.TEN, BigDecimal.TEN, BigDecimal.TEN);
+        assertEquals(new BigDecimal("1000.00"), vieja.cargoAlmacenamiento(a));
+    }
+
+    @Test
+    void elRecargoVigenteEsCincuentaPorDefectoYSeConfigura() {
+        assertEquals(0, new BigDecimal("50").compareTo(TarifaMensual.vigente().recargoStockAntiguo()));
+        System.setProperty("rabbit.tarifa.almacenamiento.recargo-stock-antiguo", "25");
+        assertEquals(0, new BigDecimal("25").compareTo(TarifaMensual.vigente().recargoStockAntiguo()));
+        System.setProperty("rabbit.tarifa.almacenamiento.recargo-stock-antiguo", "-1");
+        assertEquals(0, new BigDecimal("50").compareTo(TarifaMensual.vigente().recargoStockAntiguo()));
+    }
+
+    @Test
+    void elTotalViejoPorUnidadesSigueFuncionando() {
+        assertEquals(new BigDecimal("1000.00"), conRecargo("50").total(0, BigDecimal.ZERO, 100, 0, 0));
+    }
 }

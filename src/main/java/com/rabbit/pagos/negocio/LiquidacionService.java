@@ -82,8 +82,7 @@ public class LiquidacionService implements ILiquidaciones {
         for (LiquidacionDTO calculada : calcular(periodo, tarifa)) {
             try {
                 Long id = cobros.crear(calculada.idComercio, calculada.periodo, calculada.cantidadEnvios,
-                        calculada.kilos, tarifa, calculada.unidadesDiaPequeno, calculada.unidadesDiaMediano,
-                        calculada.unidadesDiaGrande);
+                        calculada.kilos, tarifa, calculada.almacenamiento);
                 if (id != null) {
                     cobros.cobrar(id);
                 }
@@ -204,15 +203,18 @@ public class LiquidacionService implements ILiquidaciones {
     // tuvo stock) no hay nada que cobrar por guardar.
     private static void conAlmacenamiento(LiquidacionDTO dto, TarifaMensual tarifa, OcupacionMensualDTO o,
                                           int cantidad, BigDecimal kilos) {
-        long pequeno = o != null ? o.pequeno : 0;
-        long mediano = o != null ? o.mediano : 0;
-        long grande = o != null ? o.grande : 0;
-        dto.unidadesDiaPequeno = pequeno;
-        dto.unidadesDiaMediano = mediano;
-        dto.unidadesDiaGrande = grande;
+        AlmacenamientoDelMes a = AlmacenamientoDelMes.de(o);
+        dto.almacenamiento = a;
+        dto.unidadesDiaPequeno = a.pequeno();
+        dto.unidadesDiaMediano = a.mediano();
+        dto.unidadesDiaGrande = a.grande();
+        dto.unidadesDiaGratis = a.totalGratis();
+        dto.unidadesDiaConRecargo = a.totalConRecargo();
         dto.productosSinMedidas = o != null ? o.productosSinMedidas : 0;
-        dto.cargoAlmacenamiento = tarifa.cargoAlmacenamiento(pequeno, mediano, grande);
-        dto.total = tarifa.total(cantidad, kilos, pequeno, mediano, grande);
+        dto.cargoAlmacenamiento = tarifa.cargoAlmacenamiento(a);
+        dto.ahorroPorDiasGratis = tarifa.ahorroPorDiasGratis(a);
+        dto.cargoPorStockAntiguo = tarifa.cargoPorStockAntiguo(a);
+        dto.total = tarifa.total(cantidad, kilos, a);
     }
 
     // Sin rol: la tarifa la ve el personal y cada comercio. Este WildFly

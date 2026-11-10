@@ -102,6 +102,36 @@ class LiquidacionesTest {
         }
 
         @Test
+        void guardaLosDiasGratisYElRecargoPorStockAntiguoEnLaLiquidacion() {
+            doAnswer(inv -> conId(inv.getArgument(0), 71L)).when(repository).guardar(any());
+            TarifaMensual tarifa = new TarifaMensual(BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO,
+                    new BigDecimal("10"), new BigDecimal("30"), new BigDecimal("90"), new BigDecimal("50"));
+            // 100 chicas-día (40 gratis, 20 de stock antiguo) y 10 medianas-día (todas de stock antiguo)
+            AlmacenamientoDelMes a = new AlmacenamientoDelMes(100, 10, 0, 40, 0, 0, 20, 10, 0);
+
+            cobros.crear(3L, "2026-09", 0, BigDecimal.ZERO, tarifa, a);
+
+            org.mockito.ArgumentCaptor<Liquidacion> captor = org.mockito.ArgumentCaptor.forClass(Liquidacion.class);
+            verify(repository).guardar(captor.capture());
+            Liquidacion l = captor.getValue();
+            // pequeñas: 60 x 10 + 20 x 5 = 700 | medianas: 10 x 30 + 10 x 15 = 450
+            assertEquals(new BigDecimal("1150.00"), l.getCargoAlmacenamiento());
+            assertEquals(40L, l.getUnidadesDiaGratis());
+            assertEquals(30L, l.getUnidadesDiaConRecargo());
+            assertEquals(new BigDecimal("400.00"), l.getAhorroPorDiasGratis());
+            assertEquals(new BigDecimal("250.00"), l.getCargoPorStockAntiguo());
+        }
+
+        @Test
+        void unaLiquidacionAnteriorSinBeneficiosLosMuestraEnCero() {
+            Liquidacion l = new Liquidacion();
+            assertEquals(0L, l.getUnidadesDiaGratis());
+            assertEquals(0L, l.getUnidadesDiaConRecargo());
+            assertEquals(BigDecimal.ZERO, l.getAhorroPorDiasGratis());
+            assertEquals(BigDecimal.ZERO, l.getCargoPorStockAntiguo());
+        }
+
+        @Test
         void noDuplicaLaLiquidacionDeUnComercioYMes() {
             when(repository.existe(3L, "2026-09")).thenReturn(true);
 
@@ -195,6 +225,23 @@ class LiquidacionesTest {
         }
 
         @Test
+        void laVistaPreviaMuestraLosDiasGratisYElRecargoDelAlmacenamiento() {
+            when(comercios.listarTodos()).thenReturn(List.of(comercio(1L, true)));
+            when(pedidos.resumenEntregas(any(), any())).thenReturn(List.of());
+            when(ocupacion.ocupacionDelMes(any())).thenReturn(Map.of(1L,
+                    new OcupacionMensualDTO(100, 0, 0, 0, 40, 0, 0, 20, 0, 0)));
+            // Tarifa vigente por defecto: 10 por chica y 50 % de recargo.
+            LiquidacionDTO dto = servicio.previsualizar(MES_PASADO).get(0);
+
+            assertEquals(40L, dto.unidadesDiaGratis);
+            assertEquals(20L, dto.unidadesDiaConRecargo);
+            // 60 x 10 + 20 x 5
+            assertEquals(new BigDecimal("700.00"), dto.cargoAlmacenamiento);
+            assertEquals(new BigDecimal("400.00"), dto.ahorroPorDiasGratis);
+            assertEquals(new BigDecimal("100.00"), dto.cargoPorStockAntiguo);
+        }
+
+        @Test
         void laVistaPreviaCalculaUnaPorComercioActivoAunqueNoHayaEntregado() {
             dosComerciosActivosYUnoDeBaja();
 
@@ -232,14 +279,15 @@ class LiquidacionesTest {
         @Test
         void liquidarCreaYCobraCadaUnaYDevuelveLasDelPeriodo() {
             dosComerciosActivosYUnoDeBaja();
-            when(cobros.crear(eq(1L), any(), anyInt(), any(), any(), anyLong(), anyLong(), anyLong())).thenReturn(11L);
-            when(cobros.crear(eq(2L), any(), anyInt(), any(), any(), anyLong(), anyLong(), anyLong())).thenReturn(null);
+            when(cobros.crear(eq(1L), any(), anyInt(), any(), any(), any(AlmacenamientoDelMes.class))).thenReturn(11L);
+            when(cobros.crear(eq(2L), any(), anyInt(), any(), any(), any(AlmacenamientoDelMes.class))).thenReturn(null);
             when(repository.listarDelPeriodo(MES_PASADO.toString()))
                     .thenReturn(List.of(liquidacion(11L, EstadoLiquidacion.COBRADA, "19540")));
 
             List<LiquidacionDTO> resultado = servicio.liquidarMes(MES_PASADO);
 
-            verify(cobros).crear(eq(1L), eq(MES_PASADO.toString()), eq(3), eq(new BigDecimal("10")), any(), eq(5L), eq(0L), eq(1L));
+            verify(cobros).crear(eq(1L), eq(MES_PASADO.toString()), eq(3), eq(new BigDecimal("10")), any(),
+                    eq(AlmacenamientoDelMes.sinBeneficios(5L, 0L, 1L)));
             verify(cobros).cobrar(11L);
             verify(cobros, times(1)).cobrar(anyLong());
             assertEquals(1, resultado.size());
@@ -249,9 +297,9 @@ class LiquidacionesTest {
         @Test
         void unComercioQueFallaNoFrenaALosDemas() {
             dosComerciosActivosYUnoDeBaja();
-            when(cobros.crear(eq(1L), any(), anyInt(), any(), any(), anyLong(), anyLong(), anyLong()))
+            when(cobros.crear(eq(1L), any(), anyInt(), any(), any(), any(AlmacenamientoDelMes.class)))
                     .thenThrow(new EJBException("la base no responde"));
-            when(cobros.crear(eq(2L), any(), anyInt(), any(), any(), anyLong(), anyLong(), anyLong())).thenReturn(12L);
+            when(cobros.crear(eq(2L), any(), anyInt(), any(), any(), any(AlmacenamientoDelMes.class))).thenReturn(12L);
 
             servicio.liquidarMes(MES_PASADO);
 

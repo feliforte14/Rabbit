@@ -130,6 +130,9 @@ class MovimientosDeStockTest {
 
             assertEquals(47, stock.getCantidadDisponible());
             assertEquals(5, stock.getCantidadReservada());
+            // Se vendió: el producto se mueve (deja de ser stock sin rotación) pero no es un ingreso.
+            assertEquals(java.time.LocalDate.now(), stock.getFechaUltimoMovimiento());
+            org.junit.jupiter.api.Assertions.assertNull(stock.getFechaUltimoIngreso());
             assertEquals(EstadoReserva.CONFIRMADA, guardadas.get(0).getEstado());
             assertNotNull(guardadas.get(0).getFechaCierre());
             assertFalse(conversacion.hayReservaVigente());
@@ -440,9 +443,13 @@ class MovimientosDeStockTest {
 
             assertEquals(EstadoOrdenDeRecepcion.RECIBIDA, o.getEstado());
             assertEquals(12, existente.getCantidadDisponible());
+            // La mercadería que llegó reinicia los días gratis, tanto en el producto que existía como en el nuevo.
+            assertEquals(java.time.LocalDate.now(), existente.getFechaUltimoIngreso());
+            assertEquals(java.time.LocalDate.now(), existente.getFechaUltimoMovimiento());
             ArgumentCaptor<ItemInventario> nuevo = ArgumentCaptor.forClass(ItemInventario.class);
             verify(repository).guardarItem(nuevo.capture());
             assertEquals("P1", nuevo.getValue().getProducto());
+            assertEquals(java.time.LocalDate.now(), nuevo.getValue().getFechaUltimoIngreso());
             assertEquals(5, nuevo.getValue().getCantidadDisponible());
             assertEquals(3L, nuevo.getValue().getIdComercio());
             assertEquals("op1", o.getRecibidaPor());
@@ -571,6 +578,85 @@ class MovimientosDeStockTest {
             assertEquals(4L, porClave.get("3-MEDIANO"));
             assertEquals(0L, porClave.get("3-GRANDE"));
             assertEquals(0L, porClave.get("6-GRANDE"));
+        }
+
+        @Test
+        void laFotoSeparaLasUnidadesGratisYLasDeStockAntiguo() {
+            LocalDate hoy = LocalDate.now();
+            ItemInventario reciente = conMedidas(1L, 3L, 10, "10");
+            reciente.registrarIngreso(hoy.minusDays(2));
+            ItemInventario viejo = conMedidas(2L, 3L, 4, "10");
+            viejo.setFechaUltimoIngreso(hoy.minusDays(300));
+            viejo.setFechaUltimoMovimiento(hoy.minusDays(200));
+            ItemInventario normal = conMedidas(3L, 3L, 6, "30");
+            normal.setFechaUltimoIngreso(hoy.minusDays(30));
+            normal.setFechaUltimoMovimiento(hoy.minusDays(30));
+            when(repository.listarTodosLosItems()).thenReturn(List.of(reciente, viejo, normal));
+            when(repository.listarUltimaOcupacionAntesDe(any(), isNull())).thenReturn(List.of());
+
+            ocupacion.tomarFoto(hoy);
+
+            ArgumentCaptor<OcupacionDiaria> filas = ArgumentCaptor.forClass(OcupacionDiaria.class);
+            verify(repository, times(3)).guardarOcupacion(filas.capture());
+            OcupacionDiaria chicas = filas.getAllValues().stream()
+                    .filter(f -> f.getCategoria() == CategoriaDeTamano.PEQUENO).findFirst().orElseThrow();
+            // Las gratis y las de recargo son parte del total, no se suman a él.
+            assertEquals(14L, chicas.getUnidades());
+            assertEquals(10L, chicas.getUnidadesGratis());
+            assertEquals(4L, chicas.getUnidadesConRecargo());
+            OcupacionDiaria medianas = filas.getAllValues().stream()
+                    .filter(f -> f.getCategoria() == CategoriaDeTamano.MEDIANO).findFirst().orElseThrow();
+            assertEquals(6L, medianas.getUnidades());
+            assertEquals(0L, medianas.getUnidadesGratis());
+            assertEquals(0L, medianas.getUnidadesConRecargo());
+        }
+
+        @Test
+        void laPrimeraFotoFijaElMovimientoDeLosProductosViejosSinRecargoRetroactivo() {
+            LocalDate hoy = LocalDate.now();
+            ItemInventario legado = conMedidas(1L, 3L, 10, "10");
+            assertNull(legado.getFechaUltimoMovimiento());
+            when(repository.listarTodosLosItems()).thenReturn(List.of(legado));
+            when(repository.listarUltimaOcupacionAntesDe(any(), isNull())).thenReturn(List.of());
+
+            ocupacion.tomarFoto(hoy);
+
+            assertEquals(hoy, legado.getFechaUltimoMovimiento());
+            assertNull(legado.getFechaUltimoIngreso());
+            ArgumentCaptor<OcupacionDiaria> filas = ArgumentCaptor.forClass(OcupacionDiaria.class);
+            verify(repository, times(3)).guardarOcupacion(filas.capture());
+            filas.getAllValues().forEach(f -> {
+                assertEquals(0L, f.getUnidadesGratis());
+                assertEquals(0L, f.getUnidadesConRecargo());
+            });
+        }
+
+        @Test
+        void elMesSumaLasUnidadesGratisYConRecargoDeLasFotos() {
+            YearMonth septiembre = YearMonth.of(2026, 9);
+            when(repository.listarTodosLosItems()).thenReturn(List.of());
+            when(repository.listarUltimaOcupacionAntesDe(eq(septiembre.atDay(1)), isNull()))
+                    .thenReturn(List.of(new OcupacionDiaria(3L, LocalDate.of(2026, 8, 31), CategoriaDeTamano.PEQUENO,
+                            10, 4, 2)));
+            when(repository.listarOcupacion(septiembre.atDay(1), septiembre.atEndOfMonth(), null))
+                    .thenReturn(List.of(new OcupacionDiaria(3L, LocalDate.of(2026, 9, 16), CategoriaDeTamano.PEQUENO,
+                            20, 5, 8)));
+
+            OcupacionMensualDTO o = ocupacion.ocupacionDelMes(septiembre).get(3L);
+
+            // 15 días con la foto previa y 15 con la del 16.
+            assertEquals(15L * 10 + 15L * 20, o.pequeno);
+            assertEquals(15L * 4 + 15L * 5, o.gratisPequeno);
+            assertEquals(15L * 2 + 15L * 8, o.recargoPequeno);
+            assertEquals(135L, o.getTotalGratis());
+            assertEquals(150L, o.getTotalConRecargo());
+        }
+
+        @Test
+        void unaFotoVieja_sinColumnasNuevas_cuentaCeroGratisYCeroRecargo() {
+            OcupacionDiaria vieja = new OcupacionDiaria(3L, LocalDate.of(2026, 9, 1), CategoriaDeTamano.GRANDE, 7);
+            assertEquals(0L, vieja.getUnidadesGratis());
+            assertEquals(0L, vieja.getUnidadesConRecargo());
         }
 
         @Test

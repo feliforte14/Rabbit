@@ -42,10 +42,17 @@ public class CobroDeLiquidaciones {
     @Inject
     private IBancoClient banco;
 
+    /** Sin días gratis ni recargo por stock antiguo (como antes de esa regla). */
+    public Long crear(Long idComercio, String periodo, int cantidadEnvios, BigDecimal kilos, TarifaMensual tarifa,
+                      long unidadesDiaPequeno, long unidadesDiaMediano, long unidadesDiaGrande) {
+        return crear(idComercio, periodo, cantidadEnvios, kilos, tarifa,
+                AlmacenamientoDelMes.sinBeneficios(unidadesDiaPequeno, unidadesDiaMediano, unidadesDiaGrande));
+    }
+
     /** @return el ID de la liquidación nueva, o null si ese comercio ya tenía la de ese mes */
     @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
     public Long crear(Long idComercio, String periodo, int cantidadEnvios, BigDecimal kilos, TarifaMensual tarifa,
-                      long unidadesDiaPequeno, long unidadesDiaMediano, long unidadesDiaGrande) {
+                      AlmacenamientoDelMes almacenamiento) {
         if (repository.existe(idComercio, periodo)) {
             return null;
         }
@@ -57,9 +64,11 @@ public class CobroDeLiquidaciones {
         l.setAbono(tarifa.abonoMensual());
         l.setCargoEnvios(tarifa.cargoEnvios(cantidadEnvios));
         l.setCargoKilos(tarifa.cargoKilos(kilos));
-        l.setUnidadesDia(unidadesDiaPequeno, unidadesDiaMediano, unidadesDiaGrande);
-        l.setCargoAlmacenamiento(tarifa.cargoAlmacenamiento(unidadesDiaPequeno, unidadesDiaMediano, unidadesDiaGrande));
-        l.setTotal(tarifa.total(cantidadEnvios, kilos, unidadesDiaPequeno, unidadesDiaMediano, unidadesDiaGrande));
+        l.setUnidadesDia(almacenamiento.pequeno(), almacenamiento.mediano(), almacenamiento.grande());
+        l.setCargoAlmacenamiento(tarifa.cargoAlmacenamiento(almacenamiento));
+        l.setBeneficiosDeAlmacenamiento(almacenamiento.totalGratis(), almacenamiento.totalConRecargo(),
+                tarifa.ahorroPorDiasGratis(almacenamiento), tarifa.cargoPorStockAntiguo(almacenamiento));
+        l.setTotal(tarifa.total(cantidadEnvios, kilos, almacenamiento));
         l.setEstado(EstadoLiquidacion.PENDIENTE);
         l.setMotivo("Todavía no se pidió el cobro al banco");
         l.setFechaGeneracion(LocalDateTime.now());

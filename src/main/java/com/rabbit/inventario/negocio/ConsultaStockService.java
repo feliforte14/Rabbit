@@ -39,6 +39,7 @@ import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -144,6 +145,8 @@ public class ConsultaStockService implements IConsultaStock {
         item.setIdComercio(datos.idComercio);
         item.setPesoKg(datos.pesoKg);
         item.setMedidas(datos.altoCm, datos.anchoCm, datos.largoCm);
+        // Entró mercadería: arrancan los días gratis y la antigüedad.
+        item.registrarIngreso(LocalDate.now());
         return repository.guardarItem(item).getId();
     }
 
@@ -176,6 +179,11 @@ public class ConsultaStockService implements IConsultaStock {
                     + "\" ya tiene stock de este comercio cargado en este depósito");
         }
         item.setProducto(producto);
+        // Una corrección hacia arriba es mercadería que entró: reinicia los días gratis. Hacia abajo no es una
+        // venta ni un ingreso, así que no toca las fechas.
+        if (datos.cantidadDisponible > item.getCantidadDisponible()) {
+            item.registrarIngreso(LocalDate.now());
+        }
         item.setCantidadDisponible(datos.cantidadDisponible);
         item.setPesoKg(datos.pesoKg);
         if (conMedidasNuevas) {
