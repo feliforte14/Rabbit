@@ -38,10 +38,10 @@ class EstadoDelPedidoTest {
         return p;
     }
 
-    /** La tabla de EstadoPedido.puedePasarA antes del refactor, sin tocar. */
+    /** La tabla de EstadoPedido.puedePasarA antes del refactor; solo cambió que un retiro vencido vuelve al comercio. */
     private static boolean tablaAnterior(EstadoPedido origen, EstadoPedido destino, TipoEntrega tipo) {
         if (tipo == TipoEntrega.RETIRO_EN_DEPOSITO && origen == CONFIRMADO) {
-            return Set.of(ENTREGADO, CANCELADO).contains(destino);
+            return Set.of(ENTREGADO, CANCELADO, DEVUELTO_AL_COMERCIO).contains(destino);
         }
         return switch (origen) {
             case PENDIENTE -> Set.of(CONFIRMADO, CANCELADO).contains(destino);
@@ -90,6 +90,8 @@ class EstadoDelPedidoTest {
         RETIRO.get(CONFIRMADO).clear();
         RETIRO.get(CONFIRMADO).put(Operacion.ENTREGAR, ENTREGADO);
         RETIRO.get(CONFIRMADO).put(Operacion.CANCELAR, CANCELADO);
+        // Un retiro que nadie busca en el plazo vuelve al comercio.
+        RETIRO.get(CONFIRMADO).put(Operacion.DEVOLVER_AL_COMERCIO, DEVUELTO_AL_COMERCIO);
     }
 
     @Test
@@ -117,9 +119,9 @@ class EstadoDelPedidoTest {
                 }
             }
         }
-        // 6 estados x 6 operaciones x 2 formas de recibir = 72. A domicilio hay 9 válidas; en el retiro, 7.
-        assertEquals(16, validas);
-        assertEquals(56, invalidas);
+        // 6 estados x 6 operaciones x 2 formas de recibir = 72. A domicilio hay 9 válidas; en el retiro, 8.
+        assertEquals(17, validas);
+        assertEquals(55, invalidas);
     }
 
     @Test

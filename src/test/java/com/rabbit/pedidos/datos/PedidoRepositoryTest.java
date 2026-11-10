@@ -1,6 +1,8 @@
 package com.rabbit.pedidos.datos;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -80,5 +82,28 @@ class PedidoRepositoryTest {
 
         verify(borrado, never()).executeUpdate();
         assertArrayEquals(new long[] {0, 0}, borrados);
+    }
+
+    @Test
+    void buscaLosRetirosListosAntesDelLimiteSoloConfirmadosYDeRetiro() {
+        @SuppressWarnings("unchecked")
+        TypedQuery<Long> consultaIds = mock(TypedQuery.class);
+        when(em.createQuery(anyString(), eq(Long.class))).thenReturn(consultaIds);
+        when(consultaIds.setParameter(anyString(), org.mockito.ArgumentMatchers.any())).thenReturn(consultaIds);
+        when(consultaIds.getResultList()).thenReturn(List.of(7L, 9L));
+        java.time.LocalDateTime limite = java.time.LocalDateTime.of(2026, 10, 19, 4, 10);
+
+        List<Long> ids = repository.listarIdsDeRetirosListosAntesDe(limite);
+
+        assertEquals(List.of(7L, 9L), ids);
+        ArgumentCaptor<String> jpql = ArgumentCaptor.forClass(String.class);
+        verify(em).createQuery(jpql.capture(), eq(Long.class));
+        // Solo retiros CONFIRMADOS, más viejos que el límite: un retiro ya entregado o cancelado no vence.
+        assertTrue(jpql.getValue().contains("p.estado = :estado"));
+        assertTrue(jpql.getValue().contains("p.tipoEntrega = :tipo"));
+        assertTrue(jpql.getValue().contains("p.fechaActualizacion < :limite"));
+        verify(consultaIds).setParameter("estado", com.rabbit.pedidos.datos.model.EstadoPedido.CONFIRMADO);
+        verify(consultaIds).setParameter("tipo", com.rabbit.pedidos.datos.model.TipoEntrega.RETIRO_EN_DEPOSITO);
+        verify(consultaIds).setParameter("limite", limite);
     }
 }

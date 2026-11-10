@@ -21,6 +21,7 @@ import com.rabbit.notificaciones.dto.NotificacionDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.IntentosDeEntrega;
+import com.rabbit.pedidos.negocio.PlazoDeRetiro;
 import com.rabbit.seguridad.negocio.IContextoUsuario;
 import jakarta.annotation.security.DeclareRoles;
 import jakarta.annotation.security.PermitAll;
@@ -91,7 +92,10 @@ public class NotificacionService implements INotificaciones {
                     IntentosDeEntrega.maximo(),
                     fallido.origen == com.rabbit.pedidos.datos.model.OrigenPedido.STOCK_CONSIGNADO);
         } else {
-            texto = "Tu pedido #" + idPedido + " " + describir(estado) + extra(idPedido, estado);
+            // Un retiro en depósito que nadie buscó en el plazo vuelve al comercio sin motivo de visita fallida.
+            String retiroVencido = "DEVUELTO_AL_COMERCIO".equals(estado) ? retiroVencido(idPedido) : null;
+            texto = retiroVencido != null ? retiroVencido
+                    : "Tu pedido #" + idPedido + " " + describir(estado) + extra(idPedido, estado);
         }
         Notificacion notificacion = new Notificacion();
         notificacion.setIdPedido(idPedido);
@@ -150,6 +154,17 @@ public class NotificacionService implements INotificaciones {
             LOG.warning("[Notificaciones] No se pudo leer el pedido " + idPedido + ": " + e.getMessage());
         }
         return "";
+    }
+
+    // El texto del retiro que venció, o null si el pedido no es un retiro (o no se pudo leer).
+    private String retiroVencido(Long idPedido) {
+        try {
+            return pedidos.consultarEstadoPedido(idPedido).isRetiroEnDeposito()
+                    ? TextosAlComercio.retiroSinRetirar(idPedido, PlazoDeRetiro.dias()) : null;
+        } catch (RuntimeException e) {
+            LOG.warning("[Notificaciones] No se pudo leer el pedido " + idPedido + ": " + e.getMessage());
+            return null;
+        }
     }
 
     // Si este cambio es el de la última visita fallida del pedido.

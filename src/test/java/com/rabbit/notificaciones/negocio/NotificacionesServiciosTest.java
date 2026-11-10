@@ -196,6 +196,39 @@ class NotificacionesServiciosTest {
         }
 
         @Test
+        void elRetiroQueNadieBuscoSeAvisaComoRetiroYNoComoVisitaFallida() {
+            PedidoDTO p = pedido(100L);
+            p.tipoEntrega = com.rabbit.pedidos.datos.model.TipoEntrega.RETIRO_EN_DEPOSITO;
+            p.motivoDevolucion = "No se retiró del depósito en 21 días";
+            when(pedidos.consultarEstadoPedido(100L)).thenReturn(p);
+
+            servicio.avisarCambioDeEstado(100L, 3L, "DEVUELTO_AL_COMERCIO", AHORA);
+
+            assertEquals("Tu pedido #100 no se retiró del depósito en 21 días y vuelve a tu comercio. "
+                    + "Se anula el cobro y se repone tu stock. Coordiná con tu cliente cómo lo recibe. "
+                    + "Detalle en Mis pedidos.", guardada().getMensaje());
+        }
+
+        @Test
+        void unaDevolucionSinMotivoDeVisitaDeUnPedidoADomicilioSigueConElTextoGeneral() {
+            PedidoDTO p = pedido(100L);
+            when(pedidos.consultarEstadoPedido(100L)).thenReturn(p);
+
+            servicio.avisarCambioDeEstado(100L, 3L, "DEVUELTO_AL_COMERCIO", AHORA);
+
+            assertEquals("Tu pedido #100 no se pudo entregar y vuelve a tu comercio", guardada().getMensaje());
+        }
+
+        @Test
+        void siNoSePuedeLeerElPedidoLaDevolucionIgualSeAvisaConElTextoGeneral() {
+            when(pedidos.consultarEstadoPedido(100L)).thenThrow(new RuntimeException("caído"));
+
+            servicio.avisarCambioDeEstado(100L, 3L, "DEVUELTO_AL_COMERCIO", AHORA);
+
+            assertEquals("Tu pedido #100 no se pudo entregar y vuelve a tu comercio", guardada().getMensaje());
+        }
+
+        @Test
         void recortaMensajesDeMasDe255Caracteres() {
             PedidoDTO p = pedido(100L);
             p.motivoEntregaFallida = MotivoEntregaFallida.OTRO;

@@ -23,7 +23,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 /**
  * Patrón State (criterios de testing, eje B): toda transición inválida del pedido se prueba y la API la
- * responde 409. Recorre las 72 combinaciones estado × operación × forma de entrega; las 56 que la máquina
+ * responde 409. Recorre las 72 combinaciones estado × operación × forma de entrega; las 55 que la máquina
  * no admite tienen que lanzar desde el objeto estado y salir como 409 en Problem Details.
  */
 class TransicionesInvalidasDevuelven409Test {
@@ -91,8 +91,9 @@ class TransicionesInvalidasDevuelven409Test {
     }
 
     @Test
-    void sonLas56CombinacionesQueLaMaquinaNoAdmite() {
-        // 6 estados × 6 operaciones × 2 formas de recibir = 72; válidas: 9 a domicilio y 7 en el retiro.
-        assertEquals(56, transicionesInvalidas().count());
+    void sonLas55CombinacionesQueLaMaquinaNoAdmite() {
+        // 6 estados × 6 operaciones × 2 formas de recibir = 72; válidas: 9 a domicilio y 8 en el retiro (que,
+        // además de entregarse o cancelarse, vuelve al comercio si nadie lo busca en el plazo).
+        assertEquals(55, transicionesInvalidas().count());
     }
 }

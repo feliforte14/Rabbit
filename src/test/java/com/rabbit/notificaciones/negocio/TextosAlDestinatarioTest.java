@@ -210,4 +210,18 @@ class TextosAlDestinatarioTest {
         assertFalse(cuerpo.contains("Autorizaste"), cuerpo);
         assertFalse(cuerpo.contains("Llega"), cuerpo);
     }
+
+    @Test
+    void unRetiroQueNoSeBuscoSeCuentaComoUnRetiroYNoComoUnaVisitaFallida() {
+        TextosAlDestinatario.Datos d = new TextosAlDestinatario.Datos("DEVUELTO_AL_COMERCIO", "Ana", "Tienda Feliz",
+                "RB-ABC", "https://r.test/s", null, LocalDate.of(2026, 11, 9), null, false, 0, 2, "el Depósito Central");
+
+        String cuerpo = TextosAlDestinatario.cuerpo(d);
+
+        assertTrue(cuerpo.contains("No retiraste tu pedido a tiempo en el Depósito Central y se lo devolvimos a Tienda Feliz."),
+                cuerpo);
+        assertTrue(cuerpo.contains("Comunicate con la tienda para coordinar una nueva entrega."), cuerpo);
+        assertFalse(cuerpo.contains("No pudimos entregar"), cuerpo);
+        assertEquals("Tu pedido de Tienda Feliz volvió a la tienda", TextosAlDestinatario.asunto(d));
+    }
 }

@@ -133,6 +133,11 @@ final class TextosAlDestinatario {
     }
 
     private static String devuelto(Datos d) {
+        if (d.esRetiro()) {
+            // Un retiro que nadie buscó en el plazo: no hubo visita ni motivo de entrega fallida.
+            return "No retiraste tu pedido a tiempo en " + d.retiro() + " y se lo devolvimos a " + d.comercio()
+                    + ". Comunicate con la tienda para coordinar una nueva entrega.";
+        }
         MotivoEntregaFallida m = d.motivo();
         if (m == MotivoEntregaFallida.RECHAZADO) {
             return "Registramos que no quisiste recibir el pedido y se lo devolvimos a " + d.comercio()

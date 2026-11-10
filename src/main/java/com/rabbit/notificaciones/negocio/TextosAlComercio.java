@@ -75,4 +75,17 @@ final class TextosAlComercio {
         return pedido + " no se entregó en la visita " + visitas + " de " + maximo + que + "." + sigue + hacer
                 + verDetalle;
     }
+
+    /**
+     * El aviso al comercio cuando un retiro en depósito nadie lo fue a buscar en el plazo y vuelve a su
+     * comercio. Lleva qué pasó, qué pasa con la mercadería y el cobro, y qué conviene hacer: coordinar con su
+     * cliente. Un retiro es siempre con stock consignado en Rabbit, así que el stock se repone.
+     *
+     * @param dias el plazo que se esperó (PlazoDeRetiro)
+     */
+    static String retiroSinRetirar(Long idPedido, int dias) {
+        return "Tu pedido #" + idPedido + " no se retiró del depósito en " + dias + " días y vuelve a tu comercio."
+                + " Se anula el cobro y se repone tu stock. Coordiná con tu cliente cómo lo recibe."
+                + " Detalle en Mis pedidos.";
+    }
 }

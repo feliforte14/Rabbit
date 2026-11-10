@@ -1096,6 +1096,31 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         return aDTOConPedido(externo);
     }
 
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    public List<Long> idsDeRetirosVencidos() {
+        return repository.listarIdsDeRetirosListosAntesDe(LocalDateTime.now().minusDays(PlazoDeRetiro.dias()));
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRES_NEW)
+    public boolean vencerRetiro(Long idPedido) {
+        // Con bloqueo y estado actual: si justo lo retiraron o lo cancelaron, no se toca.
+        Pedido pedido = obtenerParaActualizarOFallar(idPedido);
+        if (!pedido.isRetiroEnDeposito() || pedido.getEstado() != EstadoPedido.CONFIRMADO) {
+            return false;
+        }
+        int dias = PlazoDeRetiro.dias();
+        // La mercadería nunca salió del depósito: vuelve al stock consignado del comercio. El cobro lo anula
+        // Pagos al recibir el cambio de estado por el tópico (no hace falta rol: el timer no tiene usuario).
+        devolverStock(pedido);
+        pedido.setMotivoDevolucion(aTexto300("No se retiró del depósito en " + dias + " días"));
+        aplicar(pedido, Pedido::devolverAlComercio);
+        LOG.info("[Pedidos] Retiro del pedido " + idPedido + " vencido: nadie lo buscó en " + dias
+                + " días, vuelve al comercio");
+        return true;
+    }
+
     // Cancela un pedido devolviendo lo que tenía comprometido. Lo usan el
     // personal (cancelarPedido) y el ERP (cancelarPedidoExterno, solo PENDIENTE).
     private void cancelar(Pedido pedido) {
