@@ -3,7 +3,7 @@
 Formato: contexto → decisión → consecuencias. Estado: Aceptada,
 Propuesta o Reemplazada.
 
-Última revisión del registro: 10/11/2026 (se agregan ADR-065, 066 y 067 y el índice por componente).
+Última revisión del registro: 10/11/2026 (se agregan ADR-060 a 062 de la Clase 12, ADR-065 a 067 y los ADR de patrones 068 a 072, y el índice por componente). Hay 72 ADR.
 
 ## Índice por componente
 
@@ -30,6 +30,8 @@ de siempre. Un ADR que toca a varios componentes lo dice en su texto.
 - [ADR-055](#adr-055-prueba-de-entrega-reforzada-código-de-4-dígitos-y-ubicación): Prueba de entrega reforzada: código de 4 dígitos y ubicación (Aceptada)
 - [ADR-056](#adr-056-etiquetas-con-qr-por-bulto): Etiquetas con QR por bulto (Aceptada)
 - [ADR-057](#adr-057-opciones-de-quien-recibe-desde-el-seguimiento): Opciones de quien recibe desde el seguimiento (Aceptada)
+- [ADR-060](#adr-060-fabricación-pura-para-las-reglas-del-pedido): Fabricación pura para las reglas del pedido (Aceptada)
+- [ADR-061](#adr-061-state-para-el-ciclo-de-vida-del-pedido): State para el ciclo de vida del pedido (Aceptada)
 
 ### Inventario
 
@@ -65,6 +67,7 @@ de siempre. Un ADR que toca a varios componentes lo dice en su texto.
 - [ADR-020](#adr-020-cotización-con-los-transportistas-antes-de-derivar): Cotización con los transportistas antes de derivar (Aceptada)
 - [ADR-022](#adr-022-webhook-de-novedades-y-transportista-moderno-como-servicio-aparte): Webhook de novedades y transportista moderno como servicio aparte (Reemplazada)
 - [ADR-029](#adr-029-seguimiento-de-envíos-solo-por-polling-sin-webhook): Seguimiento de envíos solo por polling (sin webhook) (Aceptada)
+- [ADR-062](#adr-062-adapter-para-los-transportistas-externos): Adapter para los transportistas externos (Aceptada)
 
 ### Notificaciones
 
@@ -111,9 +114,13 @@ de siempre. Un ADR que toca a varios componentes lo dice en su texto.
 - [ADR-021](#adr-021-página-pública-de-seguimiento-y-tablas-como-tarjetas-en-el-celular): Página pública de seguimiento y tablas como tarjetas en el celular (Aceptada)
 - [ADR-054](#adr-054-mejoras-de-diseño-visual): Mejoras de diseño visual (Aceptada)
 
-### Fuera de este archivo
+### Arquitectura general (patrones transversales)
 
-- ADR-060 a ADR-062: son de la entrega de la Clase 12 (patrones) y **no están en este archivo**. Hay que sumarlos acá desde esa entrega.
+- [ADR-068](#adr-068-un-repositorio-dao-por-componente): Un repositorio (DAO) por componente (Aceptada)
+- [ADR-069](#adr-069-dto-entre-capas-y-componentes): DTO entre capas y componentes (Aceptada)
+- [ADR-070](#adr-070-facade-en-la-entrada-de-cada-componente): Facade en la entrada de cada componente (Aceptada)
+- [ADR-071](#adr-071-tareas-periódicas-y-estado-compartido-como-singleton): Tareas periódicas y estado compartido como Singleton (Aceptada)
+- [ADR-072](#adr-072-provider-instancet-para-el-ejb-stateful-de-la-reserva): Provider (`Instance<T>`) para el EJB stateful de la reserva (Aceptada)
 
 ## Índice cronológico
 
@@ -178,11 +185,19 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 - [ADR-057](#adr-057-opciones-de-quien-recibe-desde-el-seguimiento): Opciones de quien recibe desde el seguimiento (Aceptada)
 - [ADR-058](#adr-058-órdenes-de-recepción-de-mercadería): Órdenes de recepción de mercadería (Aceptada)
 - [ADR-059](#adr-059-cobro-por-almacenamiento): Cobro por almacenamiento (Aceptada)
+- [ADR-060](#adr-060-fabricación-pura-para-las-reglas-del-pedido): Fabricación pura para las reglas del pedido (Aceptada)
+- [ADR-061](#adr-061-state-para-el-ciclo-de-vida-del-pedido): State para el ciclo de vida del pedido (Aceptada)
+- [ADR-062](#adr-062-adapter-para-los-transportistas-externos): Adapter para los transportistas externos (Aceptada)
 - [ADR-063](#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado): Bandeja de salida (outbox) para los avisos de estado (Aceptada)
 - [ADR-064](#adr-064-mensajes-ilegibles-a-la-cola-de-mensajes-muertos-dlq-con-reintentos-acotados): Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados (Aceptada)
 - [ADR-065](#adr-065-días-gratis-y-recargo-por-stock-antiguo): Días gratis y recargo por stock antiguo (Aceptada)
 - [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Aceptada)
 - [ADR-067](#adr-067-autenticación-con-sesión-en-la-web-y-http-basic-en-la-api-del-erp-sin-jwt): Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT) (Aceptada)
+- [ADR-068](#adr-068-un-repositorio-dao-por-componente): Un repositorio (DAO) por componente (Aceptada)
+- [ADR-069](#adr-069-dto-entre-capas-y-componentes): DTO entre capas y componentes (Aceptada)
+- [ADR-070](#adr-070-facade-en-la-entrada-de-cada-componente): Facade en la entrada de cada componente (Aceptada)
+- [ADR-071](#adr-071-tareas-periódicas-y-estado-compartido-como-singleton): Tareas periódicas y estado compartido como Singleton (Aceptada)
+- [ADR-072](#adr-072-provider-instancet-para-el-ejb-stateful-de-la-reserva): Provider (`Instance<T>`) para el EJB stateful de la reserva (Aceptada)
 
 ## ADR-001: Cola JMS + polling de respaldo para sincronizar pedidos
 
@@ -239,7 +254,7 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 
 ## ADR-005: Máquina de estados del pedido en el enum
 
-- **Estado:** Aceptada.
+- **Estado:** Aceptada. El patrón State completo se documenta en ADR-061.
 - **Contexto:** se agregan `EN_CAMINO` y `ENTREGADO`; las reglas de
   transición estaban repartidas en cada operación.
 - **Decisión:** `EstadoPedido.puedePasarA` + un único
@@ -2164,3 +2179,116 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
   equivalente (Bearer, Basic mal formado y otros esquemas devuelven 401: `SeguridadIT`). Si más adelante hubiera clientes
   móviles o de terceros que necesiten tokens, habría que sumar un emisor de tokens para la API y migrar a los consumidores
   (Newman, Schemathesis, ZAP, k6 y los tests de integración mandan Basic hoy).
+
+## ADR-060: Fabricación pura para las reglas del pedido
+
+- **Estado:** Aceptada. Documentada en la entrega de la Clase 12 (26/10/2026); patrón GRASP *Fabricación pura*.
+- **Contexto:** las reglas sobre qué se puede hacer con un pedido (cuándo se cancela, cuándo se puede calificar, cómo
+  se retira en el depósito) cambian seguido. Si viven en el servicio principal, cada cambio toca la clase más grande del
+  sistema.
+- **Decisión:** cada regla es una clase chica, sin estado ni dependencias del servidor: `ReglaDeCancelacion`,
+  `ReglaDeCalificacion`, `ReglaDeOpcionesDeEntrega` y `ReglaDeRetiro` (en `pedidos/negocio`). La usan por igual el personal
+  (web) y el ERP (API).
+- **Consecuencias:** se prueban sin servidor ni base; un cambio de regla toca una sola clase; personal y ERP aplican la
+  misma regla. Al ser estáticas no se pueden reemplazar.
+- **Descartado:** ponerlas en la entidad `Pedido` (la llenaría de mensajes de pantalla), dejarlas en el servicio principal
+  o guardarlas en la base de datos.
+
+
+## ADR-061: State para el ciclo de vida del pedido
+
+- **Estado:** Aceptada e implementada (26/10/2026). Completa y en parte reemplaza a ADR-005, que dejó la máquina de estados
+  en el enum; patrón GoF *State*.
+- **Contexto:** el pedido tiene seis estados y diez transiciones. Una tabla decía si se podía pasar de un estado a otro, pero
+  lo que cada estado permite o provoca estaba repartido en varios lugares. Entre el 16 y el 21/10 el ciclo cambió cuatro veces.
+- **Decisión:** una clase por estado detrás de una interfaz común sellada: `EstadoDelPedido` y `Pendiente`, `Confirmado`,
+  `EnCamino`, `Entregado`, `Cancelado` y `DevueltoAlComercio` (en `pedidos/datos/model`). Cada estado implementa solo lo que
+  permite y rechaza el resto con `TransicionInvalidaException`; los efectos de entrar a un estado están en `alEntrar`.
+  `Pedido` delega en su estado, `PedidoService.aplicar` es el único lugar que cambia el estado y la base guarda el mismo
+  valor de antes (el enum `EstadoPedido`). **La API del ERP responde 409 Conflict** ante una acción no permitida
+  (`TransicionNoPermitidaException`; prueba `TransicionesInvalidasDevuelven409Test`).
+- **Consecuencias:** un estado nuevo es una clase nueva y las reglas de cada estado están en un solo lugar. Hay más clases
+  para solo seis estados. Los mensajes de "por qué no se puede cancelar" también viven en cada estado
+  (`motivoParaNoCancelar`, `queLeQuedaAlErp`).
+- **Descartado:** dejar la tabla del enum (no dice qué provoca cada estado), un enum con métodos por constante (mezcla
+  persistencia con reglas y los estados consultan el pedido, por el retiro en depósito) y una librería de máquinas de estados
+  (una dependencia para seis estados).
+
+
+## ADR-062: Adapter para los transportistas externos
+
+- **Estado:** Aceptada. Documentada en la entrega de la Clase 12 (26/10/2026); patrón GoF *Adapter*. Detalle de la
+  integración en ADR-016.
+- **Contexto:** Rabbit deriva pedidos a transportistas con dos tecnologías, REST y SOAP, cada una con su formato y su
+  vocabulario de estados. El negocio no puede depender de esas diferencias ni caerse si un transportista no responde.
+- **Decisión:** una interfaz común, `IAdaptadorTransportista` (solicitar, cotizar, consultar estado y cancelar), y un adaptador
+  por tecnología: `AdaptadorRestTransportista` y `AdaptadorSoapTransportista` (en `integracion/transportistas`). Cada adaptador
+  traduce formato y estados, corta a los 5 segundos e informa la falta de respuesta como resultado, no como error. Un único
+  punto elige el adaptador: `AdaptadoresTransportista.para`.
+- **Consecuencias:** pasar un transportista de SOAP a REST no toca el negocio, una tecnología nueva es una clase nueva y,
+  si un transportista no responde, el flujo sigue. El selector usa una condición simple (mejora propuesta en la auditoría SOLID).
+- **Descartado:** un cliente distinto en cada servicio (se copia y se pega), llamar directo a las clases generadas del SOAP
+  y una sola clase con un `if` por tecnología.
+
+
+## ADR-068: Un repositorio (DAO) por componente
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *Repository / DAO*.
+- **Contexto:** las reglas de negocio no deberían depender de JPQL ni del `EntityManager`.
+- **Decisión:** cada componente tiene un repositorio (`ComercioRepository`, `InventarioRepository`, `PedidoRepository`,
+  `CobroRepository`, `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`, `TransportistaRepository`,
+  `ZonaRepository`) que es la **única clase que toca el `EntityManager`**. También encapsula decisiones de acceso, como el
+  bloqueo `PESSIMISTIC_WRITE`.
+- **Consecuencias:** las reglas se leen sin consultas mezcladas y los EJB se prueban con el repositorio simulado.
+- **Descartado:** usar el `EntityManager` directo en los EJB (mezcla consultas con reglas).
+
+
+## ADR-069: DTO entre capas y componentes
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *DTO*.
+- **Contexto:** exponer entidades JPA a la vista o a otro componente acopla todo al esquema y rompe con carga perezosa fuera
+  de la transacción.
+- **Decisión:** los objetos que cruzan capas y componentes son DTO (`dto/` de cada componente). Entrada `Datos*DTO`, salida
+  `*DTO` con `desde(entidad)`. En el borde de la API REST, `PedidoExternoRequest` es el contrato público del alta, separado
+  de `DatosPedidoExternoDTO` (el del formulario JSF): lleva las reglas de Bean Validation, no tiene `idComercio` y se convierte
+  con `aDatos()` antes de llegar al negocio.
+- **Consecuencias:** hay que escribir las conversiones, a cambio de que la vista y la API no vean entidades y de que un campo
+  que no debe llegar (mass assignment) no tenga por dónde entrar.
+- **Descartado:** pasar entidades JPA a la vista o a otros componentes.
+
+
+## ADR-070: Facade en la entrada de cada componente
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *Facade*.
+- **Contexto:** sincronizar un pedido coordina tres componentes (validar comercio, reservar stock, crear el pedido); quien lo
+  dispara no debería conocer esa coordinación.
+- **Decisión:** cada componente expone interfaces `@Local` que esconden su coordinación interna: `IGestionPedidos` /
+  `PedidoService` y, con la misma idea, `IRegistroComercios`, `IConsultaStock` e `IRegistroUsuarios`.
+- **Consecuencias:** la cola (MDB) y el polling (timer) llaman al mismo `sincronizarPedidoExterno`, y la pantalla y la API REST
+  al mismo `registrarPedidoExterno`: la regla no se duplica. A cambio, `PedidoService` crece (ver la auditoría SOLID, principio S).
+- **Descartado:** que cada cliente (cola, timer, pantalla, API) coordine por su cuenta los componentes.
+
+
+## ADR-071: Tareas periódicas y estado compartido como Singleton
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *Singleton* (del contenedor).
+- **Contexto:** una tarea periódica corriendo en varias instancias a la vez procesaría las mismas filas dos veces, y el estado
+  del circuit breaker tiene que ser uno solo para todas las llamadas al banco.
+- **Decisión:** `@Singleton @Startup` del contenedor, con `@Schedule` para las tareas: `BarredorDeReservas`,
+  `SincronizadorDePedidos`, `SeguimientoDeEnvios`, `AsignadorDeEspera` (ADR-037), `EnvioDeEstadosPendientes` y
+  `EnvioDeCorreosPendientes` (ADR-063), `LiquidacionMensual` (ADR-034), `FotoDiariaDeOcupacion` (ADR-059),
+  `VencimientoDeRetiros` (ADR-053), `AlineadorDeRestriccionesEnum` (corre una vez al desplegar) y `CircuitBreakerBanco`
+  (ADR-011).
+- **Consecuencias:** cada tarea corre en una sola pasada a la vez. Con varios nodos habría que coordinar las tareas (hoy hay uno).
+- **Descartado:** tareas en `@Stateless` (una por instancia del pool) y estado del circuit breaker por llamada.
+
+
+## ADR-072: Provider (`Instance<T>`) para el EJB stateful de la reserva
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *Provider* (fábrica con `Instance<T>`).
+- **Contexto:** `PedidoService` es stateless y usa `IReservaStock`, que es stateful (ADR-026 y ADR-027). Inyectarlo como campo
+  compartiría una misma conversación entre pedidos procesados en paralelo.
+- **Decisión:** `PedidoService.reservaProvider`: `get()` crea una instancia nueva por línea de pedido y `destroy()` la descarta.
+- **Consecuencias:** cada reserva tiene su propia conversación y no se cruzan entre pedidos. A cambio, hay que acordarse de destruir
+  la instancia.
+- **Descartado:** inyectar `IReservaStock` como campo del servicio.
