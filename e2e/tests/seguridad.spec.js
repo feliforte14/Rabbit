@@ -89,3 +89,15 @@ test('SEG-4 · Con la sesión vencida, un botón de la página abierta lleva al 
   await expect(page).toHaveURL(/login\.xhtml/);
   await expect(page.getByText('Algo salió mal')).toHaveCount(0);
 });
+
+// Hallado en la prueba exploratoria del 10/11: un byte nulo (%00) en el código de la página pública de
+// seguimiento llegaba a PostgreSQL y daba un error 500. Un código que no se parece a uno real es "no encontrado".
+test('SEG-5 · Un código de seguimiento con un byte nulo o larguísimo no da error del servidor', async ({ request, page }) => {
+  for (const codigo of ['RB-%00X', 'A'.repeat(6000), "RB-ABC'%3B--"]) {
+    const r = await request.get(`api/v1/seguimiento/${codigo}`);
+    expect(r.status(), `API con ${codigo.slice(0, 12)}`).toBe(404);
+  }
+  const respuesta = await page.goto('seguimiento.xhtml?codigo=RB-%00X');
+  expect(respuesta.status()).toBe(200);
+  await expect(page.getByText('Algo salió mal')).toHaveCount(0);
+});

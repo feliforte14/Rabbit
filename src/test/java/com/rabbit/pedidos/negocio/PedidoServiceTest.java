@@ -1293,6 +1293,16 @@ class PedidoServiceTest {
         }
 
         @Test
+        void unCodigoQueNoSeParecePorUnByteNuloOPorLargoNiLlegaALaBase() {
+            // Antes un %00 en la URL pública llegaba a PostgreSQL y daba un error 500.
+            for (String raro : new String[] {"RB-\u0000X", "RB-" + "A".repeat(6000), "RB ABC", "RB-ÑANDÚ", "RB-ABC'; --"}) {
+                assertThrows(PedidoNoEncontradoException.class, () -> servicio.consultarSeguimiento(raro));
+                assertThrows(PedidoNoEncontradoException.class, () -> servicio.consultarCalificacion(raro));
+            }
+            org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).buscarPedidoPorCodigoSeguimiento(any());
+        }
+
+        @Test
         void yaNoEsModificableConElMaximoDeCambiosOEnCamino() {
             Pedido p = pedido(EstadoPedido.PENDIENTE);
             p.setCambiosDelCliente(ReglaDeOpcionesDeEntrega.CAMBIOS_MAXIMOS);
