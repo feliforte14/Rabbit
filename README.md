@@ -15,21 +15,33 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
   comercios (con el peso de cada unidad), y reservas de stock con
   vencimiento (5 minutos, extensibles): si nadie las confirma ni las
-  libera, se liberan solas.
+  libera, se liberan solas. El comercio anuncia la mercadería que va a
+  mandar con una orden de recepción y el personal la recibe y la suma al
+  stock (ADR-058). Cada producto tiene medidas y una categoría de tamaño,
+  de las que depende el cobro por almacenamiento (ADR-059).
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio por una
   API REST versionada (`/api/v1`, alta idempotente, consulta y
   cancelación), su sincronización automática con stock y su seguimiento
   (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`), también público por
   código de seguimiento. El ERP puede mandar quién recibe (nombre,
   teléfono y email, ADR-039), y Rabbit le promete el día de entrega según
-  la hora de corte, ya en la respuesta del alta (ADR-042). En camino, el
+  la hora de corte, ya en la respuesta del alta (ADR-042). Quien recibe
+  puede reprogramar o dejar instrucciones desde el seguimiento (ADR-057),
+  elegir retirarlo en un depósito (ADR-053, con vencimiento a los 21 días) y
+  cada bulto lleva una etiqueta con código QR (ADR-056). La entrega se
+  confirma con un código de 4 dígitos y la ubicación (ADR-055). Un pedido
+  que ya salió a reparto no se cancela (ADR-048). En camino, el
   seguimiento dice en qué parada del repartidor va y en qué franja llega
   (ADR-043).
 - **Pagos y cobranzas:** un pedido prepago se cobra en el banco legado al
   confirmarlo (con reversa si la confirmación falla después, y un circuit
   breaker si el banco no responde); uno contra entrega se acredita cuando
   se entrega. Además, cada mes se le liquida y cobra a cada comercio el
-  servicio de Rabbit: abono + cargo por envío + cargo por kilo (ADR-034).
+  servicio de Rabbit: abono + cargo por envío + cargo por kilo (ADR-034) +
+  cargo por almacenamiento, por unidad y por día guardada según el tamaño
+  (ADR-059). La mercadería recién ingresada no paga los primeros 7 días y la
+  que lleva 120 días sin moverse paga un recargo del 50 % (ADR-065, valores
+  configurables).
 - **Repartidores:** padrón de repartidores propios con su zona y la
   capacidad de su vehículo (kilos y bultos): al confirmar un pedido se le
   asigna al primero al que le entra, que puede llevar varios a la vez
@@ -62,14 +74,21 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   ruta recomendada y marca retiro y entrega (con la foto del remito
   firmado, ADR-033) o devuelve el pedido al depósito, desde el celular; un `ERP` (el sistema del
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
-  Todo por HTTPS, con límite de intentos en el login.
+  Todo por HTTPS, con límite de intentos en el login. La web usa
+  sesión del servidor y la API del ERP, HTTP Basic: no usa JWT (ADR-067).
 - **Notificaciones:** cada cambio de estado le llega al comercio en la
-  campana de notificaciones de la cabecera y, si hay un servidor de correo configurado, por mail. A quien
+  campana de notificaciones de la cabecera y, si hay un servidor de correo configurado, por mail (en HTML, ADR-047). A quien
   recibe también, al email que manda el ERP con cada pedido (obligatorio
-  desde el 18/10), con el link al seguimiento (ADR-039, ADR-040).
+  desde el 18/10), con el link al seguimiento (ADR-039, ADR-040). Los avisos
+  y los mails pasan por una bandeja de salida: si el servidor de correo o el
+  broker fallan, se reintentan y no se pierden, y un mensaje ilegible va a la
+  cola de mensajes muertos (ADR-063 y ADR-064).
 - **Calificación de la entrega:** cuando el pedido está entregado, la página
   de seguimiento le pregunta a quien lo recibió cómo fue (de 1 a 5 estrellas y
-  un comentario opcional). Una sola vez por pedido (ADR-052).
+  un comentario opcional). Una sola vez por pedido (ADR-052). Un gateway de IA
+  clasifica el comentario (positivo, neutro o negativo, y de qué habla) y los
+  indicadores muestran el resumen; sin clave de API no hay IA y todo lo demás
+  funciona igual (ADR-066).
 - **Indicadores:** tablero para el personal (toda la red, un comercio y
   por repartidor) y para cada comercio: entregas a tiempo, al primer
   intento, horas de recibido a entregado, lista de espera y costo por
@@ -85,9 +104,10 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 ## Tecnologías
 
 Jakarta EE 10 sobre WildFly (perfil `standalone-full`), Java 17, JSF +
-Facelets, EJB, JPA/Hibernate, PostgreSQL (Supabase), JMS (ActiveMQ
+Facelets, EJB, JPA/Hibernate, PostgreSQL (local con Docker, o la base compartida en Supabase), JMS (ActiveMQ
 Artemis embebido), JAX-WS (SOAP), JAX-RS (REST), Jakarta Security,
-Jakarta Mail, Maven (WAR), JUnit 5 y REST Assured.
+Jakarta Mail, Maven (WAR), JUnit 5 y REST Assured. Pruebas de punta a punta con Playwright, carga con k6 y, como
+proveedor de la funcionalidad de IA (opcional), la API de Claude.
 
 Esta rama (`main`) es el sistema de Rabbit solo: el banco y los
 transportistas con los que se integra están simulados dentro del mismo
@@ -158,6 +178,9 @@ docker/                    ← configuración de WildFly y semilla de datos para
 - **Integración con el banco legado (SOAP)**
   - Paquete: `integracion.banco`
   - Estado: Implementado
+- **Gateway de IA (clasifica los comentarios de las calificaciones)**
+  - Paquete: `integracion.ia`
+  - Estado: Implementado (ADR-066)
 - **Notificaciones**
   - Paquete: `notificaciones`
   - Estado: Implementado
@@ -196,6 +219,9 @@ docker/                    ← configuración de WildFly y semilla de datos para
 - **Notificaciones → comercio**
   - Tipo: SMTP (Jakarta Mail), después del commit
   - Dirección: Saliente (opcional, por configuración)
+- **Rabbit → proveedor de IA (clasifica el comentario de una calificación)**
+  - Tipo: Sincrónica, **REST/JSON por HTTPS** (API de Claude), a través del gateway `integracion.ia`, con timeout de 5 s y fallback
+  - Dirección: Saliente (opcional: sin clave de API no hay IA)
 
 El seguimiento de los envíos derivados es por consulta periódica (cada
 15 s) a todos los transportistas, modernos y legados (ADR-029).
@@ -207,7 +233,7 @@ El detalle y la justificación de cada decisión están en
 
 - **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (59 ADRs)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MENSAJERIA-JUSTIFICACION.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
-- **Negocio y funcional** (`docs/negocio/`, `docs/funcional/`, `docs/pdf/`): [BRD](docs/negocio/BRD.md), [Documentación funcional](docs/funcional/DOCUMENTACION-FUNCIONAL.md) (35 historias de usuario en Gherkin y matriz de trazabilidad) y sus PDF para entregar.
+- **Negocio y funcional** (`docs/negocio/`, `docs/funcional/`, `docs/pdf/`): [BRD](docs/negocio/BRD.md), [Documentación funcional](docs/funcional/DOCUMENTACION-FUNCIONAL.md) (37 historias de usuario en Gherkin y matriz de trazabilidad) y sus PDF para entregar.
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md) (qué protege Rabbit), [Informe de seguridad](docs/seguridad/INFORME-SEGURIDAD.md) (matriz del Eje D con evidencia), [Pruebas de seguridad](docs/seguridad/PRUEBAS-DE-SEGURIDAD.md) (cómo repetirlas) y el [incidente de secretos en el historial](docs/seguridad/INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar, y las pruebas del CI: [contrato](docs/pruebas/CONTRATO.md) y [punta a punta y accesibilidad](docs/pruebas/E2E.md).
 - **Consigna** (`docs/consigna/`): [Checklist](docs/consigna/CHECKLIST.md) de requisitos (Sección 6 y anexo), [Desafíos opcionales](docs/consigna/DESAFIOS-OPCIONALES.md) y [Uso de IA](docs/consigna/USO-DE-IA.md).
@@ -245,6 +271,9 @@ es el checklist de qué necesita cada quien y dónde se consigue o se crea
 - **Servidor SMTP (host, puerto, remitente)**
   - Para qué: Avisos por mail al comercio (paso 7, opcional)
   - De dónde sale: El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal
+- **Clave de la API de Claude (`ANTHROPIC_API_KEY`)**
+  - Para qué: Clasificar los comentarios de las calificaciones con IA (ADR-066, opcional)
+  - De dónde sale: La cuenta de Anthropic del equipo; va en el `.env` (Docker) o en la propiedad `rabbit.ia.clave`, nunca en el repositorio — sin ella, la app funciona igual y los comentarios quedan sin clasificar
 
 ### Cuentas de la aplicación
 

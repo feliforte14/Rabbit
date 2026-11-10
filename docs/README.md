@@ -10,10 +10,12 @@ están en el [README principal](../README.md).
 
 ## Cómo leer esta documentación
 
+*Última revisión general: 10/11/2026 (ADR por componente, ADR-060 a 072, gateway de IA, defectos cerrados y mediciones del punto 10 del informe de ejecución).*
+
 - **Un documento por tema.** Cada uno describe lo **implementado**, con las clases donde vive.
 - **Las mejoras pendientes** están marcadas como tales dentro de cada documento y en las "Consecuencias" de los ADR.
 - **Cada decisión importante** tiene su ADR (*Architecture Decision Record*): el problema, lo que se decidió y lo que
-  se descartó. Están todas en [DECISIONES.md](arquitectura/DECISIONES.md), con un índice al principio.
+  se descartó. Están todas en [DECISIONES.md](arquitectura/DECISIONES.md), con un **índice por componente** (Pedidos, Inventario, Pagos, etc.) y otro cronológico.
 
 ### Por dónde empezar
 
@@ -61,7 +63,7 @@ docs/
 ### [negocio/](negocio/) y [funcional/](funcional/)
 
 - [BRD.md](negocio/BRD.md): Documento de requisitos de negocio: objetivos, alcance y requisitos BR-xx
-- [DOCUMENTACION-FUNCIONAL.md](funcional/DOCUMENTACION-FUNCIONAL.md): 35 historias de usuario en Gherkin, reglas de negocio, requisitos no funcionales y matriz de trazabilidad BR → HU → CA → CP
+- [DOCUMENTACION-FUNCIONAL.md](funcional/DOCUMENTACION-FUNCIONAL.md): 37 historias de usuario en Gherkin, reglas de negocio, requisitos no funcionales y matriz de trazabilidad BR → HU → CA → CP
 
 ### [pdf/](pdf/)
 
