@@ -74,6 +74,8 @@
         red ni con un script inyectado.
     -->
     <session-config>
+        <!-- Expiración de la sesión por inactividad: 30 minutos. Antes quedaba el valor por defecto del servidor. -->
+        <session-timeout>30</session-timeout>
         <cookie-config>
             <http-only>true</http-only>
             <secure>true</secure>
