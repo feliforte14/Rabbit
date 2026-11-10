@@ -25,6 +25,7 @@ import com.rabbit.pedidos.dto.CalificacionDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.pedidos.negocio.ValidacionException;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.RequestScoped;
 import jakarta.faces.context.FacesContext;
 import com.rabbit.infraestructura.Formatos;
@@ -77,6 +78,22 @@ public class SeguimientoBean {
     private String instrucciones;
     private String nombreAutorizado;
     private boolean opcionesCargadas;
+
+    /**
+     * Al enviar un formulario de la página (calificar, cambiar la entrega) el bean nace de nuevo, vacío,
+     * y f:viewAction no corre en un reenvío. Sin el pedido, los paneles con rendered="#{...}" dan falso
+     * cuando JSF lee el formulario, y JSF ni procesa el envío: no se guardaba nada ni se agradecía.
+     * Por eso el código viaja en un campo oculto común (name="codigo") y acá se vuelve a buscar el pedido.
+     */
+    @PostConstruct
+    void alReenviarFormulario() {
+        FacesContext contexto = FacesContext.getCurrentInstance();
+        if (contexto == null || !contexto.isPostback()) {
+            return;
+        }
+        codigo = contexto.getExternalContext().getRequestParameterMap().get("codigo");
+        buscar();
+    }
 
     // f:viewAction: busca recién cuando ya se cargó el parámetro de la URL.
     public void buscar() {

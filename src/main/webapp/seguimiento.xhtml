@@ -22,6 +22,9 @@
 </f:metadata>
 <h:head>
     <meta charset="UTF-8" />
+    <!-- Ícono de la pestaña: sin esto el navegador pide /favicon.ico en la raíz del servidor y da 404
+         (Lighthouse lo marcaba como error de consola, OBS-01). -->
+    <link rel="icon" type="image/png" href="#{resource['rabbit:logo.png']}" />
     <title>Rabbit · Seguí tu pedido</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <h:outputStylesheet library="rabbit" name="estilos.css" />
@@ -127,7 +130,7 @@
         -->
         <h:panelGroup layout="block" styleClass="seguimiento-tarjeta opciones-entrega" rendered="#{seguimientoBean.puedeModificar}">
             <h:form id="formOpciones">
-                <h:inputHidden value="#{seguimientoBean.codigo}" />
+                <input type="hidden" name="codigo" value="#{seguimientoBean.codigo}" />
                 <p class="seguimiento-titular">¿Querés cambiar algo de la entrega?</p>
                 <div class="campo">
                     <label for="fechaEntrega">Recibirlo otro día (hasta 7 días)</label>
@@ -169,7 +172,7 @@
         -->
         <h:panelGroup layout="block" styleClass="seguimiento-tarjeta calificacion" rendered="#{seguimientoBean.puedeCalificar}">
             <h:form id="formCalificacion">
-                <h:inputHidden value="#{seguimientoBean.codigo}" />
+                <input type="hidden" name="codigo" value="#{seguimientoBean.codigo}" />
                 <fieldset class="estrellas">
                     <legend class="seguimiento-titular">¿Cómo fue la entrega?</legend>
                     <div class="estrellas-opciones">

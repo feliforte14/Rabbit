@@ -7,6 +7,7 @@ package com.rabbit.pedidos.datos;
 
 import com.rabbit.pedidos.datos.model.CalificacionEntrega;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
+import com.rabbit.pedidos.datos.model.TipoEntrega;
 import com.rabbit.pedidos.datos.model.Pedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
 import com.rabbit.pedidos.datos.model.RemitoEntrega;
@@ -99,6 +100,20 @@ public class PedidoRepository {
     // pedidos repetidos que produce el join.
     public List<Pedido> listarTodos() {
         return em.createQuery("SELECT p FROM Pedido p LEFT JOIN FETCH p.lineas ORDER BY p.fechaCreacion DESC", Pedido.class)
+                .getResultList();
+    }
+
+    /**
+     * Los IDs de los retiros en depósito que están listos para retirar desde antes del límite. Sirve para
+     * el vencimiento (PlazoDeRetiro): se mira el último cambio de estado, que para un retiro CONFIRMADO es
+     * el momento en que quedó listo.
+     */
+    public List<Long> listarIdsDeRetirosListosAntesDe(LocalDateTime limite) {
+        return em.createQuery("SELECT p.id FROM Pedido p WHERE p.estado = :estado AND p.tipoEntrega = :tipo "
+                        + "AND p.fechaActualizacion < :limite ORDER BY p.id", Long.class)
+                .setParameter("estado", EstadoPedido.CONFIRMADO)
+                .setParameter("tipo", TipoEntrega.RETIRO_EN_DEPOSITO)
+                .setParameter("limite", limite)
                 .getResultList();
     }
 

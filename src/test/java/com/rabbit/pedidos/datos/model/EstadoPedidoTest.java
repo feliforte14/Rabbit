@@ -60,6 +60,8 @@ class EstadoPedidoTest {
         TipoEntrega retiro = TipoEntrega.RETIRO_EN_DEPOSITO;
         assertTrue(CONFIRMADO.puedePasarA(ENTREGADO, retiro));
         assertTrue(CONFIRMADO.puedePasarA(CANCELADO, retiro));
+        // Si nadie lo busca en el plazo, vuelve al comercio.
+        assertTrue(CONFIRMADO.puedePasarA(DEVUELTO_AL_COMERCIO, retiro));
         assertFalse(CONFIRMADO.puedePasarA(EN_CAMINO, retiro));
         assertFalse(CONFIRMADO.puedePasarA(PENDIENTE, retiro));
     }

@@ -188,6 +188,21 @@ jobs:
         # Versión exacta y sin scripts de instalación (newman no los necesita).
         run: npm install -g --ignore-scripts newman@6.2.3
       - uses: ./.github/actions/levantar-rabbit
+      - name: Contraseñas solo con bcrypt y sin cuentas de add-user.sh (SEG-04)
+        run: |
+          # Criterio de seguridad: hash adaptativo. Las cuentas viven en la base (bcrypt) y el realm de
+          # archivo de WildFly, donde add-user.sh guarda MD5, no tiene que tener ninguna.
+          set -a; . ./.env; set +a
+          bcrypt='$2%'
+          psql_() { docker compose exec -T db psql -U "$DB_USER" -d "$DB_NAME" -Atc "$1" | tr -d '\r'; }
+          cuentas=$(psql_ "SELECT count(*) FROM usuarios")
+          sin_bcrypt=$(psql_ "SELECT count(*) FROM usuarios WHERE hash_clave IS NOT NULL AND hash_clave NOT LIKE '$bcrypt'")
+          en_archivo=$(docker compose exec -T wildfly bash -c 'grep -vcE "^\s*(#|$)" /opt/jboss/wildfly/standalone/configuration/application-users.properties || true' | tr -d '\r')
+          echo "Cuentas en la base: $cuentas | sin bcrypt: $sin_bcrypt | cuentas de add-user.sh: ${en_archivo:-0}"
+          echo "Contraseñas: $cuentas cuentas, $sin_bcrypt sin bcrypt, ${en_archivo:-0} en el realm de archivo (MD5)" >> "$GITHUB_STEP_SUMMARY"
+          test "$cuentas" -ge 1
+          test "$sin_bcrypt" = "0"
+          test "${en_archivo:-0}" = "0"
       - name: Tests de integración (*IT)
         run: |
           set -a; . ./.env; set +a

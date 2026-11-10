@@ -72,4 +72,14 @@ class TextosAlComercioTest {
         assertFalse(picking.contains("stock"));
         assertTrue(picking.contains("Se anula el cobro."));
     }
+
+    @Test
+    void elRetiroQueNadieBuscoDiceQuePasoConElStockYElCobro() {
+        String aviso = TextosAlComercio.retiroSinRetirar(77L, 21);
+
+        assertTrue(aviso.startsWith("Tu pedido #77 no se retiró del depósito en 21 días y vuelve a tu comercio."), aviso);
+        assertTrue(aviso.contains("Se anula el cobro y se repone tu stock."), aviso);
+        assertTrue(aviso.contains("Coordiná con tu cliente"), aviso);
+        assertTrue(TextosAlComercio.retiroSinRetirar(77L, 7).contains("en 7 días"));
+    }
 }

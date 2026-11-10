@@ -81,6 +81,25 @@ public interface IGestionPedidos {
     Long sincronizarPedidoExterno(Long idPedidoExterno);
 
     /**
+     * Los IDs de los retiros en depósito que llevan más de PlazoDeRetiro.dias() listos para retirar y nadie
+     * fue a buscar. Solo lo usa el timer de vencimiento (VencimientoDeRetiros), que no tiene usuario: por eso
+     * no pide rol.
+     */
+    List<Long> idsDeRetirosVencidos();
+
+    /**
+     * Devuelve al comercio un retiro en depósito que nadie buscó: repone el stock, lo pasa a
+     * DEVUELTO_AL_COMERCIO y publica el cambio de estado, con lo que Pagos anula el cobro y se avisa al
+     * comercio y a quien debía retirarlo. Corre en su PROPIA transacción (REQUIRES_NEW), como la
+     * sincronización: si un pedido falla, no arrastra a los demás.
+     *
+     * No hace nada si el pedido ya no es un retiro CONFIRMADO (lo retiraron o lo cancelaron mientras tanto).
+     *
+     * @return true si lo devolvió al comercio
+     */
+    boolean vencerRetiro(Long idPedido);
+
+    /**
      * Marca una fila del mock como procesada SIN generar Pedido, dejando
      * asentado por qué se descartó. La usa SincronizadorDePedidos cuando
      * la fila falla por una regla de negocio (comercio dado de baja, sin

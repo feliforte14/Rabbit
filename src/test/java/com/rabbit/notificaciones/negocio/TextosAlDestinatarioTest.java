@@ -177,4 +177,51 @@ class TextosAlDestinatarioTest {
             assertFalse(TextosAlDestinatario.cuerpo(d).contains("0427"), estado);
         }
     }
+
+    @Test
+    void elCambioDeEntregaMuestraLoQueSeGuardoYInvitaAAvisarSiNoFueElCliente() {
+        LocalDate hoy = LocalDate.of(2026, 11, 9);
+        TextosAlDestinatario.CambioDeEntrega d = new TextosAlDestinatario.CambioDeEntrega("Ana", "Tienda Feliz",
+                "RB-ABC", "https://r.test/seguimiento.xhtml?codigo=RB-ABC", LocalDate.of(2026, 11, 11), hoy,
+                "Dejar en portería", "Marta Gómez");
+
+        assertEquals("Guardamos los cambios de tu entrega de Tienda Feliz",
+                TextosAlDestinatario.asuntoCambioDeEntrega(d));
+        String cuerpo = TextosAlDestinatario.cuerpoCambioDeEntrega(d);
+        assertTrue(cuerpo.startsWith("Hola, Ana. Guardamos los cambios de tu entrega."), cuerpo);
+        assertTrue(cuerpo.contains("Llega"), cuerpo);
+        assertTrue(cuerpo.contains("Instrucciones para el repartidor: Dejar en portería"), cuerpo);
+        assertTrue(cuerpo.contains("Autorizaste a Marta Gómez a recibirlo."), cuerpo);
+        assertTrue(cuerpo.contains("código de entrega"), cuerpo);
+        assertTrue(cuerpo.contains("Si no fuiste vos, avisale a Tienda Feliz."), cuerpo);
+        assertTrue(cuerpo.endsWith("Seguilo con el código RB-ABC: https://r.test/seguimiento.xhtml?codigo=RB-ABC"), cuerpo);
+    }
+
+    @Test
+    void elCambioDeEntregaOmiteLoQueNoSeCargo() {
+        LocalDate hoy = LocalDate.of(2026, 11, 9);
+        TextosAlDestinatario.CambioDeEntrega d = new TextosAlDestinatario.CambioDeEntrega(null, "Tienda Feliz",
+                "RB-ABC", "https://r.test/s", null, hoy, "  ", null);
+
+        String cuerpo = TextosAlDestinatario.cuerpoCambioDeEntrega(d);
+
+        assertTrue(cuerpo.startsWith("Hola. Guardamos los cambios de tu entrega."), cuerpo);
+        assertFalse(cuerpo.contains("Instrucciones"), cuerpo);
+        assertFalse(cuerpo.contains("Autorizaste"), cuerpo);
+        assertFalse(cuerpo.contains("Llega"), cuerpo);
+    }
+
+    @Test
+    void unRetiroQueNoSeBuscoSeCuentaComoUnRetiroYNoComoUnaVisitaFallida() {
+        TextosAlDestinatario.Datos d = new TextosAlDestinatario.Datos("DEVUELTO_AL_COMERCIO", "Ana", "Tienda Feliz",
+                "RB-ABC", "https://r.test/s", null, LocalDate.of(2026, 11, 9), null, false, 0, 2, "el Depósito Central");
+
+        String cuerpo = TextosAlDestinatario.cuerpo(d);
+
+        assertTrue(cuerpo.contains("No retiraste tu pedido a tiempo en el Depósito Central y se lo devolvimos a Tienda Feliz."),
+                cuerpo);
+        assertTrue(cuerpo.contains("Comunicate con la tienda para coordinar una nueva entrega."), cuerpo);
+        assertFalse(cuerpo.contains("No pudimos entregar"), cuerpo);
+        assertEquals("Tu pedido de Tienda Feliz volvió a la tienda", TextosAlDestinatario.asunto(d));
+    }
 }

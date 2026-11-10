@@ -70,6 +70,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -92,6 +93,7 @@ class PedidoServiceTest {
     @Mock private Instance<IReservaStock> reservaProvider;
     @Mock private Event<PedidoExternoRegistrado> pedidoExternoRegistrado;
     @Mock private Event<EstadoPedidoCambiado> estadoPedidoCambiado;
+    @Mock private Event<EntregaModificada> entregaModificada;
     @Mock private IAsignacionRepartidores repartidores;
     @Mock private IRegistroCobros cobros;
     @Mock private IEnvios envios;
@@ -1368,6 +1370,130 @@ class PedidoServiceTest {
             servicio.modificarEntrega("RB-ABC", null, null, null);
             assertNull(p.getNombreAutorizado());
             assertEquals(4, p.getCambiosDelCliente());
+        }
+
+        @Test
+        void elCambioDeEntregaAvisaUnaVezPorCambioConLoQueQuedoGuardado() {
+            Pedido p = pedido(EstadoPedido.PENDIENTE);
+            p.setFechaPrometida(LocalDate.now().plusDays(1));
+            p.setEmailDestinatario("ana@ejemplo.com");
+            p.setNombreDestinatario("Ana");
+            com.rabbit.comercios.dto.ComercioDTO tienda = new com.rabbit.comercios.dto.ComercioDTO();
+            tienda.nombre = "Tienda Feliz";
+            when(comercios.obtenerComercio(3L)).thenReturn(tienda);
+
+            servicio.modificarEntrega("RB-ABC", LocalDate.now().plusDays(3), "Timbre B", "Juan");
+
+            // El evento lleva TODO lo que necesita el mail: después del commit ya no se puede consultar nada.
+            ArgumentCaptor<EntregaModificada> evento = ArgumentCaptor.forClass(EntregaModificada.class);
+            verify(entregaModificada).fire(evento.capture());
+            assertEquals(new EntregaModificada(p.getId(), "ana@ejemplo.com", "Ana", "Tienda Feliz", "RB-ABC",
+                    LocalDate.now().plusDays(3), "Timbre B", "Juan"), evento.getValue());
+
+            // Si no se cambió nada no se avisa.
+            assertThrows(ValidacionException.class,
+                    () -> servicio.modificarEntrega("RB-ABC", LocalDate.now().plusDays(3), "Timbre B", "Juan"));
+            verify(entregaModificada, times(1)).fire(any());
+        }
+
+        @Test
+        void elCambioDeEntregaAvisaAunqueNoSePuedaLeerElNombreDelComercio() {
+            Pedido p = pedido(EstadoPedido.PENDIENTE);
+            p.setFechaPrometida(LocalDate.now().plusDays(1));
+            when(comercios.obtenerComercio(3L)).thenThrow(new RuntimeException("caído"));
+
+            servicio.modificarEntrega("RB-ABC", null, "Timbre B", null);
+
+            ArgumentCaptor<EntregaModificada> evento = ArgumentCaptor.forClass(EntregaModificada.class);
+            verify(entregaModificada).fire(evento.capture());
+            assertEquals("la tienda", evento.getValue().comercio());
+        }
+    }
+
+    @Nested
+    class VencimientoDeRetiros {
+
+        @AfterEach
+        void limpiarPlazo() {
+            System.clearProperty(PlazoDeRetiro.PROPIEDAD);
+        }
+
+        private Pedido retiroConfirmado() {
+            Pedido p = pedido(EstadoPedido.CONFIRMADO);
+            p.setTipoEntrega(TipoEntrega.RETIRO_EN_DEPOSITO);
+            return p;
+        }
+
+        @Test
+        void buscaLosRetirosListosDesdeAntesDelPlazo() {
+            when(repository.listarIdsDeRetirosListosAntesDe(any())).thenReturn(List.of(100L, 101L));
+            LocalDateTime antes = LocalDateTime.now();
+
+            assertEquals(List.of(100L, 101L), servicio.idsDeRetirosVencidos());
+
+            ArgumentCaptor<LocalDateTime> limite = ArgumentCaptor.forClass(LocalDateTime.class);
+            verify(repository).listarIdsDeRetirosListosAntesDe(limite.capture());
+            // El límite es "ahora menos 21 días": un retiro de hace 20 días no vence, uno de hace 22 sí.
+            assertTrue(!limite.getValue().isBefore(antes.minusDays(21).minusSeconds(5)), limite.getValue().toString());
+            assertTrue(!limite.getValue().isAfter(LocalDateTime.now().minusDays(21).plusSeconds(5)));
+        }
+
+        @Test
+        void respetaElPlazoConfigurado() {
+            System.setProperty(PlazoDeRetiro.PROPIEDAD, "7");
+            when(repository.listarIdsDeRetirosListosAntesDe(any())).thenReturn(List.of());
+
+            servicio.idsDeRetirosVencidos();
+
+            ArgumentCaptor<LocalDateTime> limite = ArgumentCaptor.forClass(LocalDateTime.class);
+            verify(repository).listarIdsDeRetirosListosAntesDe(limite.capture());
+            assertTrue(limite.getValue().isAfter(LocalDateTime.now().minusDays(8)), limite.getValue().toString());
+        }
+
+        @Test
+        void elRetiroQueNadieBuscoVuelveAlComercioConSuStockYAvisaElCambio() {
+            Pedido p = retiroConfirmado();
+
+            assertTrue(servicio.vencerRetiro(100L));
+
+            assertEquals(EstadoPedido.DEVUELTO_AL_COMERCIO, p.getEstado());
+            assertEquals("No se retiró del depósito en 21 días", p.getMotivoDevolucion());
+            // La mercadería nunca salió del depósito: vuelve a su stock consignado.
+            verify(reserva).registrarDevolucion(50L);
+            // El cobro lo anula Pagos al recibir este cambio de estado: tiene que publicarse.
+            ArgumentCaptor<EstadoPedidoCambiado> cambio = ArgumentCaptor.forClass(EstadoPedidoCambiado.class);
+            verify(estadoPedidoCambiado).fire(cambio.capture());
+            assertEquals(EstadoPedido.DEVUELTO_AL_COMERCIO, cambio.getValue().estado());
+        }
+
+        @Test
+        void elMotivoDiceLosDiasDelPlazoConfigurado() {
+            System.setProperty(PlazoDeRetiro.PROPIEDAD, "10");
+            Pedido p = retiroConfirmado();
+
+            servicio.vencerRetiro(100L);
+
+            assertEquals("No se retiró del depósito en 10 días", p.getMotivoDevolucion());
+        }
+
+        @Test
+        void siYaLoRetiraronONoEsUnRetiroNoSeTocaNada() {
+            Pedido entregado = retiroConfirmado();
+            entregado.setEstado(EstadoPedido.ENTREGADO);
+            assertFalse(servicio.vencerRetiro(100L));
+            assertEquals(EstadoPedido.ENTREGADO, entregado.getEstado());
+
+            Pedido cancelado = retiroConfirmado();
+            cancelado.setEstado(EstadoPedido.CANCELADO);
+            assertFalse(servicio.vencerRetiro(100L));
+
+            // Un pedido a domicilio confirmado nunca vence: lo lleva un repartidor.
+            Pedido domicilio = pedido(EstadoPedido.CONFIRMADO);
+            assertFalse(servicio.vencerRetiro(100L));
+            assertEquals(EstadoPedido.CONFIRMADO, domicilio.getEstado());
+
+            verify(reserva, never()).registrarDevolucion(any());
+            verify(estadoPedidoCambiado, never()).fire(any());
         }
     }
 

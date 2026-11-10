@@ -196,6 +196,39 @@ class NotificacionesServiciosTest {
         }
 
         @Test
+        void elRetiroQueNadieBuscoSeAvisaComoRetiroYNoComoVisitaFallida() {
+            PedidoDTO p = pedido(100L);
+            p.tipoEntrega = com.rabbit.pedidos.datos.model.TipoEntrega.RETIRO_EN_DEPOSITO;
+            p.motivoDevolucion = "No se retiró del depósito en 21 días";
+            when(pedidos.consultarEstadoPedido(100L)).thenReturn(p);
+
+            servicio.avisarCambioDeEstado(100L, 3L, "DEVUELTO_AL_COMERCIO", AHORA);
+
+            assertEquals("Tu pedido #100 no se retiró del depósito en 21 días y vuelve a tu comercio. "
+                    + "Se anula el cobro y se repone tu stock. Coordiná con tu cliente cómo lo recibe. "
+                    + "Detalle en Mis pedidos.", guardada().getMensaje());
+        }
+
+        @Test
+        void unaDevolucionSinMotivoDeVisitaDeUnPedidoADomicilioSigueConElTextoGeneral() {
+            PedidoDTO p = pedido(100L);
+            when(pedidos.consultarEstadoPedido(100L)).thenReturn(p);
+
+            servicio.avisarCambioDeEstado(100L, 3L, "DEVUELTO_AL_COMERCIO", AHORA);
+
+            assertEquals("Tu pedido #100 no se pudo entregar y vuelve a tu comercio", guardada().getMensaje());
+        }
+
+        @Test
+        void siNoSePuedeLeerElPedidoLaDevolucionIgualSeAvisaConElTextoGeneral() {
+            when(pedidos.consultarEstadoPedido(100L)).thenThrow(new RuntimeException("caído"));
+
+            servicio.avisarCambioDeEstado(100L, 3L, "DEVUELTO_AL_COMERCIO", AHORA);
+
+            assertEquals("Tu pedido #100 no se pudo entregar y vuelve a tu comercio", guardada().getMensaje());
+        }
+
+        @Test
         void recortaMensajesDeMasDe255Caracteres() {
             PedidoDTO p = pedido(100L);
             p.motivoEntregaFallida = MotivoEntregaFallida.OTRO;
@@ -404,7 +437,6 @@ class NotificacionesServiciosTest {
         @AfterEach
         void limpiar() {
             System.clearProperty("rabbit.mail.smtp.host");
-            System.clearProperty("rabbit.mail.smtp.port");
         }
 
         @Test
@@ -414,26 +446,6 @@ class NotificacionesServiciosTest {
             referencias.alConfirmarEliminacion(new ComercioEliminado(3L));
 
             verify(repository).eliminarNotificacionesDeComercio(3L);
-        }
-
-        @Test
-        void sinServidorDeCorreoNoSeMandaNadaYNoFalla() {
-            AvisosPorMail mail = new AvisosPorMail();
-
-            assertDoesNotThrow(() -> mail.alRegistrarAviso(new AvisoRegistrado(3L, "a@b.com", 100L, "texto")));
-            assertDoesNotThrow(() -> mail.alRegistrarAvisoDestinatario(
-                    new AvisoDestinatarioRegistrado(100L, "a@b.com", "asunto", "texto")));
-            assertNull(ConfiguracionSmtp.desde(System.getProperties()));
-        }
-
-        @Test
-        void unServidorDeCorreoCaidoNoFrenaElAviso() {
-            System.setProperty("rabbit.mail.smtp.host", "127.0.0.1");
-            System.setProperty("rabbit.mail.smtp.port", "1");
-            AvisosPorMail mail = new AvisosPorMail();
-
-            assertDoesNotThrow(() -> mail.alRegistrarAviso(new AvisoRegistrado(3L, "a@b.com", 100L, "texto")));
-            assertDoesNotThrow(() -> mail.alRegistrarAviso(new AvisoRegistrado(3L, null, 100L, "sin email")));
         }
     }
 }

@@ -133,6 +133,11 @@ final class TextosAlDestinatario {
     }
 
     private static String devuelto(Datos d) {
+        if (d.esRetiro()) {
+            // Un retiro que nadie buscó en el plazo: no hubo visita ni motivo de entrega fallida.
+            return "No retiraste tu pedido a tiempo en " + d.retiro() + " y se lo devolvimos a " + d.comercio()
+                    + ". Comunicate con la tienda para coordinar una nueva entrega.";
+        }
         MotivoEntregaFallida m = d.motivo();
         if (m == MotivoEntregaFallida.RECHAZADO) {
             return "Registramos que no quisiste recibir el pedido y se lo devolvimos a " + d.comercio()
@@ -153,5 +158,32 @@ final class TextosAlDestinatario {
             return "";
         }
         return " Llega " + Formatos.diaRelativo(prometida, hoy) + ".";
+    }
+
+    /**
+     * Lo que hace falta para el aviso de "guardamos los cambios de tu entrega". Lo que escribió quien recibe
+     * (instrucciones y persona autorizada) viaja tal cual: es suyo, y el mail se lo muestra para que lo revise.
+     */
+    record CambioDeEntrega(String nombre, String comercio, String codigo, String enlace, LocalDate fechaPrometida,
+                           LocalDate hoy, String instrucciones, String nombreAutorizado) {
+    }
+
+    static String asuntoCambioDeEntrega(CambioDeEntrega d) {
+        return "Guardamos los cambios de tu entrega de " + d.comercio();
+    }
+
+    static String cuerpoCambioDeEntrega(CambioDeEntrega d) {
+        StringBuilder texto = new StringBuilder(d.nombre() != null ? "Hola, " + d.nombre() + ". " : "Hola. ");
+        texto.append("Guardamos los cambios de tu entrega.").append(cuando(d.fechaPrometida(), d.hoy()));
+        if (d.instrucciones() != null && !d.instrucciones().isBlank()) {
+            texto.append("\n\nInstrucciones para el repartidor: ").append(d.instrucciones());
+        }
+        if (d.nombreAutorizado() != null && !d.nombreAutorizado().isBlank()) {
+            texto.append("\n\nAutorizaste a ").append(d.nombreAutorizado()).append(" a recibirlo. ")
+                    .append("Esa persona tiene que decirle al repartidor el código de entrega, que te llega por mail cuando el pedido sale a reparto.");
+        }
+        texto.append("\n\nSi no fuiste vos, avisale a ").append(d.comercio()).append(".")
+                .append("\n\nSeguilo con el código ").append(d.codigo()).append(": ").append(d.enlace());
+        return texto.toString();
     }
 }
