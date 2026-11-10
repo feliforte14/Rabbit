@@ -180,6 +180,10 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Inject
     private Event<EntregaModificada> entregaModificada;
 
+    // Un comentario nuevo en una calificación: el gateway de IA lo clasifica después de guardarlo.
+    @Inject
+    private Event<ComentarioCalificado> comentarioCalificado;
+
     // Flujo de confirmación (cobrar → asignar repartidor → confirmar): los
     // dos corren con REQUIRED y se suman a la transacción de confirmarPedido.
     @Inject
@@ -1249,6 +1253,9 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
             throw new ValidacionException("Esta entrega ya fue calificada. ¡Gracias!");
         }
         LOG.info("[Pedidos] Entrega del pedido " + pedido.getId() + " calificada con " + estrellas + " estrellas");
+        if (comentarioLimpio != null && !comentarioLimpio.isBlank()) {
+            comentarioCalificado.fire(new ComentarioCalificado(calificacion.getId(), comentarioLimpio));
+        }
         return CalificacionDTO.desde(calificacion);
     }
 

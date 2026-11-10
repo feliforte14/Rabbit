@@ -196,3 +196,12 @@ test('E2E-10 · Las pantallas declaran su ícono: el navegador no cae a /favicon
   await ingresar(page, cuentas.admin());
   await tieneIconoQueResponde('personal/inicio.xhtml');
 });
+
+test('E2E-11 · Los indicadores del personal cargan con las calificaciones y la clasificación de comentarios', async ({ page }) => {
+  // Una columna nueva de los indicadores (comentarios clasificados por la IA) rompía la página entera por un getter faltante.
+  await ingresar(page, cuentas.admin());
+  const respuesta = await page.goto('personal/indicadores.xhtml');
+  expect(respuesta.status()).toBe(200);
+  await expect(page.getByText('Calificación de las entregas')).toBeVisible();
+  await expect(page.getByText('Algo salió mal')).toHaveCount(0);
+});
