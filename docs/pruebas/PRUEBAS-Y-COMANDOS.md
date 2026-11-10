@@ -9,6 +9,43 @@ donde dice `<contraseña>`, pedísela al equipo. El detalle de cada paso de
 negocio está en [FLUJO-DE-PRUEBAS.md](FLUJO-DE-PRUEBAS.md) y la
 instalación desde cero en el [README](../../README.md#cómo-levantar-el-sistema).
 
+## Con Docker (la forma recomendada)
+
+Con Docker Compose la base (PostgreSQL), WildFly con Rabbit y los datos de demo se levantan juntos (ver el
+[README](../../README.md#cómo-levantar-el-sistema)). Los comandos de abajo de "Parte 1" sirven igual si se los
+corre dentro del contenedor.
+
+```bash
+docker compose up --build -d                  # levantar (y reconstruir si cambió el código)
+docker compose down                           # apagar (los datos de la base se conservan en un volumen)
+docker compose down -v                        # apagar y borrar también los datos
+docker compose run --rm semilla               # volver a cargar los datos de demo (idempotente)
+docker compose logs -f wildfly                # ver el log
+
+# jboss-cli dentro del contenedor (system properties, DLQ, etc.)
+docker compose exec -T wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect \
+  --command="/system-property=rabbit.ruteo.hora-corte:write-attribute(name=value,value=ninguno)"
+
+# psql dentro del contenedor (usuario y base del .env: DB_USER y DB_NAME)
+docker compose exec -T db psql -U "$DB_USER" -d "${DB_NAME:-rabbit}" -c "select count(*) from pedidos"
+```
+
+La semilla deja 8 cuentas (`admindemo` y las de demo: operador, dos comercios, dos ERP y dos repartidores), 2 comercios, un
+depósito, 4 productos y un punto de picking. El producto que usan los pedidos de prueba del ERP `demo.erp` es el de
+`Producto de carga` (ID **301** con la semilla actual: mirarlo en Depósitos y stock). Para vaciar los datos de prueba y
+conservar solo las cuentas: opción C de [`scripts/Rabbit-limpieza-datos-de-prueba.sql`](../../scripts/Rabbit-limpieza-datos-de-prueba.sql),
+y después `docker compose run --rm semilla` para recargar la demo.
+
+Pruebas automáticas contra el sistema levantado (hace falta Node 20 o más):
+
+```bash
+cd e2e && npm ci && npx playwright install chromium
+ADMIN_USER=... ADMIN_PASSWORD=... DEMO_PASSWORD=... ITEM=<id del producto> \
+  BASE=https://localhost:8443/Rabbit npx playwright test
+```
+
+Las variables salen del `.env`. La IA (ADR-066) queda apagada si `ANTHROPIC_API_KEY` está vacía: es el estado normal de las pruebas.
+
 Todos los comandos asumen:
 
 ```bash
@@ -27,7 +64,7 @@ cli() { "$WILDFLY_HOME/bin/jboss-cli.sh" --connect "$@"; }
   - Puerto: 8443 (app, HTTPS), 8080 (simuladores), 9990 (management)
   - Hace falta para: Todo
 - **Base PostgreSQL**
-  - Dónde corre: Supabase (remota, siempre prendida)
+  - Dónde corre: Con Docker, un PostgreSQL local del compose; con WildFly propio, Supabase (remota, siempre prendida)
   - Puerto: 5432 (Session Pooler)
   - Hace falta para: Todo
 

@@ -30,9 +30,9 @@ un timer o un MDB.
 ## Componentes
 
 Rabbit tiene **9 componentes de negocio**. El ítem "Integración banco
-legado" es la capa técnica `integracion` (cliente SOAP del banco y
-adaptadores de transportistas): tiene una interfaz `@Local`
-(`IBancoClient`) pero no es un componente de negocio.
+legado" es la capa técnica `integracion` (cliente SOAP del banco,
+adaptadores de transportistas y el gateway de IA, `integracion.ia`, ADR-066):
+tiene interfaces `@Local` (`IBancoClient`, `IClasificadorIa`) pero no es un componente de negocio.
 
 Cada componente expone interfaces `@Local` separadas por uso (lectura vs.
 escritura) y nunca expone sus entidades ni sus excepciones internas a
@@ -46,7 +46,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
   - Por qué ese tipo: Cada operación recibe todo lo que necesita; el estado vive en la base
 - **Inventario**
   - Estado: Implementado
-  - Interfaces: `IConsultaStock`, `IReservaStock`
+  - Interfaces: `IConsultaStock`, `IReservaStock`, `IRecepcionDeMercaderia` (ADR-058), `IOcupacionDeDeposito` (ADR-059)
   - Tipo de EJB: `@Stateful` (`InventarioService`, `IReservaStock`) + `@Stateless` (`ConsultaStockService`, `IConsultaStock`)
   - Por qué ese tipo: La reserva es una conversación: `reservarStock` y `confirmarReserva` operan sobre la misma instancia
 - **Pedidos**
@@ -61,8 +61,8 @@ otro componente. Las referencias entre componentes se guardan como IDs
   - Por qué ese tipo: Idem Comercios
 - **Integración banco legado (capa técnica, no componente de negocio)**
   - Estado: Implementado
-  - Interfaces: `IBancoClient`
-  - Tipo de EJB: `@Stateless` + `@Singleton` (`CircuitBreakerBanco`)
+  - Interfaces: `IBancoClient` (`autorizar`, `autorizarReferencia`, `reversar`) e `IClasificadorIa` (`clasificar`, ADR-066)
+  - Tipo de EJB: `@Stateless` + `@Singleton` (`CircuitBreakerBanco`); el gateway de IA es un bean CDI `@ApplicationScoped` (`ClasificadorIa`)
   - Por qué ese tipo: Cliente SOAP sin estado de conversación; el estado del circuit breaker es uno solo, compartido por todas las llamadas
 - **Pagos y Cobranzas**
   - Estado: Implementado
@@ -102,19 +102,27 @@ otro componente. Las referencias entre componentes se guardan como IDs
   - Quién la usa: Vistas, Inventario, Pedidos, Ruteo, Seguridad (`UsuarioService`, `SesionBean`)
 - **Inventario**
   - Interfaz: `IConsultaStock`
-  - Operaciones: `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `actualizarItem`, `eliminarItem` (solo administrador, ADR-049), `listarItemsPorDeposito`, `listarItemsPorComercio`, `listarItemsPorComercioYDeposito`, `listarItemsPorIds`, `pesosPorItem` (sin rol, ADR-032), `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas`
+  - Operaciones: `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `actualizarItem`, `eliminarItem` (solo administrador, ADR-049), `listarItemsPorDeposito`, `listarItemsPorComercio`, `listarItemsPorComercioYDeposito`, `listarItemsPorIds`, `pesosPorItem` (sin rol, ADR-032), `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas`, `depositosPorItem`, `marcarBaseDeSalida`
   - Quién la usa: `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Pedidos, Ruteo
 - **Inventario**
   - Interfaz: `IReservaStock`
   - Operaciones: `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion`
   - Quién la usa: `ReservaBean`, Pedidos
+- **Inventario**
+  - Interfaz: `IRecepcionDeMercaderia` (ADR-058)
+  - Operaciones: `anunciar` (el comercio anuncia la mercadería que va a mandar), `registrarRecepcion` (el personal la recibe y la suma al stock, con la fecha de ingreso de ADR-065), `contarAnunciadas`, `listarDelComercioActual`, `listarTodas`, `obtener`
+  - Quién la usa: las pantallas de recepción del comercio y del personal
+- **Inventario**
+  - Interfaz: `IOcupacionDeDeposito` (ADR-059 y ADR-065)
+  - Operaciones: `tomarFoto` (la foto diaria de las 23:55: unidades por categoría, cuántas gratis y cuántas con recargo), `ocupacionDelMes`, `ocupacionDelMesDelComercioActual`, `fechaDeLaUltimaFoto`
+  - Quién la usa: Pagos (la liquidación mensual) y la pantalla de liquidaciones
 - **Pedidos**
   - Interfaz: `IGestionPedidos`
-  - Operaciones: `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona` (null = quedó en lista de espera), `asignarDesdeEspera`, `sacarDeEspera`, `devolverADeposito` (motivo fijo e intentos: ADR-037 y 041), `listarIntentosDeEntrega` y `obtenerFotoDeVisita` (evidencia de cada visita, ADR-045), `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido`
+  - Operaciones: `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona` (null = quedó en lista de espera), `asignarDesdeEspera`, `sacarDeEspera`, `devolverADeposito` (motivo fijo e intentos: ADR-037 y 041), `listarIntentosDeEntrega` y `obtenerFotoDeVisita` (evidencia de cada visita, ADR-045), `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido`, `entregarEnDeposito`, `idsDeRetirosVencidos` y `vencerRetiro` (retiro en depósito y su vencimiento a los 21 días, ADR-053)
   - Quién la usa: `PedidoBean`, `MisEntregasBean`, `RemitoServlet`, Ruteo, MDB, timer
 - **Pedidos**
   - Interfaz: `ISeguimientoPedido`
-  - Operaciones: `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `consultarSeguimiento`, `consultarCalificacion` y `calificarEntrega` (públicas, ADR-052), `listarPendientes`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual`, `listarEntregasEnCursoDeRepartidor` (ADR-043), `resumenEntregas`, `resumenEntregasDelComercioActual` (ADR-034)
+  - Operaciones: `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `consultarSeguimiento`, `consultarCalificacion` y `calificarEntrega` (públicas, ADR-052; un comentario dispara la clasificación del gateway de IA, ADR-066), `consultarCodigoDeEntrega` y `consultarUbicacionDeEntrega` (ADR-055), `modificarEntrega` (pública, ADR-057), `listarPendientes`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual`, `listarEntregasEnCursoDeRepartidor` (ADR-043), `resumenEntregas`, `resumenEntregasDelComercioActual` (ADR-034)
   - Quién la usa: `PedidoBean`, `PortalComercioBean`, Ruteo, Pagos, Notificaciones, API REST
 - **Pedidos**
   - Interfaz: `IIndicadores`
@@ -150,7 +158,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
   - Quién la usa: `SeguimientoDeEnvios` (interna del componente)
 - **Ruteo**
   - Interfaz: `IRuteo`
-  - Operaciones: `listarEntregasEnCurso`, `entregasEnCursoDelRepartidor`, `recorridoRecomendado` (ADR-038), `recorridoDeRepartidor` (ADR-043), `historialDelRepartidor`, `listarPendientesPorZona`, `despacharPedido`, `despacharZona`
+  - Operaciones: `listarEntregasEnCurso`, `entregasEnCursoDelRepartidor`, `recorridoRecomendado` (ADR-038), `recorridoDeRepartidor` (ADR-043), `depositoDeSalida`, `historialDelRepartidor`, `listarPendientesPorZona`, `despacharPedido`, `despacharZona`
   - Quién la usa: `EntregasBean`, `MisEntregasBean`, `RuteoBean`, `LlegadaEstimadaService`
 - **Ruteo**
   - Interfaz: `ILlegadaEstimada`

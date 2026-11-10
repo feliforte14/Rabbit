@@ -10,51 +10,52 @@ explican en una línea.
 
 ### GoF
 
-- **State** (comportamiento): `EstadoDelPedido` y sus seis estados, en `pedidos/datos/model` (ver la [sección](#máquina-de-estados-state)).
-- **Observer** (comportamiento): Eventos CDI (`EstadoPedidoCambiado`, `PedidoExternoRegistrado`, `EstadoEnvioCambiado`) y eventos síncronos de eliminación (ver la [sección](#observer-eventos-cdi)).
-- **Adapter** (estructural): `IAdaptadorTransportista` con su adaptador REST y su adaptador SOAP legado; el cliente del banco legado (ver la [sección](#adapter)).
-- **Facade** (estructural): `IGestionPedidos`, `IConsultaStock`, `IRegistroComercios`, `IRegistroUsuarios` (ver la [sección](#facade)).
-- **Singleton** (creacional): `@Singleton @Startup` del contenedor: timers, `CircuitBreakerBanco`, `AsignadorDeEspera` (ver la [sección](#singleton)).
-- **Factory / Provider** (creacional): `Instance<IReservaStock>` en `PedidoService`; métodos de fábrica estáticos como `EstadoDelPedido.de(...)` y `TarifaMensual.vigente()` (ver la [sección](#provider-instancet-como-fábrica)).
-- **Chain of Responsibility** (comportamiento): `FiltroHsts`, un filtro de servlet dentro de la cadena de filtros. Una línea: agrega la cabecera HSTS y deja seguir la cadena
+- **State** (comportamiento): `EstadoDelPedido` y sus seis estados, en `pedidos/datos/model` (ver la [sección](#máquina-de-estados-state)). **ADR:** [ADR-061](DECISIONES.md#adr-061-state-para-el-ciclo-de-vida-del-pedido) y [ADR-005](DECISIONES.md#adr-005-máquina-de-estados-del-pedido-en-el-enum).
+- **Observer** (comportamiento): Eventos CDI (`EstadoPedidoCambiado`, `PedidoExternoRegistrado`, `EstadoEnvioCambiado`) y eventos síncronos de eliminación (ver la [sección](#observer-eventos-cdi)). **ADR:** [ADR-006](DECISIONES.md#adr-006-tópico-para-los-cambios-de-estado-del-pedido), ADR-009 y ADR-040.
+- **Adapter** (estructural): `IAdaptadorTransportista` con su adaptador REST y su adaptador SOAP legado; el cliente del banco legado (ver la [sección](#adapter)). **ADR:** [ADR-062](DECISIONES.md#adr-062-adapter-para-los-transportistas-externos) y ADR-016.
+- **Facade** (estructural): `IGestionPedidos`, `IConsultaStock`, `IRegistroComercios`, `IRegistroUsuarios` (ver la [sección](#facade)). **ADR:** [ADR-070](DECISIONES.md#adr-070-facade-en-la-entrada-de-cada-componente).
+- **Singleton** (creacional): `@Singleton @Startup` del contenedor: timers, `CircuitBreakerBanco`, `AsignadorDeEspera` (ver la [sección](#singleton)). **ADR:** [ADR-071](DECISIONES.md#adr-071-tareas-periódicas-y-estado-compartido-como-singleton), ADR-011 y ADR-037.
+- **Factory / Provider** (creacional): `Instance<IReservaStock>` en `PedidoService`; métodos de fábrica estáticos como `EstadoDelPedido.de(...)` y `TarifaMensual.vigente()` (ver la [sección](#provider-instancet-como-fábrica)). **ADR:** [ADR-072](DECISIONES.md#adr-072-provider-instancet-para-el-ejb-stateful-de-la-reserva).
+- **Chain of Responsibility** (comportamiento): `FiltroHsts`, un filtro de servlet dentro de la cadena de filtros. Una línea: agrega la cabecera HSTS y deja seguir la cadena **ADR:** ADR-050 (HSTS).
 - **Proxy** (estructural): Lo provee el contenedor (EJB y CDI); no hay código propio
 
 ### GRASP y principios
 
-- **Fabricación pura**: `ReglaDeCancelacion`, `ReglaDeCalificacion`, `ReglaDeOpcionesDeEntrega`, `ReglaDeRetiro`: clases sin estado ni contenedor que se prueban solas
+- **Fabricación pura**: `ReglaDeCancelacion`, `ReglaDeCalificacion`, `ReglaDeOpcionesDeEntrega`, `ReglaDeRetiro`: clases sin estado ni contenedor que se prueban solas **ADR:** [ADR-060](DECISIONES.md#adr-060-fabricación-pura-para-las-reglas-del-pedido).
 - **Controlador**: `PedidoService` coordina el caso de uso; los beans de JSF y los recursos REST solo traducen
 - **Indirección y Variaciones protegidas**: Las interfaces `I*` entre componentes, `IAdaptadorTransportista`, `IBancoClient` y los eventos
 - **Bajo acoplamiento**: Los componentes se hablan por interfaces inyectadas, sin `new` de servicios concretos
 
 ### Arquitectura (PoEAA)
 
-- **Repository / DAO**: Un repositorio por componente (`PedidoRepository`, …) (ver la [sección](#dao-repository)).
-- **DTO**: Las clases `*DTO` entre capas y hacia la API (ver la [sección](#dto)).
+- **Repository / DAO**: Un repositorio por componente (`PedidoRepository`, …) (ver la [sección](#dao-repository)). **ADR:** [ADR-068](DECISIONES.md#adr-068-un-repositorio-dao-por-componente).
+- **DTO**: Las clases `*DTO` entre capas y hacia la API (ver la [sección](#dto)). **ADR:** [ADR-069](DECISIONES.md#adr-069-dto-entre-capas-y-componentes).
 - **Service Layer**: Los servicios `@Stateless` (`PedidoService`, `PagoService`, …)
 - **MVC / Backing Bean**: Vistas JSF (`.xhtml`) y beans de presentación
 - **Data Mapper y Unit of Work**: JPA: las entidades y el `EntityManager`
 - **Value Object**: `record` inmutables, por ejemplo `TarifaMensual`
-- **Exception Mapper**: `ProblemaMapper`: todos los errores de la API salen como Problem Details (RFC 9457) (ver la [sección](#exception-mapper-traductor-de-errores)).
+- **Exception Mapper**: `ProblemaMapper`: todos los errores de la API salen como Problem Details (RFC 9457) (ver la [sección](#exception-mapper-traductor-de-errores)). **ADR:** ADR-018 (Problem Details).
 
 ### Integración y mensajería (EIP)
 
-- **Publish/Subscribe**: El tópico `topico.pedidos.estado` y sus suscriptores (Notificaciones, Pagos, Destinatario) (ver [Observer](#observer-eventos-cdi)).
-- **Point-to-Point Channel y Message-Driven Bean**: La cola `cola.pedidos.externos` y `PedidoExternoListener`
-- **Idempotent Receiver**: `Idempotency-Key` más una huella del pedido y una restricción única (ver la [sección](#idempotency-key)).
-- **Polling de respaldo**: `SincronizadorDePedidos`, por timer, por si falla la cola
-- **Gateway**: `BancoClient` oculta el SOAP del banco legado
+- **Publish/Subscribe**: El tópico `topico.pedidos.estado` y sus suscriptores (Notificaciones, Pagos, Destinatario) (ver [Observer](#observer-eventos-cdi)). **ADR:** ADR-006, ADR-009 y ADR-040.
+- **Point-to-Point Channel y Message-Driven Bean**: La cola `cola.pedidos.externos` y `PedidoExternoListener` **ADR:** ADR-001 y ADR-014.
+- **Idempotent Receiver**: `Idempotency-Key` más una huella del pedido y una restricción única (ver la [sección](#idempotency-key)). **ADR:** ADR-018.
+- **Polling de respaldo**: `SincronizadorDePedidos`, por timer, por si falla la cola **ADR:** ADR-001.
+- **Transactional Outbox**: la bandeja de salida de los avisos de estado (`BandejaDeEstados`, tabla `eventos_estado_pedido`) y la de los mails (`BandejaDeCorreos`, tabla `correos_pendientes`): se guardan en la misma transacción que el cambio y un timer los publica o reintenta. **ADR:** [ADR-063](DECISIONES.md#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado).
+- **Gateway**: `BancoClient` oculta el SOAP del banco legado, y `ClasificadorIa` oculta al proveedor de IA (con timeout de 5 s, fallback y validación de entrada y salida; ADR-066) **ADR:** ADR-010 y [ADR-066](DECISIONES.md#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones).
 
 ### Resiliencia y concurrencia
 
-- **Circuit Breaker**: `CircuitBreakerBanco` (ver la [sección](#circuit-breaker)).
-- **Timeout y degradación controlada**: Corte a los 5 s; la falta de respuesta viaja como resultado (`NO_DISPONIBLE`)
-- **Transacción compensatoria**: `ReversasBancarias` y `CancelacionesDeEnvios` (ver la [sección](#transacción-compensatoria)).
-- **Bloqueo pesimista**: Stock y estado del pedido (`PESSIMISTIC`)
+- **Circuit Breaker**: `CircuitBreakerBanco` (ver la [sección](#circuit-breaker)). **ADR:** ADR-011.
+- **Timeout y degradación controlada**: Corte a los 5 s; la falta de respuesta viaja como resultado (`NO_DISPONIBLE`) **ADR:** ADR-010, ADR-011 y ADR-066.
+- **Transacción compensatoria**: `ReversasBancarias` y `CancelacionesDeEnvios` (ver la [sección](#transacción-compensatoria)). **ADR:** ADR-010.
+- **Bloqueo pesimista**: Stock y estado del pedido (`PESSIMISTIC`) **ADR:** ADR-025 y ADR-026.
 
 ### Lo que no se aplica
 
 - **Strategy real:** no hay clases intercambiables (ver la aclaración en la sección Strategy).
-- **Builder, Decorator, Command, Template Method y Transactional Outbox:** no aparecen en el código.
+- **Builder, Decorator, Command y Template Method:** no aparecen en el código.
 
 ## DAO (Repository)
 

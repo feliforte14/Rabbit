@@ -29,7 +29,7 @@ BR-01 ──► HU-01 Enviar un pedido ──► CA-01.1 (Gherkin) ──► CP-
 
 Rabbit recibe pedidos de los ERP de los comercios, guarda su mercadería en depósitos, la reparte con su flota o con transportistas, cobra el pedido y su propio servicio, y le da a cada actor una vista de lo que le toca. El alcance detallado (incluye / excluye) está en la sección 4 del [BRD](../negocio/BRD.md).
 
-**Entra en esta versión:** las 35 historias de la sección 3: las 28 de la entrega del diseño (HU-01 a HU-28), con HU-14 actualizada por la ADR-055, y 7 historias que formalizan funciones agregadas entre el 21 y el 26/10 (HU-29 a HU-35, ADR-052 a 059).
+**Entra en esta versión:** las 37 historias de la sección 3: las 28 de la entrega del diseño (HU-01 a HU-28), con HU-14 actualizada por la ADR-055, 7 historias que formalizan funciones agregadas entre el 21 y el 26/10 (HU-29 a HU-35, ADR-052 a 059) y 2 del 10/11 (HU-36 y HU-37, ADR-065 y 066).
 
 **Queda fuera:** catálogo de productos (vive en el ERP), facturación fiscal, app nativa del repartidor, devoluciones iniciadas por quien compra, lotes y vencimientos, días gratis y recargo por stock antiguo en el almacenamiento (ADR-059, sin valores definidos).
 
@@ -871,6 +871,48 @@ Escenario: CA-35.3 Sin medidas
   Entonces cuenta como mediano (o más, si lo pesa) y se marca "medidas sin cargar"
 ```
 
+#### HU-36 · Días gratis y recargo por stock antiguo · Could · BR-11, BR-03
+
+**Como** administrador, **quiero** que la mercadería recién ingresada no pague almacenamiento unos días y que la que lleva mucho sin venderse pague un recargo, **para** que el cobro premie la rotación. *Dónde:* Liquidaciones (personal y comercio) · ADR-065
+
+```gherkin
+Escenario: CA-36.1 Días gratis
+  Dado un producto que ingresó hace menos de 7 días
+  Cuando se saca la foto diaria de ocupación
+  Entonces sus unidades cuentan como gratis y no se cobran, y la liquidación muestra cuánto se ahorró el comercio
+
+Escenario: CA-36.2 Recargo por stock antiguo
+  Dado un producto con 120 días o más sin ingresos ni ventas, y fuera de sus días gratis
+  Cuando se liquida el mes
+  Entonces esas unidades pagan el recargo del 50 % sobre su cargo y la liquidación lo muestra como línea propia
+
+Escenario: CA-36.3 Productos anteriores
+  Dado un producto que existía antes de esta regla y no tiene fechas
+  Cuando se saca la primera foto diaria
+  Entonces su fecha de movimiento arranca ese día, sin recargo retroactivo ni días gratis
+```
+
+#### HU-37 · Clasificar con IA el comentario de una calificación · Could · BR-11
+
+**Como** comercio o personal de Rabbit, **quiero** ver de un vistazo si los comentarios de las calificaciones son positivos o negativos y de qué hablan, **para** detectar problemas de entrega sin leerlos uno por uno. *Dónde:* Indicadores (tarjeta "Qué dicen los comentarios") · ADR-066
+
+```gherkin
+Escenario: CA-37.1 Comentario clasificado
+  Dado un comentario en una calificación y un proveedor de IA configurado
+  Cuando quien recibió el pedido envía la calificación
+  Entonces se guarda enseguida y, en segundo plano, se le agrega el sentimiento (positivo, neutro o negativo) y el tema (puntualidad, trato, estado del paquete u otro)
+
+Escenario: CA-37.2 Sin respuesta de la IA
+  Dado que no hay clave de API, o el proveedor no responde en 5 segundos o falla
+  Cuando se envía la calificación
+  Entonces la calificación se guarda igual y el comentario queda sin clasificar
+
+Escenario: CA-37.3 Respuesta no válida
+  Dado un comentario que intenta darle órdenes al modelo, o una respuesta fuera de las listas cerradas
+  Cuando se valida lo que contestó el modelo
+  Entonces se descarta: no se guarda texto libre, y al modelo solo se le manda el texto del comentario, sin datos del pedido ni de quien recibe
+```
+
 ## 4. Reglas de negocio (RN-xx)
 
 | Id | Regla | HU | Dónde se implementa |
@@ -892,6 +934,8 @@ Escenario: CA-35.3 Sin medidas
 | RN-15 | Stock: la cantidad no puede quedar debajo de lo reservado; no se elimina un producto con reservas o pedidos en curso | HU-17 | `ReglasDeStock` |
 | RN-16 | Liquidación: solo meses cerrados; abono $15.000 + $1.200 por envío + $80 por kilo (por defecto) + almacenamiento; se cobra por el banco | HU-28, 10 | `TarifaMensual`, `LiquidacionMensual` |
 | RN-17 | Almacenamiento: categoría por peso y medidas; tarifas por unidad y día $10, $30 y $90; sin medidas cuenta como mediano; fuera de rango no se acepta | HU-35, 17 | `CategoriaDeTamano`, `UnidadesDia` |
+| RN-18 | Almacenamiento: 7 días gratis desde el último ingreso del producto; 120 días sin ingresos ni ventas pagan un recargo del 50 %; los productos anteriores no reciben recargo retroactivo | HU-36 | `PoliticaDeAlmacenamiento`, `TarifaMensual` |
+| RN-19 | IA: solo viaja el texto del comentario, la respuesta es de una lista cerrada, y sin respuesta en 5 s el comentario queda sin clasificar | HU-37 | `ClasificadorIa` |
 | RN-18 | Opciones de quien recibe: reprogramar hasta 7 días y no antes de lo prometido; instrucciones ≤ 200; autorizado ≤ 100; máximo 5 cambios | HU-31 | `ReglaDeOpcionesDeEntrega` |
 | RN-19 | Calificación: solo ENTREGADO, 1 a 5 estrellas, comentario ≤ 500, una por pedido | HU-30 | `ReglaDeCalificacion` |
 | RN-20 | Recepción: 1 a 50 productos sin repetir, cantidad 1 a 100.000; se suma solo lo recibido; PARCIAL si faltó algo | HU-33, 34 | `ReglaDeRecepcion` |
@@ -964,7 +1008,9 @@ Cada criterio de aceptación CA-xx.y tiene su caso de prueba CP-xx.y con el mism
 | BR-08 | HU-33 | Should | 33.1–33.3 | `ReglaDeRecepcionTest`, `OrdenDeRecepcionDTOTest` |
 | BR-08 | HU-34 | Should | 34.1–34.3 | `ReglaDeRecepcionTest`, `MovimientosDeStockTest` |
 | BR-11, BR-03 | HU-35 | Could | 35.1–35.3 | `CategoriaDeTamanoTest`, `UnidadesDiaTest`, `TarifaMensualTest` |
+| BR-11, BR-03 | HU-36 | Could | 36.1–36.3 | `PoliticaDeAlmacenamientoTest`, `TarifaMensualTest`, `AlmacenamientoDelMesTest`, `MovimientosDeStockTest` |
+| BR-11 | HU-37 | Could | 37.1–37.3 | `ClasificadorIaTest`, `ProveedorClaudeTest`, `ClasificacionDeComentariosTest` |
 
-**Cobertura de la matriz:** los 11 BR tienen al menos una HU; las 35 HU tienen entre 3 y 6 criterios (123 en total); todos los criterios tienen un caso de prueba. Los criterios de seguridad de la matriz SEC-01 a SEC-10 (Clase 11) se trazan a HU-01, 02, 04, 05, 07, 14, 19 y 27.
+**Cobertura de la matriz:** los 11 BR tienen al menos una HU; las 37 HU tienen entre 3 y 6 criterios (129 en total); todos los criterios tienen un caso de prueba. Los criterios de seguridad de la matriz SEC-01 a SEC-10 (Clase 11) se trazan a HU-01, 02, 04, 05, 07, 14, 19 y 27.
 
 **Para la matriz del QA (entregable 2):** esta tabla se extiende con el resultado de la última ejecución, la evidencia (run del CI o captura) y el defecto si lo hay.

@@ -11,8 +11,8 @@ ActiveMQ Artemis, API REST, SOAP y vistas JSF). Versión: etiqueta `v1.0-testing
 
 **Dentro del alcance**
 
-- Las **35 historias de usuario** de [DOCUMENTACION-FUNCIONAL.md](../funcional/DOCUMENTACION-FUNCIONAL.md): las 28 de la
-  entrega del diseño (HU-01 a HU-28) y las 7 agregadas después (HU-29 a HU-35), con sus 123 criterios de aceptación.
+- Las **37 historias de usuario** de [DOCUMENTACION-FUNCIONAL.md](../funcional/DOCUMENTACION-FUNCIONAL.md): las 28 de la
+  entrega del diseño (HU-01 a HU-28) y las 9 agregadas después (HU-29 a HU-37), con sus 129 criterios de aceptación.
 - API REST del ERP (`/api/v1/pedidos-externos`) y seguimiento público.
 - Integraciones: SOAP con el banco legado, transportistas (REST y SOAP), cola y tópico JMS.
 - Seguridad (Eje D), accesibilidad, rendimiento y estabilidad de las pruebas.
@@ -24,7 +24,6 @@ ActiveMQ Artemis, API REST, SOAP y vistas JSF). Versión: etiqueta `v1.0-testing
 | Banco y transportistas reales | Son sistemas de otras empresas; se prueba contra los simulados que viajan en el mismo WAR |
 | Desafío de heterogeneidad (banco en Node.js, transportista en Python) | Vive en la rama `desafio-heterogeneidad`, no en la versión entregada |
 | Aplicación móvil nativa | No hay: la vista es web responsive (por eso MASVS no aplica) |
-| Funcionalidad de IA dentro del sistema | Rabbit no integra modelos de lenguaje (sección 8.3 de los criterios: no aplica) |
 | Certificado HTTPS de una autoridad reconocida, y varios nodos | El certificado es autofirmado y el límite de intentos de login vive en memoria de cada servidor (ver [SEGURIDAD.md](../seguridad/SEGURIDAD.md), limitaciones) |
 
 ## 2. Niveles y herramientas
@@ -95,7 +94,7 @@ Probabilidad (P) e impacto (I) en escala 1 a 3; la prioridad es P × I.
 | R9 | Degradación bajo carga | 2 | 2 | 4 | k6, 50 usuarios |
 | R10 | Pantallas inaccesibles | 2 | 2 | 4 | axe en 8 pantallas, Lighthouse |
 | R11 | Error 500 con sesión vencida | 2 | 2 | 4 | `ManejadorDeVistaVencida` (7 unitarias) y E2E SEG-4 |
-| R12 | Cuentas con hash débil (MD5, las anteriores a ADR-031) | 3 | 2 | 6 | **Abierto** (SEG-04): se resuelve restableciendo la contraseña, que la pasa a bcrypt |
+| R12 | Cuentas con hash débil (MD5, las anteriores a ADR-031) | 3 | 2 | 6 | **Cerrado el 10/11/2026** (SEG-04): todas las cuentas están en bcrypt y un paso del CI corta si aparece otra |
 
 ## 6. Gestión de defectos
 

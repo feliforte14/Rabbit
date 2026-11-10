@@ -17,8 +17,8 @@ criterios de aceptación en Gherkin de [DOCUMENTACION-FUNCIONAL.md](../funcional
 
 ## Resumen
 
-- Casos: **123**. Positivos: **70**. Negativos: **45**. De borde: **8**.
-- Negativos o de borde: **53 de 123 = 43 %** (el mínimo exigido es 40 %).
+- Casos: **129**. Positivos: **73**. Negativos: **47**. De borde: **9**.
+- Negativos o de borde: **56 de 129 = 43 %** (el mínimo exigido es 40 %).
 
 ## Casos
 
@@ -147,3 +147,9 @@ criterios de aceptación en Gherkin de [DOCUMENTACION-FUNCIONAL.md](../funcional
 | CP-35.1 | HU-35 | Categoría deducida | — | un producto tiene peso y medidas | su categoría (pequeño, mediano o grande) se deduce y manda la más grande que le toque por cualquiera de sus datos | Baja (Could) | Positivo | Sí |
 | CP-35.2 | HU-35 | Cargo en la liquidación | la foto diaria de unidades por categoría | se liquida el mes | el cargo es unidades-día × tarifa de cada categoría ($10, $30 y $90 por defecto) y aparece como línea propia | Baja (Could) | Positivo | Sí |
 | CP-35.3 | HU-35 | Sin medidas | un producto sin medidas cargadas | — | cuenta como mediano (o más, si lo pesa) y se marca "medidas sin cargar" | Baja (Could) | Positivo | Sí |
+| CP-36.1 | HU-36 | Días gratis | un producto que ingresó hace menos de 7 días | se saca la foto diaria de ocupación | sus unidades cuentan como gratis y no se cobran, y la liquidación muestra el ahorro | Baja (Could) | Positivo | Sí |
+| CP-36.2 | HU-36 | Recargo por stock antiguo | un producto con 120 días o más sin ingresos ni ventas, fuera de sus días gratis | se liquida el mes | esas unidades pagan el recargo del 50 % y aparece como línea propia | Baja (Could) | Positivo | Sí |
+| CP-36.3 | HU-36 | Productos anteriores | un producto que existía antes de la regla y no tiene fechas | se saca la primera foto diaria | su fecha de movimiento arranca ese día, sin recargo retroactivo ni días gratis | Baja (Could) | De borde | Sí |
+| CP-37.1 | HU-37 | Comentario clasificado | un comentario en una calificación y un proveedor de IA configurado | quien recibió el pedido envía la calificación | se guarda enseguida y, en segundo plano, se agrega el sentimiento y el tema | Baja (Could) | Positivo | Sí |
+| CP-37.2 | HU-37 | Sin respuesta de la IA | no hay clave de API, o el proveedor no responde en 5 s o falla | se envía la calificación | la calificación se guarda igual y el comentario queda sin clasificar | Baja (Could) | Negativo | Sí |
+| CP-37.3 | HU-37 | Respuesta no válida | un comentario que intenta darle órdenes al modelo, o una respuesta fuera de las listas cerradas | se valida lo que contestó el modelo | se descarta: no se guarda texto libre y solo se manda el texto del comentario | Baja (Could) | Negativo | Sí |

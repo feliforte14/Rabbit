@@ -48,10 +48,12 @@ la fila pasaron en el CI; no distingue qué criterio cubre cada una (eso lo dice
 | HU-33 | Anunciar mercadería al depósito | Should | 33.1–33.3 | `ReglaDeRecepcionTest`, `OrdenDeRecepcionDTOTest` | Pasa (CI, `b696023`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) | — |
 | HU-34 | Registrar lo que llegó al depósito | Should | 34.1–34.3 | `ReglaDeRecepcionTest`, `MovimientosDeStockTest` | Pasa (CI, `b696023`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) | — |
 | HU-35 | Cobrar el almacenamiento | Could | 35.1–35.3 | `CategoriaDeTamanoTest`, `UnidadesDiaTest`, `TarifaMensualTest` | Pasa (CI, `b696023`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) | — |
+| HU-36 | Días gratis y recargo por stock antiguo | Could | 36.1–36.3 | `PoliticaDeAlmacenamientoTest`, `TarifaMensualTest`, `AlmacenamientoDelMesTest`, `MovimientosDeStockTest` | Pasa (CI, `73094da`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/42885588643) | — |
+| HU-37 | Clasificar con IA el comentario de una calificación | Could | 37.1–37.3 | `ClasificadorIaTest`, `ProveedorClaudeTest`, `ClasificacionDeComentariosTest` | Pasa (CI, `73094da`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/42885588643) | Sin probar contra la API real (falta la clave) |
 
 ## Resumen
 
-- HU en el alcance: **35**; casos de prueba (CP): **123**.
-- Con prueba automatizada que pasa: **27** HU. Mixtas (automatizada y manual): **8**. Solo manual, sin ejecutar: **0**.
+- HU en el alcance: **37**; casos de prueba (CP): **129**.
+- Con prueba automatizada que pasa: **29** HU. Mixtas (automatizada y manual): **8**. Solo manual, sin ejecutar: **0**.
 - Cada HU del alcance tiene al menos un criterio y un caso (sin huecos en HU → CA → CP).
 - Ninguna HU «Must» tiene un criterio fallado en la última corrida automatizada.

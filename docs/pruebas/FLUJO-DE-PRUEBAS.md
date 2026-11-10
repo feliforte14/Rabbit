@@ -88,9 +88,9 @@ exactamente tres operaciones bloqueadas por rol, no por la vista:
    pantalla (igual que el 7 para `demo.comercio`).
 4. Las tres operaciones que el operador **no puede** hacer:
    - **Comercios** → en un comercio dado de baja, el botón **Eliminar**
-     (no **Dar de baja**, que sí puede): falla con un mensaje de negocio
-     (no el stack trace), porque el EJB rechaza con `EJBAccessException`
-     antes de llegar a `eliminarComercio`.
+     (no **Dar de baja**, que sí puede) **no se le muestra**: la vista lo
+     oculta y, además, el EJB rechazaría la operación (`EJBAccessException`)
+     si llegara a `eliminarComercio`. Solo ve **Reactivar**.
    - **Pedidos** → cancelar un pedido que ya está `CONFIRMADO` (o más
      adelante): falla igual, porque cancelar desde ahí pasa por
      `PagoService.anularCobro` (solo `ADMINISTRADOR`). Cancelar un pedido
@@ -459,9 +459,14 @@ lo exige, así que para reproducir el caso hay que dar de baja el comercio
 asociado a una cuenta ya creada (o borrarlo) y volver a entrar como esa
 cuenta a **Puntos de picking**.
 
-**Resultado esperado:** el mensaje
-*"Tu cuenta no está asociada a un comercio activo. Contactá a un
-administrador."* — no el mensaje interno `Comercio no encontrado: <id>`.
+**Resultado esperado (actualizado el 10/11/2026):** hoy, al dar de baja un
+comercio, **sus cuentas también quedan dadas de baja**: la cuenta ya no puede
+ni entrar, y el login responde "Usuario o contraseña incorrectos" (genérico, sin
+revelar nada). El mensaje *"Tu cuenta no está asociada a un comercio activo.
+Contactá a un administrador."* queda como red de seguridad de la pantalla de
+Puntos de picking (`PuntoPickingBean`) para una cuenta activa cuyo comercio
+no lo está; en ningún caso se ve el mensaje interno
+`Comercio no encontrado: <id>`.
 
 ---
 
@@ -676,7 +681,9 @@ Misma rama. Necesita salida a internet (OpenStreetMap).
 
 1. Confirmar dos o tres pedidos del mismo repartidor a direcciones reales
    (por ejemplo, en barrios distintos de CABA). Dentro del minuto, en el
-   log: `[Ruteo][Mapa] Av. … -> -34.…, -58.…` por cada dirección y por el
+   log: `[Ruteo][Mapa] dirección ubicada (N de M)` por cada dirección (o
+   `dirección no encontrada`; el log no muestra la dirección ni las coordenadas
+   por SEC-09) y por el
    depósito.
 2. Como repartidor → Mis entregas → "Hoja de ruta recomendada": primero
    el retiro y después la entrega más cercana al depósito, y así. Puede no
