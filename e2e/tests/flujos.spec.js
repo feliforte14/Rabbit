@@ -1,4 +1,4 @@
-// Nueve escenarios de punta a punta (eje A), cada uno desde la perspectiva de
+// Diez escenarios de punta a punta (eje A), cada uno desde la perspectiva de
 // un actor distinto. Los pedidos se dan de alta por la API del ERP, como en
 // producción; todo lo demás se hace por la pantalla.
 const { test, expect } = require('@playwright/test');
@@ -176,4 +176,23 @@ test('E2E-9 · La etiqueta con QR: cualquiera ve el seguimiento y el repartidor 
   await repartidor.getByRole('button', { name: 'Marcar como retirado' }).click();
   await expect(repartidor.getByText('ya está en camino').first()).toBeVisible();
   await contextoRepartidor.close();
+});
+
+test('E2E-10 · Las pantallas declaran su ícono: el navegador no cae a /favicon.ico (OBS-01)', async ({ page, request }) => {
+  // Sin <link rel="icon"> el navegador pide /favicon.ico en la raíz del servidor, que da 404, y Lighthouse lo
+  // cuenta como error de consola en cada pantalla (best-practices 96 en vez de 100).
+  async function tieneIconoQueResponde(ruta) {
+    await page.goto(ruta);
+    const href = await page.locator('link[rel~="icon"]').first().getAttribute('href');
+    expect(href, `${ruta} no declara su ícono`).toBeTruthy();
+    const respuesta = await request.get(href);
+    expect(respuesta.status(), `${ruta}: el ícono ${href}`).toBe(200);
+    expect(respuesta.headers()['content-type'], ruta).toContain('image/');
+  }
+
+  await tieneIconoQueResponde('login.xhtml');
+  await tieneIconoQueResponde('seguimiento.xhtml?codigo=RB-NO-EXISTE');
+  // Las pantallas con sesión usan la plantilla.
+  await ingresar(page, cuentas.admin());
+  await tieneIconoQueResponde('personal/inicio.xhtml');
 });

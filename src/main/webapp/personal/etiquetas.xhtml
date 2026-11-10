@@ -12,6 +12,9 @@
       xmlns:ui="jakarta.faces.facelets">
 <h:head>
     <meta charset="UTF-8" />
+    <!-- Ícono de la pestaña: sin esto el navegador pide /favicon.ico en la raíz del servidor y da 404
+         (Lighthouse lo marcaba como error de consola, OBS-01). -->
+    <link rel="icon" type="image/png" href="#{resource['rabbit:logo.png']}" />
     <title>Rabbit · Etiquetas del pedido</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <h:outputStylesheet library="rabbit" name="estilos.css" />
