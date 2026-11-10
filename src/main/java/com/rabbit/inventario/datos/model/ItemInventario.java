@@ -15,6 +15,7 @@ package com.rabbit.inventario.datos.model;
  */
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import jakarta.persistence.*;
 
 @Entity
@@ -58,6 +59,13 @@ public class ItemInventario {
     // negocio lo exige en las altas nuevas y rechaza reservar sobre un
     // ítem sin dueño asignado.
     private Long idComercio;
+
+    // Antigüedad del stock (días gratis y recargo por stock antiguo). Fecha del último ingreso de
+    // mercadería (alta, recepción o corrección hacia arriba) y del último movimiento (ingreso o venta). Nulas en
+    // los productos anteriores: sin fecha de ingreso no tienen días gratis, y la antigüedad para el recargo
+    // empieza a contar el día de la primera foto de ocupación, para no recargar de golpe lo que ya estaba.
+    private LocalDate fechaUltimoIngreso;
+    private LocalDate fechaUltimoMovimiento;
 
     /**
      * BLOQUEO OPTIMISTA contra la sobreventa por concurrencia.
@@ -117,4 +125,21 @@ public class ItemInventario {
     public Long getVersion() { return version; }
     public Deposito getDeposito() { return deposito; }
     public void setDeposito(Deposito deposito) { this.deposito = deposito; }
+
+    public LocalDate getFechaUltimoIngreso() { return fechaUltimoIngreso; }
+    public void setFechaUltimoIngreso(LocalDate fechaUltimoIngreso) { this.fechaUltimoIngreso = fechaUltimoIngreso; }
+
+    public LocalDate getFechaUltimoMovimiento() { return fechaUltimoMovimiento; }
+    public void setFechaUltimoMovimiento(LocalDate fechaUltimoMovimiento) { this.fechaUltimoMovimiento = fechaUltimoMovimiento; }
+
+    /** Entró mercadería: arranca de nuevo el período de días gratis y se corta la antigüedad. */
+    public void registrarIngreso(LocalDate dia) {
+        this.fechaUltimoIngreso = dia;
+        this.fechaUltimoMovimiento = dia;
+    }
+
+    /** Salió mercadería (una venta): el producto se mueve, así que deja de ser stock sin rotación. */
+    public void registrarSalida(LocalDate dia) {
+        this.fechaUltimoMovimiento = dia;
+    }
 }

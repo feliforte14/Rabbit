@@ -33,6 +33,7 @@ import jakarta.ejb.TransactionAttributeType;
 import jakarta.inject.Inject;
 import jakarta.persistence.OptimisticLockException;
 import java.time.LocalDateTime;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -200,6 +201,7 @@ public class RecepcionService implements IRecepcionDeMercaderia {
         ItemInventario existente = repository.buscarItemDelComercio(linea.getProducto(), idDeposito, orden.getIdComercio());
         if (existente != null) {
             existente.setCantidadDisponible(existente.getCantidadDisponible() + llegaron);
+            existente.registrarIngreso(LocalDate.now());
             repository.actualizarItem(existente);
             return;
         }
@@ -210,6 +212,7 @@ public class RecepcionService implements IRecepcionDeMercaderia {
         item.setDeposito(orden.getDeposito());
         item.setIdComercio(orden.getIdComercio());
         item.setPesoKg(linea.getPesoKg());
+        item.registrarIngreso(LocalDate.now());
         repository.guardarItem(item);
     }
 

@@ -37,6 +37,9 @@
                 <b><h:outputText value="#{liquidacionBean.tarifa.almacenamientoMediano()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> o
                 <b><h:outputText value="#{liquidacionBean.tarifa.almacenamientoGrande()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
                 por unidad y por día guardada (pequeña, mediana o grande).
+                Un producto que ingresó hace menos de #{liquidacionBean.tarifa.diasGratis()} días no paga (si es 0, no hay días gratis) y el que lleva
+                #{liquidacionBean.tarifa.diasParaRecargo()} días sin ingresos ni ventas paga un recargo del #{liquidacionBean.tarifa.recargoStockAntiguo()} %
+                (si es 0, no hay recargo).
             </h:panelGroup>
             <h:panelGroup rendered="#{not liquidacionBean.tarifa.cobraAlmacenamiento()}">
                 El almacenamiento no se cobra: los tres precios están en cero (<code>rabbit.tarifa.almacenamiento.*</code>).
@@ -122,6 +125,12 @@
                     <h:panelGroup rendered="#{liquidacionBean.tarifa.cobraAlmacenamiento() or l.unidadesDia > 0}">
                         <span class="dato-secundario">Almacenamiento: #{etiquetas.pesos(l.cargoAlmacenamiento)}
                             (#{l.unidadesDiaPequeno} chicas · #{l.unidadesDiaMediano} medianas · #{l.unidadesDiaGrande} grandes, en u.-día)</span>
+                        <h:panelGroup rendered="#{l.unidadesDiaGratis > 0}">
+                            <span class="dato-secundario">Días gratis: #{l.unidadesDiaGratis} u.-día (ahorro #{etiquetas.pesos(l.ahorroPorDiasGratis)})</span>
+                        </h:panelGroup>
+                        <h:panelGroup rendered="#{l.unidadesDiaConRecargo > 0}">
+                            <span class="dato-secundario">Stock antiguo: #{l.unidadesDiaConRecargo} u.-día (recargo #{etiquetas.pesos(l.cargoPorStockAntiguo)})</span>
+                        </h:panelGroup>
                     </h:panelGroup>
                     <h:panelGroup rendered="#{l.productosSinMedidas > 0}">
                         <span class="dato-secundario">#{l.productosSinMedidas} producto(s) sin medidas: se cuentan como medianos</span>

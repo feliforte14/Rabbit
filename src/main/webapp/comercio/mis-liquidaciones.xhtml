@@ -32,6 +32,13 @@
                     Además, por guardar tu mercadería en el depósito: #{etiquetas.pesos(misLiquidacionesBean.tarifa.almacenamientoPequeno())} por unidad y por día si es pequeña,
                     #{etiquetas.pesos(misLiquidacionesBean.tarifa.almacenamientoMediano())} si es mediana y
                     #{etiquetas.pesos(misLiquidacionesBean.tarifa.almacenamientoGrande())} si es grande (el tamaño sale del peso y las medidas).
+                    <h:panelGroup rendered="#{misLiquidacionesBean.tarifa.diasGratis() > 0}">
+                        Los productos que ingresan al depósito no pagan almacenamiento los primeros #{misLiquidacionesBean.tarifa.diasGratis()} días.
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{misLiquidacionesBean.tarifa.diasParaRecargo() > 0 and misLiquidacionesBean.tarifa.recargoStockAntiguo() > 0}">
+                        Si un producto pasa #{misLiquidacionesBean.tarifa.diasParaRecargo()} días sin ingresar ni venderse, se le suma un recargo del
+                        #{misLiquidacionesBean.tarifa.recargoStockAntiguo()} % por la mercadería sin rotación.
+                    </h:panelGroup>
                 </h:panelGroup>
                 Se liquida a principio de cada mes por el mes anterior. Es aparte del cobro de cada pedido.
             </p>
@@ -60,6 +67,12 @@
                     <p class="stat-label">Almacenamiento</p>
                     <p class="stat-valor">#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.cargoAlmacenamiento)}</p>
                     <p class="stat-nota">#{misLiquidacionesBean.mesEnCurso.unidadesDia} unidades-día</p>
+                    <h:panelGroup rendered="#{misLiquidacionesBean.mesEnCurso.unidadesDiaGratis > 0}">
+                        <p class="stat-nota">#{misLiquidacionesBean.mesEnCurso.unidadesDiaGratis} gratis (ahorrás #{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.ahorroPorDiasGratis)})</p>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{misLiquidacionesBean.mesEnCurso.unidadesDiaConRecargo > 0}">
+                        <p class="stat-nota">#{misLiquidacionesBean.mesEnCurso.unidadesDiaConRecargo} de stock antiguo (+#{etiquetas.pesos(misLiquidacionesBean.mesEnCurso.cargoPorStockAntiguo)})</p>
+                    </h:panelGroup>
                 </h:panelGroup>
                 <div class="stat-card">
                     <p class="stat-label">Total a hoy</p>
@@ -93,6 +106,12 @@
                 <b><h:outputText value="#{l.total}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
                 <h:panelGroup rendered="#{l.unidadesDia > 0}">
                     <span class="dato-secundario">Incluye almacenamiento: #{etiquetas.pesos(l.cargoAlmacenamiento)} (#{l.unidadesDia} u.-día)</span>
+                    <h:panelGroup rendered="#{l.unidadesDiaGratis > 0}">
+                        <span class="dato-secundario">Días gratis: #{l.unidadesDiaGratis} u.-día (ahorro #{etiquetas.pesos(l.ahorroPorDiasGratis)})</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{l.unidadesDiaConRecargo > 0}">
+                        <span class="dato-secundario">Stock antiguo: #{l.unidadesDiaConRecargo} u.-día (recargo #{etiquetas.pesos(l.cargoPorStockAntiguo)})</span>
+                    </h:panelGroup>
                 </h:panelGroup>
             </h:column>
             <h:column>

@@ -54,6 +54,18 @@ public class Liquidacion {
     @Column(precision = 12, scale = 2)
     private BigDecimal cargoAlmacenamiento;
 
+    // Días gratis y recargo por stock antiguo: de las unidades-día guardadas, cuántas fueron gratis y cuántas
+    // llevaron recargo, lo que se ahorró el comercio y lo que se cobró de más. Importes del momento. Null en las
+    // anteriores: se leen como 0.
+    private Long unidadesDiaGratis;
+    private Long unidadesDiaConRecargo;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal ahorroPorDiasGratis;
+
+    @Column(precision = 12, scale = 2)
+    private BigDecimal cargoPorStockAntiguo;
+
     @Column(precision = 12, scale = 2)
     private BigDecimal total;
 
@@ -95,6 +107,17 @@ public class Liquidacion {
         this.unidadesDiaPequeno = pequeno;
         this.unidadesDiaMediano = mediano;
         this.unidadesDiaGrande = grande;
+    }
+    public long getUnidadesDiaGratis() { return unidadesDiaGratis == null ? 0 : unidadesDiaGratis; }
+    public long getUnidadesDiaConRecargo() { return unidadesDiaConRecargo == null ? 0 : unidadesDiaConRecargo; }
+    public BigDecimal getAhorroPorDiasGratis() { return ahorroPorDiasGratis == null ? BigDecimal.ZERO : ahorroPorDiasGratis; }
+    public BigDecimal getCargoPorStockAntiguo() { return cargoPorStockAntiguo == null ? BigDecimal.ZERO : cargoPorStockAntiguo; }
+    public void setBeneficiosDeAlmacenamiento(long unidadesGratis, long unidadesConRecargo, BigDecimal ahorroPorDiasGratis,
+                                              BigDecimal cargoPorStockAntiguo) {
+        this.unidadesDiaGratis = unidadesGratis;
+        this.unidadesDiaConRecargo = unidadesConRecargo;
+        this.ahorroPorDiasGratis = ahorroPorDiasGratis;
+        this.cargoPorStockAntiguo = cargoPorStockAntiguo;
     }
     public BigDecimal getCargoAlmacenamiento() { return cargoAlmacenamiento == null ? BigDecimal.ZERO : cargoAlmacenamiento; }
     public void setCargoAlmacenamiento(BigDecimal cargoAlmacenamiento) { this.cargoAlmacenamiento = cargoAlmacenamiento; }

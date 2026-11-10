@@ -33,6 +33,12 @@ public class OcupacionDiaria {
 
     private long unidades;
 
+    // De esas unidades, cuántas estaban dentro de sus días gratis y cuántas eran stock antiguo (con recargo). Nulas
+    // en las fotos anteriores: se leen como 0.
+    private Long unidadesGratis;
+
+    private Long unidadesConRecargo;
+
     public OcupacionDiaria() {}
 
     public OcupacionDiaria(Long idComercio, LocalDate fecha, CategoriaDeTamano categoria, long unidades) {
@@ -42,9 +48,18 @@ public class OcupacionDiaria {
         this.unidades = unidades;
     }
 
+    public OcupacionDiaria(Long idComercio, LocalDate fecha, CategoriaDeTamano categoria, long unidades,
+                           long unidadesGratis, long unidadesConRecargo) {
+        this(idComercio, fecha, categoria, unidades);
+        this.unidadesGratis = unidadesGratis;
+        this.unidadesConRecargo = unidadesConRecargo;
+    }
+
     public Long getId() { return id; }
     public Long getIdComercio() { return idComercio; }
     public LocalDate getFecha() { return fecha; }
     public CategoriaDeTamano getCategoria() { return categoria; }
     public long getUnidades() { return unidades; }
+    public long getUnidadesGratis() { return unidadesGratis == null ? 0 : unidadesGratis; }
+    public long getUnidadesConRecargo() { return unidadesConRecargo == null ? 0 : unidadesConRecargo; }
 }

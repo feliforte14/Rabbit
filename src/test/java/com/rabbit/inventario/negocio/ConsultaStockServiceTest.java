@@ -194,6 +194,9 @@ class ConsultaStockServiceTest {
             assertEquals(0, i.getValue().getCantidadReservada());
             assertEquals(d, i.getValue().getDeposito());
             assertEquals(3L, i.getValue().getIdComercio());
+            // Entró mercadería: arrancan los días gratis y la antigüedad.
+            assertEquals(java.time.LocalDate.now(), i.getValue().getFechaUltimoIngreso());
+            assertEquals(java.time.LocalDate.now(), i.getValue().getFechaUltimoMovimiento());
             assertEquals(new BigDecimal("1.25"), i.getValue().getPesoKg());
             assertEquals(new BigDecimal("30.5"), i.getValue().getLargoCm());
         }
@@ -312,6 +315,39 @@ class ConsultaStockServiceTest {
             verify(repository).actualizarItem(i);
             verify(repository).sincronizar();
             verify(repository).existeProductoEnDeposito("Yerba 500 g", 1L, 3L, 10L);
+        }
+
+        @Test
+        void unaCorreccionHaciaArribaCuentaComoIngresoYHaciaAbajoNoTocaLasFechas() {
+            java.time.LocalDate viejo = java.time.LocalDate.now().minusDays(200);
+            ItemInventario sube = item(10L, deposito(1L), 50, 0);
+            sube.setFechaUltimoIngreso(viejo);
+            sube.setFechaUltimoMovimiento(viejo);
+            when(repository.buscarItemPorId(10L)).thenReturn(sube);
+
+            servicio.actualizarItem(10L, datosItem("Yerba", 80, "1"));
+
+            // Mercadería que entró: reinicia los días gratis y corta la antigüedad.
+            assertEquals(java.time.LocalDate.now(), sube.getFechaUltimoIngreso());
+            assertEquals(java.time.LocalDate.now(), sube.getFechaUltimoMovimiento());
+
+            ItemInventario baja = item(11L, deposito(1L), 50, 0);
+            baja.setFechaUltimoIngreso(viejo);
+            baja.setFechaUltimoMovimiento(viejo);
+            when(repository.buscarItemPorId(11L)).thenReturn(baja);
+
+            servicio.actualizarItem(11L, datosItem("Yerba", 20, "1"));
+
+            // Bajar el stock no es una venta ni un ingreso: no cambia las fechas.
+            assertEquals(viejo, baja.getFechaUltimoIngreso());
+            assertEquals(viejo, baja.getFechaUltimoMovimiento());
+
+            ItemInventario igual = item(12L, deposito(1L), 50, 0);
+            when(repository.buscarItemPorId(12L)).thenReturn(igual);
+
+            servicio.actualizarItem(12L, datosItem("Yerba", 50, "1"));
+
+            assertNull(igual.getFechaUltimoIngreso());
         }
 
         @Test

@@ -60,6 +60,7 @@ import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -237,6 +238,8 @@ public class InventarioService implements IReservaStock, Serializable {
         // Ahora si sale del deposito: baja lo disponible y se descompromete.
         item.setCantidadDisponible(item.getCantidadDisponible() - reserva.getCantidad());
         item.setCantidadReservada(item.getCantidadReservada() - reserva.getCantidad());
+        // Se vendió: el producto se mueve, así que no es stock sin rotación.
+        item.registrarSalida(LocalDate.now());
         repository.actualizarItem(item);
         escribirStock(item);
 
