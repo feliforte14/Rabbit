@@ -30,9 +30,9 @@ un timer o un MDB.
 ## Componentes
 
 Rabbit tiene **9 componentes de negocio**. El ítem "Integración banco
-legado" es la capa técnica `integracion` (cliente SOAP del banco y
-adaptadores de transportistas): tiene una interfaz `@Local`
-(`IBancoClient`) pero no es un componente de negocio.
+legado" es la capa técnica `integracion` (cliente SOAP del banco,
+adaptadores de transportistas y el gateway de IA, `integracion.ia`, ADR-066):
+tiene interfaces `@Local` (`IBancoClient`, `IClasificadorIa`) pero no es un componente de negocio.
 
 Cada componente expone interfaces `@Local` separadas por uso (lectura vs.
 escritura) y nunca expone sus entidades ni sus excepciones internas a

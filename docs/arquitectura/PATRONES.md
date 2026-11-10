@@ -42,7 +42,7 @@ explican en una línea.
 - **Point-to-Point Channel y Message-Driven Bean**: La cola `cola.pedidos.externos` y `PedidoExternoListener`
 - **Idempotent Receiver**: `Idempotency-Key` más una huella del pedido y una restricción única (ver la [sección](#idempotency-key)).
 - **Polling de respaldo**: `SincronizadorDePedidos`, por timer, por si falla la cola
-- **Gateway**: `BancoClient` oculta el SOAP del banco legado
+- **Gateway**: `BancoClient` oculta el SOAP del banco legado, y `ClasificadorIa` oculta al proveedor de IA (con timeout de 5 s, fallback y validación de entrada y salida; ADR-066)
 
 ### Resiliencia y concurrencia
 

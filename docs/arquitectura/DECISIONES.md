@@ -3,7 +3,121 @@
 Formato: contexto → decisión → consecuencias. Estado: Aceptada,
 Propuesta o Reemplazada.
 
-## Índice
+Última revisión del registro: 10/11/2026 (se agregan ADR-065, 066 y 067 y el índice por componente).
+
+## Índice por componente
+
+Cada ADR aparece una sola vez, bajo el componente al que más pertenece (los nueve componentes de negocio de
+[ARQUITECTURA.md](ARQUITECTURA.md), la capa técnica de integración y lo que cruza a todos). Los números no cambian: son los
+de siempre. Un ADR que toca a varios componentes lo dice en su texto.
+
+### Pedidos
+
+- [ADR-004](#adr-004-importe-y-medio-de-pago-vienen-del-erp): Importe y medio de pago vienen del ERP (Aceptada)
+- [ADR-005](#adr-005-máquina-de-estados-del-pedido-en-el-enum): Máquina de estados del pedido en el enum (Aceptada)
+- [ADR-007](#adr-007-endpoint-rest-de-entrada-reemplaza-al-formulario-del-erp): Endpoint REST de entrada reemplaza al formulario del ERP (Aceptada)
+- [ADR-018](#adr-018-api-rest-del-erp-versionada-idempotente-y-atada-al-comercio): API REST del ERP versionada, idempotente y atada al comercio (Aceptada)
+- [ADR-025](#adr-025-mismo-orden-de-bloqueo-pedido--envío-en-cancelación-y-novedades): Mismo orden de bloqueo (pedido → envío) en cancelación y novedades (Aceptada)
+- [ADR-033](#adr-033-la-entrega-se-registra-con-la-foto-del-remito-y-solo-quien-estuvo-ahí): La entrega se registra con la foto del remito, y solo quien estuvo ahí (Aceptada)
+- [ADR-039](#adr-039-datos-de-quien-recibe-el-pedido): Datos de quien recibe el pedido (Aceptada)
+- [ADR-041](#adr-041-entrega-fallida-con-motivo-fijo-intentos-y-devolución-al-comercio): Entrega fallida con motivo fijo, intentos y devolución al comercio (Aceptada)
+- [ADR-042](#adr-042-fecha-prometida-con-la-hora-de-corte): Fecha prometida con la hora de corte (Aceptada)
+- [ADR-044](#adr-044-tablero-de-indicadores-de-entrega): Tablero de indicadores de entrega (Aceptada)
+- [ADR-045](#adr-045-evidencia-de-la-visita-fallida-y-un-motivo-para-cada-caso): Evidencia de la visita fallida y un motivo para cada caso (Aceptada)
+- [ADR-048](#adr-048-un-pedido-que-salió-a-reparto-no-se-cancela): Un pedido que salió a reparto no se cancela (Aceptada)
+- [ADR-052](#adr-052-calificación-de-la-entrega-en-el-seguimiento-público): Calificación de la entrega en el seguimiento público (Aceptada)
+- [ADR-053](#adr-053-retiro-en-depósito): Retiro en depósito (Aceptada)
+- [ADR-055](#adr-055-prueba-de-entrega-reforzada-código-de-4-dígitos-y-ubicación): Prueba de entrega reforzada: código de 4 dígitos y ubicación (Aceptada)
+- [ADR-056](#adr-056-etiquetas-con-qr-por-bulto): Etiquetas con QR por bulto (Aceptada)
+- [ADR-057](#adr-057-opciones-de-quien-recibe-desde-el-seguimiento): Opciones de quien recibe desde el seguimiento (Aceptada)
+
+### Inventario
+
+- [ADR-024](#adr-024-sin-catálogo-de-productos-en-rabbit): Sin catálogo de productos en Rabbit (Aceptada)
+- [ADR-026](#adr-026-cierre-de-una-reserva-de-stock-con-el-mismo-bloqueo-que-abrirla): Cierre de una reserva de stock, con el mismo bloqueo que abrirla (Aceptada)
+- [ADR-027](#adr-027-consultas-de-stock-en-un-ejb-stateless-separado-de-la-reserva): Consultas de stock en un EJB @Stateless, separado de la reserva (Aceptada)
+- [ADR-049](#adr-049-editar-y-eliminar-el-stock-de-un-depósito): Editar y eliminar el stock de un depósito (Aceptada)
+- [ADR-058](#adr-058-órdenes-de-recepción-de-mercadería): Órdenes de recepción de mercadería (Aceptada)
+
+### Pagos y Cobranzas
+
+- [ADR-010](#adr-010-cobro-por-soap-en-un-banco-legado-con-reversa-compensatoria): Cobro por SOAP en un banco legado, con reversa compensatoria (Aceptada)
+- [ADR-034](#adr-034-liquidación-mensual-a-comercios): Liquidación mensual a comercios (Aceptada)
+- [ADR-059](#adr-059-cobro-por-almacenamiento): Cobro por almacenamiento (Aceptada)
+- [ADR-065](#adr-065-días-gratis-y-recargo-por-stock-antiguo): Días gratis y recargo por stock antiguo (Aceptada)
+
+### Repartidores
+
+- [ADR-032](#adr-032-peso-de-los-bultos-y-capacidad-del-vehículo-del-repartidor): Peso de los bultos y capacidad del vehículo del repartidor (Aceptada)
+- [ADR-035](#adr-035-ubicación-del-repartidor-en-vivo-y-mapa): Ubicación del repartidor en vivo y mapa (Aceptada)
+- [ADR-037](#adr-037-lista-de-espera-hora-de-corte-y-devolución-al-depósito): Lista de espera, hora de corte y devolución al depósito (Aceptada)
+
+### Ruteo
+
+- [ADR-017](#adr-017-zonas-por-rango-de-código-postal-y-despacho-según-la-cobertura): Zonas por rango de código postal y despacho según la cobertura (Aceptada)
+- [ADR-038](#adr-038-hoja-de-ruta-recomendada-del-repartidor): Hoja de ruta recomendada del repartidor (Aceptada)
+- [ADR-043](#adr-043-horario-estimado-en-el-seguimiento-parada-n-de-m): Horario estimado en el seguimiento (parada N de M) (Aceptada)
+- [ADR-046](#adr-046-hoja-de-ruta-por-distancia-con-openstreetmap): Hoja de ruta por distancia, con OpenStreetMap (Aceptada)
+
+### Transportistas
+
+- [ADR-016](#adr-016-transportistas-externos-con-un-adapter-por-tecnología-y-seguimiento-por-polling): Transportistas externos con un Adapter por tecnología y seguimiento por polling (Aceptada)
+- [ADR-020](#adr-020-cotización-con-los-transportistas-antes-de-derivar): Cotización con los transportistas antes de derivar (Aceptada)
+- [ADR-022](#adr-022-webhook-de-novedades-y-transportista-moderno-como-servicio-aparte): Webhook de novedades y transportista moderno como servicio aparte (Reemplazada)
+- [ADR-029](#adr-029-seguimiento-de-envíos-solo-por-polling-sin-webhook): Seguimiento de envíos solo por polling (sin webhook) (Aceptada)
+
+### Notificaciones
+
+- [ADR-040](#adr-040-avisos-a-quien-recibe-con-un-tercer-suscriptor-del-tópico): Avisos a quien recibe, con un tercer suscriptor del tópico (Aceptada)
+- [ADR-047](#adr-047-mails-reales-por-smtp-con-login-y-tls-gmail): Mails reales por SMTP con login y TLS (Gmail) (Aceptada)
+- [ADR-051](#adr-051-los-avisos-se-ven-en-una-campana-de-notificaciones): Los avisos se ven en una campana de notificaciones (Aceptada)
+
+### Comercios
+
+- [ADR-003](#adr-003-timeout-del-padrón-fiscal-no-bloquea-el-alta): Timeout del padrón fiscal no bloquea el alta (Reemplazada)
+- [ADR-028](#adr-028-un-comercio-con-solo-pedidos-cancelados-se-puede-eliminar): Un comercio con solo pedidos cancelados se puede eliminar (Aceptada)
+
+### Seguridad
+
+- [ADR-012](#adr-012-sin-alta-pública-de-usuarios): Sin alta pública de usuarios (Aceptada)
+- [ADR-019](#adr-019-https-obligatorio-salvo-los-sistemas-externos-simulados): HTTPS obligatorio, salvo los sistemas externos simulados (Aceptada)
+- [ADR-023](#adr-023-las-contraseñas-solo-en-el-realm-límite-de-intentos-en-el-login): Las contraseñas, solo en el realm; límite de intentos en el login (Aceptada; en parte reemplazada por ADR-031)
+- [ADR-031](#adr-031-las-cuentas-en-la-base-compartida-realm-jdbc-con-bcrypt): Las cuentas, en la base compartida (realm JDBC con bcrypt) (Aceptada)
+- [ADR-036](#adr-036-el-administrador-puede-eliminar-usuarios-repartidores-y-zonas): El administrador puede eliminar usuarios, repartidores y zonas (Aceptada)
+- [ADR-050](#adr-050-logs-sin-datos-personales-y-hsts): Logs sin datos personales y HSTS (Aceptada)
+- [ADR-067](#adr-067-autenticación-con-sesión-en-la-web-y-http-basic-en-la-api-del-erp-sin-jwt): Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT) (Aceptada)
+
+### Integración (banco legado e IA)
+
+- [ADR-011](#adr-011-circuit-breaker-propio-frente-al-banco-legado): Circuit breaker propio frente al banco legado (Aceptada)
+- [ADR-015](#adr-015-banco-legado-en-nodejs-detrás-del-mismo-wsdl): Banco legado en Node.js, detrás del mismo WSDL (Aceptada)
+- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Aceptada)
+
+### Mensajería y plataforma (transversal)
+
+- [ADR-001](#adr-001-cola-jms--polling-de-respaldo-para-sincronizar-pedidos): Cola JMS + polling de respaldo para sincronizar pedidos (Aceptada)
+- [ADR-002](#adr-002-el-envío-del-mensaje-no-comparte-transacción-con-el-guardado): El envío del mensaje no comparte transacción con el guardado (Aceptada)
+- [ADR-006](#adr-006-tópico-para-los-cambios-de-estado-del-pedido): Tópico para los cambios de estado del pedido (Aceptada)
+- [ADR-008](#adr-008-restricciones-check-de-columnas-enum-alineadas-al-desplegar): Restricciones CHECK de columnas enum alineadas al desplegar (Aceptada)
+- [ADR-009](#adr-009-suscripciones-durables-y-selector-en-el-tópico-de-estados): Suscripciones durables y selector en el tópico de estados (Aceptada)
+- [ADR-014](#adr-014-escalar-el-consumidor-de-la-cola-con-consumidores-competidores): Escalar el consumidor de la cola con consumidores competidores (Aceptada)
+- [ADR-030](#adr-030-la-heterogeneidad-tecnológica-en-una-rama-aparte): La heterogeneidad tecnológica, en una rama aparte (Aceptada)
+- [ADR-063](#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado): Bandeja de salida (outbox) para los avisos de estado (Aceptada)
+- [ADR-064](#adr-064-mensajes-ilegibles-a-la-cola-de-mensajes-muertos-dlq-con-reintentos-acotados): Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados (Aceptada)
+
+### Interfaz de usuario (transversal)
+
+- [ADR-013](#adr-013-vistas-por-tipo-de-usuario-y-ruteo-mínimo): Vistas por tipo de usuario y ruteo mínimo (Aceptada)
+- [ADR-021](#adr-021-página-pública-de-seguimiento-y-tablas-como-tarjetas-en-el-celular): Página pública de seguimiento y tablas como tarjetas en el celular (Aceptada)
+- [ADR-054](#adr-054-mejoras-de-diseño-visual): Mejoras de diseño visual (Aceptada)
+
+### Fuera de este archivo
+
+- ADR-060 a ADR-062: son de la entrega de la Clase 12 (patrones) y **no están en este archivo**. Hay que sumarlos acá desde esa entrega.
+
+## Índice cronológico
+
+Todos los ADR por número (el orden en que se tomaron las decisiones).
 
 - [ADR-001](#adr-001-cola-jms--polling-de-respaldo-para-sincronizar-pedidos): Cola JMS + polling de respaldo para sincronizar pedidos (Aceptada)
 - [ADR-002](#adr-002-el-envío-del-mensaje-no-comparte-transacción-con-el-guardado): El envío del mensaje no comparte transacción con el guardado (Aceptada)
@@ -27,7 +141,7 @@ Propuesta o Reemplazada.
 - [ADR-020](#adr-020-cotización-con-los-transportistas-antes-de-derivar): Cotización con los transportistas antes de derivar (Aceptada)
 - [ADR-021](#adr-021-página-pública-de-seguimiento-y-tablas-como-tarjetas-en-el-celular): Página pública de seguimiento y tablas como tarjetas en el celular (Aceptada)
 - [ADR-022](#adr-022-webhook-de-novedades-y-transportista-moderno-como-servicio-aparte): Webhook de novedades y transportista moderno como servicio aparte (Reemplazada)
-- [ADR-023](#adr-023-las-contraseñas-solo-en-el-realm-límite-de-intentos-en-el-login): Las contraseñas, solo en el realm; límite de intentos en el login (Aceptada)
+- [ADR-023](#adr-023-las-contraseñas-solo-en-el-realm-límite-de-intentos-en-el-login): Las contraseñas, solo en el realm; límite de intentos en el login (Aceptada; en parte reemplazada por ADR-031)
 - [ADR-024](#adr-024-sin-catálogo-de-productos-en-rabbit): Sin catálogo de productos en Rabbit (Aceptada)
 - [ADR-025](#adr-025-mismo-orden-de-bloqueo-pedido--envío-en-cancelación-y-novedades): Mismo orden de bloqueo (pedido → envío) en cancelación y novedades (Aceptada)
 - [ADR-026](#adr-026-cierre-de-una-reserva-de-stock-con-el-mismo-bloqueo-que-abrirla): Cierre de una reserva de stock, con el mismo bloqueo que abrirla (Aceptada)
@@ -64,9 +178,11 @@ Propuesta o Reemplazada.
 - [ADR-057](#adr-057-opciones-de-quien-recibe-desde-el-seguimiento): Opciones de quien recibe desde el seguimiento (Aceptada)
 - [ADR-058](#adr-058-órdenes-de-recepción-de-mercadería): Órdenes de recepción de mercadería (Aceptada)
 - [ADR-059](#adr-059-cobro-por-almacenamiento): Cobro por almacenamiento (Aceptada)
-- ADR-060 a ADR-062: son de la entrega de la Clase 12 (patrones) y no están en este archivo.
 - [ADR-063](#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado): Bandeja de salida (outbox) para los avisos de estado (Aceptada)
 - [ADR-064](#adr-064-mensajes-ilegibles-a-la-cola-de-mensajes-muertos-dlq-con-reintentos-acotados): Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados (Aceptada)
+- [ADR-065](#adr-065-días-gratis-y-recargo-por-stock-antiguo): Días gratis y recargo por stock antiguo (Aceptada)
+- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Aceptada)
+- [ADR-067](#adr-067-autenticación-con-sesión-en-la-web-y-http-basic-en-la-api-del-erp-sin-jwt): Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT) (Aceptada)
 
 ## ADR-001: Cola JMS + polling de respaldo para sincronizar pedidos
 
@@ -1869,8 +1985,7 @@ Propuesta o Reemplazada.
   (ejemplo: 100 unidades pequeñas todo un mes de 30 días = 100 × 30 × $10 = $30.000). Se cambian sin redesplegar; con los tres
   en 0 el almacenamiento no se cobra y la liquidación lo muestra en $0 junto con las unidades-día. Rangos por defecto: pequeño
   hasta 1 kg, 25 cm y 3 L; mediano hasta 10 kg, 60 cm y 50 L; grande hasta 50 kg, 150 cm y 500 L; más que eso es fuera de rango.
-- **Sin implementar (faltan sus valores):** días gratis al ingresar el stock y recargo por stock antiguo (la referencia de
-  Mercado Libre Full: más de N días sin venderse). Quedan como ideas; hace falta definir cuántos días y cuánto.
+- **Días gratis y recargo por stock antiguo:** quedaron para después y se implementaron el 10/11/2026 (ver ADR-065).
   Tampoco se decidió desde qué mes se cobra (se recomendó: el siguiente a cargar las medidas).
 - **Consecuencias:** al desplegar, todo el stock existente no tiene medidas y cuenta como mediano: conviene cargarlas antes de
   poner precios. La mercadería que entra por una orden de recepción (ADR-058) llega sin medidas (el anuncio no las pide) y
@@ -1962,3 +2077,90 @@ Propuesta o Reemplazada.
   su cola de origen; `scripts/dlq.sh reprocesar` lo devolvió a la cola y, como seguía roto,
   volvió a la DLQ; uno roto en el tópico llegó a la DLQ desde las suscripciones de
   Notificaciones (la de Pagos filtra por estado y no lo recibe).
+
+## ADR-065: Días gratis y recargo por stock antiguo
+
+- **Estado:** Aceptada (10/11/2026). Completa ADR-059. **Los valores son una propuesta y el equipo tiene que
+  confirmarlos** (el pedido de Trello decía "confirmar precios"). Referencia: Mercado Libre Full.
+- **Contexto:** ADR-059 cobra por unidad y por día guardada, pero dejó afuera dos reglas: que la mercadería recién
+  ingresada no pague un tiempo, y que lo que lleva mucho sin venderse pague más. Faltaban los números.
+- **Decisión:** dos reglas sobre el cobro de almacenamiento, ambas **por producto** y no por lote:
+  1. **Días gratis (7).** Una unidad no se cobra durante los primeros 7 días desde el último ingreso de mercadería de su
+     producto (alta, recepción de una orden o corrección del stock hacia arriba). Cuenta desde `fechaUltimoIngreso`.
+  2. **Recargo por stock antiguo (50 % a los 120 días).** Un producto sin ingresos ni ventas durante 120 días paga lo
+     que le toca más un 50 %. Cuenta desde `fechaUltimoMovimiento`, que se actualiza al ingresar mercadería y al
+     confirmar una reserva (una venta). Bajar el stock a mano o devolver un pedido no la toca.
+  La foto diaria (ADR-059) guarda, además de las unidades de cada categoría, cuántas fueron gratis y cuántas llevaron
+  recargo (son parte del total, no se suman a él). La liquidación guarda esas unidades, lo que el comercio se ahorró y
+  lo que se le cobró de más, y las dos pantallas de liquidación los muestran junto con la política.
+- **Valores:** `rabbit.almacenamiento.dias-gratis` (7, con 0 no hay días gratis), `rabbit.almacenamiento.dias-recargo`
+  (120, con 0 no hay recargo) y `rabbit.tarifa.almacenamiento.recargo-stock-antiguo` (50, es un porcentaje). Se cambian
+  sin redesplegar; un valor inválido se ignora y se usa el de por defecto. La política vive en `PoliticaDeAlmacenamiento`
+  (Inventario) y el cálculo en `TarifaMensual` (Pagos), que no se mezclan.
+- **Consecuencias:** al desplegar, los productos que ya existían no tienen fechas: reciben su fecha de movimiento en la
+  primera foto diaria (**sin recargo retroactivo**) y no tienen días gratis hasta su próximo ingreso. Por ser por producto,
+  una recepción nueva reinicia los 7 días de **todas** las unidades de ese producto, incluidas las viejas; hacerlo exacto
+  unidad por unidad exige llevar cada lote y hoy no se justifica. Un producto en sus días gratis nunca lleva recargo.
+  Las liquidaciones de antes de este cambio muestran los nuevos campos en cero. Probado en WildFly con productos de
+  fechas atrasadas (500 unidades gratis y 300 con recargo en la foto) y con tests unitarios.
+
+
+## ADR-066: Gateway de IA para clasificar los comentarios de las calificaciones
+
+- **Estado:** Aceptada (10/11/2026). Pedido de la cátedra: la funcionalidad de IA es obligatoria y la llamada al modelo
+  tiene que pasar por una capa propia (desacople del proveedor, timeout de 5 s con fallback y validación de entrada y
+  salida). El proveedor concreto y la clave de la API los tiene que confirmar el equipo.
+- **Contexto:** quien recibe un pedido puede dejar un comentario al calificar la entrega (ADR-052). Nadie los lee uno por
+  uno: un resumen de cómo suenan (positivo, neutro, negativo) y de qué hablan (puntualidad, trato, estado del paquete) le
+  sirve al comercio y al personal. Es un caso acotado y con sentido en el dominio.
+- **Decisión:** una capa técnica `integracion.ia`, igual que `integracion.banco` (no es un componente de negocio):
+  - **Desacople del proveedor:** `ClasificadorIa` habla con la interfaz `ProveedorIa`. Hay dos implementaciones: `ProveedorClaude`
+    (API de mensajes de Claude por HTTPS; modelo `claude-haiku-5-5` por defecto, configurable con `rabbit.ia.modelo`) y
+    `ProveedorNoConfigurado`. Cambiar de proveedor es escribir otra implementación.
+  - **Timeout de 5 s y fallback:** el proveedor tiene 5 s en total. Si no hay clave, no responde, falla o contesta mal, el
+    resultado es "sin clasificar" y la calificación ya está guardada igual: la IA es un extra y nada de Rabbit depende de ella.
+  - **Validación de entrada:** solo el texto del comentario, de hasta 500 caracteres, sin caracteres de control y sin las
+    marcas `<` y `>`. Va entre marcas `<comentario>` como dato, con una consigna que dice que se ignoren sus órdenes.
+    **No se manda nada del pedido ni de quien recibe** (nombre, teléfono, dirección: SEC-09).
+  - **Validación de salida:** la respuesta tiene que ser exactamente `SENTIMIENTO;TEMA` con valores de dos listas cerradas
+    (`POSITIVO|NEUTRO|NEGATIVO` y `PUNTUALIDAD|TRATO|ESTADO_DEL_PAQUETE|OTRO`). Cualquier otra cosa se descarta: un comentario
+    que intente darle órdenes al modelo no puede hacer que se guarde texto libre.
+  - **Cómo se usa:** `PedidoService.calificarEntrega` dispara el evento `ComentarioCalificado`; después del commit
+    (AFTER_SUCCESS) `ClasificacionDeComentarios` llama a `ClasificadorEnSegundoPlano` (`@Asynchronous`, transacción propia),
+    que guarda `sentimiento` y `tema` en la calificación. Quien califica no espera a la IA. Los indicadores muestran el
+    resumen ("Qué dicen los comentarios").
+- **Configuración:** `ANTHROPIC_API_KEY` (variable de entorno, opcional en el `.env`) o `rabbit.ia.clave`; `rabbit.ia.url`
+  para apuntar a otro servidor (los tests usan uno propio). La clave es un secreto y no va al repositorio.
+- **Consecuencias:** sin clave no hay IA y el sistema funciona igual (es el estado del CI y de los tests). Con clave hay
+  un costo por comentario, mínimo con este modelo. El comentario sale de Rabbit hacia un tercero: por eso es solo el texto,
+  sin identificar a nadie, y no se escribe en el log. No se agregó circuit breaker (la IA se llama una vez por comentario y
+  en segundo plano; un proveedor caído solo deja comentarios sin clasificar). Probado con un servidor HTTP propio (respuesta
+  válida, inválida, caído y lento) y tests unitarios; **no se probó contra la API real** por falta de clave.
+
+
+## ADR-067: Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT)
+
+- **Estado:** Aceptada (10/11/2026). La cátedra confirmó por Teams que JWT no es obligatorio si se cumplen las condiciones
+  de abajo y la decisión queda documentada.
+- **Contexto:** el diseño pedía autenticación con JWT y control de acceso por rol. Rabbit tiene dos tipos de clientes: personas
+  con un navegador (personal, comercios y repartidores) y el sistema del comercio (ERP), que llama a la API con usuario y clave.
+- **Decisión:** **no usar JWT.** La web usa sesión del lado del servidor con login por formulario del contenedor (WildFly), y
+  la API REST usa HTTP Basic con el rol `ERP`. Es el mecanismo estándar del servidor de aplicaciones, con una sola
+  implementación de autenticación y autorización (declarativa, `web.xml` y `@RolesAllowed`) y sin código propio de firma ni
+  de renovación de tokens, que sería un riesgo de seguridad por sí mismo.
+- **Las condiciones y dónde se cumplen:**
+  1. **Todo por HTTPS:** `transport-guarantee CONFIDENTIAL`; con Basic, sin TLS las credenciales viajarían en cada request (ADR-019).
+  2. **Contraseñas con hash:** bcrypt, en la tabla `usuarios` (ADR-031); un paso del CI verifica que no quede otro hash (SEG-04).
+  3. **Cookie de sesión** `HttpOnly`, `Secure` y `SameSite=Lax` (`web.xml` y `undertow-handlers.conf`), solo en cookie y nunca en la
+     URL; el ID se **regenera al loguearse** (`changeSessionId`); **expira a los 30 minutos** de inactividad
+     (`session-timeout`) y hay **logout** que la invalida. Probado en el E2E SEG-3.
+  4. **CSRF:** los formularios de la web llevan el `ViewState` de JSF, que hace de token anti-CSRF por vista y por sesión (y
+     la vista vencida vuelve al login, SEG-4). La API con Basic no usa cookie de sesión, así que no es atacable por CSRF.
+  5. **Credenciales del ERP sin hardcodear:** salen de variables de entorno (`.env`) y la semilla las guarda como bcrypt.
+  6. **Rol validado en el backend en cada operación:** `@RolesAllowed` en los EJB y restricciones de seguridad en el `web.xml`;
+     la vista oculta botones pero no es la barrera. Probado con BOLA/BFLA en `SeguridadIT` y el E2E-5.
+  7. **ADR y matriz:** este documento, y la fila de JWT del informe de seguridad lo referencia.
+- **Consecuencias:** las pruebas de JWT de los criterios (vencido, firma alterada, `alg=none`) no aplican; se cubren con su
+  equivalente (Bearer, Basic mal formado y otros esquemas devuelven 401: `SeguridadIT`). Si más adelante hubiera clientes
+  móviles o de terceros que necesiten tokens, habría que sumar un emisor de tokens para la API y migrar a los consumidores
+  (Newman, Schemathesis, ZAP, k6 y los tests de integración mandan Basic hoy).

@@ -24,7 +24,6 @@ ActiveMQ Artemis, API REST, SOAP y vistas JSF). Versión: etiqueta `v1.0-testing
 | Banco y transportistas reales | Son sistemas de otras empresas; se prueba contra los simulados que viajan en el mismo WAR |
 | Desafío de heterogeneidad (banco en Node.js, transportista en Python) | Vive en la rama `desafio-heterogeneidad`, no en la versión entregada |
 | Aplicación móvil nativa | No hay: la vista es web responsive (por eso MASVS no aplica) |
-| Funcionalidad de IA dentro del sistema | Rabbit no integra modelos de lenguaje (sección 8.3 de los criterios: no aplica) |
 | Certificado HTTPS de una autoridad reconocida, y varios nodos | El certificado es autofirmado y el límite de intentos de login vive en memoria de cada servidor (ver [SEGURIDAD.md](../seguridad/SEGURIDAD.md), limitaciones) |
 
 ## 2. Niveles y herramientas
