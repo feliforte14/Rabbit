@@ -13,7 +13,8 @@
 --     y los comercios, repartidores y zonas a los que apuntan esas
 --     cuentas (sin ellos, el usuario de un comercio o de un repartidor
 --     no podría trabajar). Borra pedidos, stock, cobros, liquidaciones,
---     avisos, puntos de picking, depósitos, transportistas y todo lo
+--     avisos, calificaciones, bandeja de salida de mails, recepciones,
+--     ocupación diaria, puntos de picking, depósitos, transportistas y todo lo
 --     demás. Los repartidores quedan libres.
 --
 --   OPCIÓN B: vaciar todo. Borra TODAS las filas de las tablas de
@@ -22,7 +23,9 @@
 --
 -- Historial: la base se vació por última vez el 15/10/2026, conservando
 -- usuarios, comercios, repartidores y zonas (para las pruebas de
--- ADR-032 a 036). La base es COMPARTIDA con el equipo: si
+-- ADR-032 a 036). El script se actualizó el 10/11/2026 con las tablas nuevas
+-- (calificaciones, bandeja de salida, recepciones y ocupación diaria) y se
+-- probó con las tres opciones sobre una copia de la base. La base es COMPARTIDA con el equipo: si
 -- alguien cargó datos que necesita, NO corras la opción B sin avisar.
 --
 -- Cómo usarlo, en el SQL Editor de Supabase:
@@ -66,7 +69,13 @@ UNION ALL SELECT 'comercios', COUNT(*) FROM comercios
 UNION ALL SELECT 'repartidores', COUNT(*) FROM repartidores
 UNION ALL SELECT 'usuarios', COUNT(*) FROM usuarios
 UNION ALL SELECT 'transportistas', COUNT(*) FROM transportistas
-UNION ALL SELECT 'zonas', COUNT(*) FROM zonas;
+UNION ALL SELECT 'zonas', COUNT(*) FROM zonas
+UNION ALL SELECT 'calificaciones_entrega', COUNT(*) FROM calificaciones_entrega
+UNION ALL SELECT 'eventos_estado_pedido', COUNT(*) FROM eventos_estado_pedido
+UNION ALL SELECT 'correos_pendientes', COUNT(*) FROM correos_pendientes
+UNION ALL SELECT 'ordenes_recepcion', COUNT(*) FROM ordenes_recepcion
+UNION ALL SELECT 'lineas_recepcion', COUNT(*) FROM lineas_recepcion
+UNION ALL SELECT 'ocupacion_diaria', COUNT(*) FROM ocupacion_diaria;
 
 -- Cuántos pedidos de pruebas automáticas hay (los que borra la opción A)
 SELECT 'pedidos [TEST]/[CARGA]' AS que, COUNT(*) FROM pedidos
@@ -99,6 +108,15 @@ DELETE FROM avisos_destinatario WHERE idpedido IN (
   SELECT id FROM pedidos
    WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%');
 DELETE FROM notificaciones WHERE idpedido IN (
+  SELECT id FROM pedidos
+   WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%');
+DELETE FROM calificaciones_entrega WHERE idpedido IN (
+  SELECT id FROM pedidos
+   WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%');
+DELETE FROM eventos_estado_pedido WHERE idpedido IN (
+  SELECT id FROM pedidos
+   WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%');
+DELETE FROM correos_pendientes WHERE idpedido IN (
   SELECT id FROM pedidos
    WHERE direccionentrega LIKE '[TEST]%' OR direccionentrega LIKE '[CARGA]%');
 DELETE FROM cobros WHERE idpedido IN (
@@ -152,8 +170,11 @@ BEGIN;
 -- Lo que cuelga de los pedidos, después los pedidos.
 DELETE FROM fotos_intento_entrega;
 DELETE FROM intentos_entrega;
+DELETE FROM calificaciones_entrega;
 DELETE FROM avisos_destinatario;
 DELETE FROM notificaciones;
+DELETE FROM correos_pendientes;
+DELETE FROM eventos_estado_pedido;
 DELETE FROM cobros;
 DELETE FROM liquidaciones;
 DELETE FROM remitos_entrega;
@@ -166,6 +187,9 @@ DELETE FROM pedidos_externos;
 -- Stock, depósitos, puntos de picking, transportistas y el caché de
 -- direcciones del mapa (se vuelve a llenar solo).
 DELETE FROM reservas_stock;
+DELETE FROM lineas_recepcion;
+DELETE FROM ordenes_recepcion;
+DELETE FROM ocupacion_diaria;
 DELETE FROM items_inventario;
 DELETE FROM depositos;
 DELETE FROM puntos_picking;
@@ -191,6 +215,11 @@ UNION ALL SELECT 'pedidos_externos', COUNT(*) FROM pedidos_externos
 UNION ALL SELECT 'intentos_entrega', COUNT(*) FROM intentos_entrega
 UNION ALL SELECT 'avisos_destinatario', COUNT(*) FROM avisos_destinatario
 UNION ALL SELECT 'notificaciones', COUNT(*) FROM notificaciones
+UNION ALL SELECT 'calificaciones_entrega', COUNT(*) FROM calificaciones_entrega
+UNION ALL SELECT 'correos_pendientes', COUNT(*) FROM correos_pendientes
+UNION ALL SELECT 'eventos_estado_pedido', COUNT(*) FROM eventos_estado_pedido
+UNION ALL SELECT 'ordenes_recepcion', COUNT(*) FROM ordenes_recepcion
+UNION ALL SELECT 'ocupacion_diaria', COUNT(*) FROM ocupacion_diaria
 UNION ALL SELECT 'cobros', COUNT(*) FROM cobros
 UNION ALL SELECT 'liquidaciones', COUNT(*) FROM liquidaciones
 UNION ALL SELECT 'items_inventario', COUNT(*) FROM items_inventario
@@ -215,9 +244,12 @@ BEGIN;
 -- Primero lo que referencia a otras tablas, después lo referenciado.
 DELETE FROM fotos_intento_entrega;
 DELETE FROM intentos_entrega;
+DELETE FROM calificaciones_entrega;
 DELETE FROM avisos_destinatario;
 DELETE FROM coordenadas_direcciones;
 DELETE FROM notificaciones;
+DELETE FROM correos_pendientes;
+DELETE FROM eventos_estado_pedido;
 DELETE FROM cobros;
 DELETE FROM liquidaciones;
 DELETE FROM remitos_entrega;
@@ -228,6 +260,9 @@ DELETE FROM pedidos;
 DELETE FROM pedidos_externos_lineas;
 DELETE FROM pedidos_externos;
 DELETE FROM reservas_stock;
+DELETE FROM lineas_recepcion;
+DELETE FROM ordenes_recepcion;
+DELETE FROM ocupacion_diaria;
 DELETE FROM items_inventario;
 DELETE FROM depositos;
 DELETE FROM puntos_picking;
@@ -247,6 +282,11 @@ UNION ALL SELECT 'liquidaciones', COUNT(*) FROM liquidaciones
 UNION ALL SELECT 'remitos_entrega', COUNT(*) FROM remitos_entrega
 UNION ALL SELECT 'repartidores_cargas', COUNT(*) FROM repartidores_cargas
 UNION ALL SELECT 'notificaciones', COUNT(*) FROM notificaciones
+UNION ALL SELECT 'calificaciones_entrega', COUNT(*) FROM calificaciones_entrega
+UNION ALL SELECT 'correos_pendientes', COUNT(*) FROM correos_pendientes
+UNION ALL SELECT 'eventos_estado_pedido', COUNT(*) FROM eventos_estado_pedido
+UNION ALL SELECT 'ordenes_recepcion', COUNT(*) FROM ordenes_recepcion
+UNION ALL SELECT 'ocupacion_diaria', COUNT(*) FROM ocupacion_diaria
 UNION ALL SELECT 'envios', COUNT(*) FROM envios
 UNION ALL SELECT 'reservas_stock', COUNT(*) FROM reservas_stock
 UNION ALL SELECT 'items_inventario', COUNT(*) FROM items_inventario
@@ -260,12 +300,14 @@ UNION ALL SELECT 'zonas', COUNT(*) FROM zonas;
 
 
 -- ---------------------------------------------------------------------
--- Después de la opción B: el realm de cada WildFly
+-- Después de la opción B: volver a tener cuentas
 -- ---------------------------------------------------------------------
--- Las contraseñas de las cuentas no viven en la base sino en el realm de
--- cada WildFly. Para que no queden logins sueltos, en cada máquina sacá
--- todas las líneas salvo la del administrador (la que se creó con
--- add-user.sh) de:
---   $WILDFLY_HOME/standalone/configuration/application-users.properties
---   $WILDFLY_HOME/standalone/configuration/application-roles.properties
--- Después, el administrador vuelve a crear las cuentas desde Usuarios.
+-- Las contraseñas viven en la tabla usuarios (bcrypt), así que la opción B
+-- borra también los logins: queda una base sin ninguna cuenta. Con Docker
+-- Compose, la semilla (docker/semilla/semilla.sql) las vuelve a crear, junto
+-- con los datos de demo (comercios, depósito, stock, puntos de picking y
+-- repartidores). Es idempotente y toma ADMIN_USER, ADMIN_PASSWORD y
+-- DEMO_PASSWORD del .env:
+--   docker compose run --rm semilla
+-- Fuera de Docker, el administrador se crea a mano en la base y el resto, desde
+-- Usuarios.
