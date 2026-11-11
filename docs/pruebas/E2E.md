@@ -71,3 +71,4 @@ En [`e2e/tests/seguridad.spec.js`](../../e2e/tests/seguridad.spec.js), paso prop
 | SEG-3 | La cookie de sesión es `Secure`, `HttpOnly` y `SameSite=Lax`, JavaScript no la lee, y después del logout la misma cookie no entra desde otro navegador. |
 | SEG-4 | Con la sesión vencida, un botón de la página abierta lleva al login y no a la página de error (defecto SES-01, corregido en la PR #17). |
 | SEG-5 | Un código de seguimiento con un byte nulo o larguísimo responde 404 en la API y la página de seguimiento carga sin error del servidor (prueba exploratoria del 10/11/2026). |
+| SEG-6 | CSRF: el POST real del botón «Confirmar», reenviado con la cookie válida de un administrador pero sin el token de la vista (`jakarta.faces.ViewState`), con un token inventado o con el token de la sesión de otro usuario, no confirma el pedido ni da error del servidor; con el token correcto sí lo confirma (condición de la cátedra para usar sesión en vez de JWT, ADR-067). |

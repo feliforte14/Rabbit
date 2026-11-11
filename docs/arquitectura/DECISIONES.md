@@ -2171,7 +2171,8 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
      URL; el ID se **regenera al loguearse** (`changeSessionId`); **expira a los 30 minutos** de inactividad
      (`session-timeout`) y hay **logout** que la invalida. Probado en el E2E SEG-3.
   4. **CSRF:** los formularios de la web llevan el `ViewState` de JSF, que hace de token anti-CSRF por vista y por sesión (y
-     la vista vencida vuelve al login, SEG-4). La API con Basic no usa cookie de sesión, así que no es atacable por CSRF.
+     la vista vencida vuelve al login, SEG-4). Probado en el E2E SEG-6: el mismo POST con la cookie válida pero sin token, con
+     un token inventado o con el de otra sesión no ejecuta la acción. La API con Basic no usa cookie de sesión, así que no es atacable por CSRF.
   5. **Credenciales del ERP sin hardcodear:** salen de variables de entorno (`.env`) y la semilla las guarda como bcrypt.
   6. **Rol validado en el backend en cada operación:** `@RolesAllowed` en los EJB y restricciones de seguridad en el `web.xml`;
      la vista oculta botones pero no es la barrera. Probado con BOLA/BFLA en `SeguridadIT` y el E2E-5.

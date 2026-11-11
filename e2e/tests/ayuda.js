@@ -10,6 +10,7 @@ const env = (nombre) => {
 
 const cuentas = {
   admin: () => ({ usuario: env('ADMIN_USER'), clave: env('ADMIN_PASSWORD') }),
+  operador: () => ({ usuario: 'demo.operador', clave: env('DEMO_PASSWORD') }),   // personal, sin ser administrador
   comercio: () => ({ usuario: 'demo.comercio', clave: env('DEMO_PASSWORD') }),   // Almacén Demo 1
   comercio2: () => ({ usuario: 'demo.comercio2', clave: env('DEMO_PASSWORD') }), // Almacén Demo 2
   erp: () => ({ usuario: 'demo.erp', clave: env('DEMO_PASSWORD') }),             // ERP de Almacén Demo 1
