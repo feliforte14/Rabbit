@@ -32,7 +32,6 @@ están en el [README principal](../README.md).
 docs/
 ├── negocio/         ← BRD: el "por qué" (objetivos, alcance, requisitos de negocio BR-xx)
 ├── funcional/       ← documentación funcional: HU en Gherkin, reglas, RNF y matriz de trazabilidad
-├── pdf/             ← los PDF que se entregan (y el script que los genera)
 ├── arquitectura/    ← cómo está construido Rabbit y por qué
 ├── integraciones/   ← mensajería con otros sistemas y contrato de la API
 ├── seguridad/       ← autenticación, roles, protección de la API y cómo se prueba (PRUEBAS-DE-SEGURIDAD.md)
@@ -64,10 +63,6 @@ docs/
 
 - [BRD.md](negocio/BRD.md): Documento de requisitos de negocio: objetivos, alcance y requisitos BR-xx
 - [DOCUMENTACION-FUNCIONAL.md](funcional/DOCUMENTACION-FUNCIONAL.md): 37 historias de usuario en Gherkin, reglas de negocio, requisitos no funcionales y matriz de trazabilidad BR → HU → CA → CP
-
-### [pdf/](pdf/)
-
-- `Rabbit-BRD.pdf` y `Rabbit-Documentacion-Funcional.pdf`: versiones para entregar de los dos documentos de arriba. Se generan con `pdf/generar.sh` (estilos en `estilo.css`); si cambia el Markdown, hay que regenerarlos.
 
 ### [arquitectura/](arquitectura/)
 
