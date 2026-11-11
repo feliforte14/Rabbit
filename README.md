@@ -745,6 +745,9 @@ Para probar a mano, de punta a punta: [FLUJO-DE-PRUEBAS.md](docs/pruebas/FLUJO-D
 (comandos de cada sistema y lista para marcar). Para la API y los
 sistemas externos hay una colección de Postman lista para importar:
 [`Rabbit.postman_collection.json`](docs/pruebas/Rabbit.postman_collection.json).
+Desde VS Code, con la extensión REST Client, [`Rabbit.http`](Rabbit.http) tiene los mismos pedidos en orden
+(alta, idempotencia, ETag, seguimiento, cancelación, errores, seguridad y simuladores) y toma la contraseña
+de las cuentas demo del `.env`.
 
 ## Integración continua
 
