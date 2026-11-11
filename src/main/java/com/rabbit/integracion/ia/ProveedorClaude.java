@@ -59,7 +59,8 @@ public class ProveedorClaude implements ProveedorIa {
         String url = System.getProperty("rabbit.ia.url", URL_POR_DEFECTO);
         String cuerpo = Json.createObjectBuilder()
                 .add("model", modelo)
-                .add("max_tokens", 40)
+                // Alcanza para la respuesta más larga (4 indicaciones); acota el costo si el modelo se va de tema.
+                .add("max_tokens", 60)
                 .add("system", consigna)
                 .add("messages", Json.createArrayBuilder()
                         .add(Json.createObjectBuilder().add("role", "user").add("content", texto)))
