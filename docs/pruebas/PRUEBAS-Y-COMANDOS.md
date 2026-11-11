@@ -162,6 +162,10 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
   - Por defecto: sin definir
   - Qué hace: `true`: el banco en Java tarda 10 s y no responde a tiempo
   - ¿Hay que redesplegar?: No
+- `rabbit.cola.simular.ilegible`
+  - Por defecto: sin definir
+  - Qué hace: `true`: el próximo pedido del ERP se publica en la cola con el cuerpo roto. El broker lo reintenta 5 veces (unos 10 s) y lo deja en la DLQ (`scripts/dlq.sh listar`); el pedido igual se sincroniza por el polling antes de un minuto. Quitarla después de dar de alta el pedido
+  - ¿Hay que redesplegar?: No
 - `rabbit.banco.wsdl`
   - Por defecto: el banco en Java
   - Qué hace: Apunta Rabbit a otro banco con el mismo WSDL

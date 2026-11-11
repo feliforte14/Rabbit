@@ -11,6 +11,7 @@ package com.rabbit.integracion.transportistas;
  * EnvioRechazado a un rechazo con motivo.
  */
 
+import com.rabbit.infraestructura.Trazas;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.xml.ws.BindingProvider;
 import jakarta.xml.ws.Service;
@@ -45,7 +46,7 @@ public class AdaptadorSoapTransportista implements IAdaptadorTransportista {
         } catch (EnvioRechazadoException e) {
             return ResultadoSolicitud.rechazado(e.getFaultInfo() != null ? e.getFaultInfo().getMotivo() : e.getMessage());
         } catch (WebServiceException | MalformedURLException e) {
-            LOG.log(Level.WARNING, "[Transportistas][SOAP] El transportista no respondió al solicitar " + s.referencia(), e);
+            LOG.warning("[Transportistas][SOAP] El transportista no respondió al solicitar " + s.referencia() + ": " + Trazas.resumen(e));
             return ResultadoSolicitud.noDisponible();
         }
     }
@@ -78,7 +79,7 @@ public class AdaptadorSoapTransportista implements IAdaptadorTransportista {
                     + (e.getFaultInfo() != null ? e.getFaultInfo().getMotivo() : e.getMessage()));
             return false;
         } catch (WebServiceException | MalformedURLException e) {
-            LOG.log(Level.WARNING, "[Transportistas][SOAP] Sin respuesta al anular " + codigo, e);
+            LOG.warning("[Transportistas][SOAP] Sin respuesta al anular " + codigo + ": " + Trazas.resumen(e));
             return false;
         }
     }

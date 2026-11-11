@@ -39,20 +39,39 @@ package com.rabbit.pedidos.negocio;
  *   igual que hace SincronizadorDePedidos, y el mensaje se consume igual:
  *   reintentarlo no lo va a arreglar solo.
  * - Mensaje ilegible (no es TextMessage, JSON roto, sin idPedidoExterno):
- *   se loguea y se relanza (MensajeIlegibleException). Reintentarlo no lo
- *   arregla, pero justamente por eso, después de los intentos del broker
+ *   se loguea y se devuelve al broker. Reintentarlo no lo arregla, pero
+ *   justamente por eso, después de los intentos del broker
  *   (max-delivery-attempts, docker/wildfly/configurar.cli) pasa a la DLQ: queda
  *   guardado para inspeccionarlo y reprocesarlo, en vez de perderse.
+ * - Conflicto de stock (otra sesión tocó el mismo ítem a la vez): también
+ *   se devuelve al broker, que lo reintenta a los 2 segundos.
  * - Cualquier otra RuntimeException (por ejemplo la base caída un
  *   instante) SÍ se relanza para que el broker reintente la entrega, y
  *   aunque esa redelivery fallara para siempre, SincronizadorDePedidos
  *   igual va a encontrar la fila sin sincronizar en su próxima pasada.
+ *
+ * CÓMO SE DEVUELVE UN MENSAJE AL BROKER
+ * -------------------------------------
+ * Los dos casos esperados (conflicto de stock y mensaje ilegible) no lanzan
+ * una excepción: marcan la transacción del mensaje para rollback con
+ * MessageDrivenContext.setRollbackOnly(). Para el broker es lo mismo (no se
+ * confirma la entrega, cuenta un intento, reintenta y al quinto lo manda a
+ * la DLQ), pero el adaptador de JMS no escribe un ERROR con el stack trace
+ * entero por cada intento. Bajo carga, varios ERP dando de alta pedidos del
+ * mismo ítem chocan seguido: eran decenas de trazas por minuto para algo
+ * que se resuelve solo en el reintento.
+ * Las fallas inesperadas (cualquier otra RuntimeException) sí se relanzan,
+ * con su traza: ahí hace falta para diagnosticar.
  */
 
 import com.rabbit.infraestructura.MensajeIlegibleException;
+import com.rabbit.infraestructura.Trazas;
+
+import jakarta.annotation.Resource;
 
 import jakarta.ejb.ActivationConfigProperty;
 import jakarta.ejb.MessageDriven;
+import jakarta.ejb.MessageDrivenContext;
 import jakarta.inject.Inject;
 import jakarta.jms.JMSException;
 import jakarta.jms.Message;
@@ -81,9 +100,22 @@ public class PedidoExternoListener implements MessageListener {
     @Inject
     private IGestionPedidos gestionPedidos;
 
+    // La transacción del mensaje: ver "Cómo se devuelve un mensaje al broker".
+    @Resource
+    private MessageDrivenContext contexto;
+
     @Override
     public void onMessage(Message mensaje) {
-        Long idPedidoExterno = leerIdPedidoExterno(mensaje);
+        Long idPedidoExterno;
+        try {
+            idPedidoExterno = leerIdPedidoExterno(mensaje);
+        } catch (MensajeIlegibleException e) {
+            // Sin traza: lo que importa es que llegó roto, no por dónde pasó.
+            LOG.severe("[Pedidos][JMS] " + e.getMessage() + ": vuelve al broker y, agotados los intentos, "
+                    + "queda en la DLQ (scripts/dlq.sh). " + Trazas.resumen(e.getCause()));
+            contexto.setRollbackOnly();
+            return;
+        }
         try {
             Long idPedido = gestionPedidos.sincronizarPedidoExterno(idPedidoExterno);
             LOG.info("[Pedidos][JMS] Pedido externo " + idPedidoExterno
@@ -93,10 +125,10 @@ public class PedidoExternoListener implements MessageListener {
             LOG.fine("[Pedidos][JMS] Pedido externo " + idPedidoExterno + " ya estaba sincronizado");
         } catch (ConflictoDeStockException e) {
             // Choque pasajero con otra sesión sobre el mismo item: se
-            // relanza para que el contenedor reintente la entrega.
+            // devuelve al broker para que reintente la entrega.
             LOG.warning("[Pedidos][JMS] Conflicto de stock con el pedido externo "
-                    + idPedidoExterno + ", el contenedor va a reintentar la entrega: " + e.getMessage());
-            throw e;
+                    + idPedidoExterno + ", el broker va a reintentar la entrega: " + e.getMessage());
+            contexto.setRollbackOnly();
         } catch (ValidacionException e) {
             // Ver comentario de clase: falla de negocio, no de transporte.
             LOG.warning("[Pedidos][JMS] Pedido externo " + idPedidoExterno
@@ -131,7 +163,6 @@ public class PedidoExternoListener implements MessageListener {
                 return json.getJsonNumber("idPedidoExterno").longValue();
             }
         } catch (JMSException | JsonException | ClassCastException | NullPointerException e) {
-            LOG.log(Level.SEVERE, "[Pedidos][JMS] Mensaje ilegible en cola.pedidos.externos", e);
             throw new MensajeIlegibleException("Mensaje ilegible en cola.pedidos.externos", e);
         }
     }
