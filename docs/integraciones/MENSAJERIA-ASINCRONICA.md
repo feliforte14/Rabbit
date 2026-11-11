@@ -59,7 +59,7 @@ sequenceDiagram
 - **El consumidor no está**: El mensaje espera en la cola
 - **Cola y polling llegan a la vez**: Lock `PESSIMISTIC_WRITE` + flag `sincronizado`: el segundo recibe `PedidoYaSincronizadoException` y la ignora
 - **Falla de negocio (comercio de baja, sin stock)**: Se descarta el pedido con motivo y el mensaje se consume (reintentarlo no lo arregla)
-- **Mensaje ilegible (no es `TextMessage`, JSON roto, sin `idPedidoExterno`)**: Se loguea y se relanza (`MensajeIlegibleException`): el broker reintenta 5 veces (2 s entre intentos) y lo manda a la DLQ, donde queda para inspeccionarlo y reprocesarlo con `scripts/dlq.sh` (ADR-064)
+- **Mensaje ilegible (no es `TextMessage`, JSON roto, sin `idPedidoExterno`)**: Se loguea en una línea y se devuelve al broker (`setRollbackOnly`, sin lanzar la excepción para que el log no se llene de stack traces): el broker reintenta 5 veces (2 s entre intentos) y lo manda a la DLQ, donde queda para inspeccionarlo y reprocesarlo con `scripts/dlq.sh` (ADR-064)
 - **Error transitorio (base caída)**: Se relanza; el broker reintenta la entrega
 - **Un componente rechaza la llamada por permisos**: El consumidor y el polling corren **sin usuario**: todo lo que llaman tiene que estar permitido sin rol. Si no, cada intento falla y el pedido queda "Pendiente" en "Recibidos del ERP" hasta que se corrija (pasó con el peso de los ítems; se agregó `pesosPorItem` sin rol, ADR-032)
 

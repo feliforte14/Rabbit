@@ -22,6 +22,7 @@ package com.rabbit.integracion.banco;
  * fallando) se contesta NO_DISPONIBLE al instante, sin esperar el timeout.
  */
 
+import com.rabbit.infraestructura.Trazas;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
 import jakarta.xml.ws.BindingProvider;
@@ -31,7 +32,6 @@ import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
 
@@ -85,7 +85,7 @@ public class BancoClient implements IBancoClient {
             return ResultadoAutorizacion.rechazado(e.getFaultInfo() != null ? e.getFaultInfo().getMotivo() : e.getMessage());
         } catch (WebServiceException | MalformedURLException e) {
             circuito.registrarFalla(ticket);
-            LOG.log(Level.WARNING, "[Pagos][SOAP] El banco no respondió al autorizar " + referencia, e);
+            LOG.warning("[Pagos][SOAP] El banco no respondió al autorizar " + referencia + ": " + Trazas.resumen(e));
             return ResultadoAutorizacion.noDisponible();
         }
     }
@@ -105,7 +105,7 @@ public class BancoClient implements IBancoClient {
             return true;
         } catch (WebServiceException | MalformedURLException e) {
             circuito.registrarFalla(ticket);
-            LOG.log(Level.WARNING, "[Pagos][SOAP] El banco no respondió al reversar " + codigoAutorizacion, e);
+            LOG.warning("[Pagos][SOAP] El banco no respondió al reversar " + codigoAutorizacion + ": " + Trazas.resumen(e));
             return false;
         }
     }

@@ -213,6 +213,7 @@ class PedidosEnSegundoPlanoTest {
     class ListenerDePedidosExternos {
 
         @Mock private IGestionPedidos gestionPedidos;
+        @Mock private jakarta.ejb.MessageDrivenContext contextoDelMensaje;
         @InjectMocks private PedidoExternoListener listener;
 
         private TextMessage mensaje(String texto) throws JMSException {
@@ -226,6 +227,7 @@ class PedidosEnSegundoPlanoTest {
             listener.onMessage(mensaje("{\"idPedidoExterno\":77}"));
 
             verify(gestionPedidos).sincronizarPedidoExterno(77L);
+            verify(contextoDelMensaje, never()).setRollbackOnly();
         }
 
         @Test
@@ -237,15 +239,23 @@ class PedidosEnSegundoPlanoTest {
             when(gestionPedidos.sincronizarPedidoExterno(78L)).thenThrow(new ValidacionException("sin stock"));
             listener.onMessage(mensaje("{\"idPedidoExterno\":78}"));
             verify(gestionPedidos).descartarPedidoExterno(78L, "sin stock");
+            // Ninguno de los dos vuelve al broker: reintentarlos no cambia nada.
+            verify(contextoDelMensaje, never()).setRollbackOnly();
         }
 
         @Test
-        void losErroresPasajerosVuelvenAlContenedorParaReintentar() throws Exception {
-            ConflictoDeStockException choque = new ConflictoDeStockException("choque");
-            when(gestionPedidos.sincronizarPedidoExterno(77L)).thenThrow(choque);
-            assertSame(choque, assertThrows(ConflictoDeStockException.class,
-                    () -> listener.onMessage(mensaje("{\"idPedidoExterno\":77}"))));
+        void unConflictoDeStockVuelveAlBrokerSinLanzarLaExcepcion() throws Exception {
+            when(gestionPedidos.sincronizarPedidoExterno(77L)).thenThrow(new ConflictoDeStockException("choque"));
 
+            // Sin excepción: si se lanzara, el adaptador de JMS escribiría un ERROR con la traza en cada intento.
+            listener.onMessage(mensaje("{\"idPedidoExterno\":77}"));
+
+            verify(contextoDelMensaje).setRollbackOnly();
+            verify(gestionPedidos, never()).descartarPedidoExterno(anyLong(), any());
+        }
+
+        @Test
+        void losErroresInesperadosVuelvenAlContenedorParaReintentar() throws Exception {
             IllegalStateException caida = new IllegalStateException("base");
             when(gestionPedidos.sincronizarPedidoExterno(78L)).thenThrow(caida);
             assertSame(caida, assertThrows(IllegalStateException.class,
@@ -254,16 +264,19 @@ class PedidosEnSegundoPlanoTest {
         }
 
         @Test
-        void unMensajeIlegibleSeRelanzaParaQueElBrokerLoMandeALaDLQ() throws Exception {
+        void unMensajeIlegibleVuelveAlBrokerParaQueLoMandeALaDLQ() throws Exception {
             TextMessage roto = mock(TextMessage.class);
             when(roto.getText()).thenThrow(new JMSException("roto"));
 
-            for (jakarta.jms.Message ilegible : List.of(mock(BytesMessage.class), mensaje("no es json"),
-                    mensaje("{\"otro\":1}"), mensaje("{\"idPedidoExterno\":\"77\"}"), mensaje(null), roto)) {
-                assertThrows(com.rabbit.infraestructura.MensajeIlegibleException.class,
-                        () -> listener.onMessage(ilegible));
+            List<jakarta.jms.Message> ilegibles = List.of(mock(BytesMessage.class), mensaje("no es json"),
+                    mensaje("{\"otro\":1}"), mensaje("{\"idPedidoExterno\":\"77\"}"), mensaje(null), roto,
+                    mensaje(PublicadorPedidosExternos.CUERPO_ILEGIBLE));
+            for (jakarta.jms.Message ilegible : ilegibles) {
+                listener.onMessage(ilegible);
             }
 
+            // Cada uno marcó su transacción para rollback: el broker cuenta el intento y, al quinto, lo manda a la DLQ.
+            verify(contextoDelMensaje, times(ilegibles.size())).setRollbackOnly();
             verifyNoInteractions(gestionPedidos);
         }
     }
@@ -348,6 +361,21 @@ class PedidosEnSegundoPlanoTest {
 
             verify(contexto).createTextMessage("{\"idPedidoExterno\":77}");
             verify(mensaje).setStringProperty("origen", "PUNTO_PICKING");
+            verify(productor).send(colaPedidosExternos, mensaje);
+        }
+
+        @Test
+        void conLaPerillaDeLaDemoElMensajeSaleIlegible() throws Exception {
+            System.setProperty(PublicadorPedidosExternos.PERILLA_MENSAJE_ILEGIBLE, "true");
+            try {
+                externos.publicarPedidoExternoRegistrado(new PedidoExternoRegistrado(77L, OrigenPedido.STOCK_CONSIGNADO));
+            } finally {
+                System.clearProperty(PublicadorPedidosExternos.PERILLA_MENSAJE_ILEGIBLE);
+            }
+
+            verify(contexto).createTextMessage(PublicadorPedidosExternos.CUERPO_ILEGIBLE);
+            verify(contexto, never()).createTextMessage("{\"idPedidoExterno\":77}");
+            // Se publica igual: lo que se prueba es qué hace el consumidor con un mensaje roto.
             verify(productor).send(colaPedidosExternos, mensaje);
         }
 

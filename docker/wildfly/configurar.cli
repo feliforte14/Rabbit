@@ -56,6 +56,13 @@ data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --dr
 /subsystem=messaging-activemq/server=default/address-setting=\#:write-attribute(name=max-delivery-attempts, value=5)
 /subsystem=messaging-activemq/server=default/address-setting=\#:write-attribute(name=redelivery-delay, value=2000)
 
+# CXF (el cliente y el servidor SOAP de WildFly) escribe un WARN con el stack
+# trace entero cada vez que una llamada SOAP falla: un timeout del banco eran
+# unas 400 líneas de traza. Rabbit ya loguea esas fallas en una línea
+# (BancoClient, AdaptadorSoapTransportista, con Trazas.resumen), así que el WARN
+# de CXF solo repite lo mismo con la traza. Queda en ERROR.
+/subsystem=logging/logger=org.apache.cxf.phase.PhaseInterceptorChain:add(level=ERROR)
+
 # Demos y pruebas durante el día: sin hora de corte (README, paso 7b).
 /system-property=rabbit.ruteo.hora-corte:add(value="${env.RABBIT_HORA_CORTE:ninguno}")
 

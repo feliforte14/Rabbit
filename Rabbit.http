@@ -6,6 +6,7 @@
 #      https://localhost:8443 es autofirmado.
 #   3. Completar @idItem y @idPuntoPicking (abajo). Con Docker, el ítem sale en el log de la semilla:
 #      docker compose logs semilla | grep item=
+#      (en una base recién creada es el 101; el 1 es de otro comercio y el pedido queda "Descartado").
 #      El punto de picking, en Comercios → Puntos de picking del "Almacén Demo 1".
 #   4. Clic en "Send Request" arriba de cada pedido. Van en orden: los de abajo usan lo que
 #      devolvieron los de arriba (por eso los nombres `# @name`).
@@ -25,7 +26,7 @@
 @comercio = demo.comercio
 
 # Datos de la semilla: completar (ver arriba)
-@idItem = 1
+@idItem = 101
 @idPuntoPicking = 1
 
 

@@ -15,9 +15,13 @@ package com.rabbit.seguridad.presentacion;
  *   usuario o contraseña incorrectos              401 (y cuenta un fallo)
  *   usuario bloqueado                             429 + Retry-After, sin consultar al realm
  *
- * El 403 (usuario válido sin rol ERP) lo sigue dando @RolesAllowed("ERP") en
- * PedidosExternosResource, que no depende de este filtro: si el filtro no
- * corriera, el EJB igual rechaza al que no tiene rol.
+ *   usuario válido sin rol ERP                    403
+ *
+ * El 403 se responde acá aunque @RolesAllowed("ERP") en PedidosExternosResource
+ * también lo rechazaría (y lo sigue haciendo si este filtro no corriera): cuando
+ * lo rechaza el EJB, WildFly escribe un ERROR con el stack trace entero
+ * (WFLYEJB0034) por cada pedido, y cualquiera con una cuenta de otro rol
+ * podía llenar el log de trazas. Las dos respuestas son iguales (ProblemaMapper).
  *
  * La identidad dura solo este pedido (request.logout al terminar): un
  * cliente de API no necesita sesión.
@@ -46,6 +50,7 @@ public class FiltroAutenticacionErp implements Filter {
 
     static final String DESAFIO = "Basic realm=\"ApplicationRealm\", charset=\"UTF-8\"";
     static final int DEMASIADOS_INTENTOS = 429;
+    static final String ROL_ERP = "ERP";
 
     private LimiteDeIntentos limite;
 
@@ -65,7 +70,11 @@ public class FiltroAutenticacionErp implements Filter {
         HttpServletRequest request = (HttpServletRequest) req;
         HttpServletResponse response = (HttpServletResponse) resp;
         if (request.getUserPrincipal() != null) {
-            chain.doFilter(request, response);
+            if (request.isUserInRole(ROL_ERP)) {
+                chain.doFilter(request, response);
+            } else {
+                sinPermiso(request, response);
+            }
             return;
         }
         Credenciales credenciales = leer(request.getHeader("Authorization"));
@@ -91,7 +100,11 @@ public class FiltroAutenticacionErp implements Filter {
         }
         limite.registrarExito(credenciales.usuario());
         try {
-            chain.doFilter(request, response);
+            if (request.isUserInRole(ROL_ERP)) {
+                chain.doFilter(request, response);
+            } else {
+                sinPermiso(request, response);
+            }
         } finally {
             request.logout();
         }
@@ -118,6 +131,13 @@ public class FiltroAutenticacionErp implements Filter {
     private static void noAutenticado(HttpServletResponse response, String detalle) throws IOException {
         response.setHeader("WWW-Authenticate", DESAFIO);
         escribir(response, Problema.de(HttpServletResponse.SC_UNAUTHORIZED, "no-autenticado", "No autenticado", detalle));
+    }
+
+    // Mismo cuerpo que ProblemaMapper para EJBAccessException.
+    private static void sinPermiso(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        LOG.warning("[Seguridad] Un usuario sin rol ERP llamó a la API del ERP desde " + request.getRemoteAddr());
+        escribir(response, Problema.de(HttpServletResponse.SC_FORBIDDEN, "acceso-denegado", "Acceso denegado",
+                "Tu usuario no tiene permiso para esta operación"));
     }
 
     private static void escribir(HttpServletResponse response, Problema problema) throws IOException {

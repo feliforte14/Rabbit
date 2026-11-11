@@ -1,6 +1,6 @@
 #!/bin/bash
-# Busca datos sensibles en el log de WildFly (SEC-09 y "logs sin datos personales"
-# del eje D). Correrlo DESPUÉS de pruebas_vivo.py, que carga pedidos con datos de
+# Busca datos sensibles y stack traces en el log de WildFly (SEC-09 y "logs sin
+# datos personales ni stack traces" del eje D). Correrlo DESPUÉS de pruebas_vivo.py, que carga pedidos con datos de
 # quien recibe y provoca errores.
 #
 #   set -a; . ./.env; set +a
@@ -32,4 +32,8 @@ revisar "Cookie de sesión" 'JSESSIONID=[A-Za-z0-9_-]{10,}'
 revisar "Email completo de prueba" 'seg@correo\.test|privado@correo\.test|cliente@correo\.test'
 revisar "Datos de quien recibe de prueba" 'Calle Privada|Nombre Privado|1155550000'
 revisar "Cargas de inyección" "DROP TABLE|onerror=alert|<script>alert"
+# Stack traces: las fallas esperadas (banco caído, 403, conflicto de stock, mensaje
+# ilegible) se loguean en una línea. Una traza acá es una falla inesperada: hay que
+# mirarla, no acostumbrarse a verlas. Se cuentan las líneas "<tab>at paquete.Clase(".
+revisar "Stack traces" '^([A-Za-z0-9_.-]+ +\| )?[[:space:]]+at [^[:space:]]+\('
 exit $encontrado
