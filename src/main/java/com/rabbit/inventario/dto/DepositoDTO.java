@@ -15,6 +15,7 @@ public class DepositoDTO {
     public String provincia;
     public String localidad;
     public String codigoPostal;
+    public boolean baseDeSalida;
 
     // Convierte una entidad Deposito en un DTO listo para mostrar en la vista.
     public static DepositoDTO desde(Deposito d) {
@@ -25,6 +26,7 @@ public class DepositoDTO {
         dto.provincia = d.getProvincia();
         dto.localidad = d.getLocalidad();
         dto.codigoPostal = d.getCodigoPostal();
+        dto.baseDeSalida = d.isBaseDeSalida();
         return dto;
     }
 
@@ -39,6 +41,7 @@ public class DepositoDTO {
 
     // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getId() { return id; }
+    public boolean isBaseDeSalida() { return baseDeSalida; }
     public String getNombre() { return nombre; }
     public String getDireccion() { return direccion; }
     public String getProvincia() { return provincia; }

@@ -30,6 +30,7 @@ import jakarta.xml.ws.WebServiceException;
 import java.math.BigDecimal;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.xml.namespace.QName;
@@ -56,20 +57,27 @@ public class BancoClient implements IBancoClient {
 
     // El WSDL se descarga y parsea una sola vez. Service.create no tiene
     // timeout propio: es el único punto que puede demorar más de TIMEOUT_MS.
-    private static volatile Service serviceCache;
+    // Sin synchronized (la especificación de EJB no lo permite): si dos hilos
+    // llegan a la vez, ambos crean el Service y gana el primero en guardarlo.
+    private static final AtomicReference<Service> SERVICE_CACHE = new AtomicReference<>();
 
     @Inject
     private CircuitBreakerBanco circuito;
 
     @Override
     public ResultadoAutorizacion autorizar(Long idPedido, BigDecimal importe) {
+        return autorizarReferencia("PEDIDO-" + idPedido, importe);
+    }
+
+    @Override
+    public ResultadoAutorizacion autorizarReferencia(String referencia, BigDecimal importe) {
         long ticket = circuito.intentarLlamada();
         if (ticket == CircuitBreakerBanco.SIN_PERMISO) {
-            LOG.info("[Pagos][SOAP] Circuito abierto: no se llama al banco para el pedido " + idPedido);
+            LOG.info("[Pagos][SOAP] Circuito abierto: no se llama al banco para " + referencia);
             return ResultadoAutorizacion.noDisponible();
         }
         try {
-            String codigo = puerto().autorizarPago("PEDIDO-" + idPedido, importe);
+            String codigo = puerto().autorizarPago(referencia, importe);
             circuito.registrarExito(ticket);
             return ResultadoAutorizacion.aprobado(codigo);
         } catch (PagoRechazadoException e) {
@@ -78,7 +86,7 @@ public class BancoClient implements IBancoClient {
             return ResultadoAutorizacion.rechazado(e.getFaultInfo() != null ? e.getFaultInfo().getMotivo() : e.getMessage());
         } catch (WebServiceException | MalformedURLException e) {
             circuito.registrarFalla(ticket);
-            LOG.log(Level.WARNING, "[Pagos][SOAP] El banco no respondió al autorizar el pedido " + idPedido, e);
+            LOG.log(Level.WARNING, "[Pagos][SOAP] El banco no respondió al autorizar " + referencia, e);
             return ResultadoAutorizacion.noDisponible();
         }
     }
@@ -103,7 +111,8 @@ public class BancoClient implements IBancoClient {
         }
     }
 
-    private BancoLegadoService puerto() throws MalformedURLException {
+    // Package-private para que el test la reemplace por un doble del banco.
+    BancoLegadoService puerto() throws MalformedURLException {
         BancoLegadoService port = obtenerService().getPort(PORT_QNAME, BancoLegadoService.class);
         BindingProvider bp = (BindingProvider) port;
         bp.getRequestContext().put("jakarta.xml.ws.client.connectionTimeout", TIMEOUT_MS);
@@ -112,16 +121,15 @@ public class BancoClient implements IBancoClient {
     }
 
     private static Service obtenerService() throws MalformedURLException {
-        Service local = serviceCache;
+        Service local = SERVICE_CACHE.get();
         if (local == null) {
-            synchronized (BancoClient.class) {
-                local = serviceCache;
-                if (local == null) {
-                    local = Service.create(new URL(WSDL_LOCATION), SERVICE_QNAME);
-                    serviceCache = local;
-                }
-            }
+            local = primeroEnGuardarse(SERVICE_CACHE, Service.create(new URL(WSDL_LOCATION), SERVICE_QNAME));
         }
         return local;
+    }
+
+    // Si dos hilos crearon el Service a la vez, todos usan el que se guardó primero.
+    static Service primeroEnGuardarse(AtomicReference<Service> cache, Service creado) {
+        return cache.compareAndSet(null, creado) ? creado : cache.get();
     }
 }

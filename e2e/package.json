@@ -1,0 +1,12 @@
+{
+  "name": "rabbit-e2e",
+  "private": true,
+  "description": "Pruebas de punta a punta de Rabbit (Playwright + axe) contra el compose",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.56.0"
+  }
+}

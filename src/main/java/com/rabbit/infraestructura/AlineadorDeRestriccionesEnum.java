@@ -34,9 +34,12 @@ package com.rabbit.infraestructura;
 
 import com.rabbit.inventario.datos.model.EstadoReserva;
 import com.rabbit.pagos.datos.model.EstadoCobro;
+import com.rabbit.pagos.datos.model.EstadoLiquidacion;
 import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.EstadoPedido;
+import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
+import com.rabbit.pedidos.datos.model.OrigenUbicacion;
 import com.rabbit.repartidores.datos.model.EstadoRepartidor;
 import com.rabbit.ruteo.datos.model.CoberturaZona;
 import com.rabbit.seguridad.datos.model.Rol;
@@ -57,6 +60,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Singleton
@@ -70,16 +74,26 @@ public class AlineadorDeRestriccionesEnum {
     // minúsculas: medioPago -> mediopago) y el enum que las respalda.
     private record ColumnaEnum(String tabla, String columna, Class<? extends Enum<?>> tipo) {}
 
+    // Lo único que puede llegar a una sentencia armada con texto (ver alinear).
+    private static final Pattern IDENTIFICADOR = Pattern.compile("[a-z][a-z0-9_]*");
+    private static final Pattern VALOR_ENUM = Pattern.compile("[A-Z][A-Z0-9_]*");
+
     private static final List<ColumnaEnum> COLUMNAS = List.of(
             new ColumnaEnum("pedidos", "estado", EstadoPedido.class),
             new ColumnaEnum("pedidos", "origen", OrigenPedido.class),
             new ColumnaEnum("pedidos", "mediopago", MedioPago.class),
+            new ColumnaEnum("pedidos", "motivoentregafallida", MotivoEntregaFallida.class),
+            new ColumnaEnum("intentos_entrega", "motivo", MotivoEntregaFallida.class),
+            new ColumnaEnum("intentos_entrega", "origenubicacion", OrigenUbicacion.class),
             new ColumnaEnum("pedidos_externos", "origen", OrigenPedido.class),
             new ColumnaEnum("pedidos_externos", "mediopago", MedioPago.class),
             new ColumnaEnum("reservas_stock", "estado", EstadoReserva.class),
+            new ColumnaEnum("ocupacion_diaria", "categoria", com.rabbit.inventario.datos.model.CategoriaDeTamano.class),
+            new ColumnaEnum("ordenes_recepcion", "estado", com.rabbit.inventario.datos.model.EstadoOrdenDeRecepcion.class),
             new ColumnaEnum("usuarios", "rol", Rol.class),
             new ColumnaEnum("cobros", "estado", EstadoCobro.class),
             new ColumnaEnum("cobros", "mediopago", MedioPago.class),
+            new ColumnaEnum("liquidaciones", "estado", EstadoLiquidacion.class),
             new ColumnaEnum("repartidores", "estado", EstadoRepartidor.class),
             new ColumnaEnum("transportistas", "tipointegracion", TipoIntegracion.class),
             new ColumnaEnum("envios", "estado", EstadoEnvio.class),
@@ -97,18 +111,35 @@ public class AlineadorDeRestriccionesEnum {
         LOG.info("[Esquema] Restricciones CHECK de columnas enum alineadas: " + ok + "/" + COLUMNAS.size());
     }
 
+    static void validarIdentificador(String identificador) {
+        if (identificador == null || !IDENTIFICADOR.matcher(identificador).matches()) {
+            throw new IllegalStateException("Identificador SQL inválido en COLUMNAS: " + identificador);
+        }
+    }
+
+    static String literal(Enum<?> valor) {
+        if (!VALOR_ENUM.matcher(valor.name()).matches()) {
+            throw new IllegalStateException("Constante de enum inválida: " + valor.name());
+        }
+        return "'" + valor.name() + "'";
+    }
+
     private boolean alinear(ColumnaEnum c) {
         // Mismo nombre que le pone PostgreSQL al CHECK que genera Hibernate.
         String restriccion = c.tabla() + "_" + c.columna() + "_check";
+        // Un identificador SQL no se puede pasar como parámetro. Salen de la lista fija COLUMNAS y de los
+        // nombres de las constantes de un enum del código, nunca de un dato de usuario; igual se validan.
+        validarIdentificador(c.tabla());
+        validarIdentificador(c.columna());
         String valores = Arrays.stream(c.tipo().getEnumConstants())
-                .map(v -> "'" + v.name() + "'")
+                .map(AlineadorDeRestriccionesEnum::literal)
                 .collect(Collectors.joining(","));
         try {
             tx.begin();
             em.joinTransaction();
-            em.createNativeQuery("ALTER TABLE " + c.tabla() + " DROP CONSTRAINT IF EXISTS " + restriccion)
+            em.createNativeQuery("ALTER TABLE " + c.tabla() + " DROP CONSTRAINT IF EXISTS " + restriccion) // NOSONAR: identificadores fijos y validados (ver arriba)
                     .executeUpdate();
-            em.createNativeQuery("ALTER TABLE " + c.tabla() + " ADD CONSTRAINT " + restriccion
+            em.createNativeQuery("ALTER TABLE " + c.tabla() + " ADD CONSTRAINT " + restriccion // NOSONAR: identificadores fijos y validados (ver arriba)
                     + " CHECK (" + c.columna() + " IN (" + valores + "))")
                     .executeUpdate();
             tx.commit();

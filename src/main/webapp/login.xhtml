@@ -8,24 +8,25 @@
     repartidor): el tipo no se elige aca, lo trae la cuenta, y LoginBean
     manda a cada uno a su pantalla.
 -->
-<html xmlns="http://www.w3.org/1999/xhtml"
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core">
 <h:head>
     <meta charset="UTF-8" />
+    <!-- Ícono de la pestaña: sin esto el navegador pide /favicon.ico en la raíz del servidor y da 404
+         (Lighthouse lo marcaba como error de consola, OBS-01). -->
+    <link rel="icon" type="image/png" href="#{resource['rabbit:logo.png']}" />
     <title>Rabbit · Iniciar sesión</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <h:outputStylesheet library="rabbit" name="estilos.css" />
     <!-- Antes de pintar: aplica el tema elegido (ver tema.js). -->
     <h:outputScript library="rabbit" name="tema.js" />
+    <h:outputScript library="rabbit" name="mejoras.js" />
 </h:head>
 <h:body styleClass="pagina-sola">
     <div class="container">
         <div class="login-marca">
-            <p class="marca">rabbit</p>
+            <h:graphicImage library="rabbit" name="logo.png" alt="rabbit" styleClass="marca-logo" />
             <p class="slogan">Entregas urbanas para comercios</p>
         </div>
 
@@ -52,12 +53,15 @@
                                requiredMessage="Ingresá tu contraseña" />
             </div>
 
-            <div class="form-acciones">
+            <div class="form-acciones login-acciones">
                 <h:commandButton value="Ingresar" styleClass="btn btn-primary" action="#{loginBean.login}" />
             </div>
         </h:form>
 
-        <p class="ayuda">¿No tenés cuenta? Pedísela a un administrador de Rabbit.</p>
+        <!-- Sin alta abierta: el pedido llega por mail y un administrador
+             crea la cuenta (ver LoginBean.getContactoMailto). -->
+        <p class="ayuda">¿Sos un comercio o repartidor y no tenés cuenta? Escribinos a
+            <a href="#{loginBean.contactoMailto}">#{loginBean.contactoMail}</a> y te la creamos.</p>
 
         <!-- Para el cliente final, que no tiene cuenta: el seguimiento publico. -->
         <p class="enlace-seguimiento">

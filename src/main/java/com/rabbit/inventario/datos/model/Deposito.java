@@ -29,6 +29,11 @@ public class Deposito {
     private String localidad;
     private String codigoPostal;
 
+    // Base de salida de los camiones: de ahí arranca la hoja de ruta del día.
+    // Solo uno por vez. Boolean (no boolean): las filas anteriores a este
+    // campo quedan en null, que vale "no".
+    private Boolean baseDeSalida;
+
     // La FK vive del lado de ItemInventario (mappedBy = "deposito").
     // fetch LAZY: los items se cargan recién si se piden.
     @OneToMany(mappedBy = "deposito", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
@@ -48,6 +53,8 @@ public class Deposito {
     public void setLocalidad(String localidad) { this.localidad = localidad; }
     public String getCodigoPostal() { return codigoPostal; }
     public void setCodigoPostal(String codigoPostal) { this.codigoPostal = codigoPostal; }
+    public boolean isBaseDeSalida() { return Boolean.TRUE.equals(baseDeSalida); }
+    public void setBaseDeSalida(boolean baseDeSalida) { this.baseDeSalida = baseDeSalida; }
     public List<ItemInventario> getItems() { return items; }
     public void setItems(List<ItemInventario> items) { this.items = items; }
 }

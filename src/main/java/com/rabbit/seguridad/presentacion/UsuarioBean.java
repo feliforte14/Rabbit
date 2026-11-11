@@ -5,8 +5,8 @@ package com.rabbit.seguridad.presentacion;
  * explicación completa de @Named/@ViewScoped, se aplica igual acá.
  *
  * ALCANCE DE LA PANTALLA: usuarios.xhtml es solo para ADMINISTRADOR
- * (SesionBean.exigirAdministrador): padrón, alta con elección de rol y
- * baja. No hay alta pública; el primer administrador se crea con
+ * (SesionBean.exigirAdministrador): padrón, alta con elección de rol,
+ * baja, eliminación, reactivación y cambio de contraseña. No hay alta pública; el primer administrador se crea con
  * add-user.sh. La restricción real la impone UsuarioService con
  * @RolesAllowed; el guardián de la página solo evita mostrarla.
  */
@@ -60,6 +60,10 @@ public class UsuarioBean implements Serializable {
     private Long idAReactivar;
     private String passwordReactivacion;
 
+    // Formulario "Restablecer contraseña".
+    private Long idARestablecer;
+    private String passwordRestablecida;
+
     // @PostConstruct: corre una sola vez al crear el Bean, así la tabla ya
     // llega llena en el primer render de usuarios.xhtml.
     @PostConstruct
@@ -69,10 +73,12 @@ public class UsuarioBean implements Serializable {
         listaRepartidores = repartidores.listarTodos();
     }
 
-    // Alta de un usuario nuevo: UsuarioService lo persiste (con el
-    // perfil en la tabla; la contraseña va solo al realm) y lo sincroniza contra el
-    // ApplicationRealm de WildFly (ver ApplicationRealmSync) para que
-    // pueda loguearse.
+    // Alta de un usuario nuevo: UsuarioService guarda el perfil y el hash
+    // de la contraseña en la tabla, que es lo que lee WildFly al loguear
+    // (ADR-031).
+    // Donde se muestran los errores del alta (ver usuarios.xhtml).
+    private static final String AVISOS_ALTA = "formAlta:avisosAlta";
+
     public void registrar() {
         try {
             registro.registrarUsuario(nuevoUsuario);
@@ -80,10 +86,12 @@ public class UsuarioBean implements Serializable {
             nuevoUsuario = nuevoUsuarioVacio();
             cargar();
         } catch (ValidacionException e) {
-            Mensajes.error(e.getMessage());
+            // Junto al formulario de alta: está al final de la página y el
+            // aviso global de arriba no se veía (parecía que no pasaba nada).
+            Mensajes.errorEn(AVISOS_ALTA, e.getMessage());
         } catch (EJBAccessException e) {
             // @RolesAllowed("ADMINISTRADOR") en UsuarioService.registrarUsuario.
-            Mensajes.error("Solo un administrador puede registrar usuarios.");
+            Mensajes.errorEn(AVISOS_ALTA, "Solo un administrador puede registrar usuarios.");
         }
     }
 
@@ -98,6 +106,21 @@ public class UsuarioBean implements Serializable {
         } catch (EJBAccessException e) {
             // @RolesAllowed("ADMINISTRADOR") en UsuarioService.darDeBaja.
             Mensajes.error("No tenés permisos para dar de baja usuarios. Iniciá sesión como administrador.");
+        }
+    }
+
+    // Baja física: la cuenta desaparece del padrón (ver
+    // IRegistroUsuarios.eliminarUsuario).
+    public void eliminar(Long id) {
+        try {
+            registro.eliminarUsuario(id);
+            Mensajes.info("Usuario eliminado");
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        } catch (EJBAccessException e) {
+            // @RolesAllowed("ADMINISTRADOR") en UsuarioService.eliminarUsuario.
+            Mensajes.error("Solo un administrador puede eliminar usuarios.");
         }
     }
 
@@ -120,6 +143,35 @@ public class UsuarioBean implements Serializable {
         }
     }
 
+    // Contraseña nueva para una cuenta activa (ver
+    // IRegistroUsuarios.restablecerClave).
+    public void restablecer() {
+        try {
+            registro.restablecerClave(idARestablecer, passwordRestablecida);
+            Mensajes.info("Contraseña cambiada: ya puede entrar con la nueva desde cualquier máquina");
+            idARestablecer = null;
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        } catch (EJBAccessException e) {
+            // @RolesAllowed("ADMINISTRADOR") en UsuarioService.restablecerClave.
+            Mensajes.error("Solo un administrador puede cambiar contraseñas.");
+        } finally {
+            passwordRestablecida = null;
+        }
+    }
+
+    // Las cuentas activas, para el desplegable de "Restablecer contraseña".
+    public List<UsuarioDTO> getActivos() {
+        return usuarios.stream().filter(UsuarioDTO::isActivo).collect(Collectors.toList());
+    }
+
+    // Activas que todavía no tienen contraseña en la base (creadas antes
+    // de ADR-031): solo entran en la máquina donde se crearon.
+    public long getPendientesDeMigrar() {
+        return usuarios.stream().filter(u -> u.isActivo() && !u.isClaveCompartida()).count();
+    }
+
     // Las cuentas dadas de baja, para el desplegable de "Reactivar".
     public List<UsuarioDTO> getDadosDeBaja() {
         return usuarios.stream().filter(u -> !u.isActivo()).collect(Collectors.toList());
@@ -131,6 +183,10 @@ public class UsuarioBean implements Serializable {
     public void setIdAReactivar(Long idAReactivar) { this.idAReactivar = idAReactivar; }
     public String getPasswordReactivacion() { return passwordReactivacion; }
     public void setPasswordReactivacion(String passwordReactivacion) { this.passwordReactivacion = passwordReactivacion; }
+    public Long getIdARestablecer() { return idARestablecer; }
+    public void setIdARestablecer(Long idARestablecer) { this.idARestablecer = idARestablecer; }
+    public String getPasswordRestablecida() { return passwordRestablecida; }
+    public void setPasswordRestablecida(String passwordRestablecida) { this.passwordRestablecida = passwordRestablecida; }
     public DatosUsuarioDTO getNuevoUsuario() { return nuevoUsuario; }
     public void setNuevoUsuario(DatosUsuarioDTO nuevoUsuario) { this.nuevoUsuario = nuevoUsuario; }
 

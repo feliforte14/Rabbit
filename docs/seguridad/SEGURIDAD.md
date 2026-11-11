@@ -1,39 +1,64 @@
 # Seguridad
 
+> Cómo se comprueba todo esto (estado de la matriz SEC, las pruebas del eje D y los comandos para
+> repetirlas en una máquina propia): [PRUEBAS-DE-SEGURIDAD.md](PRUEBAS-DE-SEGURIDAD.md).
+
 ## Autenticación
 
-- Jakarta Security contra el `ApplicationRealm` nativo de WildFly (no hay
-  un `IdentityStore` propio).
-- Al registrar un usuario, `UsuarioService` lo guarda en la tabla
-  `usuarios` y lo sincroniza al realm (`ApplicationRealmSync`, que
-  escribe `application-users.properties`).
+- El login (`request.login`) lo valida WildFly con el dominio
+  `ApplicationDomain`, que busca la cuenta primero en la tabla `usuarios`
+  de la base compartida (un `jdbc-realm` de Elytron) y, si no está ahí,
+  en los archivos de add-user.sh de esa máquina (ADR-031,
+  `scripts/configurar-realm-compartido.cli`). No hay un `IdentityStore`
+  propio.
+- Al registrar un usuario, `UsuarioService` guarda en la tabla `usuarios`
+  su perfil y el hash de su contraseña. Como la base es compartida, la
+  cuenta entra en el WildFly de cualquier integrante.
 - **No hay alta pública de cuentas:** los usuarios los crea un
   `ADMINISTRADOR`. El primer administrador se crea en el servidor con
   `add-user.sh` (README, paso 5).
 - Al iniciar sesión se renueva el ID de sesión (`changeSessionId`),
   contra *session fixation*.
-- Contraseñas: hay **una sola copia**, en el ApplicationRealm de WildFly
-  (MD5 de `usuario:ApplicationRealm:contraseña`, el formato que exige su
-  properties-realm), que es quien la valida. La tabla `usuarios` guarda el
-  perfil (rol, comercio o repartidor), **no** contraseñas: antes guardaba
-  además un SHA-256 sin salt que nadie usaba para autenticar, y una
-  credencial redundante solo suma riesgo si la base se filtra.
-  `LimpiezaDeCredenciales` borra esa columna al desplegar (ADR-023).
+- **Sesión del servidor, sin JWT (ADR-067):** la web usa sesión y la API del ERP, HTTP Basic. La cookie va solo
+  en cookie (nunca en la URL), con `HttpOnly`, `Secure` y `SameSite=Lax`; la sesión **expira a los 30 minutos** de
+  inactividad (`session-timeout` del `web.xml`) y hay logout que la invalida. Contra CSRF, los formularios llevan el
+  `ViewState` de JSF; la API con Basic no usa cookie de sesión. Las cuentas ERP se crean desde **Usuarios** y se guardan
+  en la base con bcrypt, como las demás; solo las de demo de Docker toman la contraseña de una variable de entorno
+  (`DEMO_PASSWORD` del `.env`, que la semilla guarda como bcrypt). El rol se valida en el backend en cada operación
+  (`@RolesAllowed`).
+- Contraseñas: **bcrypt** (costo 10, con sal propia) en
+  `usuarios.hash_clave` (`Claves`), y es lo que valida el login. El realm
+  JDBC solo lee el hash de cuentas activas: una baja corta el acceso en
+  todas las máquinas a la vez. Las cuentas creadas antes de ADR-031 siguen
+  en los archivos de add-user.sh (MD5) hasta que un administrador les
+  restablezca la contraseña. La columna vieja `passwordhash` (SHA-256 sin
+  salt, que nadie usaba) la borra `LimpiezaDeCredenciales` al desplegar
+  (ADR-023).
 - **Límite de intentos de login:** 5 intentos fallidos seguidos bloquean
   ese usuario 15 minutos (`LimiteDeIntentos`); el login ni consulta al
   realm mientras dura. El mensaje es el mismo exista o no el usuario. Vive
-  en memoria de cada servidor; la API del ERP (HTTP Basic) la autentica
-  WildFly y no pasa por ese freno.
+  en memoria de cada servidor. La API del ERP (HTTP Basic) usa el mismo
+  contador a través de `FiltroAutenticacionErp`: bloqueada la cuenta, responde
+  `429` con `Retry-After`, sin consultar al realm (probado en `SeguridadIT` y
+  `FiltroAutenticacionErpTest`).
 
 ## Roles
 
-| Rol | Quién | Cómo se crea |
-|---|---|---|
-| `ADMINISTRADOR` | Personal de Rabbit con permisos totales | El primero con `add-user.sh -a -u <usuario> -p '<clave>' -g ADMINISTRADOR`; los demás, un administrador desde `personal/usuarios.xhtml` |
-| `OPERADOR` | Personal de Rabbit | Un administrador, desde `personal/usuarios.xhtml` |
-| `COMERCIO` | Un comercio: ve solo sus pedidos, su stock y sus puntos de picking | Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un comercio activo |
-| `REPARTIDOR` | Un repartidor: ve y mueve solo sus entregas | Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un repartidor (una cuenta por repartidor) |
-| `ERP` | Sistema de un comercio que usa la API REST (no es una persona): carga y ve solo los pedidos de su comercio | Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un comercio activo |
+- `ADMINISTRADOR`
+  - Quién: Personal de Rabbit con permisos totales
+  - Cómo se crea: El primero con `add-user.sh -a -u <usuario> -p '<clave>' -g ADMINISTRADOR`; los demás, un administrador desde `personal/usuarios.xhtml`
+- `OPERADOR`
+  - Quién: Personal de Rabbit
+  - Cómo se crea: Un administrador, desde `personal/usuarios.xhtml`
+- `COMERCIO`
+  - Quién: Un comercio: ve solo sus pedidos, su stock y sus puntos de picking
+  - Cómo se crea: Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un comercio activo
+- `REPARTIDOR`
+  - Quién: Un repartidor: ve y mueve solo sus entregas
+  - Cómo se crea: Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un repartidor (una cuenta por repartidor)
+- `ERP`
+  - Quién: Sistema de un comercio que usa la API REST (no es una persona): carga y ve solo los pedidos de su comercio
+  - Cómo se crea: Un administrador, desde `personal/usuarios.xhtml`, asociándolo a un comercio activo
 
 La API REST del ERP se autentica con HTTP Basic (`web.xml`:
 `security-constraint` sobre `/api/v1/pedidos-externos` + `login-config`
@@ -44,33 +69,48 @@ rechaza al usuario ERP.
 
 La autorización real está en la capa de Negocio, sobre los EJB:
 
-| Anotación | Dónde | Para qué |
-|---|---|---|
-| `@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})` | Clase del EJB | Documenta los roles del componente |
-| `@PermitAll` | Clase del EJB | Necesario: WildFly está con `default-missing-method-permissions-deny-access=true`, así que sin esto todo método sin anotación queda denegado |
-| `@RolesAllowed("ADMINISTRADOR")` | Método sensible | La restricción real |
+- `@DeclareRoles({"ADMINISTRADOR", "OPERADOR"})`
+  - Dónde: Clase del EJB
+  - Para qué: Documenta los roles del componente
+- `@PermitAll`
+  - Dónde: Clase del EJB
+  - Para qué: Necesario: WildFly está con `default-missing-method-permissions-deny-access=true`, así que sin esto todo método sin anotación queda denegado
+- `@RolesAllowed("ADMINISTRADOR")`
+  - Dónde: Método sensible
+  - Para qué: La restricción real
 
 ### Operaciones sensibles protegidas (implementado)
 
-| Operación | Por qué es sensible |
-|---|---|
-| `ComercioService.eliminarComercio` | Borra físicamente el comercio y sus puntos de picking en cascada, y su historial cancelado (pedidos, avisos, cobros anulados, envíos; ADR-028) |
-| `UsuarioService.registrarUsuario` | Crea cuentas con acceso al sistema. Si fuera público, cualquiera se daría un `OPERADOR` |
-| Alta y cambios de comercios, depósitos, stock y repartidores; `confirmarPedido` y `cancelarPedido` | Solo el personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`) |
-| `despacharPedido`, `registrarEntrega` | Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido |
-| `registrarPedidoExterno` | Personal de Rabbit (simulación) o el `ERP`, que solo carga pedidos de su comercio (el comercio sale de su cuenta, no del cuerpo del pedido) |
-| `cancelarPedidoExterno` | Solo el `ERP`, y solo pedidos de su comercio que todavía estén pendientes |
-| Puntos de picking (alta, baja, reactivación) | Personal de Rabbit o el `COMERCIO` dueño |
-| Consultas del portal (`listarPedidosDelComercioActual`, `listarStockDelComercioActual`, `listarDelComercioActual`, `listarCobrosDelComercioActual`) | Solo `COMERCIO`, y solo lo suyo. El cobro guarda el comercio dueño, así que Pagos valida la pertenencia sin consultar a Pedidos |
-| Listados de pedidos, pedidos del ERP y cobros (`listarTodos`, `listarPedidosExternos`, `listarEntregasEnCurso`, `obtenerCobroDePedido`) | Solo el personal de Rabbit. `consultarPedidoExterno`, también el `ERP` (solo los de su comercio: uno ajeno responde como inexistente). `consultarSeguimiento` es pública a propósito (seguimiento sin login por código aleatorio, solo el estado) |
-| Transportistas: alta, baja, derivar un pedido (`derivarATransportista`), envíos | Solo el personal de Rabbit. Un `COMERCIO` ve solo los envíos de sus pedidos (`listarEnviosDelComercioActual`) |
-| Ruteo: tablero de entregas / entregas del repartidor | Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas |
-| Ruteo: zonas (alta, baja, reactivación), `despacharPedido`, `despacharZona`, `listarPendientesPorZona`; zona de un repartidor (`asignarZona`) | Solo el personal de Rabbit |
-| `UsuarioService.listarTodos` | Expone el padrón completo de usuarios |
-| `UsuarioService.darDeBaja` | Deja a un usuario sin acceso |
-| `UsuarioService.reactivarUsuario` | Le devuelve el acceso a una cuenta dada de baja, con una contraseña nueva: la baja la sacó del realm, que es el único lugar donde vive la contraseña, así que no hay de dónde recuperar la anterior. Revalida que su comercio siga activo o que su repartidor no tenga otra cuenta activa |
-| `PagoService.anularCobro` | Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR` |
-| `PedidosExternosResource` (`/api/v1/pedidos-externos`) | Un sistema externo carga pedidos en Rabbit: solo el rol `ERP`. Sin credenciales responde `401`; con un usuario de otro rol, o un ERP sin comercio asociado, `403`. El `401` y el `403` por rol los responde WildFly en HTML, antes de llegar al código: es la seguridad declarativa en acción |
+- `ComercioService.eliminarComercio`: Borra físicamente el comercio y sus puntos de picking en cascada, y su historial cancelado (pedidos, avisos, cobros anulados, envíos; ADR-028)
+- `UsuarioService.registrarUsuario`: Crea cuentas con acceso al sistema. Si fuera público, cualquiera se daría un `OPERADOR`
+- **Alta y cambios de comercios, depósitos, stock y repartidores; `confirmarPedido` y `cancelarPedido`**: Solo el personal de Rabbit (`ADMINISTRADOR`, `OPERADOR`)
+- `despacharPedido` (EN_CAMINO): Personal de Rabbit o el `REPARTIDOR` que tiene asignado ese pedido
+- `registrarEntrega` (ENTREGADO): Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR`, y siempre con la foto del remito (ADR-033): dispara el cobro contra entrega. La foto se valida por sus primeros bytes (JPEG, PNG o WEBP) y hasta 5 MB
+- `devolverADeposito`: Solo el `REPARTIDOR` que lleva el pedido o un `ADMINISTRADOR` (ADR-037). El pedido se forzó con un ID ajeno en el formulario: "no está asignado a vos". Al agotar las visitas el pedido vuelve al comercio (ADR-041); el cobro no lo anula el repartidor sino Pagos, por el tópico (`anularCobroPorDevolucion`, sin rol porque el MDB corre sin usuario, igual que `registrarCobroContraEntrega`)
+- `asignarDesdeEspera`, `sacarDeEspera`: Personal de Rabbit; en la práctica las llama `AsignadorDeEspera` con `@RunAs("OPERADOR")`. Va en un bean propio porque `AvisosDeEspera`, que lo dispara después del commit, no puede tener `@RunAs`: en esa fase Elytron no puede consultar el realm JDBC
+- `obtenerRemito` (`/remito?pedido=ID`): El personal, el `COMERCIO` dueño del pedido y su `REPARTIDOR`. Cualquier otro caso responde 404, sin distinguir si existe
+- `registrarUbicacion`: Solo el `REPARTIDOR`, para sí mismo y mientras tiene entregas en curso (ADR-035). El seguimiento público muestra la ubicación solo si el repartidor lleva ESE pedido
+- `liquidarMes`, `reintentarCobro`: Solo `ADMINISTRADOR` (o el timer mensual con `@RunAs`): cobran por el banco (ADR-034)
+- `previsualizarMesEnCursoDelComercioActual`, `resumenEntregasDelComercioActual`: Solo `COMERCIO`, y solo con sus entregas: el resumen de todos los comercios (`resumenEntregas`) es del personal
+- `UsuarioService.eliminarUsuario`, `RepartidorService.eliminarRepartidor`, `ZonaService.eliminarZona`, `ConsultaStockService.eliminarItem` (ADR-049): Solo `ADMINISTRADOR`: borran físicamente y no se deshacen (ADR-036). No se puede eliminar la propia cuenta, ni al último administrador activo, ni un repartidor con entregas en curso o con cuenta
+- `IConsultaStock.pesosPorItem`: Sin rol a propósito: la usa la sincronización de pedidos del ERP, que corre sin usuario (JMS y timer). Devuelve solo el peso de cada ítem; el listado completo del stock sigue siendo del personal
+- `registrarPedidoExterno`: Personal de Rabbit (simulación) o el `ERP`, que solo carga pedidos de su comercio (el comercio sale de su cuenta, no del cuerpo del pedido)
+- `cancelarPedido`, `cancelarPedidoExterno`: El personal (`cancelarPedido`) o el `ERP` (solo pedidos de su comercio que todavía estén pendientes). Nadie cancela un pedido que ya salió a reparto, aunque haya vuelto al depósito para otra visita (ADR-048)
+- **Puntos de picking (alta, baja, reactivación)**: Personal de Rabbit o el `COMERCIO` dueño
+- **Consultas del portal (`listarPedidosDelComercioActual`, `listarStockDelComercioActual`, `listarDelComercioActual`, `listarCobrosDelComercioActual`)**: Solo `COMERCIO`, y solo lo suyo. El cobro guarda el comercio dueño, así que Pagos valida la pertenencia sin consultar a Pedidos
+- **Listados de pedidos, pedidos del ERP y cobros (`listarTodos`, `listarPedidosExternos`, `listarEntregasEnCurso`, `obtenerCobroDePedido`)**: Solo el personal de Rabbit. `consultarPedidoExterno`, también el `ERP` (solo los de su comercio: uno ajeno responde como inexistente). `consultarSeguimiento` es pública a propósito (seguimiento sin login por código aleatorio, solo el estado)
+- **Transportistas: alta, baja, derivar un pedido (`derivarATransportista`), envíos**: Solo el personal de Rabbit. Un `COMERCIO` ve solo los envíos de sus pedidos (`listarEnviosDelComercioActual`)
+- **Ruteo: tablero de entregas / entregas del repartidor y su hoja de ruta recomendada (`recorridoRecomendado`)**: Personal de Rabbit / solo el `REPARTIDOR`, y solo las suyas
+- **Hoja de ruta de un repartidor puntual (`recorridoDeRepartidor`, `listarEntregasEnCursoDeRepartidor`)**: Solo el personal: tiene las direcciones de todos sus pedidos. El seguimiento público la usa a través de `LlegadaEstimadaService` con `@RunAs("OPERADOR")`, que devuelve solo la parada y la franja (ADR-043)
+- **Indicadores (`IIndicadores.calcular` / `calcularDelComercioActual`)**: El personal ve toda la red o un comercio; un `COMERCIO`, solo lo suyo (ADR-044)
+- **Avisos a destinatarios (`IAvisosAlDestinatario.listarRecientes`)**: Solo el personal: tienen el email de clientes finales (ADR-040)
+- **Ruteo: zonas (alta, baja, reactivación), `despacharPedido`, `despacharZona`, `listarPendientesPorZona`; zona de un repartidor (`asignarZona`)**: Solo el personal de Rabbit
+- `UsuarioService.listarTodos`: Expone el padrón completo de usuarios
+- `UsuarioService.darDeBaja`: Deja a un usuario sin acceso
+- `UsuarioService.reactivarUsuario`: Le devuelve el acceso a una cuenta dada de baja, con una contraseña nueva (la anterior no se puede recuperar del hash). Revalida que su comercio siga activo o que su repartidor no tenga otra cuenta activa
+- `UsuarioService.restablecerClave`: Cambia la contraseña de una cuenta activa: quien la cambia puede entrar como esa cuenta. También pasa a la base las cuentas creadas antes de ADR-031
+- `PagoService.anularCobro`: Revierte dinero ya registrado. Por eso cancelar un pedido CONFIRMADO (que ya tiene cobro) solo lo puede hacer un `ADMINISTRADOR`
+- `PedidosExternosResource` (`/api/v1/pedidos-externos`): Un sistema externo carga pedidos en Rabbit: solo el rol `ERP`. Sin credenciales responde `401`; con un usuario de otro rol, o un ERP sin comercio asociado, `403`. El `401` y el `403` por rol los responde WildFly en HTML, antes de llegar al código: es la seguridad declarativa en acción
 
 El suscriptor de Pagos al tópico (`SuscriptorPagosEstadoPedido`) corre
 sin usuario: por eso `registrarCobroContraEntrega` no lleva restricción de
@@ -90,7 +130,8 @@ repartidor del cliente:
 
 - las consultas del portal del comercio filtran por su comercio;
 - `despacharPedido` y `registrarEntrega` rechazan a un `REPARTIDOR` que no
-  tiene asignado ese pedido;
+  tiene asignado ese pedido, y el remito solo lo ve el comercio dueño o
+  ese repartidor;
 - `ComercioService` rechaza que un `COMERCIO` toque puntos de picking de
   otro comercio (y `comercio/puntos-picking.xhtml` ignora el `idComercio` de la URL
   para un comercio).
@@ -116,24 +157,25 @@ Cuando no alcanza con el rol, `UsuarioService.darDeBaja` controla además:
 
 ### Usuarios y archivos del realm
 
-`ApplicationRealmSync` escribe el username en los archivos de properties
-del realm, que son texto `usuario=valor` por línea. Un username con salto
-de línea, `=` o `:` podría alterar las entradas de otros usuarios. Por
-eso:
+Desde ADR-031 las altas van solo a la base, dentro de la transacción: si
+se deshace, no queda nada a medias. Los archivos de add-user.sh de cada
+máquina siguen existiendo (administrador inicial, cuentas viejas), y
+`ApplicationRealmSync` los toca en dos casos: para no crear desde la app
+una cuenta con un nombre que ya existe ahí, y para borrar la línea de una
+cuenta que se da de baja o pasa a la base. Esos archivos son texto
+`usuario=valor` por línea; un username con salto de línea, `=` o `:`
+podría alterar las entradas de otros usuarios. Por eso:
 
 - solo se aceptan letras, números, punto, guion y guion bajo, entre 3 y
   30 caracteres (se valida en `UsuarioService` y otra vez en
   `ApplicationRealmSync`);
-- no se puede crear un usuario que ya exista en el realm (por ejemplo, el
-  del ERP creado con `add-user.sh`): lo pisaría;
-- las escrituras se serializan para que dos altas simultáneas no se
-  pisen;
-- cada archivo se reemplaza de forma atómica (temporal + move), y los dos
-  van juntos: si falla el segundo, el primero vuelve a su contenido
-  original;
-- si el alta se deshace después de escribir el realm (por ejemplo, falla
-  el commit), se quita al usuario del realm. En la baja, el caso inverso
-  deja la cuenta sin acceso, que es el lado seguro.
+- las escrituras se serializan, y cada archivo se reemplaza de forma
+  atómica (temporal + move); si falla el segundo, el primero vuelve a su
+  contenido original.
+
+Una baja de una cuenta vieja borra su línea solo en la máquina donde se
+hace; en las demás la bloquea el realm JDBC, que encuentra la cuenta
+inactiva en la base y no sigue buscando en los archivos.
 
 ### Control de UX en la vista
 
@@ -145,8 +187,9 @@ Cada tipo de usuario ve su propio menú, y un usuario `ERP` no puede
 entrar a la web (el login lo rechaza). Las páginas están en una carpeta
 por tipo de usuario (`personal/`, `comercio/`, `repartidor/`), y la
 plantilla con el menú vive en `WEB-INF/plantillas/`, que el contenedor
-nunca sirve por URL. El link "Ver recorrido en el mapa" manda las
-direcciones del pedido a Google solo cuando alguien lo toca (Rabbit no
+nunca sirve por URL. Los links a Google Maps ("Ver recorrido en el mapa"
+en el tablero, "Abrir en Google Maps" en la hoja de ruta del repartidor)
+mandan las direcciones a Google solo cuando alguien los toca (Rabbit no
 llama a ningún servicio de mapas), y abre en otra pestaña con
 `rel="noopener noreferrer"`. **No es seguridad**: la vista puede
 ocultar botones, pero la autorización siempre la impone el EJB.
@@ -186,6 +229,66 @@ usa un certificado autofirmado).
   navegador. Si un ERP manda un pedido por HTTP, sus credenciales ya
   viajaron en claro antes del `302`.
 
+### Cabeceras de seguridad (SEC-05)
+
+`FiltroCabecerasDeSeguridad` agrega a todas las respuestas:
+
+- **`Content-Security-Policy`:** scripts, estilos, fuentes y conexiones solo de Rabbit (y de
+  `cdnjs.cloudflare.com` para las librerías; imágenes también de los tiles de OpenStreetMap);
+  `object-src 'none'`, `base-uri 'self'`, `form-action 'self'` y `frame-ancestors 'none'`.
+  Lleva `'unsafe-inline'` en scripts y estilos como desvío aceptado: JSF escribe los manejadores de
+  `f:ajax` en el HTML y no ofrece *nonce*.
+- **`X-Content-Type-Options: nosniff`** y **`X-Frame-Options: DENY`** (contra *clickjacking*).
+- **`Permissions-Policy`:** solo la ubicación (repartidor) y la cámara (fotos del remito y de la
+  visita fallida), y solo para Rabbit.
+- **`Referrer-Policy: strict-origin-when-cross-origin`:** a otro sitio va solo el origen, no la URL
+  con el número de pedido.
+
+La cookie de sesión lleva `SameSite=Lax`, que agrega Undertow (`WEB-INF/undertow-handlers.conf`):
+WildFly 41 ignora ese atributo en el `cookie-config` del `web.xml`.
+
+### HSTS (SEC-05, ADR-050)
+
+`CONFIDENTIAL` redirige un pedido por HTTP *después* de que ya viajó en
+claro. `FiltroHsts` agrega la cabecera `Strict-Transport-Security:
+max-age=31536000` a las respuestas por HTTPS: el navegador recuerda que
+Rabbit es solo HTTPS y no vuelve a probar por HTTP.
+
+- Solo se manda por HTTPS (por HTTP el navegador debe ignorarla).
+- Con el certificado autofirmado de desarrollo el navegador la ignora, así
+  que no traba el acceso local; empieza a valer con un certificado válido.
+- `-Drabbit.hsts.max.age=<segundos>` la ajusta (por defecto, 1 año); `0` la
+  apaga. Sin `includeSubDomains` ni `preload`.
+
+### Logs sin datos personales (SEC-09, ADR-050)
+
+El log del servidor lo lee más gente que la que ve el pedido y se guarda
+mucho tiempo. Reglas:
+
+- Se loguea el **ID del pedido**, no a quién se le entrega.
+- El **email se enmascara** (`DatosPersonales.emailEnmascarado`):
+  `cliente@correo.test` queda `c******@correo.test`. Los mensajes de error de
+  JavaMail, que a veces traen la dirección que falló, pasan por
+  `DatosPersonales.sinEmails`.
+- La **dirección de entrega no se escribe** en ningún log (tampoco en los
+  simuladores de transportistas). Tampoco sus **coordenadas**: el
+  geocodificador (`Geocodificador`) solo registra «dirección ubicada» o «no
+  encontrada», y ante una falla de Nominatim, el tipo de error y no su
+  mensaje (el de una URI inválida trae la dirección entera). Hasta el
+  02/11/2026 registraba el texto de la dirección y sus coordenadas; se
+  corrigió al revisar el log de un arranque.
+
+Probado en `DatosPersonalesTest` y, para el geocodificador, en
+`RuteoServiciosTest.elLogNoTraeLaDireccionNiLasCoordenadas`.
+
+### Mensajes JMS mínimos (SEC-08)
+
+La cola lleva solo `idPedidoExterno`; el tópico, `idPedido`, `idComercio`,
+`estado` y `fechaCambio`. Nada de direcciones, emails, teléfonos ni importes:
+el consumidor lee el resto de la base. Los publicadores arman el cuerpo en
+`construirPayload`, y `MensajesJmsMinimosTest` verifica los campos exactos y
+que no aparezca ninguno de los prohibidos, sin necesidad de un broker.
+
 ### Credenciales fuera del repositorio
 
 El repositorio es público: ninguna credencial va en el código. Las de la
@@ -196,10 +299,32 @@ base viven en el datasource de WildFly y las de management (para
 
 - `seguimiento.xhtml?codigo=RB-...` (`SeguimientoBean`): la misma consulta
   que la API de abajo, en una página para personas. Muestra solo el estado
-  (con una línea de tiempo); el código aleatorio es lo único que la abre.
+  (con una línea de tiempo), el día prometido y, en camino, la parada y la
+  franja (ADR-042 y 043); el código aleatorio es lo único que la abre.
+  Nunca muestra los datos de quien recibe (ADR-039).
+- **Calificar la entrega** (ADR-052): desde `seguimiento.xhtml`, quien recibe el
+  pedido deja de 1 a 5 estrellas y un comentario opcional. Es una de las **dos
+  escrituras públicas** de Rabbit (la otra es la de abajo), así que está acotada: la autoriza el código
+  aleatorio del pedido; solo se acepta si el pedido ya está ENTREGADO; una sola
+  vez por pedido (`idPedido` único: una segunda, o dos a la vez, se rechazan);
+  1 a 5 estrellas; comentario de hasta 500 caracteres, sin caracteres de control
+  (`ReglaDeCalificacion`, probada en `ReglaDeCalificacionTest`). El comentario es
+  texto de un tercero: se muestra siempre escapado (`#{...}` de JSF) y no se escribe
+  en el log. El formulario lleva el ViewState de JSF (protección contra CSRF). No se
+  guarda quién calificó.
+- **Cambiar la entrega** (ADR-057, `modificarEntrega`, sin rol): desde `seguimiento.xhtml`,
+  quien recibe puede reprogramar el día, dejar instrucciones o autorizar a otra persona. Es la
+  otra escritura pública, también acotada: la autoriza el código aleatorio; solo mientras el
+  pedido está PENDIENTE o CONFIRMADO con un repartidor de Rabbit (no si salió a reparto, si lo
+  lleva un transportista o si es un retiro en depósito); el día, hasta 7 días desde hoy y no
+  antes de lo prometido; instrucciones hasta 200 caracteres y nombre hasta 100; como máximo 5
+  cambios por pedido (`ReglaDeOpcionesDeEntrega`, probada en `ReglaDeOpcionesDeEntregaTest`).
+  Cada cambio le llega por mail a quien recibe, así que un cambio hecho por un tercero no pasa
+  inadvertido. No reemplaza el código de entrega (ADR-055): quien reciba igual tiene que darlo.
 - `GET /api/v1/seguimiento/{codigo}` (`SeguimientoResource`, `@PermitAll`),
-  a propósito: devuelve solo el estado del pedido, sin importes, cobros ni
-  datos del comercio. Entra por un código aleatorio (`RB-` + 10
+  a propósito: devuelve solo el estado del pedido, la fecha prometida y la
+  parada/franja, sin importes, cobros, direcciones ni datos del comercio o
+  de quien recibe. Entra por un código aleatorio (`RB-` + 10
   caracteres, `SecureRandom`), no por el ID secuencial, así no se puede
   recorrer el estado de todos los pedidos.
 - El banco simulado (`BancoLegadoService`, SOAP): no es parte de Rabbit
@@ -214,17 +339,21 @@ Además, el login y la página de error, que tienen que verse sin sesión.
 
 ## Limitaciones conocidas
 
+- HSTS (`FiltroHsts`) no tiene efecto con el certificado autofirmado de
+  desarrollo: los navegadores la ignoran si el certificado no es válido.
+  Hay que verificarla con un certificado reconocido.
 - El certificado HTTPS de WildFly es autofirmado (el navegador advierte,
   `curl` necesita `-k`). En producción iría un certificado de una
   autoridad reconocida en el `key-store` de Elytron.
-- Las contraseñas del realm de WildFly son un MD5 de
-  `usuario:ApplicationRealm:contraseña` (el formato que exige el
-  properties-realm): el usuario hace de salt, pero MD5 es rápido de
-  probar. En producción iría un realm JDBC o LDAP con bcrypt/PBKDF2.
-  Mínimo de 6 caracteres.
+- Las cuentas que siguen en los archivos de add-user.sh (el administrador
+  inicial, las viejas sin migrar) tienen un MD5 de
+  `usuario:ApplicationRealm:contraseña`, rápido de probar. Las de la base
+  usan bcrypt. Mínimo de 8 caracteres (ASVS 5.0, V6.2.1). Para que una
+  cuenta vieja pase a bcrypt, un administrador le restablece la contraseña
+  desde `personal/usuarios.xhtml`.
 - El límite de intentos vive en memoria de cada servidor: se pierde al
-  reiniciar y, con varios nodos, cada uno cuenta por su lado. La API del
-  ERP (HTTP Basic, autenticada por WildFly) no tiene ese freno.
+  reiniciar y, con varios nodos, cada uno cuenta por su lado. Lo comparten
+  el login web y la API del ERP.
 - El banco simulado (`BancoLegadoService`) se publica sin autenticación.
   En producción no viviría dentro de Rabbit: por eso existe también como
   servicio aparte en Node.js (`banco-legado/`), que Rabbit usa apuntando

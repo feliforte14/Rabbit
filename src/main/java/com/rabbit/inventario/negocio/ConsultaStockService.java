@@ -22,6 +22,7 @@ package com.rabbit.inventario.negocio;
 
 import com.rabbit.comercios.negocio.IConsultaComercios;
 import com.rabbit.inventario.datos.InventarioRepository;
+import com.rabbit.inventario.datos.model.CategoriaDeTamano;
 import com.rabbit.inventario.datos.model.Deposito;
 import com.rabbit.inventario.datos.model.ItemInventario;
 import com.rabbit.inventario.dto.*;
@@ -33,8 +34,12 @@ import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
+import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
+import jakarta.persistence.OptimisticLockException;
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -48,6 +53,9 @@ import java.util.stream.Collectors;
 @PermitAll
 public class ConsultaStockService implements IConsultaStock {
 
+    private static final BigDecimal PESO_MAXIMO_KG = new BigDecimal("1000");
+    private static final BigDecimal MEDIDA_MAXIMA_CM = new BigDecimal("1000");
+
     @Inject
     private IContextoUsuario contextoUsuario;
 
@@ -56,6 +64,9 @@ public class ConsultaStockService implements IConsultaStock {
 
     @Inject
     private IConsultaComercios comercios;
+
+    @Inject
+    private Event<EliminacionDeItem> eliminacionDeItem;
 
     @Override
     @TransactionAttribute(TransactionAttributeType.REQUIRED)
@@ -74,6 +85,16 @@ public class ConsultaStockService implements IConsultaStock {
         deposito.setLocalidad(datos.localidad.trim());
         deposito.setCodigoPostal(datos.codigoPostal.trim());
         return repository.guardarDeposito(deposito).getId();
+    }
+
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void marcarBaseDeSalida(Long idDeposito) {
+        Deposito elegido = obtenerDepositoOFallar(idDeposito);
+        for (Deposito d : repository.listarDepositos()) {
+            d.setBaseDeSalida(d.getId().equals(elegido.getId()));
+        }
     }
 
     // Devuelve el depósito como DTO (nunca expone la entidad directamente)
@@ -98,6 +119,9 @@ public class ConsultaStockService implements IConsultaStock {
         Deposito deposito = obtenerDepositoOFallar(idDeposito);
         validarProducto(datos.producto);
         validarCantidad(datos.cantidadDisponible);
+        validarPeso(datos.pesoKg);
+        validarMedidas(datos.altoCm, datos.anchoCm, datos.largoCm, true);
+        validarTamano(datos.pesoKg, datos.altoCm, datos.anchoCm, datos.largoCm);
 
         // Cargar stock es registrar una consignacion: sin comercio dueño,
         // la mercaderia no seria de nadie y nadie podria reservarla.
@@ -119,7 +143,84 @@ public class ConsultaStockService implements IConsultaStock {
         item.setCantidadReservada(0);
         item.setDeposito(deposito);
         item.setIdComercio(datos.idComercio);
+        item.setPesoKg(datos.pesoKg);
+        item.setMedidas(datos.altoCm, datos.anchoCm, datos.largoCm);
+        // Entró mercadería: arrancan los días gratis y la antigüedad.
+        item.registrarIngreso(LocalDate.now());
         return repository.guardarItem(item).getId();
+    }
+
+    // Corregir lo que se cargó mal o ajustar la cantidad después de contar
+    // el depósito. El dueño no se cambia: sería pasarle mercadería de un
+    // comercio a otro.
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public void actualizarItem(Long idItem, DatosItemInventarioDTO datos) {
+        ItemInventario item = obtenerItemOFallar(idItem);
+        validarProducto(datos.producto);
+        validarPeso(datos.pesoKg);
+        // Las medidas (ADR-059) son opcionales al editar: vacías = se conservan las que ya tenía.
+        validarMedidas(datos.altoCm, datos.anchoCm, datos.largoCm, false);
+        boolean conMedidasNuevas = datos.altoCm != null;
+        validarTamano(datos.pesoKg,
+                conMedidasNuevas ? datos.altoCm : item.getAltoCm(),
+                conMedidasNuevas ? datos.anchoCm : item.getAnchoCm(),
+                conMedidasNuevas ? datos.largoCm : item.getLargoCm());
+        String motivo = ReglasDeStock.motivoParaNoCambiarCantidad(
+                datos.cantidadDisponible, item.getCantidadReservada());
+        if (motivo != null) {
+            throw new ValidacionException(motivo);
+        }
+        String producto = datos.producto.trim();
+        if (repository.existeProductoEnDeposito(producto, item.getDeposito().getId(),
+                item.getIdComercio(), item.getId())) {
+            throw new ValidacionException("El producto \"" + producto
+                    + "\" ya tiene stock de este comercio cargado en este depósito");
+        }
+        item.setProducto(producto);
+        // Una corrección hacia arriba es mercadería que entró: reinicia los días gratis. Hacia abajo no es una
+        // venta ni un ingreso, así que no toca las fechas.
+        if (datos.cantidadDisponible > item.getCantidadDisponible()) {
+            item.registrarIngreso(LocalDate.now());
+        }
+        item.setCantidadDisponible(datos.cantidadDisponible);
+        item.setPesoKg(datos.pesoKg);
+        if (conMedidasNuevas) {
+            item.setMedidas(datos.altoCm, datos.anchoCm, datos.largoCm);
+        }
+        try {
+            repository.actualizarItem(item);
+            repository.sincronizar();
+        } catch (OptimisticLockException e) {
+            // Alguien reservó o confirmó de este ítem mientras tanto.
+            throw new ValidacionException("El stock de \"" + producto
+                    + "\" cambió recién (se reservó o se despachó). Volvé a abrirlo y guardá de nuevo.");
+        }
+    }
+
+    // Solo el administrador, como el resto de las eliminaciones (ADR-036).
+    @Override
+    @TransactionAttribute(TransactionAttributeType.REQUIRED)
+    @RolesAllowed("ADMINISTRADOR")
+    public void eliminarItem(Long idItem) {
+        ItemInventario item = obtenerItemOFallar(idItem);
+        String motivo = ReglasDeStock.motivoParaNoEliminar(item.getCantidadReservada());
+        if (motivo != null) {
+            throw new ValidacionException(motivo);
+        }
+        EliminacionDeItem evento = new EliminacionDeItem(idItem);
+        eliminacionDeItem.fire(evento);
+        if (!evento.getImpedimentos().isEmpty()) {
+            throw new ValidacionException("No se puede eliminar \"" + item.getProducto() + "\" todavía: "
+                    + String.join("; ", evento.getImpedimentos())
+                    + ". Si se cancela un pedido, el stock tiene que volver a este ítem: se puede eliminar cuando terminen.");
+        }
+        int historial = repository.desvincularReservasDeItem(idItem);
+        repository.eliminarItem(item);
+        java.util.logging.Logger.getLogger(ConsultaStockService.class.getName()).info(
+                "[Inventario] Ítem " + idItem + " (" + item.getProducto() + ") eliminado; "
+                        + historial + " reserva(s) quedan en el historial");
     }
 
     // TODO el stock de un depósito, de todos los comercios — vista de operador.
@@ -138,6 +239,21 @@ public class ConsultaStockService implements IConsultaStock {
         return repository.listarItemsPorIds(idsItems).stream()
                 .map(ItemInventarioDTO::desde)
                 .collect(Collectors.toList());
+    }
+
+    @Override
+    public java.util.Map<Long, BigDecimal> pesosPorItem(Collection<Long> idsItems) {
+        java.util.Map<Long, BigDecimal> pesos = new java.util.HashMap<>();
+        repository.listarItemsPorIds(idsItems).forEach(item -> pesos.put(item.getId(), item.getPesoKg()));
+        return pesos;
+    }
+
+    @Override
+    public java.util.Map<Long, Long> depositosPorItem(Collection<Long> idsItems) {
+        java.util.Map<Long, Long> depositos = new java.util.HashMap<>();
+        repository.listarItemsPorIds(idsItems).forEach(item ->
+                depositos.put(item.getId(), item.getDeposito() != null ? item.getDeposito().getId() : null));
+        return depositos;
     }
 
     // Stock consignado del comercio que representa el usuario que llama.
@@ -214,11 +330,67 @@ public class ConsultaStockService implements IConsultaStock {
 
     // --- Validaciones de negocio ---
 
+    // Kilos por unidad: obligatorio, mayor a cero, hasta 1000 kg y 3
+    // decimales (gramos).
+    // Alto, ancho y largo de UNA unidad, en centímetros (ADR-059): las tres o ninguna.
+    private void validarMedidas(BigDecimal alto, BigDecimal ancho, BigDecimal largo, boolean obligatorias) {
+        if (alto == null && ancho == null && largo == null) {
+            if (obligatorias) {
+                throw new ValidacionException("Ingresá las medidas de una unidad: alto, ancho y largo, en centímetros");
+            }
+            return;
+        }
+        if (alto == null || ancho == null || largo == null) {
+            throw new ValidacionException("Cargá las tres medidas (alto, ancho y largo) o ninguna");
+        }
+        for (BigDecimal medida : new BigDecimal[] {alto, ancho, largo}) {
+            if (medida.signum() <= 0 || medida.compareTo(MEDIDA_MAXIMA_CM) > 0) {
+                throw new ValidacionException("Cada medida tiene que ser mayor a 0 y de hasta " + MEDIDA_MAXIMA_CM + " cm");
+            }
+            if (medida.stripTrailingZeros().scale() > 1) {
+                throw new ValidacionException("Las medidas admiten hasta 1 decimal (milímetros)");
+            }
+        }
+    }
+
+    // Lo que no entra ni en la categoría más grande no se acepta en consignación (ADR-059).
+    private void validarTamano(BigDecimal pesoKg, BigDecimal alto, BigDecimal ancho, BigDecimal largo) {
+        if (CategoriaDeTamano.de(pesoKg, alto, ancho, largo) == CategoriaDeTamano.FUERA_DE_RANGO) {
+            throw new ValidacionException("El producto supera el tamaño máximo que se acepta en consignación "
+                    + "(categoría Grande): se cotiza aparte");
+        }
+    }
+
+    private void validarPeso(BigDecimal pesoKg) {
+        if (pesoKg == null) {
+            throw new ValidacionException("Ingresá el peso por unidad, en kilos");
+        }
+        if (pesoKg.signum() <= 0 || pesoKg.compareTo(PESO_MAXIMO_KG) > 0) {
+            throw new ValidacionException("El peso por unidad tiene que ser mayor a 0 y de hasta "
+                    + PESO_MAXIMO_KG + " kg");
+        }
+        if (pesoKg.stripTrailingZeros().scale() > 3) {
+            throw new ValidacionException("El peso admite hasta 3 decimales (gramos)");
+        }
+    }
+
+    // Un texto de la base entra con hasta 255 caracteres y sin el byte nulo: PostgreSQL rechaza las dos cosas y,
+    // sin esta validación, el usuario veía un error del servidor en lugar de un mensaje.
+    private static void exigirTextoSeguro(String valor, String campo) {
+        if (valor.length() > 255) {
+            throw new ValidacionException("Como máximo 255 caracteres en " + campo);
+        }
+        if (valor.indexOf('\u0000') >= 0) {
+            throw new ValidacionException("Hay caracteres no permitidos en " + campo);
+        }
+    }
+
     // Nombre obligatorio, sin más restricción de formato.
     private void validarNombreDeposito(String nombre) {
         if (nombre == null || nombre.isBlank()) {
             throw new ValidacionException("El nombre del depósito es obligatorio");
         }
+        exigirTextoSeguro(nombre, "el nombre del depósito");
     }
 
     // Dirección obligatoria, sin más restricción de formato.
@@ -226,6 +398,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (direccion == null || direccion.isBlank()) {
             throw new ValidacionException("La dirección del depósito es obligatoria");
         }
+        exigirTextoSeguro(direccion, "la dirección del depósito");
     }
 
     // Provincia obligatoria, sin más restricción de formato.
@@ -233,6 +406,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (provincia == null || provincia.isBlank()) {
             throw new ValidacionException("La provincia del depósito es obligatoria");
         }
+        exigirTextoSeguro(provincia, "la provincia del depósito");
     }
 
     // Localidad obligatoria, sin más restricción de formato.
@@ -240,6 +414,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (localidad == null || localidad.isBlank()) {
             throw new ValidacionException("La localidad del depósito es obligatoria");
         }
+        exigirTextoSeguro(localidad, "la localidad del depósito");
     }
 
     // Código postal obligatorio, sin más restricción de formato.
@@ -247,6 +422,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (codigoPostal == null || codigoPostal.isBlank()) {
             throw new ValidacionException("El código postal del depósito es obligatorio");
         }
+        exigirTextoSeguro(codigoPostal, "el código postal del depósito");
     }
 
     // Nombre de producto obligatorio, sin más restricción de formato.
@@ -254,6 +430,7 @@ public class ConsultaStockService implements IConsultaStock {
         if (producto == null || producto.isBlank()) {
             throw new ValidacionException("El nombre del producto es obligatorio");
         }
+        exigirTextoSeguro(producto, "el nombre del producto");
     }
 
     // Solo rechaza negativos: 0 es una carga válida (por ejemplo, para

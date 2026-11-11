@@ -8,6 +8,7 @@ package com.rabbit.pagos.negocio;
 
 import com.rabbit.comercios.negocio.ComercioEliminado;
 import com.rabbit.pagos.datos.CobroRepository;
+import com.rabbit.pagos.datos.LiquidacionRepository;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.inject.Inject;
@@ -21,8 +22,13 @@ public class ReferenciasAComercioEnPagos {
     @Inject
     private CobroRepository repository;
 
+    @Inject
+    private LiquidacionRepository liquidaciones;
+
     public void alConfirmarEliminacion(@Observes ComercioEliminado evento) {
         int borrados = repository.eliminarCobrosDeComercio(evento.getIdComercio());
-        LOG.info("[Pagos] Comercio " + evento.getIdComercio() + " eliminado: se borraron " + borrados + " cobro(s)");
+        int liquidacionesBorradas = liquidaciones.eliminarDeComercio(evento.getIdComercio());
+        LOG.info("[Pagos] Comercio " + evento.getIdComercio() + " eliminado: se borraron " + borrados
+                + " cobro(s) y " + liquidacionesBorradas + " liquidación(es)");
     }
 }

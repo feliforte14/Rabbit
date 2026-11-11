@@ -34,6 +34,7 @@ import com.rabbit.comercios.dto.*;
 import com.rabbit.comercios.datos.model.Comercio;
 import com.rabbit.comercios.datos.model.PuntoPicking;
 import com.rabbit.comercios.datos.ComercioRepository;
+import com.rabbit.infraestructura.FormatoDeEmail;
 import com.rabbit.seguridad.negocio.IContextoUsuario;
 import jakarta.annotation.Resource;
 import jakarta.ejb.SessionContext;
@@ -156,8 +157,6 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
 
     private static final java.util.regex.Pattern PATRON_CUIT =
             java.util.regex.Pattern.compile("^\\d{2}-?\\d{8}-?\\d$");
-    private static final java.util.regex.Pattern PATRON_EMAIL =
-            java.util.regex.Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
 
     // Nombre comercial obligatorio, sin más restricción de formato.
     private void validarNombre(String nombre) {
@@ -195,7 +194,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
 
     // Email opcional: solo se valida el formato si se cargó alguno.
     private void validarEmail(String email) {
-        if (email != null && !email.isBlank() && !PATRON_EMAIL.matcher(email.trim()).matches()) {
+        if (email != null && !email.isBlank() && !FormatoDeEmail.tieneFormato(email.trim())) {
             throw new ValidacionException("El email tiene un formato inválido");
         }
     }
@@ -289,11 +288,22 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
                 .collect(Collectors.toList());
     }
 
+    // Un texto de la base entra con hasta 255 caracteres y sin el byte nulo (ver ConsultaStockService).
+    private static void exigirTextoSeguro(String valor, String campo) {
+        if (valor.length() > 255) {
+            throw new ValidacionException("Como máximo 255 caracteres en " + campo);
+        }
+        if (valor.indexOf('\u0000') >= 0) {
+            throw new ValidacionException("Hay caracteres no permitidos en " + campo);
+        }
+    }
+
     // Nombre obligatorio, sin más restricción de formato.
     private void validarNombrePuntoPicking(String nombre) {
         if (nombre == null || nombre.isBlank()) {
             throw new ValidacionException("El nombre del punto de picking es obligatorio");
         }
+        exigirTextoSeguro(nombre, "el nombre del punto de picking");
     }
 
     // Dirección obligatoria, sin más restricción de formato.
@@ -301,6 +311,7 @@ public class ComercioService implements IRegistroComercios, IConsultaComercios {
         if (direccion == null || direccion.isBlank()) {
             throw new ValidacionException("La dirección del punto de picking es obligatoria");
         }
+        exigirTextoSeguro(direccion, "la dirección del punto de picking");
     }
 
     // Lanza excepción si el punto de picking no existe — evita repetir

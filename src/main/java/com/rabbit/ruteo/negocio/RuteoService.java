@@ -21,9 +21,12 @@ package com.rabbit.ruteo.negocio;
  * Un pedido derivado a un transportista externo no tiene repartidor: la
  * hoja de ruta muestra el transportista y su código de seguimiento.
  *
- * Fuera de alcance: ordenar las paradas por distancia (no hay coordenadas
- * ni geocodificación) y juntar varios pedidos en un mismo viaje: un
- * repartidor lleva un pedido a la vez (ver ADR-017).
+ * Un repartidor con capacidad cargada lleva varios pedidos a la vez
+ * (ADR-032): el despacho por zona se fija a quién le entra cada pedido, no
+ * solo quién está libre. El orden recomendado de las paradas es por
+ * distancia en línea recta entre las direcciones ya ubicadas en el mapa
+ * (OpenStreetMap, ADR-046) y por cercanía de código postal las que todavía
+ * no (ver OrdenDeRecorrido).
  */
 
 import com.rabbit.comercios.dto.ComercioDTO;
@@ -39,6 +42,8 @@ import com.rabbit.pedidos.negocio.ISeguimientoPedido;
 import com.rabbit.repartidores.dto.RepartidorDTO;
 import com.rabbit.repartidores.negocio.IGestionRepartidores;
 import com.rabbit.ruteo.dto.HojaDeRutaDTO;
+import com.rabbit.ruteo.dto.ParadaDTO;
+import com.rabbit.ruteo.dto.RecorridoDTO;
 import com.rabbit.transportistas.dto.EnvioDTO;
 import com.rabbit.transportistas.negocio.IEnvios;
 import com.rabbit.pedidos.negocio.IGestionPedidos;
@@ -60,6 +65,7 @@ import jakarta.annotation.security.PermitAll;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.ejb.Stateless;
 import jakarta.inject.Inject;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -74,7 +80,7 @@ public class RuteoService implements IRuteo {
 
     private static final java.util.logging.Logger LOG = java.util.logging.Logger.getLogger(RuteoService.class.getName());
 
-    private static final Set<String> TERMINADOS = Set.of("ENTREGADO", "CANCELADO");
+    private static final Set<String> TERMINADOS = Set.of("ENTREGADO", "CANCELADO", "DEVUELTO_AL_COMERCIO");
 
     @Inject
     private ISeguimientoPedido pedidos;
@@ -102,6 +108,10 @@ public class RuteoService implements IRuteo {
     @Inject
     private IGestionTransportistas transportistas;
 
+    // Coordenadas de las direcciones, para ordenar por distancia (ADR-046).
+    @Inject
+    private CacheDeCoordenadas coordenadas;
+
     @Override
     @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
     public List<HojaDeRutaDTO> listarEntregasEnCurso() {
@@ -120,12 +130,43 @@ public class RuteoService implements IRuteo {
 
     @Override
     @RolesAllowed("REPARTIDOR")
-    public HojaDeRutaDTO entregaActualDelRepartidor() {
-        List<PedidoDTO> enCurso = pedidos.listarPedidosDelRepartidorActual().stream()
+    public List<HojaDeRutaDTO> entregasEnCursoDelRepartidor() {
+        return armar(pedidos.listarPedidosDelRepartidorActual().stream()
                 .filter(p -> !TERMINADOS.contains(p.getEstado()))
-                .limit(1)
-                .collect(Collectors.toList());
-        return enCurso.isEmpty() ? null : armar(enCurso).get(0);
+                .sorted(Comparator.comparing(PedidoDTO::getId))
+                .collect(Collectors.toList()));
+    }
+
+    @Override
+    @RolesAllowed("REPARTIDOR")
+    public RecorridoDTO recorridoRecomendado(List<HojaDeRutaDTO> entregasEnCurso) {
+        return OrdenDeRecorrido.recomendar(entregasEnCurso, depositoDeSalida());
+    }
+
+    @Override
+    @RolesAllowed({"ADMINISTRADOR", "OPERADOR"})
+    public RecorridoDTO recorridoDeRepartidor(Long idRepartidor) {
+        return OrdenDeRecorrido.recomendar(armar(pedidos.listarEntregasEnCursoDeRepartidor(idRepartidor)),
+                depositoDeSalida());
+    }
+
+    @Override
+    @jakarta.annotation.security.PermitAll
+    public ParadaDTO depositoDeSalida() {
+        ParadaDTO salida = DepositoRabbit.salida(stock.listarDepositos());
+        if (salida.direccion != null) {
+            String clave = Nominatim.clave(salida.direccion, salida.codigoPostal);
+            try {
+                double[] c = coordenadas.encontradas(List.of(clave)).get(clave);
+                if (c != null) {
+                    salida.latitud = c[0];
+                    salida.longitud = c[1];
+                }
+            } catch (RuntimeException e) {
+                LOG.warning("[Ruteo] No se pudo ubicar el depósito de salida: " + e.getMessage());
+            }
+        }
+        return salida;
     }
 
     @Override
@@ -157,9 +198,46 @@ public class RuteoService implements IRuteo {
         Map<Long, ItemInventarioDTO> itemsPorId = stock.listarItemsPorIds(idsItems).stream()
                 .collect(Collectors.toMap(i -> i.id, Function.identity()));
 
-        return lista.stream()
+        List<HojaDeRutaDTO> hojas = lista.stream()
                 .map(p -> armar(p, comerciosPorId, repartidoresPorId, depositosPorId, itemsPorId))
                 .collect(Collectors.toList());
+        ubicar(hojas);
+        return hojas;
+    }
+
+    // Les pone a las paradas las coordenadas que ya están en la caché
+    // (ADR-046), con una sola consulta. Lo que falta lo ubica Geocodificador
+    // en segundo plano; mientras tanto, esa parada se ordena por CP.
+    private void ubicar(List<HojaDeRutaDTO> hojas) {
+        List<String> claves = new ArrayList<>();
+        for (HojaDeRutaDTO hoja : hojas) {
+            hoja.paradasRetiro.forEach(r -> claves.add(Nominatim.clave(r.direccion, r.codigoPostal)));
+            if (hoja.direccionEntrega != null) {
+                claves.add(Nominatim.clave(hoja.direccionEntrega, hoja.codigoPostalEntrega));
+            }
+        }
+        Map<String, double[]> ubicadas;
+        try {
+            ubicadas = coordenadas.encontradas(claves);
+        } catch (RuntimeException e) {
+            LOG.warning("[Ruteo] No se pudo leer la caché de coordenadas: " + e.getMessage());
+            return;
+        }
+        for (HojaDeRutaDTO hoja : hojas) {
+            for (ParadaDTO retiro : hoja.paradasRetiro) {
+                double[] c = ubicadas.get(Nominatim.clave(retiro.direccion, retiro.codigoPostal));
+                if (c != null) {
+                    retiro.latitud = c[0];
+                    retiro.longitud = c[1];
+                }
+            }
+            double[] c = hoja.direccionEntrega != null
+                    ? ubicadas.get(Nominatim.clave(hoja.direccionEntrega, hoja.codigoPostalEntrega)) : null;
+            if (c != null) {
+                hoja.latitudEntrega = c[0];
+                hoja.longitudEntrega = c[1];
+            }
+        }
     }
 
     private HojaDeRutaDTO armar(PedidoDTO p, Map<Long, ComercioDTO> comerciosPorId,
@@ -174,12 +252,26 @@ public class RuteoService implements IRuteo {
         hoja.cantidadTotal = p.getCantidadTotal();
         hoja.direccionEntrega = p.getDireccionEntrega();
         hoja.actualizado = p.getFechaActualizacion();
+        hoja.pesoKg = p.getPesoKg();
+        hoja.conRemito = p.isConRemito();
         hoja.cobrarAlEntregar = p.getMedioPago() == MedioPago.CONTRA_ENTREGA ? p.getImporte() : null;
+        hoja.nombreDestinatario = p.getNombreDestinatario();
+        hoja.telefonoDestinatario = p.getTelefonoDestinatario();
+        hoja.instrucciones = p.getInstruccionesEntrega();
+        hoja.autorizado = p.getNombreAutorizado();
+        hoja.diaPedidoPorElCliente = p.isReprogramado() && p.getFechaPrometida() != null
+                ? p.getFechaPrometida().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) : null;
+        hoja.intentosFallidos = p.getIntentosFallidos();
+        hoja.motivoUltimoIntento = p.getMotivoEntregaFallida() != null ? p.getMotivoEntregaFallida().getDescripcion() : null;
 
         ComercioDTO comercio = comerciosPorId.get(p.getIdComercio());
         hoja.comercio = comercio != null ? comercio.nombre : "Comercio " + p.getIdComercio();
         List<Retiro> retiros = retiros(p, comercio, depositosPorId, itemsPorId);
         hoja.retiros = retiros.stream().map(Retiro::descripcion).collect(Collectors.toList());
+        hoja.paradasRetiro = retiros.stream()
+                .map(r -> new ParadaDTO(ParadaDTO.Tipo.RETIRO, r.descripcion(), r.direccion(), r.codigoPostal(), p.getId()))
+                .collect(Collectors.toList());
+        hoja.codigoPostalEntrega = p.getCodigoPostalEntrega();
         hoja.urlMapa = EnlaceMapa.recorrido(
                 retiros.stream().map(Retiro::direccion).collect(Collectors.toList()), p.getDireccionEntrega());
 
@@ -191,9 +283,9 @@ public class RuteoService implements IRuteo {
         return hoja;
     }
 
-    // Un lugar de retiro: el texto para la hoja de ruta y la dirección sola
-    // para el mapa.
-    private record Retiro(String descripcion, String direccion) {
+    // Un lugar de retiro: el texto para la hoja de ruta, la dirección sola
+    // para el mapa y el CP para ordenar el recorrido (null si no se sabe).
+    private record Retiro(String descripcion, String direccion, String codigoPostal) {
     }
 
     // Lugares de retiro: el punto de picking del comercio, o los depósitos
@@ -207,7 +299,7 @@ public class RuteoService implements IRuteo {
             }
             return comercio.getPuntosPicking().stream()
                     .filter(pp -> pp.id.equals(p.getIdPuntoPicking()))
-                    .map(pp -> new Retiro("Punto de picking " + pp.nombre + " — " + pp.direccion, pp.direccion))
+                    .map(pp -> new Retiro("Punto de picking " + pp.nombre + " — " + pp.direccion, pp.direccion, null))
                     .collect(Collectors.toList());
         }
         return p.getLineas().stream()
@@ -219,7 +311,7 @@ public class RuteoService implements IRuteo {
                 .map(depositosPorId::get)
                 .filter(Objects::nonNull)
                 .map(d -> new Retiro(d.getEtiqueta() + " — " + d.direccion + ", " + d.localidad,
-                        d.direccion + ", " + d.localidad))
+                        d.direccion + ", " + d.localidad, d.codigoPostal))
                 .collect(Collectors.toList());
     }
 
@@ -233,8 +325,9 @@ public class RuteoService implements IRuteo {
         List<ZonaDTO> activas = zonas.listarTodas().stream().filter(ZonaDTO::isActiva).collect(Collectors.toList());
         Map<Long, String> nombresTransportistas = transportistas.listarTodos().stream()
                 .collect(Collectors.toMap(TransportistaDTO::getId, TransportistaDTO::getNombre));
+        // "Libres": a los que les queda lugar para algo más (ADR-032).
         List<RepartidorDTO> libres = repartidores.listarTodos().stream()
-                .filter(r -> "DISPONIBLE".equals(r.getEstado())).collect(Collectors.toList());
+                .filter(RepartidorDTO::isConLugar).collect(Collectors.toList());
 
         Map<Long, GrupoZonaDTO> grupos = new LinkedHashMap<>();
         for (ZonaDTO z : activas) {
@@ -293,9 +386,9 @@ public class RuteoService implements IRuteo {
     }
 
     /**
-     * Lo que un despacho necesita saber de la red, cargado una vez. Los
-     * repartidores se van marcando ocupados a medida que se les asignan
-     * pedidos del lote, así el siguiente pedido ve la disponibilidad real.
+     * Lo que un despacho necesita saber de la red, cargado una vez. A los
+     * repartidores se les va sumando cada pedido del lote que se les
+     * asigna, así el siguiente pedido ve el lugar que les queda de verdad.
      */
     private final class Despacho {
         final List<ZonaDTO> zonas = RuteoService.this.zonas.listarTodas().stream()
@@ -309,9 +402,11 @@ public class RuteoService implements IRuteo {
             return zonas.stream().filter(z -> z.contiene(codigoPostal)).findFirst().orElse(null);
         }
 
-        boolean hayLibreEn(ZonaDTO zona) {
+        // Si a algún repartidor de la zona le entra el pedido (ADR-032).
+        boolean hayLugarEn(ZonaDTO zona, PedidoDTO pedido) {
             return repartidores.values().stream()
-                    .anyMatch(r -> "DISPONIBLE".equals(r.getEstado()) && zona.getId().equals(r.getIdZona()));
+                    .anyMatch(r -> zona.getId().equals(r.getIdZona())
+                            && r.entra(pedido.getPesoKg(), pedido.getCantidadTotal()));
         }
 
         String nombre(Long idTransportista) {
@@ -332,20 +427,25 @@ public class RuteoService implements IRuteo {
             if (CoberturaZona.TRANSPORTISTA.name().equals(zona.getCobertura())) {
                 return derivar(idPedido, zona.getIdTransportista(), "cubre la zona " + zona.getNombre(), despacho);
             }
-            if (!despacho.hayLibreEn(zona) && zona.getIdTransportista() != null) {
+            if (!despacho.hayLugarEn(zona, pedido) && zona.getIdTransportista() != null) {
                 return derivar(idPedido, zona.getIdTransportista(),
-                        "respaldo: no hay repartidores libres en la zona " + zona.getNombre(), despacho);
+                        "respaldo: a ningún repartidor de la zona " + zona.getNombre() + " le entra el pedido", despacho);
             }
             Long idRepartidor = gestion.confirmarPedidoEnZona(idPedido, zona.getId());
-            RepartidorDTO asignado = idRepartidor != null ? despacho.repartidores.get(idRepartidor) : null;
+            if (idRepartidor == null) {
+                return ResultadoDespachoDTO.de(idPedido, Resultado.EN_ESPERA,
+                        pedidos.consultarEstadoPedido(idPedido).getMotivoEspera()
+                                + ". Se asigna solo en cuanto se pueda.");
+            }
+            RepartidorDTO asignado = despacho.repartidores.get(idRepartidor);
             if (asignado != null) {
-                asignado.estado = "OCUPADO";
+                asignado.sumar(idPedido, pedido.getPesoKg(), pedido.getCantidadTotal());
             }
             boolean deLaZona = asignado != null && zona.getId().equals(asignado.getIdZona());
             return ResultadoDespachoDTO.de(idPedido, Resultado.REPARTIDOR,
                     (asignado != null ? asignado.getNombre() : "Repartidor")
                             + (deLaZona ? " (zona " + zona.getNombre() + ")"
-                                        : " (de otra zona: no había libres en " + zona.getNombre() + ")"));
+                                        : " (de otra zona: en " + zona.getNombre() + " no le entraba a nadie)"));
         } catch (com.rabbit.pedidos.negocio.ValidacionException e) {
             return ResultadoDespachoDTO.de(idPedido, Resultado.ERROR, e.getMessage());
         } catch (EJBException e) {

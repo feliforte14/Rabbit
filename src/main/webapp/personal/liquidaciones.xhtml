@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Liquidacion mensual a comercios (ADR-034): abono + cargo por pedido
+    entregado + cargo por kilo, cobrado por el banco. Se elige un mes: si
+    esta liquidado se ve lo cobrado; si termino y no, un administrador lo
+    liquida; el mes en curso muestra una vista previa. Solo el personal.
+    Se bindea a liquidacionBean (LiquidacionBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Liquidaciones</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Liquidación mensual a comercios</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Cada mes, a cada comercio activo se le cobra el servicio de Rabbit:
+                <b><h:outputText value="#{liquidacionBean.tarifa.abono()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> de abono,
+                <b><h:outputText value="#{liquidacionBean.tarifa.porEnvio()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por pedido entregado y
+                <b><h:outputText value="#{liquidacionBean.tarifa.porKilo()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> por kilo entregado.
+                <h:panelGroup rendered="#{liquidacionBean.tarifa.cobraAlmacenamiento()}">
+                Más <b><h:outputText value="#{liquidacionBean.tarifa.almacenamientoPequeno()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>,
+                <b><h:outputText value="#{liquidacionBean.tarifa.almacenamientoMediano()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b> o
+                <b><h:outputText value="#{liquidacionBean.tarifa.almacenamientoGrande()}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
+                por unidad y por día guardada (pequeña, mediana o grande).
+                Un producto que ingresó hace menos de #{liquidacionBean.tarifa.diasGratis()} días no paga (si es 0, no hay días gratis) y el que lleva
+                #{liquidacionBean.tarifa.diasParaRecargo()} días sin ingresos ni ventas paga un recargo del #{liquidacionBean.tarifa.recargoStockAntiguo()} %
+                (si es 0, no hay recargo).
+            </h:panelGroup>
+            <h:panelGroup rendered="#{not liquidacionBean.tarifa.cobraAlmacenamiento()}">
+                El almacenamiento no se cobra: los tres precios están en cero (<code>rabbit.tarifa.almacenamiento.*</code>).
+            </h:panelGroup>
+            Es aparte del cobro de cada pedido. El día 1 a las 6 se liquida solo el mes anterior y se cobra por el banco;
+                si el banco no responde, se reintenta todos los días.
+            </p>
+        </details>
+
+        <h:form id="formPeriodo" styleClass="formulario">
+            <div class="campo">
+                <h:outputLabel for="periodo" value="Mes" />
+                <h:selectOneMenu id="periodo" value="#{liquidacionBean.periodo}">
+                    <f:selectItems value="#{liquidacionBean.periodos}" var="p" itemValue="#{p}"
+                                   itemLabel="#{liquidacionBean.nombreMes(p)}" />
+                    <f:ajax listener="#{liquidacionBean.cargar}" render="@form :formTabla" />
+                </h:selectOneMenu>
+            </div>
+            <h:panelGroup layout="block" styleClass="form-acciones"
+                          rendered="#{liquidacionBean.vistaPrevia and liquidacionBean.mesCerrado and sesionBean.admin}">
+                <h:commandButton value="Liquidar y cobrar este mes" styleClass="btn btn-primary"
+                                 action="#{liquidacionBean.liquidar}"
+                                 onclick="return confirm('¿Liquidar el mes y pedirle al banco el cobro a cada comercio?');" />
+            </h:panelGroup>
+            <h:outputText styleClass="ayuda" rendered="#{liquidacionBean.vistaPrevia and not liquidacionBean.mesCerrado}"
+                          value="El mes todavía no terminó: es una vista previa con lo entregado hasta ahora. Se liquida el día 1." />
+            <h:outputText styleClass="ayuda" rendered="#{liquidacionBean.vistaPrevia and liquidacionBean.mesCerrado}"
+                          value="Este mes todavía no se liquidó: lo que se ve es lo que se va a cobrar." />
+        </h:form>
+
+        <!-- La foto diaria de ocupacion (ADR-059): la saca sola un timer a las 23:55. -->
+        <h:form id="formFoto" styleClass="formulario" rendered="#{sesionBean.admin}">
+            <p class="ayuda">
+                Foto diaria de la ocupación del depósito (unidades por tamaño, para el almacenamiento): la saca sola todos los
+                días a las 23:55. Última foto: <b>#{empty liquidacionBean.ultimaFoto ? 'todavía ninguna' : liquidacionBean.ultimaFoto}</b>.
+            </p>
+            <div class="form-acciones">
+                <h:commandButton value="Sacar la foto de hoy ahora" styleClass="btn btn-secondary"
+                                 action="#{liquidacionBean.tomarFoto}" />
+            </div>
+        </h:form>
+
+        <h:form id="formTabla">
+            <!-- Resumen del mes de un vistazo; en la vista previa todavia no hay nada cobrado. -->
+            <h:panelGroup layout="block" styleClass="stat-grid" rendered="#{not empty liquidacionBean.filas}">
+                <div class="stat-card">
+                    <p class="stat-label">#{liquidacionBean.vistaPrevia ? 'Total a cobrar' : 'Total del mes'}</p>
+                    <p class="stat-valor">#{etiquetas.pesos(liquidacionBean.totalGeneral)}</p>
+                </div>
+                <h:panelGroup layout="block" styleClass="stat-card" rendered="#{not liquidacionBean.vistaPrevia}">
+                    <p class="stat-label">Cobrado</p>
+                    <p class="stat-valor">#{etiquetas.pesos(liquidacionBean.totalCobrado)}</p>
+                </h:panelGroup>
+                <h:panelGroup layout="block" styleClass="stat-card" rendered="#{not liquidacionBean.vistaPrevia}">
+                    <p class="stat-label">Por cobrar</p>
+                    <p class="stat-valor">#{etiquetas.pesos(liquidacionBean.totalPorCobrar)}</p>
+                    <p class="dato-secundario">#{liquidacionBean.cantidadPorCobrar} comercio(s)</p>
+                </h:panelGroup>
+                <div class="stat-card">
+                    <p class="stat-label">Entregas</p>
+                    <p class="stat-valor">#{liquidacionBean.totalEntregas}</p>
+                    <p class="dato-secundario">#{etiquetas.kilos(liquidacionBean.totalKilos)} · #{liquidacionBean.filas.size()} comercio(s)</p>
+                </div>
+            </h:panelGroup>
+            <h:dataTable value="#{liquidacionBean.filas}" var="l"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty liquidacionBean.filas}">
+                <h:column>
+                    <f:facet name="header">Comercio</f:facet>
+                    #{liquidacionBean.nombreComercio(l.idComercio)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Entregas</f:facet>
+                    #{l.cantidadEnvios}
+                    <span class="dato-secundario">#{etiquetas.kilos(l.kilos)}</span>
+                </h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
+                    <f:facet name="header">Detalle</f:facet>
+                    <span class="dato-secundario">Abono: #{etiquetas.pesos(l.abono)}</span>
+                    <span class="dato-secundario">Envíos: #{etiquetas.pesos(l.cargoEnvios)}</span>
+                    <span class="dato-secundario">Kilos: #{etiquetas.pesos(l.cargoKilos)}</span>
+                    <!-- Almacenamiento (ADR-059): unidades-dia por tamano y su cargo. -->
+                    <h:panelGroup rendered="#{liquidacionBean.tarifa.cobraAlmacenamiento() or l.unidadesDia > 0}">
+                        <span class="dato-secundario">Almacenamiento: #{etiquetas.pesos(l.cargoAlmacenamiento)}
+                            (#{l.unidadesDiaPequeno} chicas · #{l.unidadesDiaMediano} medianas · #{l.unidadesDiaGrande} grandes, en u.-día)</span>
+                        <h:panelGroup rendered="#{l.unidadesDiaGratis > 0}">
+                            <span class="dato-secundario">Días gratis: #{l.unidadesDiaGratis} u.-día (ahorro #{etiquetas.pesos(l.ahorroPorDiasGratis)})</span>
+                        </h:panelGroup>
+                        <h:panelGroup rendered="#{l.unidadesDiaConRecargo > 0}">
+                            <span class="dato-secundario">Stock antiguo: #{l.unidadesDiaConRecargo} u.-día (recargo #{etiquetas.pesos(l.cargoPorStockAntiguo)})</span>
+                        </h:panelGroup>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{l.productosSinMedidas > 0}">
+                        <span class="dato-secundario">#{l.productosSinMedidas} producto(s) sin medidas: se cuentan como medianos</span>
+                    </h:panelGroup>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Total</f:facet>
+                    <b><h:outputText value="#{l.total}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{etiquetas.estadoLiquidacion(l.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoLiquidacion(l.estado)}" />
+                    <h:panelGroup rendered="#{not empty l.codigoAutorizacion}">
+                        <span class="dato-secundario">Autorización #{l.codigoAutorizacion}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty l.fechaCobro}">
+                        <span class="dato-secundario">#{l.estado == 'COBRADA' ? 'Cobrada' : 'Último intento'} el #{l.fechaCobro}</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{l.intentos > 1 and l.estado != 'COBRADA'}">
+                        <span class="dato-secundario">#{l.intentos} intentos de cobro</span>
+                    </h:panelGroup>
+                    <h:panelGroup rendered="#{not empty l.motivo and l.estado != 'COBRADA'}">
+                        <span class="dato-secundario">#{l.motivo}</span>
+                    </h:panelGroup>
+                </h:column>
+                <h:column styleClass="acciones" rendered="#{sesionBean.admin and liquidacionBean.hayCobrosParaReintentar}">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Reintentar cobro" styleClass="btn btn-secondary"
+                                     action="#{liquidacionBean.reintentar(l.id)}"
+                                     rendered="#{sesionBean.admin and (l.estado == 'PENDIENTE' or l.estado == 'RECHAZADA')}" />
+                </h:column>
+            </h:dataTable>
+            <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty liquidacionBean.filas}">
+                No hay comercios activos para liquidar.
+            </h:panelGroup>
+        </h:form>
+    </ui:define>
+</ui:composition>

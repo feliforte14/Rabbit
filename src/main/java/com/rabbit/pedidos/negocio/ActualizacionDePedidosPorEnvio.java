@@ -7,8 +7,9 @@ package com.rabbit.pedidos.negocio;
  * Transportistas dispara dentro de la transacción de la novedad: si mover el
  * pedido falla, se deshace también la novedad y el seguimiento lo reintenta.
  *
- * Usa las mismas operaciones que el personal (despacharPedido,
- * registrarEntrega), así el tópico de estados, los avisos al comercio y el
+ * Usa la misma operación que el personal para despachar y una propia para
+ * la entrega (registrarEntregaDeTransportista: sin remito, la prueba es del
+ * transportista), así el tópico de estados, los avisos al comercio y el
  * cobro contra entrega funcionan igual que con un repartidor propio.
  */
 
@@ -44,7 +45,7 @@ public class ActualizacionDePedidosPorEnvio {
                     estado = "EN_CAMINO";
                 }
                 if ("EN_CAMINO".equals(estado)) {
-                    gestion.registrarEntrega(idPedido);
+                    gestion.registrarEntregaDeTransportista(idPedido);
                 }
                 break;
             case CANCELADO:

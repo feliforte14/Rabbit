@@ -66,6 +66,15 @@ public final class Problema {
         return aplicarA(Response.status(status));
     }
 
+    // Para quien responde sin JAX-RS (un filtro de servlet).
+    public int status() {
+        return status;
+    }
+
+    public String cuerpo() {
+        return json.build().toString();
+    }
+
     // Se manda como texto ya serializado: así no depende de que el
     // proveedor JSON-P del servidor acepte el media type problem+json.
     Response aplicarA(Response.ResponseBuilder respuesta) {

@@ -27,6 +27,12 @@ Escucha en `http://localhost:8095`. Variables opcionales:
 En Rabbit, **Transportistas → Registrar transportista**: tipo `API REST`,
 endpoint `http://localhost:8095`.
 
+Con Rabbit en Docker (el `docker compose` del README), el endpoint es
+`http://host.docker.internal:8095`: dentro del contenedor, `localhost` es el
+propio contenedor. Docker Desktop y OrbStack traen ese nombre; en Linux hace
+falta `extra_hosts: ["host.docker.internal:host-gateway"]` en el servicio
+`wildfly`.
+
 Desde ahí, al derivarle un pedido, el pedido pasa a **En camino** y a
 **Entregado** a medida que el seguimiento de Rabbit lo consulta. Si se lo
 apaga, Rabbit lo marca "no respondió" al cotizar o derivar, y el resto de

@@ -2,7 +2,7 @@
 
 Plataforma de logística de última milla que conecta comercios con una red
 de depósitos y repartidores. Trabajo práctico integrador de Desarrollo de
-Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
+Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 
 ## Qué hace
 
@@ -13,19 +13,48 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
   vive en el ERP del comercio, y Rabbit solo conoce lo que tiene que
   retirar y entregar.
 - **Inventario:** depósitos propios de Rabbit con stock consignado por los
-  comercios, y reservas de stock con vencimiento (5 minutos, extensibles):
-  si nadie las confirma ni las libera, se liberan solas.
+  comercios (con el peso de cada unidad), y reservas de stock con
+  vencimiento (5 minutos, extensibles): si nadie las confirma ni las
+  libera, se liberan solas. El comercio anuncia la mercadería que va a
+  mandar con una orden de recepción y el personal la recibe y la suma al
+  stock (ADR-058). Cada producto tiene medidas y una categoría de tamaño,
+  de las que depende el cobro por almacenamiento (ADR-059).
 - **Pedidos:** recepción de pedidos desde el ERP de cada comercio por una
   API REST versionada (`/api/v1`, alta idempotente, consulta y
   cancelación), su sincronización automática con stock y su seguimiento
   (`PENDIENTE → CONFIRMADO → EN_CAMINO → ENTREGADO`), también público por
-  código de seguimiento.
+  código de seguimiento. El ERP puede mandar quién recibe (nombre,
+  teléfono y email, ADR-039), y Rabbit le promete el día de entrega según
+  la hora de corte, ya en la respuesta del alta (ADR-042). Quien recibe
+  puede reprogramar o dejar instrucciones desde el seguimiento (ADR-057),
+  elegir retirarlo en un depósito (ADR-053, con vencimiento a los 21 días) y
+  cada bulto lleva una etiqueta con código QR (ADR-056). La entrega se
+  confirma con un código de 4 dígitos y la ubicación (ADR-055). Un pedido
+  que ya salió a reparto no se cancela (ADR-048). En camino, el
+  seguimiento dice en qué parada del repartidor va y en qué franja llega
+  (ADR-043).
 - **Pagos y cobranzas:** un pedido prepago se cobra en el banco legado al
   confirmarlo (con reversa si la confirmación falla después, y un circuit
   breaker si el banco no responde); uno contra entrega se acredita cuando
-  se entrega.
-- **Repartidores:** padrón de repartidores propios con su zona; al
-  confirmar un pedido se le asigna uno libre.
+  se entrega. Además, cada mes se le liquida y cobra a cada comercio el
+  servicio de Rabbit: abono + cargo por envío + cargo por kilo (ADR-034) +
+  cargo por almacenamiento, por unidad y por día guardada según el tamaño
+  (ADR-059). La mercadería recién ingresada no paga los primeros 7 días y la
+  que lleva 120 días sin moverse paga un recargo del 50 % (ADR-065, valores
+  configurables).
+- **Repartidores:** padrón de repartidores propios con su zona y la
+  capacidad de su vehículo (kilos y bultos): al confirmar un pedido se le
+  asigna al primero al que le entra, que puede llevar varios a la vez
+  (ADR-032). Si no le entra a nadie (o ya pasó la hora de corte de la hoja
+  de ruta), el pedido queda en una lista de espera, sin cobrar, y se
+  asigna solo cuando se libera alguno; el repartidor puede devolver al
+  depósito un pedido que no pudo entregar, con un motivo fijo, y se le
+  asigna a otro (ADR-037). Después de 2 visitas fallidas (o si el cliente
+  lo rechaza) el pedido vuelve al comercio: el stock consignado se
+  devuelve y el cobro se anula (ADR-041). Mientras reparte, su celular comparte la ubicación: el
+  personal lo ve en un mapa y el cliente, en el seguimiento (ADR-035). Un
+  administrador puede eliminar un repartidor sin entregas en curso ni
+  cuenta de usuario (ADR-036).
 - **Transportistas:** un pedido se puede derivar a una empresa de envíos
   externa (integrada por API REST o por SOAP legado), después de comparar
   sus cotizaciones; Rabbit sigue el estado del envío (consultándolo cada 15 s)
@@ -33,41 +62,57 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026), opción B "LogiRed".
 - **Ruteo y entregas:** zonas de reparto por código postal; los pedidos
   pendientes se agrupan por zona y se despachan solos según quién cubre la
   zona (repartidores propios o un transportista; si el transportista no lo
-  toma, el más barato de los demás). Hoja de ruta de cada
-  pedido (de dónde se retira y adónde se entrega, con el recorrido en
-  Google Maps) y tablero de entregas en curso.
+  toma, el más barato de los demás). Las zonas se dan de baja, se
+  reactivan o, solo un administrador, se eliminan (ADR-036). Hoja de ruta de cada
+  pedido (de dónde se retira y adónde se entrega), hoja de ruta
+  recomendada del repartidor con todas sus paradas en orden y el recorrido
+  en Google Maps (ADR-038), y tablero de entregas en curso.
 - **Seguridad y vistas por tipo de usuario:** el personal de Rabbit
   (`ADMINISTRADOR`, `OPERADOR`) opera toda la red; un `COMERCIO` sigue sus
-  pedidos, su stock y sus puntos de picking; un `REPARTIDOR` ve su hoja de
-  ruta y marca retiro y entrega desde el celular; un `ERP` (el sistema del
+  pedidos, su stock, sus puntos de picking y lo que se le cobra por mes
+  (con la vista previa del mes en curso); un `REPARTIDOR` ve su hoja de
+  ruta recomendada y marca retiro y entrega (con la foto del remito
+  firmado, ADR-033) o devuelve el pedido al depósito, desde el celular; un `ERP` (el sistema del
   comercio) solo usa la API REST, y solo con los pedidos de su comercio.
-  Todo por HTTPS, con límite de intentos en el login.
-- **Notificaciones:** cada cambio de estado le llega al comercio en su
-  portal y, si hay un servidor de correo configurado, por mail.
+  Todo por HTTPS, con límite de intentos en el login. La web usa
+  sesión del servidor y la API del ERP, HTTP Basic: no usa JWT (ADR-067).
+- **Notificaciones:** cada cambio de estado le llega al comercio en la
+  campana de notificaciones de la cabecera y, si hay un servidor de correo configurado, por mail (en HTML, ADR-047). A quien
+  recibe también, al email que manda el ERP con cada pedido (obligatorio
+  desde el 18/10), con el link al seguimiento (ADR-039, ADR-040). Los avisos
+  y los mails pasan por una bandeja de salida: si el servidor de correo o el
+  broker fallan, se reintentan y no se pierden, y un mensaje ilegible va a la
+  cola de mensajes muertos (ADR-063 y ADR-064).
+- **Calificación de la entrega:** cuando el pedido está entregado, la página
+  de seguimiento le pregunta a quien lo recibió cómo fue (de 1 a 5 estrellas y
+  un comentario opcional). Una sola vez por pedido (ADR-052).
+- **Indicadores:** tablero para el personal (toda la red, un comercio y
+  por repartidor) y para cada comercio: entregas a tiempo, al primer
+  intento, horas de recibido a entregado, lista de espera y costo por
+  envío, de los últimos 7, 30 o 90 días (ADR-044).
 - **Interfaz:** tres temas visuales (normal, claro y oscuro) que se
   cambian en el momento desde el menú o el pie de las páginas públicas, y
   diseño responsive sin scroll horizontal: a menor pantalla se ocultan las
   columnas secundarias de cada tabla, en celular las tablas se ven como
   tarjetas con lo esencial y el menú se despliega con un botón (ver
-  `resources/rabbit/1_11/`).
+  `resources/rabbit/1_23/`). En la compu, la barra lateral entra entera
+  sin scroll propio también en pantallas bajas (notebooks de 13").
 
 ## Tecnologías
 
 Jakarta EE 10 sobre WildFly (perfil `standalone-full`), Java 17, JSF +
-Facelets, EJB, JPA/Hibernate, PostgreSQL (Supabase), JMS (ActiveMQ
+Facelets, EJB, JPA/Hibernate, PostgreSQL (local con Docker, o la base compartida en Supabase), JMS (ActiveMQ
 Artemis embebido), JAX-WS (SOAP), JAX-RS (REST), Jakarta Security,
-Jakarta Mail, Maven (WAR), JUnit 5 y REST Assured.
+Jakarta Mail, Maven (WAR), JUnit 5 y REST Assured. Pruebas de punta a punta con Playwright y carga con k6.
 
 **Esta es la rama `desafio-heterogeneidad`:** `main` más el desafío de
 heterogeneidad tecnológica (ADR-030). `main` tiene el sistema de Rabbit
-solo; esta rama le suma los dos servicios en otros lenguajes. Para
-traerla al día: `git merge main`.
-
-El banco legado
-también está implementado en Node.js
-([`banco-legado/`](banco-legado/README.md)), como servicio aparte con el
-mismo contrato SOAP, y el transportista moderno en Python
-([`transportista-moderno/`](transportista-moderno/README.md)).
+solo, con el banco y los transportistas simulados dentro del mismo WAR;
+esta rama le suma dos servicios aparte, en otros lenguajes y con el mismo
+contrato: el banco legado en Node.js ([`banco-legado/`](banco-legado/README.md))
+y el transportista moderno en Python
+([`transportista-moderno/`](transportista-moderno/README.md)). Para traerla
+al día: `git merge main` (o `dev`).
 
 ## Estructura
 
@@ -91,8 +136,9 @@ src/main/webapp/
 ├── personal/                 ← personal de Rabbit (ADMINISTRADOR, OPERADOR)
 ├── comercio/                 ← portal del COMERCIO (puntos-picking también lo usa el personal)
 ├── repartidor/               ← hoja de ruta del REPARTIDOR
-├── resources/rabbit/1_11/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
-│                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas)
+├── resources/rabbit/1_23/     ← CSS y JS versionados: estilos.css (con los 3 temas), tema.js (cambio
+│                               de tema), menu.js (menú del celular), tablas.js (tablas como tarjetas),
+│                               remito.js (achica la foto del remito), ubicacion.js y mapa.js (mapas)
 └── WEB-INF/
     ├── plantillas/template.xhtml  ← layout y menú (no se puede pedir por URL)
     ├── web.xml, beans.xml, jboss-ejb3.xml
@@ -102,38 +148,78 @@ Fuera de la aplicación:
 
 ```
 src/test/java/             ← tests unitarios (*Test) y de integración de la API (*IT)
-docs/                      ← documentación técnica por tema (ver docs/README.md)
+docs/                      ← documentación por tema (ver docs/README.md)
+e2e/                       ← pruebas de punta a punta (Playwright), accesibilidad y Lighthouse
+scripts/                   ← carga (k6), contrato, seguridad, CI, escalabilidad, realm compartido y limpieza de datos de prueba
 banco-legado/              ← el banco legado como servicio aparte (Node.js, SOAP)
 transportista-moderno/     ← un transportista REST como servicio aparte (Python)
+docker/                    ← configuración de WildFly y semilla de datos para el compose
+.github/                   ← workflows de CI y la acción que levanta Rabbit
+.zap/                      ← reglas de ZAP (baseline y API); .gitleaks.toml: reglas del escaneo de secretos
 ```
 
-| Componente | Paquete | Estado |
-|---|---|---|
-| Comercios | `comercios` | Implementado |
-| Inventario | `inventario` | Implementado |
-| Pedidos | `pedidos` | Implementado |
-| Seguridad | `seguridad` | Implementado |
-| Pagos y Cobranzas | `pagos` | Implementado |
-| Repartidores | `repartidores` | Implementado |
-| Integración con el banco legado (SOAP) | `integracion.banco` | Implementado |
-| Notificaciones | `notificaciones` | Implementado |
-| Ruteo (zonas, despacho por zona, hoja de ruta y tablero de entregas) | `ruteo` | Implementado |
-| Transportistas (REST y SOAP legado) | `transportistas` | Implementado |
+- **Comercios**
+  - Paquete: `comercios`
+  - Estado: Implementado
+- **Inventario**
+  - Paquete: `inventario`
+  - Estado: Implementado
+- **Pedidos**
+  - Paquete: `pedidos`
+  - Estado: Implementado
+- **Seguridad**
+  - Paquete: `seguridad`
+  - Estado: Implementado
+- **Pagos y Cobranzas**
+  - Paquete: `pagos`
+  - Estado: Implementado
+- **Repartidores**
+  - Paquete: `repartidores`
+  - Estado: Implementado
+- **Integración con el banco legado (SOAP)**
+  - Paquete: `integracion.banco`
+  - Estado: Implementado
+- **Notificaciones**
+  - Paquete: `notificaciones`
+  - Estado: Implementado
+- **Ruteo (zonas, despacho por zona, hoja de ruta y tablero de entregas)**
+  - Paquete: `ruteo`
+  - Estado: Implementado
+- **Transportistas (REST y SOAP legado)**
+  - Paquete: `transportistas`
+  - Estado: Implementado
 
 ## Integraciones
 
-2 SOAP, 3 REST, 1 cola punto a punto y 1 tópico pub/sub (más el mail, opcional):
+2 SOAP, 4 REST, 1 cola punto a punto y 1 tópico pub/sub, más el mail (opcional):
 
-| Integración | Tipo | Dirección |
-|---|---|---|
-| Pagos → banco legado (cobro y reversa, con circuit breaker) | Sincrónica, **SOAP** | Saliente |
-| Transportistas → transportista legado (derivar, seguir, cancelar) | Sincrónica, **SOAP** | Saliente |
-| ERP del comercio → Rabbit (`/api/v1/pedidos-externos`: alta idempotente, consulta y cancelación) | Sincrónica, **REST** | Entrante |
-| Cliente final → Rabbit (`/api/v1/seguimiento/{codigo}`, sin login) | Sincrónica, **REST** | Entrante |
-| Transportistas → transportista moderno (cotizar, derivar, seguir, cancelar) | Sincrónica, **REST** | Saliente |
-| Pedido del ERP → pedido real (`cola.pedidos.externos`) | Asincrónica, **cola JMS** | Interna |
-| Cambios de estado del pedido → Pagos y Notificaciones (`topico.pedidos.estado`) | Asincrónica, **tópico JMS** | Interna |
-| Notificaciones → comercio | SMTP (Jakarta Mail), después del commit | Saliente (opcional, por configuración) |
+- **Pagos → banco legado (cobro y reversa, con circuit breaker)**
+  - Tipo: Sincrónica, **SOAP**
+  - Dirección: Saliente
+- **Transportistas → transportista legado (derivar, seguir, cancelar)**
+  - Tipo: Sincrónica, **SOAP**
+  - Dirección: Saliente
+- **ERP del comercio → Rabbit (`/api/v1/pedidos-externos`: alta idempotente, consulta y cancelación)**
+  - Tipo: Sincrónica, **REST**
+  - Dirección: Entrante
+- **Cliente final → Rabbit (`/api/v1/seguimiento/{codigo}`, sin login)**
+  - Tipo: Sincrónica, **REST**
+  - Dirección: Entrante
+- **Transportistas → transportista moderno (cotizar, derivar, seguir, cancelar)**
+  - Tipo: Sincrónica, **REST**
+  - Dirección: Saliente
+- **Pedido del ERP → pedido real (`cola.pedidos.externos`)**
+  - Tipo: Asincrónica, **cola JMS**
+  - Dirección: Interna
+- **Cambios de estado del pedido → Pagos y Notificaciones (`topico.pedidos.estado`)**
+  - Tipo: Asincrónica, **tópico JMS**
+  - Dirección: Interna
+- **Ruteo → OpenStreetMap (ubica las direcciones de la hoja de ruta, ADR-046)**
+  - Tipo: Sincrónica, **REST/JSON** (Nominatim), desde un timer y con caché: nadie la espera
+  - Dirección: Saliente
+- **Notificaciones → comercio y quien recibe (ADR-040)**
+  - Tipo: SMTP (Jakarta Mail), después del commit, con bandeja de correos: si el servidor no responde, se reintenta cada minuto durante 24 horas (ADR-063)
+  - Dirección: Saliente (opcional, por configuración)
 
 El seguimiento de los envíos derivados es por consulta periódica (cada
 15 s) a todos los transportistas, modernos y legados (ADR-029).
@@ -143,26 +229,25 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (30 ADRs)](docs/arquitectura/DECISIONES.md).
-- **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MensajeriaFinal.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
-- **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md).
-- **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, y [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar.
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (72 ADR)](docs/arquitectura/DECISIONES.md).
+- **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MENSAJERIA-JUSTIFICACION.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
+- **Negocio y funcional** (`docs/negocio/`, `docs/funcional/`): [BRD](docs/negocio/BRD.md), [Documentación funcional](docs/funcional/DOCUMENTACION-FUNCIONAL.md) (36 historias de usuario en Gherkin y matriz de trazabilidad).
+- **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md) (qué protege Rabbit), [Informe de seguridad](docs/seguridad/INFORME-SEGURIDAD.md) (matriz del Eje D con evidencia), [Pruebas de seguridad](docs/seguridad/PRUEBAS-DE-SEGURIDAD.md) (cómo repetirlas) y el [incidente de secretos en el historial](docs/seguridad/INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md).
+- **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar, y las pruebas del CI: [contrato](docs/pruebas/CONTRATO.md) y [punta a punta y accesibilidad](docs/pruebas/E2E.md).
 - **Consigna** (`docs/consigna/`): [Checklist](docs/consigna/CHECKLIST.md) de requisitos (Sección 6 y anexo), [Desafíos opcionales](docs/consigna/DESAFIOS-OPCIONALES.md) y [Uso de IA](docs/consigna/USO-DE-IA.md).
 
 ## Cumplimiento de la consigna
 
-| Requisito | Cómo |
-|---|---|
-| Mínimo 6 componentes con interfaz explícita | 10 componentes, cada uno con interfaces `@Local` |
-| 1 componente stateful y 1 stateless | `InventarioService` (`@Stateful`: la reserva de stock es una conversación) y el resto `@Stateless` |
-| Arquitectura en capas | `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente |
-| 3 patrones de diseño | DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, máquina de estados, transacción compensatoria y Circuit Breaker |
-| SOAP con un sistema legado / REST con un partner moderno | Ver [Integraciones](#integraciones) |
-| Cola punto a punto y tópico pub/sub | `cola.pedidos.externos` y `topico.pedidos.estado` (ActiveMQ Artemis) |
-| Seguridad declarativa | `@RolesAllowed` en las operaciones sensibles, 5 roles, HTTPS obligatorio |
-| Transacciones declarativas | `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla |
-| Desafíos opcionales | Los cuatro: resiliencia, escalabilidad medida, ADRs y heterogeneidad tecnológica (banco en Node.js, transportista en Python) |
-| Anexo: responsive y temas | Responsive de 360 a 1920 px; temas normal, claro y oscuro en tiempo real |
+- **Mínimo 6 componentes con interfaz explícita**: 9 componentes de negocio, cada uno con interfaces `@Local`, más una capa técnica de integración (`integracion`: cliente del banco y adaptadores de transportistas)
+- **1 componente stateful y 1 stateless**: `InventarioService` (`@Stateful`: la reserva de stock es una conversación) y el resto `@Stateless`
+- **Arquitectura en capas**: `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente
+- **3 patrones de diseño**: DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, State, transacción compensatoria y Circuit Breaker
+- **SOAP con un sistema legado / REST con un partner moderno**: Ver [Integraciones](#integraciones)
+- **Cola punto a punto y tópico pub/sub**: `cola.pedidos.externos` y `topico.pedidos.estado` (ActiveMQ Artemis)
+- **Seguridad declarativa**: `@RolesAllowed` en las operaciones sensibles, 5 roles, HTTPS obligatorio
+- **Transacciones declarativas**: `confirmarPedido`: cobrar → asignar repartidor → confirmar, con reversa en el banco si falla
+- **Desafíos opcionales**: Los cuatro: resiliencia, escalabilidad medida, ADRs y heterogeneidad tecnológica (banco en Node.js, transportista en Python)
+- **Anexo: responsive y temas**: Responsive de 360 a 1920 px; temas normal, claro y oscuro en tiempo real
 
 El detalle, requisito por requisito, en el [Checklist](docs/consigna/CHECKLIST.md).
 
@@ -175,24 +260,38 @@ es el checklist de qué necesita cada quien y dónde se consigue o se crea
 
 ### Infraestructura
 
-| Credencial | Para qué | De dónde sale |
-|---|---|---|
-| Usuario/contraseña de la base PostgreSQL | Datasource `RabbitDS` (paso 2) | Si es la base compartida de Supabase, pedírsela al equipo; si es una base propia, la que elijas al crearla |
-| Usuario/contraseña de management de WildFly | `wildfly-maven-plugin` para desplegar (paso 3), puerto `9990` | Se crea una sola vez con `add-user.sh -u ... -p ...` (sin `-a`, no es un usuario de la app) y se guarda en `~/.m2/settings.xml`, nunca en `pom.xml` |
-| Servidor SMTP (host, puerto, remitente) | Avisos por mail al comercio (paso 7, opcional) | El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal |
+- **Usuario/contraseña de la base PostgreSQL**
+  - Para qué: Datasource `RabbitDS` (paso 2)
+  - De dónde sale: Si es la base compartida de Supabase, pedírsela al equipo; si es una base propia, la que elijas al crearla
+- **Usuario/contraseña de management de WildFly**
+  - Para qué: `wildfly-maven-plugin` para desplegar (paso 3), puerto `9990`
+  - De dónde sale: Se crea una sola vez con `add-user.sh -u ... -p ...` (sin `-a`, no es un usuario de la app) y se guarda en `~/.m2/settings.xml`, nunca en `pom.xml`
+- **Servidor SMTP (host, puerto, remitente)**
+  - Para qué: Avisos por mail al comercio (paso 7, opcional)
+  - De dónde sale: El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal
 
-### Cuentas de la aplicación (realm de WildFly)
+### Cuentas de la aplicación
 
 Estas **no** se precargan: las crea cada administrador desde la pantalla
-**Usuarios**, salvo la primera, que arranca el sistema.
+**Usuarios**, salvo la primera, que arranca el sistema. Se guardan en la
+base compartida (con la contraseña en bcrypt), así que una cuenta creada
+desde cualquier máquina entra en el WildFly de todos (paso 5, ADR-031).
 
-| Tipo de cuenta | Cómo se crea | Qué usa/ve |
-|---|---|---|
-| `ADMINISTRADOR` (la primera) | `add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s` (paso 5) — es la única que se crea por fuera de la app | Todo; además, único rol que puede eliminar un comercio, anular un cobro y dar de alta/baja otros usuarios |
-| `ADMINISTRADOR` / `OPERADOR` (resto) | Desde **Usuarios**, con un `ADMINISTRADOR` ya logueado | Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar comercios/anular cobros |
-| `COMERCIO` | Desde **Usuarios**, asociándola a un comercio ya dado de alta | Sus pedidos, su stock (solo lectura), sus puntos de picking |
-| `REPARTIDOR` | Desde **Usuarios**, asociándola a un repartidor ya dado de alta | Su hoja de ruta; marca retiro y entrega |
-| `ERP` | Desde **Usuarios**, asociándola a un comercio (paso 6) | Nada de la web — solo la API REST `/api/v1`, y solo los pedidos de ese comercio (HTTP Basic) |
+- `ADMINISTRADOR` (la primera)
+  - Cómo se crea: `add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s` (paso 5) — es la única que se crea por fuera de la app
+  - Qué usa/ve: Todo; además, único rol que puede eliminar comercios, repartidores, zonas y usuarios, anular un cobro, dar de alta/baja otros usuarios y liquidar el mes
+- `ADMINISTRADOR` / `OPERADOR` (resto)
+  - Cómo se crea: Desde **Usuarios**, con un `ADMINISTRADOR` ya logueado
+  - Qué usa/ve: Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar nada ni anular cobros
+- `COMERCIO`
+  - Cómo se crea: Desde **Usuarios**, asociándola a un comercio ya dado de alta
+  - Qué usa/ve: Sus pedidos (con el remito de cada entrega), sus indicadores, su stock (solo lectura, y el anuncio de la mercadería que va a mandar, ADR-058), sus puntos de picking y sus liquidaciones mensuales
+- `REPARTIDOR`
+  - Cómo se crea: Desde **Usuarios**, asociándola a un repartidor ya dado de alta
+  - Qué usa/ve: Su hoja de ruta; marca retiro y entrega (con foto del remito) y comparte su ubicación mientras reparte
+- `ERP`
+  - Cómo se crea: Desde **Usuarios**, asociándola a un comercio (paso 6)
+  - Qué usa/ve: Nada de la web — solo la API REST `/api/v1`, y solo los pedidos de ese comercio (HTTP Basic)
 
 Un usuario creado a mano con `add-user.sh -g ERP`/`-g COMERCIO` (sin pasar
 por la app) no queda asociado a ningún comercio ni repartidor: la app
@@ -200,22 +299,131 @@ responde "cuenta sin asociar" (web) o `403` (API). El flujo completo para
 probar los cinco tipos de cuenta está en
 [FLUJO-DE-PRUEBAS.md](docs/pruebas/FLUJO-DE-PRUEBAS.md).
 
-### Sistemas legados y modernos (aparte de Rabbit)
+### Sistemas legados y modernos
 
-No hace falta levantar ninguno de estos para que Rabbit funcione (cada uno
-tiene un equivalente simulado adentro del WAR); son para probar la
-heterogeneidad tecnológica y los desafíos opcionales.
+Rabbit no necesita levantar nada aparte: el banco legado (SOAP), el
+transportista legado (SOAP) y el transportista moderno (REST) están
+simulados dentro del mismo WAR y se llaman por la red igual que si fueran
+externos:
 
-| Sistema | Lenguaje | Cómo levantarlo | Reemplaza a |
-|---|---|---|---|
-| Banco legado ([`banco-legado/`](banco-legado/README.md)) | Node.js (SOAP) | `cd banco-legado && npm install && npm start` (puerto `8090`), después apuntar `rabbit.banco.wsdl` y redesplegar Rabbit | El banco simulado en Java dentro de Rabbit (`BancoLegadoServiceImpl`) |
-| Transportista moderno ([`transportista-moderno/`](transportista-moderno/README.md)) | Python (REST), sin dependencias | `python3 transportista-moderno/servidor.py` (puerto `8095`), registrarlo en **Transportistas** | El transportista REST simulado dentro de Rabbit (`TransportistaRestSimuladoResource`) — ambos usan el mismo contrato |
-| Transportista SOAP legado | Java, dentro del WAR | No se levanta aparte: ya corre con Rabbit en `TransportistaLegadoService?wsdl` | — (es el único que no tiene versión "externa" en este repo) |
+- **Banco legado**
+  - Protocolo: SOAP
+  - Dónde: `http://localhost:8080/Rabbit/BancoLegadoService?wsdl`
+- **Transportista legado**
+  - Protocolo: SOAP
+  - Dónde: `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl`
+- **Transportista moderno**
+  - Protocolo: REST
+  - Dónde: `http://localhost:8080/Rabbit/api/simulador/transportista-rest`
 
-No necesitan credenciales propias: ni el banco legado ni el transportista
-moderno tienen autenticación.
+Ninguno tiene autenticación.
+
+**Versiones aparte, en otros lenguajes (heterogeneidad tecnológica).** No
+hacen falta para que Rabbit funcione; sirven para mostrar el desafío:
+
+- **Banco legado en Node.js** ([`banco-legado/`](banco-legado/README.md))
+  - Protocolo: SOAP, mismo WSDL que el banco en Java
+  - Cómo: `cd banco-legado && npm install && npm start` (puerto `8090`); después apuntar `rabbit.banco.wsdl` y redesplegar Rabbit
+  - Con Rabbit en Docker: `URL_PUBLICA=http://host.docker.internal:8090 npm start` (ver su README)
+- **Transportista moderno en Python** ([`transportista-moderno/`](transportista-moderno/README.md))
+  - Protocolo: REST, mismo contrato que el simulado del WAR; sin dependencias
+  - Cómo: `python3 transportista-moderno/servidor.py` (puerto `8095`) y registrarlo en **Transportistas** con endpoint `http://localhost:8095`
+  - Con Rabbit en Docker: endpoint `http://host.docker.internal:8095`
+- **Transportista legado (SOAP):** no tiene versión aparte; es el que corre dentro del WAR.
 
 ## Cómo levantar el sistema
+
+Hay dos formas: con Docker, en un comando y con una base local (la
+recomendada para probar, corregir y hacer la demo), o con un WildFly
+instalado a mano y la base compartida del equipo.
+
+### Con Docker (un comando)
+
+Necesitás Docker con Compose v2 (Docker Desktop, OrbStack o Docker Engine)
+y git. No hace falta tener Java, Maven ni WildFly instalados. Los puertos
+5432, 8080, 8443 y 9990 tienen que estar libres (por ejemplo, sin otro
+WildFly ni otro PostgreSQL corriendo).
+
+1. Clonar el repo:
+
+   ```bash
+   git clone https://github.com/feliforte14/Rabbit.git && cd Rabbit
+   ```
+
+2. Crear el `.env` a partir del ejemplo:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   Abrí `.env` y reemplazá los tres `<marcadores>` por contraseñas que
+   inventes, de **al menos 8 caracteres** cada una:
+
+   | Variable | Para qué es |
+   |---|---|
+   | `DB_PASSWORD` | La base PostgreSQL local del compose |
+   | `ADMIN_PASSWORD` | El administrador de Rabbit (usuario `ADMIN_USER`, por defecto `admin`) |
+   | `DEMO_PASSWORD` | Las cuentas de prueba (la misma para todas) |
+
+   El resto de las variables puede quedar como está; cada una está
+   explicada en [`.env.example`](.env.example). El `.env` no se sube al
+   repo (`.gitignore`).
+
+3. Levantar todo:
+
+   ```bash
+   docker compose up --build
+   ```
+
+   La primera vez tarda unos minutos: baja las imágenes y compila. Si falta
+   una variable, queda un `<marcador>` o una contraseña es más corta, corta
+   enseguida con un mensaje `[Config]` que dice cuál corregir; arreglá el
+   `.env` y volvé a correr el mismo comando.
+
+Cuando el log muestre `[Semilla] Listo`, entrá a
+**https://localhost:8443/Rabbit**. El certificado es autofirmado, así que
+el navegador muestra una advertencia la primera vez: aceptala.
+
+- **Administrador:** el usuario `ADMIN_USER` del `.env` (por defecto
+  `admin`), con la contraseña que pusiste en `ADMIN_PASSWORD`.
+- **Cuentas de prueba:** todas entran con la contraseña de
+  `DEMO_PASSWORD`.
+  - `demo.operador`: personal.
+  - `demo.erp` y `demo.erp2`: API del ERP de cada comercio.
+  - `demo.comercio` (Almacén Demo 1) y `demo.comercio2` (Almacén Demo 2).
+  - `demo.repartidor`.
+- **Datos de ejemplo:** la semilla carga además dos comercios, un
+  depósito, stock, un punto de picking y un repartidor
+  ([`docker/semilla/semilla.sql`](docker/semilla/semilla.sql)).
+
+Qué levanta el compose ([`docker-compose.yml`](docker-compose.yml)):
+
+| Servicio | Qué es | Puertos |
+|---|---|---|
+| `db` | PostgreSQL 16, con los datos en el volumen `datos` | 5432 |
+| `wildfly` | WildFly 41 (`standalone-full`) con Rabbit desplegado, el broker JMS y el banco y los transportistas simulados | 8443 (app), 8080 (simuladores), 9990 (management, solo localhost) |
+| `semilla` | Espera a que Rabbit cree las tablas, carga los datos de ejemplo y termina | — |
+
+La configuración de WildFly (driver, datasource, login contra la tabla
+`usuarios`, HSTS) se aplica al construir la imagen:
+[`docker/wildfly/configurar.cli`](docker/wildfly/configurar.cli). Las
+contraseñas se leen del `.env` al arrancar: no quedan en la imagen ni en
+el repo.
+
+Comandos útiles:
+
+```bash
+docker compose logs -f wildfly                                    # log de Rabbit
+docker compose exec wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect   # jboss-cli (demo de la cola, etc.)
+docker compose down           # apagar (los datos quedan)
+docker compose down -v        # apagar y borrar la base: el próximo up arranca de cero
+docker compose up --build -d  # después de cambiar el código
+```
+
+### Con WildFly instalado (base compartida)
+
+Los pasos 1 a 8 configuran un WildFly instalado a mano contra la base del
+equipo en Supabase.
 
 ### Requisitos
 
@@ -347,22 +555,41 @@ Abrir https://localhost:8443/Rabbit. Rabbit exige HTTPS: si se entra por
 certificado autofirmado, así que el navegador muestra una advertencia la
 primera vez (aceptarla) y `curl` necesita `-k`.
 
-### 5. Primer acceso
+### 5. Cuentas compartidas y primer acceso (una sola vez)
 
-El login valida contra el `ApplicationRealm` de WildFly, así que un
-WildFly recién instalado no reconoce usuarios creados en otra instalación
-aunque estén en la base. No hay alta pública de cuentas: el primer
-administrador se crea en WildFly:
+Las cuentas viven en la tabla `usuarios` de la base compartida y WildFly
+las valida leyendo esa tabla (ADR-031). Para eso, **después del primer
+despliegue** (que agrega la columna de contraseñas), cada integrante
+configura su WildFly una vez:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --file=scripts/configurar-realm-compartido.cli
+```
+
+Tiene que terminar con `"outcome" => "success"` y recargar WildFly. Desde
+ahí, cualquier cuenta creada desde la app de cualquier integrante entra en
+todas las máquinas, y una baja corta el acceso en todas. Para volver
+atrás: `scripts/revertir-realm-compartido.cli`.
+
+Si la base ya tiene administradores, entrá con uno de ellos. Si es una
+base vacía, no hay alta pública de cuentas: el primer administrador se
+crea en tu WildFly y entra solo en tu máquina:
 
 ```bash
 $WILDFLY_HOME/bin/add-user.sh -a -u <usuario> -p '<contraseña>' -g ADMINISTRADOR -s
 ```
 
 Desde ahí, ese administrador crea los demás usuarios en "Usuarios"
-(`personal/usuarios.xhtml`).
+(`personal/usuarios.xhtml`), ya en la base. Ahí también los da de baja
+(se pueden reactivar con una contraseña nueva) o los elimina para siempre.
+Una cuenta de comercio o ERP solo se reactiva si su comercio está activo.
 
-Los usuarios que crea un administrador desde la app se sincronizan solos
-contra el realm (ver `ApplicationRealmSync`). Hay cinco tipos de cuenta:
+**Cuentas creadas antes de ADR-031:** no tienen contraseña en la base y
+solo entran en la máquina donde se crearon; la pantalla Usuarios las
+marca "Solo en una máquina". Un administrador les pone una contraseña
+nueva en "Restablecer contraseña" y desde ahí entran en todas.
+
+Hay cinco tipos de cuenta:
 `ADMINISTRADOR` y `OPERADOR` (personal de Rabbit), `COMERCIO` (se asocia a
 un comercio), `REPARTIDOR` (se asocia a un repartidor) y `ERP` (se asocia
 a un comercio; solo usa la API REST, ver paso 6). Cada uno de los cuatro
@@ -377,23 +604,93 @@ administrador desde `personal/usuarios.xhtml`, eligiendo el tipo "ERP
 (API REST)" y el comercio. No puede entrar a la web.
 
 Un usuario ERP creado a mano con `add-user.sh` (como se hacía antes) no
-tiene comercio y la API le responde `403`: hay que borrarlo del realm y
-crearlo desde la app.
+tiene comercio y la API le responde `403`: hay que borrarlo de los
+archivos del realm de esa máquina y crearlo desde la app.
 
 Contrato en [docs/integraciones/openapi.yaml](docs/integraciones/openapi.yaml) y ejemplos en
 [MENSAJERIA-SINCRONICA.md](docs/integraciones/MENSAJERIA-SINCRONICA.md).
 
-### 7. (Opcional) Avisos por mail
+### 7. (Opcional) Tarifa de la liquidación mensual
 
-Los avisos a los comercios siempre quedan en su portal. Para que además
-salgan por mail (al email que cargó el comercio), configurar un servidor
-SMTP con system properties y redesplegar:
+Por defecto: $15.000 de abono, $1.200 por pedido entregado y $80 por kilo
+(ADR-034). Para cambiarla, sin redesplegar:
 
 ```bash
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.host:add(value=smtp.ejemplo.com)"
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.port:add(value=25)"
-$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.remitente:add(value=avisos@rabbit.example)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.abono:add(value=20000)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-envio:add(value=1500)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.por-kilo:add(value=100)"
 ```
+
+**Almacenamiento (ADR-059):** además se puede cobrar el lugar que ocupa la mercadería, por unidad y por día
+según el tamaño (pequeño, mediano o grande). **Por defecto se cobra $10, $30 y $90** por unidad y por día
+(pequeño, mediano y grande); con los tres precios en 0 no se cobra.
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.almacenamiento.pequeno:add(value=10)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.almacenamiento.mediano:add(value=30)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.tarifa.almacenamiento.grande:add(value=90)"
+```
+
+Los límites de cada tamaño también se configuran (`rabbit.almacenamiento.<tamaño>.peso-kg`, `.lado-cm` y
+`.volumen-litros`). Por defecto: pequeño hasta 1 kg, 25 cm y 3 L; mediano hasta 10 kg, 60 cm y 50 L; grande hasta
+50 kg, 150 cm y 500 L. Más que eso no se acepta en consignación.
+
+### 7b. Hora de corte de la hoja de ruta (leer antes de una demo)
+
+Por defecto, **07:00** (la definió el equipo: a las 7 se cierra la hoja
+del día, así hay tiempo de preparar los pedidos y salir a las 9). Desde
+esa hora no se suman pedidos a la hoja del día de ningún repartidor: lo
+que se confirma después queda **en la lista de espera** y se asigna solo
+al día siguiente, antes de las 7 (ADR-037). La fecha prometida al
+comercio (ADR-042) sigue la misma regla.
+
+> **Ojo:** durante el día ya pasó el corte, así que **todo lo que se
+> confirme va a quedar "En espera"**. Para una demo o para probar a
+> cualquier hora, sacá el corte con `ninguno` antes de empezar y
+> volvé a ponerlo al terminar. Se lee en cada uso: no hace falta
+> redesplegar ni reiniciar.
+
+```bash
+# sin corte (demos y pruebas durante el día):
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=ninguno)"
+# volver al corte de las 07:00:
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:remove"
+# otra hora (si ya existe la propiedad, primero el remove):
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:add(value=08:30)"
+```
+
+Para ver si está configurada:
+`$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.ruteo.hora-corte:read-resource"`
+(`failed` = no está definida, rige 07:00).
+
+### 8. (Opcional) Avisos por mail
+
+Los avisos a los comercios siempre quedan en la campana de notificaciones de la
+cabecera. Para que además
+salgan por mail (al email que cargó el comercio y al de quien recibe),
+configurar el servidor de correo con system properties. Se leen en cada
+envío: no hace falta redesplegar (ADR-047).
+
+**Con Gmail** (llega a casillas reales). Hace falta una cuenta de Gmail
+para Rabbit con verificación en dos pasos y una **contraseña de
+aplicación** (Cuenta de Google → Seguridad → Contraseñas de aplicaciones):
+no la contraseña normal. Esa contraseña **no va al repositorio**; cada
+integrante la carga en su WildFly:
+
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.host:add(value=smtp.gmail.com)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.usuario:add(value=CUENTA@gmail.com)"
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.mail.smtp.password:add(value=CONTRASEÑA_DE_APLICACION)"
+```
+
+Con usuario y contraseña usa STARTTLS por el puerto 587, y el remitente
+es la misma cuenta (Gmail no deja mandar como otra). Otro proveedor:
+`rabbit.mail.smtp.port`, `rabbit.mail.smtp.seguridad` (`starttls`, `ssl`
+para el 465, o `ninguna`) y `rabbit.mail.remitente`. Gmail permite unos
+500 mails por día desde una cuenta común. Si un mail no sale, el log dice
+`[Notificaciones][Mail] No se pudo mandar el aviso…` con el motivo, el
+aviso igual queda en Rabbit y el mail queda en la bandeja: se reintenta
+cada minuto y, si a las 24 horas no salió, se descarta (ADR-063).
 
 Para probar en local sin un servidor real:
 `python3 -m smtpd -n -c DebuggingServer localhost:2525` (Python hasta 3.11)
@@ -401,43 +698,81 @@ y `rabbit.mail.smtp.host=localhost`, `rabbit.mail.smtp.port=2525`: cada
 mail se imprime en esa consola. Sin servidor configurado no se intenta
 mandar nada.
 
-### 8. (Opcional) Transportista moderno aparte
+**Mail para pedir una cuenta (opcional).** No hay alta abierta: el login
+muestra un mail de contacto (con asunto y datos a completar ya escritos) y
+un `ADMINISTRADOR` crea la cuenta desde **Usuarios** después de hablar con
+el comercio o repartidor. Por defecto es `altas_rabbit@gmail.com`; para
+cambiarlo:
 
-`transportista-moderno/` es un transportista REST que corre fuera de
-Rabbit (Python, sin dependencias); Rabbit lo consulta por polling como a
-los demás.
-Ver su [README](transportista-moderno/README.md).
+```bash
+$WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.contacto.mail:add(value=altas@tu-dominio.com)"
+```
 
 ## Tests
 
 ```bash
-mvn test                       # 27 tests unitarios (JUnit 5), sin servidor
+mvn test                       # tests unitarios (JUnit 5), sin servidor
 ```
 
 Corren en cada `mvn package`: reglas de transición de estados, códigos
 postales y de seguimiento, huella de idempotencia, límite de intentos de
-login, reglas del transportista simulado y validación del cuerpo de la
-API.
+login, reglas del transportista simulado, validación del cuerpo de la
+API, hash de contraseñas, capacidad de los repartidores, a quién se le
+asigna un pedido (y la lista de espera), hora de corte, orden de la hoja
+de ruta recomendada y sus links a Google Maps, validación de la foto del
+remito, tarifa mensual, datos de quien recibe, intentos de entrega, fecha
+prometida, horario estimado, textos de los avisos al cliente y al
+comercio, cuándo no se puede cancelar un pedido (ADR-048), cuánto se
+puede corregir o eliminar del stock de un depósito (ADR-049) e
+indicadores (con la comparación contra el período anterior).
 
-10 tests de integración de la API REST (REST Assured), contra Rabbit ya
+Tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:
 
 ```bash
-mvn verify -Pintegracion -Drabbit.erp.usuario=<erp> -Drabbit.erp.clave=<clave> -Drabbit.punto=<id punto de picking>
+mvn verify -Pintegracion -Drabbit.erp.usuario=<erp> -Drabbit.erp.clave=<clave> -Drabbit.punto=<id punto de picking> \
+  -Drabbit.erp2.usuario=<erp de OTRO comercio> -Drabbit.erp2.clave=<clave> \
+  -Drabbit.comercio.usuario=<usuario con rol COMERCIO> -Drabbit.comercio.clave=<clave>
 ```
 
-Prueban alta, idempotencia, errores en Problem Details, pertenencia,
-cancelación y seguimiento público. Los pedidos que crean llevan
+Prueban alta, idempotencia, errores en Problem Details, pertenencia (con `erp2`: un pedido de otro comercio responde 404; con la cuenta `COMERCIO`: 403),
+cancelación y seguimiento público (`ApiRestIT`), y la seguridad de la API: fuerza bruta (429), credenciales inválidas, CORS, XXE en SOAP e inyección (`SeguridadIT`), y los datos de quien
+recibe (con el email obligatorio), la fecha prometida y que el
+seguimiento no exponga a quien recibe (`MejorasUltimaMillaIT`). Los pedidos que crean llevan
 `[TEST]` en la dirección. Conviene correrlos contra una base local, no contra la
-compartida del equipo: los pedidos de prueba quedan guardados.
+compartida del equipo: los pedidos de prueba quedan guardados (se borran
+con la opción A de `scripts/Rabbit-limpieza-datos-de-prueba.sql`).
 
 Para probar a mano, de punta a punta: [FLUJO-DE-PRUEBAS.md](docs/pruebas/FLUJO-DE-PRUEBAS.md)
 (recorrido guiado por pantalla) y [PRUEBAS-Y-COMANDOS.md](docs/pruebas/PRUEBAS-Y-COMANDOS.md)
 (comandos de cada sistema y lista para marcar). Para la API y los
 sistemas externos hay una colección de Postman lista para importar:
 [`Rabbit.postman_collection.json`](docs/pruebas/Rabbit.postman_collection.json).
+Desde VS Code, con la extensión REST Client, [`Rabbit.http`](Rabbit.http) tiene los mismos pedidos en orden
+(alta, idempotencia, ETag, seguimiento, cancelación, errores, seguridad y simuladores) y toma la contraseña
+de las cuentas demo del `.env`.
+
+## Integración continua
+
+Cada PR y cada push a `main` corren los workflows de GitHub Actions (más uno semanal y uno manual). El
+resultado de cada corrida, con cobertura, tiempos y hallazgos, queda en
+la página del run.
+
+| Workflow | Jobs |
+|---|---|
+| [CI](.github/workflows/ci.yml) | Build y tests unitarios con cobertura (JaCoCo); secretos (gitleaks con [`.gitleaks.toml`](.gitleaks.toml)); compose con los `*IT` y Newman; contrato (Schemathesis y WSDL, ver [CONTRATO.md](docs/pruebas/CONTRATO.md)); E2E con Playwright, axe y Lighthouse (ver [E2E.md](docs/pruebas/E2E.md)); mutación (PIT, en `main` o a mano); SonarCloud |
+| [Seguridad](.github/workflows/seguridad.yml) | Dependencias (OSV-Scanner y Dependency-Check si hay `NVD_API_KEY`), imagen (Trivy), ZAP baseline y ZAP API scan activo y autenticado. También corre una vez por semana |
+| [Carga](.github/workflows/carga.yml) | k6 con 50 usuarios durante 5 minutos, p95 < 500 ms (en `main`, a mano o si cambia la prueba de carga) |
+| [Estabilidad](.github/workflows/estabilidad.yml) | La suite completa del CI corrida 3 veces seguidas: un test que cambia de resultado es inestable (a mano, en la PR que la toque y una vez por semana) |
+
+Todos los jobs que prueban la app la levantan con el mismo compose de
+arriba ([`.github/actions/levantar-rabbit`](.github/actions/levantar-rabbit/action.yml)),
+con contraseñas generadas en el runner y descartadas al terminar.
 
 ## Apagar todo
+
+Con Docker: `docker compose down`. Con WildFly instalado:
+
 
 ```bash
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command=":shutdown"   # WildFly (Rabbit, broker y simulados)

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Portal del comercio: los indicadores de entrega de sus pedidos (ADR-044),
+    en los ultimos 7, 30 o 90 dias. El comercio sale de la identidad
+    autenticada, nunca de la URL. Se bindea a indicadoresBean
+    (IndicadoresBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewParam name="dias" value="#{indicadoresBean.dias}" />
+        <f:viewAction action="#{sesionBean.exigirComercio}" />
+        <f:viewAction action="#{indicadoresBean.cargarComercio}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Mis indicadores</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Mis indicadores</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <p class="ayuda">
+            Cómo le está yendo a tus envíos con Rabbit. "A tiempo" es entregado el día que Rabbit le
+            prometió a tu ERP al recibir el pedido.
+        </p>
+
+        <form method="get" action="#{request.contextPath}/comercio/mis-indicadores.xhtml" class="viz-filtros">
+            <div class="campo">
+                <label for="dias">Período</label>
+                <select id="dias" name="dias">
+                    <ui:repeat value="#{indicadoresBean.periodos}" var="d">
+                        <ui:fragment rendered="#{d == indicadoresBean.dias}">
+                            <option value="#{d}" selected="selected">Últimos #{d} días</option>
+                        </ui:fragment>
+                        <ui:fragment rendered="#{d != indicadoresBean.dias}">
+                            <option value="#{d}">Últimos #{d} días</option>
+                        </ui:fragment>
+                    </ui:repeat>
+                </select>
+            </div>
+            <div class="form-acciones">
+                <button type="submit" class="btn btn-primary">Ver</button>
+            </div>
+        </form>
+
+        <h:panelGroup rendered="#{not empty indicadoresBean.tablero}">
+            <ui:include src="/WEB-INF/plantillas/indicadores.xhtml">
+                <ui:param name="t" value="#{indicadoresBean.tablero}" />
+            </ui:include>
+        </h:panelGroup>
+    </ui:define>
+</ui:composition>

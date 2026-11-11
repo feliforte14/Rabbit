@@ -77,14 +77,6 @@ public class TransportistaRepository {
         return envio == null ? null : buscarEnvioParaActualizar(envio.getId());
     }
 
-    /** El envío de un transportista con ese código de seguimiento, sin bloquear; null si no hay. */
-    public Envio buscarEnvioPorCodigo(Long idTransportista, String codigoSeguimiento) {
-        return em.createQuery("SELECT e FROM Envio e WHERE e.transportista.id = :t AND e.codigoSeguimiento = :c", Envio.class)
-                .setParameter("t", idTransportista)
-                .setParameter("c", codigoSeguimiento)
-                .getResultStream().findFirst().orElse(null);
-    }
-
     public Envio buscarEnvioDePedido(Long idPedido) {
         return em.createQuery("SELECT e FROM Envio e WHERE e.idPedido = :id", Envio.class)
                 .setParameter("id", idPedido)
@@ -105,13 +97,6 @@ public class TransportistaRepository {
         return em.createQuery("SELECT e FROM Envio e WHERE e.idComercio = :id ORDER BY e.fechaSolicitud DESC", Envio.class)
                 .setParameter("id", idComercio)
                 .getResultList();
-    }
-
-    public long contarEnviosActivos(Long idTransportista) {
-        return em.createQuery("SELECT COUNT(e) FROM Envio e WHERE e.transportista.id = :id AND e.estado IN :estados", Long.class)
-                .setParameter("id", idTransportista)
-                .setParameter("estados", List.of(EstadoEnvio.SOLICITADO, EstadoEnvio.EN_TRANSITO))
-                .getSingleResult();
     }
 
     // Borra los envíos de un comercio que se elimina (ver ComercioEliminado).

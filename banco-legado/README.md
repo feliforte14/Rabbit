@@ -17,14 +17,39 @@ npm install
 npm start          # escucha en http://localhost:8090/BancoLegadoService
 ```
 
-El WSDL queda en `http://localhost:8090/BancoLegadoService?wsdl`. Para otro
-puerto: `PUERTO=9000 npm start` (y cambiar `soap:address` en `banco.wsdl`).
+El WSDL queda en `http://localhost:8090/BancoLegadoService?wsdl`.
+
+| Variable | Para qué | Por defecto |
+|---|---|---|
+| `PUERTO` | Puerto HTTP | `8090` |
+| `URL_PUBLICA` | La dirección con la que Rabbit llega a este banco. Va en el `soap:address` del WSDL publicado, y Rabbit llama a esa dirección | `http://localhost:<PUERTO>` |
 
 ## Conectar Rabbit a este banco
 
+Rabbit lee el WSDL de `rabbit.banco.wsdl` al desplegar y después llama a la
+dirección que dice ese WSDL. Por eso el banco tiene que publicar una
+dirección a la que Rabbit llegue.
+
+**Con WildFly instalado en la misma máquina:**
+
 ```bash
+npm start
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/system-property=rabbit.banco.wsdl:add(value=http://localhost:8090/BancoLegadoService?wsdl)"
 $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/deployment=Rabbit.war:redeploy"
+```
+
+**Con Rabbit en Docker** (el `docker compose` del README): dentro del
+contenedor, `localhost` es el propio contenedor. La máquina se llama
+`host.docker.internal` (Docker Desktop y OrbStack lo traen; en Linux hace
+falta `extra_hosts: ["host.docker.internal:host-gateway"]` en el servicio
+`wildfly`):
+
+```bash
+URL_PUBLICA=http://host.docker.internal:8090 npm start
+docker compose exec -T wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect \
+  --command="/system-property=rabbit.banco.wsdl:add(value=http://host.docker.internal:8090/BancoLegadoService?wsdl)"
+docker compose exec -T wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect \
+  --command="/deployment=Rabbit.war:redeploy"
 ```
 
 Para volver al banco en Java: `/system-property=rabbit.banco.wsdl:remove` y

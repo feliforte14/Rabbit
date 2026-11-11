@@ -43,6 +43,15 @@ public interface IConsultaStock {
     Long registrarDeposito(DatosDepositoDTO datos);
 
     /**
+     * Marca un deposito como la base de salida de los camiones (de ahi
+     * arranca la hoja de ruta del dia) y le saca la marca al que la tenia:
+     * hay una sola.
+     *
+     * @throws ValidacionException si el deposito no existe
+     */
+    void marcarBaseDeSalida(Long idDeposito);
+
+    /**
      * @param idDeposito identificador del deposito
      * @return el deposito como DTO
      * @throws ValidacionException si no existe
@@ -71,6 +80,28 @@ public interface IConsultaStock {
     Long registrarItem(Long idDeposito, DatosItemInventarioDTO datos);
 
     /**
+     * Corrige un ítem ya cargado: el nombre del producto, la cantidad que
+     * hay en el depósito y el peso por unidad. El comercio dueño no cambia.
+     *
+     * @param idItem ítem de inventario
+     * @param datos producto, cantidadDisponible y pesoKg nuevos
+     * @throws ValidacionException si el ítem no existe, algún dato es
+     *         inválido, la cantidad queda por debajo de lo reservado o ese
+     *         comercio ya tiene otro ítem con ese nombre en el depósito
+     */
+    void actualizarItem(Long idItem, DatosItemInventarioDTO datos);
+
+    /**
+     * Elimina un ítem del depósito. Solo ADMINISTRADOR. Las reservas
+     * cerradas del ítem quedan en el historial (con el nombre del producto).
+     *
+     * @param idItem ítem de inventario
+     * @throws ValidacionException si no existe, tiene unidades reservadas o
+     *         algún pedido en curso lo usa
+     */
+    void eliminarItem(Long idItem);
+
+    /**
      * TODO el stock de un deposito, de todos los comercios. Es la vista de
      * operador de Rabbit: quien administra el galpon ve todo lo que hay
      * adentro, sin importar de quien sea. Para las pantallas donde se
@@ -96,6 +127,23 @@ public interface IConsultaStock {
 
     /** Varios ítems por ID en una sola consulta (lo usa Ruteo). */
     List<ItemInventarioDTO> listarItemsPorIds(Collection<Long> idsItems);
+
+    /**
+     * El peso por unidad de cada ítem (ADR-032), para calcular el peso de
+     * un pedido. Un ítem sin peso cargado queda con valor null; uno que no
+     * existe no aparece. Sin restricción de rol: la usa la sincronización
+     * de pedidos del ERP, que corre sin usuario (JMS y timer), y no expone
+     * nada más que el peso.
+     */
+    java.util.Map<Long, java.math.BigDecimal> pesosPorItem(Collection<Long> idsItems);
+
+    /**
+     * En qué depósito está cada ítem (ADR-053), para saber dónde retira un pedido
+     * de retiro en depósito. Un ítem que no existe no aparece. Sin restricción de
+     * rol, igual que pesosPorItem (la sincronización corre sin usuario) y por la
+     * misma razón: no expone nada más que el ID del depósito.
+     */
+    java.util.Map<Long, Long> depositosPorItem(Collection<Long> idsItems);
 
     /** Stock consignado del comercio que representa el usuario que llama (rol COMERCIO). */
     List<ItemInventarioDTO> listarStockDelComercioActual();

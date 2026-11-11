@@ -19,7 +19,7 @@
         PROJECT_STAGE=Production: en Development JSF muestra stack traces y
         detalles internos cuando algo falla, informacion util para un
         atacante. El CSS no queda cacheado viejo porque se sirve desde una
-        carpeta versionada (resources/rabbit/1_11/): al cambiarlo se sube la
+        carpeta versionada (resources/rabbit/1_23/): al cambiarlo se sube la
         version. Para depurar en local se puede volver a Development.
     -->
     <context-param>
@@ -31,6 +31,15 @@
         <servlet-name>Faces Servlet</servlet-name>
         <servlet-class>jakarta.faces.webapp.FacesServlet</servlet-class>
         <load-on-startup>1</load-on-startup>
+        <!-- Formularios con archivo (h:inputFile): la foto del remito de
+             entrega (ADR-033) y hasta 3 de una visita fallida (ADR-045). El
+             celular las achica antes de subirlas (remito.js); 8 MB por
+             archivo y 26 MB en total dejan margen si no pudo. -->
+        <multipart-config>
+            <max-file-size>8388608</max-file-size>
+            <max-request-size>27262976</max-request-size>
+            <file-size-threshold>1048576</file-size-threshold>
+        </multipart-config>
     </servlet>
     <servlet-mapping>
         <servlet-name>Faces Servlet</servlet-name>
@@ -65,9 +74,12 @@
         red ni con un script inyectado.
     -->
     <session-config>
+        <!-- Expiración de la sesión por inactividad: 30 minutos. Antes quedaba el valor por defecto del servidor. -->
+        <session-timeout>30</session-timeout>
         <cookie-config>
             <http-only>true</http-only>
             <secure>true</secure>
+            <!-- SameSite=Lax: lo agrega Undertow, ver WEB-INF/undertow-handlers.conf. -->
         </cookie-config>
         <!--
             La sesion viaja SOLO en la cookie, nunca en la URL
@@ -91,6 +103,9 @@
         (personal/usuarios.xhtml, tipo "ERP"), asociado al comercio al que
         representa: un usuario ERP creado a mano con add-user.sh no tiene
         comercio y la API le responde 403.
+        Sin auth-constraint a proposito: el HTTP Basic lo atiende
+        FiltroAutenticacionErp, que cuenta los intentos fallidos y bloquea
+        con 429 (fuerza bruta). El rol ERP lo exige @RolesAllowed en el EJB.
     -->
     <security-constraint>
         <web-resource-collection>
@@ -98,9 +113,6 @@
             <url-pattern>/api/v1/pedidos-externos</url-pattern>
             <url-pattern>/api/v1/pedidos-externos/*</url-pattern>
         </web-resource-collection>
-        <auth-constraint>
-            <role-name>ERP</role-name>
-        </auth-constraint>
         <!-- Mas especifico que "/": hay que repetir la exigencia de HTTPS. -->
         <user-data-constraint>
             <transport-guarantee>CONFIDENTIAL</transport-guarantee>
@@ -146,9 +158,21 @@
         </user-data-constraint>
     </security-constraint>
 
+    <!--
+        FORM y no BASIC: con BASIC el contenedor intenta autenticar todo
+        pedido que traiga Authorization y responde el 401 el mismo, antes de
+        FiltroAutenticacionErp, que asi no podria contar los fallidos. Como
+        ninguna URL tiene auth-constraint, el FORM nunca se dispara: el login
+        web lo hace LoginBean y el de la API el filtro, los dos con
+        request.login contra este realm.
+    -->
     <login-config>
-        <auth-method>BASIC</auth-method>
+        <auth-method>FORM</auth-method>
         <realm-name>ApplicationRealm</realm-name>
+        <form-login-config>
+            <form-login-page>/login.xhtml</form-login-page>
+            <form-error-page>/login.xhtml</form-error-page>
+        </form-login-config>
     </login-config>
 
     <security-role>

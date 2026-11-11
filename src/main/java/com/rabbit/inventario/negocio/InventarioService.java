@@ -60,6 +60,7 @@ import jakarta.ejb.TransactionAttribute;
 import jakarta.ejb.TransactionAttributeType;
 
 import java.io.Serializable;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
@@ -237,6 +238,8 @@ public class InventarioService implements IReservaStock, Serializable {
         // Ahora si sale del deposito: baja lo disponible y se descompromete.
         item.setCantidadDisponible(item.getCantidadDisponible() - reserva.getCantidad());
         item.setCantidadReservada(item.getCantidadReservada() - reserva.getCantidad());
+        // Se vendió: el producto se mueve, así que no es stock sin rotación.
+        item.registrarSalida(LocalDate.now());
         repository.actualizarItem(item);
         escribirStock(item);
 
@@ -323,9 +326,17 @@ public class InventarioService implements IReservaStock, Serializable {
         }
 
         ItemInventario item = reserva.getItem();
-        item.setCantidadDisponible(item.getCantidadDisponible() + reserva.getCantidad());
-        repository.actualizarItem(item);
-        escribirStock(item);
+        if (item == null) {
+            // El ítem se eliminó (solo se puede sin pedidos en curso que lo
+            // usen, así que no debería pasar): la reserva se cierra igual y
+            // la mercadería se vuelve a cargar a mano.
+            LOG.warning("[Inventario] La reserva " + idReserva + " (" + reserva.getCantidad() + " x "
+                    + reserva.getProducto() + ") vuelve, pero su ítem ya no existe: cargar el stock a mano");
+        } else {
+            item.setCantidadDisponible(item.getCantidadDisponible() + reserva.getCantidad());
+            repository.actualizarItem(item);
+            escribirStock(item);
+        }
 
         reserva.setEstado(EstadoReserva.DEVUELTA);
         reserva.setFechaCierre(LocalDateTime.now());

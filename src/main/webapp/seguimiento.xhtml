@@ -3,33 +3,51 @@
     VISTA (Facelet) - Capa de Presentacion.
     Seguimiento publico de un pedido, para el cliente final: sin login, con
     el codigo que le paso la tienda (seguimiento.xhtml?codigo=RB-...). Muestra
-    solo el estado, con una linea de tiempo. Se bindea a seguimientoBean
+    solo el estado, con una linea de tiempo, el dia prometido (ADR-042) y,
+    mientras va en camino con un repartidor de Rabbit, donde esta (ADR-035),
+    en que parada va y en que franja llega (ADR-043). Cuando ya fue entregado,
+    pregunta como fue la entrega: 1 a 5 estrellas y un comentario opcional
+    (ADR-052). Se bindea a seguimientoBean
     (SeguimientoBean.java). Es la version para personas de
     GET /api/v1/seguimiento/{codigo}.
 -->
-<html xmlns="http://www.w3.org/1999/xhtml"
+<html xmlns="http://www.w3.org/1999/xhtml" lang="es"
       xmlns:h="jakarta.faces.html"
       xmlns:f="jakarta.faces.core"
-      xmlns:ui="jakarta.faces.facelets">
+      xmlns:ui="jakarta.faces.facelets"
+      xmlns:pt="jakarta.faces.passthrough">
 <f:metadata>
     <f:viewParam name="codigo" value="#{seguimientoBean.codigo}" />
     <f:viewAction action="#{seguimientoBean.buscar}" />
 </f:metadata>
 <h:head>
     <meta charset="UTF-8" />
+    <!-- Ícono de la pestaña: sin esto el navegador pide /favicon.ico en la raíz del servidor y da 404
+         (Lighthouse lo marcaba como error de consola, OBS-01). -->
+    <link rel="icon" type="image/png" href="#{resource['rabbit:logo.png']}" />
     <title>Rabbit · Seguí tu pedido</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="crossorigin" />
-    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,600;0,700;1,600;1,700&amp;family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet" />
     <h:outputStylesheet library="rabbit" name="estilos.css" />
     <!-- Antes de pintar: aplica el tema elegido (ver tema.js). -->
     <h:outputScript library="rabbit" name="tema.js" />
+    <h:outputScript library="rabbit" name="mejoras.js" />
+    <ui:fragment rendered="#{not empty seguimientoBean.puntosJson}">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"
+              integrity="sha384-c6Rcwz4e4CITMbu/NBmnNS8yN2sC3cUElMEMfP3vqqKFp7GOYaaBBCqmaWBjmkjb"
+              crossorigin="anonymous" referrerpolicy="no-referrer" />
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"
+                integrity="sha384-NElt3Op+9NBMCYaef5HxeJmU4Xeard/Lku8ek6hoPTvYkQPh3zLIrJP7KiRocsxO"
+                crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    </ui:fragment>
+    <!-- En camino: se recarga cada minuto para mostrar donde va. -->
+    <ui:fragment rendered="#{seguimientoBean.enCamino}">
+        <meta http-equiv="refresh" content="60" />
+    </ui:fragment>
 </h:head>
 <h:body styleClass="pagina-sola">
     <div class="container seguimiento">
         <div class="login-marca">
-            <p class="marca">rabbit</p>
+            <h:graphicImage library="rabbit" name="logo.png" alt="rabbit" styleClass="marca-logo" />
             <p class="slogan">Entregas urbanas para comercios</p>
         </div>
 
@@ -60,23 +78,147 @@
             </p>
         </h:panelGroup>
 
-        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta #{seguimientoBean.cancelado ? 'seguimiento-cancelado' : ''}"
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta #{seguimientoBean.fueraDeCamino ? 'seguimiento-cancelado' : ''}"
                       rendered="#{not empty seguimientoBean.pedido}">
             <p class="seguimiento-codigo">Pedido <code>#{seguimientoBean.pedido.codigoSeguimiento}</code></p>
             <p class="seguimiento-titular">#{seguimientoBean.titular}</p>
             <p class="seguimiento-detalle">#{seguimientoBean.detalle}</p>
+            <!-- Retiro en depósito listo (ADR-053/054): dónde y con qué código. -->
+            <h:panelGroup layout="block" styleClass="retiro-aviso"
+                          rendered="#{seguimientoBean.retiro and seguimientoBean.pedido.estado == 'CONFIRMADO'}">
+                <p>Retiralo en</p>
+                <p class="retiro-lugar">#{empty seguimientoBean.pedido.depositoRetiro ? 'el depósito de Rabbit' : seguimientoBean.pedido.depositoRetiro}</p>
+                <p>Mostrá este código</p>
+                <p class="retiro-codigo">#{seguimientoBean.pedido.codigoSeguimiento}</p>
+            </h:panelGroup>
+            <!-- Dia prometido (ADR-042), antes de que salga a reparto. -->
+            <h:panelGroup rendered="#{not empty seguimientoBean.promesa}">
+                <p class="seguimiento-promesa">#{seguimientoBean.promesa}</p>
+            </h:panelGroup>
+            <!-- En camino: en que parada del repartidor va y cuando llega (ADR-043). -->
+            <h:panelGroup rendered="#{not empty seguimientoBean.llegada}">
+                <p class="seguimiento-promesa">
+                    #{seguimientoBean.llegada.esLaProxima
+                      ? 'Sos la próxima parada: llega antes de las ' += seguimientoBean.llegada.hastaTexto += '.'
+                      : 'Sos la parada ' += seguimientoBean.llegada.numeroParada += ' de ' += seguimientoBean.llegada.totalParadas
+                        += ': llega aproximadamente entre las ' += seguimientoBean.llegada.desdeTexto += ' y las ' += seguimientoBean.llegada.hastaTexto += '.'}
+                </p>
+            </h:panelGroup>
 
-            <h:panelGroup rendered="#{not seguimientoBean.cancelado}">
+            <h:panelGroup rendered="#{not seguimientoBean.fueraDeCamino}">
                 <ol class="linea-tiempo">
                     <ui:repeat value="#{seguimientoBean.pasos}" var="paso">
                         <li class="#{seguimientoBean.claseDelPaso(paso)}">
                             <span class="linea-tiempo-punto"></span>
-                            <span class="linea-tiempo-texto">#{etiquetas.pasoSeguimiento(paso)}</span>
+                            <span class="linea-tiempo-texto">#{seguimientoBean.retiro ? etiquetas.pasoRetiro(paso) : etiquetas.pasoSeguimiento(paso)}</span>
                         </li>
                     </ui:repeat>
                 </ol>
             </h:panelGroup>
+            <h:panelGroup rendered="#{not empty seguimientoBean.puntosJson}">
+                <p class="seguimiento-detalle">Así va tu pedido (ubicación de las #{seguimientoBean.ubicacion.hora}):</p>
+                <div class="mapa mapa-seguimiento" data-puntos="#{seguimientoBean.puntosJson}"
+                     role="region" aria-label="Ubicación de tu pedido"></div>
+                <h:outputScript library="rabbit" name="mapa.js" />
+            </h:panelGroup>
         </h:panelGroup>
+
+        <!--
+            Opciones de quien recibe (ADR-057): reprogramar el dia (hasta 7 dias), dejar instrucciones y
+            autorizar a otra persona. Solo mientras el pedido no salio. El texto es de un tercero: la expresion
+            EL lo escapa siempre al mostrarlo. El dia viaja como parametro "fechaEntrega" (input date de HTML).
+        -->
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta opciones-entrega" rendered="#{seguimientoBean.puedeModificar}">
+            <h:form id="formOpciones">
+                <input type="hidden" name="codigo" value="#{seguimientoBean.codigo}" />
+                <p class="seguimiento-titular">¿Querés cambiar algo de la entrega?</p>
+                <div class="campo">
+                    <label for="fechaEntrega">Recibirlo otro día (hasta 7 días)</label>
+                    <input type="date" id="fechaEntrega" name="fechaEntrega" value="#{seguimientoBean.fechaActual}"
+                           min="#{seguimientoBean.fechaMinima}" max="#{seguimientoBean.fechaMaxima}" />
+                </div>
+                <div class="campo">
+                    <label for="formOpciones:instrucciones">Instrucciones para el repartidor</label>
+                    <h:inputText id="instrucciones" value="#{seguimientoBean.instrucciones}" maxlength="200"
+                                 pt:placeholder="Por ejemplo: dejar en portería, tocar timbre 3B" />
+                </div>
+                <div class="campo">
+                    <label for="formOpciones:autorizado">Autorizar a otra persona a recibirlo</label>
+                    <h:inputText id="autorizado" value="#{seguimientoBean.nombreAutorizado}" maxlength="100"
+                                 pt:placeholder="Nombre y apellido" />
+                    <p class="ayuda">Quien reciba el pedido tiene que decirle el código de entrega que te llegó por mail al repartidor.</p>
+                </div>
+                <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                            layout="list" styleClass="mensajes"
+                            errorClass="mensaje-error" infoClass="mensaje-info" />
+                <div class="form-acciones">
+                    <h:commandButton value="Guardar cambios" action="#{seguimientoBean.modificarEntrega}"
+                                     styleClass="btn btn-primary" />
+                </div>
+            </h:form>
+        </h:panelGroup>
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta" rendered="#{seguimientoBean.noSePuedeModificar}">
+            <p class="seguimiento-detalle">Ya no se pueden hacer cambios en esta entrega (salió o está por salir a reparto,
+                o la lleva otra empresa). Si necesitás algo, comunicate con la tienda.</p>
+        </h:panelGroup>
+
+        <!--
+            Calificacion de la entrega (ADR-052): solo cuando el pedido ya esta entregado y
+            todavia no se califico. Los radios son HTML comun (no componentes JSF): el bean
+            lee "estrellas" del request y el negocio lo vuelve a validar. Funciona sin JavaScript.
+            El codigo viaja en un campo oculto porque, en el envio del formulario, el
+            parametro de la URL no se vuelve a leer. El comentario es texto de un tercero:
+            la expresión EL lo escapa siempre al mostrarlo.
+        -->
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta calificacion" rendered="#{seguimientoBean.puedeCalificar}">
+            <h:form id="formCalificacion">
+                <input type="hidden" name="codigo" value="#{seguimientoBean.codigo}" />
+                <fieldset class="estrellas">
+                    <legend class="seguimiento-titular">¿Cómo fue la entrega?</legend>
+                    <div class="estrellas-opciones">
+                        <input type="radio" id="estrella5" name="estrellas" value="5" required="required" />
+                        <label for="estrella5" title="5 estrellas: excelente"><span class="solo-lector">5 estrellas, excelente</span></label>
+                        <input type="radio" id="estrella4" name="estrellas" value="4" />
+                        <label for="estrella4" title="4 estrellas: muy buena"><span class="solo-lector">4 estrellas, muy buena</span></label>
+                        <input type="radio" id="estrella3" name="estrellas" value="3" />
+                        <label for="estrella3" title="3 estrellas: normal"><span class="solo-lector">3 estrellas, normal</span></label>
+                        <input type="radio" id="estrella2" name="estrellas" value="2" />
+                        <label for="estrella2" title="2 estrellas: mala"><span class="solo-lector">2 estrellas, mala</span></label>
+                        <input type="radio" id="estrella1" name="estrellas" value="1" />
+                        <label for="estrella1" title="1 estrella: muy mala"><span class="solo-lector">1 estrella, muy mala</span></label>
+                    </div>
+                </fieldset>
+                <div class="campo">
+                    <label for="formCalificacion:comentario">Contanos más (opcional)</label>
+                    <h:inputTextarea id="comentario" value="#{seguimientoBean.comentario}" rows="3" maxlength="500"
+                                     styleClass="comentario-calificacion" />
+                </div>
+                <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                            layout="list" styleClass="mensajes"
+                            errorClass="mensaje-error" infoClass="mensaje-info" />
+                <div class="form-acciones">
+                    <h:commandButton value="Enviar calificación" action="#{seguimientoBean.calificar}"
+                                     styleClass="btn btn-primary" />
+                </div>
+            </h:form>
+        </h:panelGroup>
+
+        <!-- Ya calificada: se muestra lo que dejo (y el agradecimiento, justo despues de enviarla). -->
+        <h:panelGroup layout="block" styleClass="seguimiento-tarjeta calificacion calificacion-hecha"
+                      rendered="#{not empty seguimientoBean.calificacion}">
+            <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                        layout="list" styleClass="mensajes"
+                        errorClass="mensaje-error" infoClass="mensaje-info" />
+            <p class="seguimiento-titular">Tu calificación</p>
+            <p class="calificacion-estrellas" aria-label="#{seguimientoBean.calificacion.estrellas} de 5 estrellas">
+                <span aria-hidden="true">#{seguimientoBean.estrellasEnTexto(seguimientoBean.calificacion.estrellas)}</span>
+                <span class="solo-lector">#{seguimientoBean.calificacion.estrellas} de 5 estrellas</span>
+            </p>
+            <h:panelGroup rendered="#{not empty seguimientoBean.calificacion.comentario}">
+                <p class="calificacion-comentario">#{seguimientoBean.calificacion.comentario}</p>
+            </h:panelGroup>
+        </h:panelGroup>
+
         <!-- Tema visual: se cambia en el momento (ver tema.js). -->
         <div class="tema-selector tema-pie" role="group" aria-label="Tema visual">
             <button type="button" class="icono-boton" data-tema="claro" aria-pressed="false" aria-label="Tema claro" title="Tema claro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>

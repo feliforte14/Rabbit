@@ -21,6 +21,12 @@
  *   curl -X POST http://localhost:8090/admin/caida?activa=false
  *
  * Uso: npm install && npm start   (puerto 8090; PUERTO=... para cambiarlo)
+ *
+ * URL_PUBLICA: la dirección con la que Rabbit llega a este banco. Va en el
+ * soap:address del WSDL que se publica, y Rabbit llama a esa dirección. Por
+ * defecto, http://localhost:PUERTO (Rabbit en la misma máquina). Con Rabbit en
+ * Docker, el contenedor no llega a "localhost" de la máquina:
+ *   URL_PUBLICA=http://host.docker.internal:8090 npm start
  */
 
 const fs = require('fs');
@@ -32,6 +38,7 @@ const PUERTO = Number(process.env.PUERTO || 8090);
 const LIMITE = 500000;
 const DEMORA_CAIDA_MS = 10000;
 const RUTA_SERVICIO = '/BancoLegadoService';
+const URL_PUBLICA = (process.env.URL_PUBLICA || `http://localhost:${PUERTO}`).replace(/\/+$/, '');
 
 let secuencia = 0;
 let caida = false;
@@ -109,9 +116,11 @@ const servidor = http.createServer((pedido, respuesta) => {
     respuesta.end();
 });
 
-const wsdl = fs.readFileSync(path.join(__dirname, 'banco.wsdl'), 'utf8');
+// El WSDL versionado dice http://localhost:8090; se publica con la dirección real (URL_PUBLICA).
+const wsdl = fs.readFileSync(path.join(__dirname, 'banco.wsdl'), 'utf8')
+    .replace(/(<soap:address location=")[^"]*(")/, `$1${URL_PUBLICA}${RUTA_SERVICIO}$2`);
 servidor.listen(PUERTO, () => {
     soap.listen(servidor, RUTA_SERVICIO, servicio, wsdl, () => {
-        log(`Escuchando en http://localhost:${PUERTO}${RUTA_SERVICIO} (WSDL en ?wsdl)`);
+        log(`Escuchando en el puerto ${PUERTO}; Rabbit lo llama en ${URL_PUBLICA}${RUTA_SERVICIO} (WSDL en ?wsdl)`);
     });
 });

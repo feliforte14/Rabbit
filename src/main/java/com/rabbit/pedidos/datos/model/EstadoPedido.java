@@ -1,7 +1,5 @@
 package com.rabbit.pedidos.datos.model;
 
-import java.util.Set;
-
 /**
  * Estados por los que pasa un pedido dentro de Rabbit.
  *
@@ -15,9 +13,29 @@ import java.util.Set;
  *            v                                      v                                      v
  *       [CANCELADO] <-------------------------------+                                [ENTREGADO]
  *
+ * Devolución al depósito (devolverADeposito): un pedido CONFIRMADO o
+ * EN_CAMINO que el repartidor no pudo entregar (cliente ausente, no entra
+ * en el vehículo...) vuelve a PENDIENTE, en la lista de espera, para que
+ * se le asigne a otro repartidor. Conserva su cobro.
+ *
+ * Entrega fallida (ADR-041): cada visita EN_CAMINO que no termina en
+ * entrega cuenta como intento. Al agotar los intentos, o si el cliente lo
+ * rechazó, no vuelve a PENDIENTE sino que pasa a DEVUELTO_AL_COMERCIO
+ * (final): el stock consignado vuelve al stock del comercio y el cobro se
+ * anula.
+ *
+ *       [EN_CAMINO] --- intentos agotados o rechazo ---> [DEVUELTO_AL_COMERCIO]
+ *
+ * Paquete dañado (ADR-045): vuelve al comercio sin reintentar, también
+ * desde CONFIRMADO (lo detectó al retirarlo). Ahí el stock NO vuelve: la
+ * mercadería está dañada.
+ *
+ *       [CONFIRMADO] --- paquete dañado ---> [DEVUELTO_AL_COMERCIO]
+ *
  * Una vez EN_CAMINO el pedido ya salió con el repartidor: no se puede
  * cancelar desde Rabbit (la mercadería no está en el depósito para
- * devolver el stock). ENTREGADO y CANCELADO son finales.
+ * devolver el stock). ENTREGADO, CANCELADO y DEVUELTO_AL_COMERCIO son
+ * finales.
  *
  * Con origen STOCK_CONSIGNADO (ver OrigenPedido), el stock ya queda
  * comprometido (reservado y confirmado en ServicioDeInventario) desde que
@@ -34,20 +52,25 @@ public enum EstadoPedido {
     CONFIRMADO,
     EN_CAMINO,
     ENTREGADO,
-    CANCELADO;
+    CANCELADO,
+    DEVUELTO_AL_COMERCIO;
 
     /**
-     * Máquina de estados del pedido en un solo lugar: PedidoService la
-     * consulta antes de cada cambio en vez de repetir los if en cada
-     * operación. También protege contra eventos o clics que llegan fuera
-     * de orden (por ejemplo, "entregar" sobre un pedido que se canceló).
+     * Si desde este estado se puede pasar a {@code destino}. La decisión la toma el objeto estado
+     * ({@link EstadoDelPedido}): acá solo se delega, así hay una única fuente de verdad.
+     * PedidoService consulta esto antes de empezar una operación larga (cobrar, pedir un envío) y también
+     * protege contra eventos o clics que llegan fuera de orden (por ejemplo, "entregar" sobre un pedido
+     * que se canceló).
+     *
+     * Sabiendo cómo lo recibe quien compró (ADR-053): un pedido de RETIRO_EN_DEPOSITO no sale a reparto, así
+     * que no pasa por EN_CAMINO y se entrega directo desde CONFIRMADO ("listo para retirar") cuando quien lo
+     * retira muestra el código. Para DOMICILIO es la máquina de arriba.
      */
+    public boolean puedePasarA(EstadoPedido destino, TipoEntrega tipo) {
+        return EstadoDelPedido.de(this).puedePasarA(destino, tipo);
+    }
+
     public boolean puedePasarA(EstadoPedido destino) {
-        return switch (this) {
-            case PENDIENTE -> Set.of(CONFIRMADO, CANCELADO).contains(destino);
-            case CONFIRMADO -> Set.of(EN_CAMINO, CANCELADO).contains(destino);
-            case EN_CAMINO -> destino == ENTREGADO;
-            case ENTREGADO, CANCELADO -> false;
-        };
+        return puedePasarA(destino, TipoEntrega.DOMICILIO);
     }
 }

@@ -8,6 +8,7 @@ package com.rabbit.pedidos.dto;
 
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.PedidoExterno;
+import com.rabbit.pedidos.datos.model.TipoEntrega;
 import com.rabbit.pagos.dto.MedioPago;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
@@ -24,9 +25,12 @@ public class PedidoExternoDTO {
     public Long idPuntoPicking;
     public List<LineaPedidoDTO> lineas;
     public BigDecimal importe;
+    public BigDecimal pesoKg;
     public MedioPago medioPago;
     public String direccionEntrega;
     public String codigoPostalEntrega;
+    // ADR-053: null = a domicilio.
+    public TipoEntrega tipoEntrega;
     public String fechaPedido;
     public boolean sincronizado;
     public String errorSincronizacion;
@@ -36,6 +40,14 @@ public class PedidoExternoDTO {
     // DTO solo ve la fila del ERP).
     public String estadoPedido;
     public String codigoSeguimiento;
+    // Lista de espera y devolución al depósito (ADR-037).
+    public boolean enListaDeEspera;
+    public boolean devueltoADeposito;
+    // Día prometido (ADR-042): se calcula al recibirlo, así ya viene en la
+    // respuesta del alta. Null si no se pudo prometer.
+    public java.time.LocalDate fechaPrometida;
+    // Visitas fallidas del pedido real (ADR-041).
+    public int intentosFallidos;
 
     // Convierte una entidad PedidoExterno en un DTO listo para la vista.
     public static PedidoExternoDTO desde(PedidoExterno pe) {
@@ -45,9 +57,11 @@ public class PedidoExternoDTO {
         dto.origen = pe.getOrigen();
         dto.idPuntoPicking = pe.getIdPuntoPicking();
         dto.importe = pe.getImporte();
+        dto.pesoKg = pe.getPesoKg();
         dto.medioPago = pe.getMedioPago();
         dto.direccionEntrega = pe.getDireccionEntrega();
         dto.codigoPostalEntrega = pe.getCodigoPostalEntrega();
+        dto.tipoEntrega = pe.getTipoEntrega();
         dto.lineas = pe.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
         dto.fechaPedido = pe.getFechaPedido() != null ? pe.getFechaPedido().format(FORMATO) : null;
         dto.sincronizado = pe.isSincronizado();
@@ -64,6 +78,7 @@ public class PedidoExternoDTO {
             dto.resultado = "Descartado";
         }
         dto.idPedido = pe.getIdPedido();
+        dto.fechaPrometida = pe.getFechaPrometida();
         return dto;
     }
 
@@ -89,9 +104,12 @@ public class PedidoExternoDTO {
     public Long getIdPuntoPicking() { return idPuntoPicking; }
     public List<LineaPedidoDTO> getLineas() { return lineas; }
     public BigDecimal getImporte() { return importe; }
+    public BigDecimal getPesoKg() { return pesoKg; }
     public MedioPago getMedioPago() { return medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
     public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
+    public TipoEntrega getTipoEntrega() { return tipoEntrega; }
+    public boolean isRetiroEnDeposito() { return tipoEntrega == TipoEntrega.RETIRO_EN_DEPOSITO; }
     public String getFechaPedido() { return fechaPedido; }
     public boolean isSincronizado() { return sincronizado; }
     public String getErrorSincronizacion() { return errorSincronizacion; }

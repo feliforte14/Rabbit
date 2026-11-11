@@ -23,6 +23,11 @@ public class ZonaRepository {
         return em.merge(zona);
     }
 
+    /** Borra la zona de la BD (baja física). */
+    public void eliminar(Zona zona) {
+        em.remove(em.contains(zona) ? zona : em.merge(zona));
+    }
+
     public Zona buscarPorId(Long id) {
         return em.find(Zona.class, id);
     }

@@ -32,13 +32,6 @@ public class FiltroHistorialDTO {
     /** Idem, extremo superior; se compara hasta el final de ese dia. */
     public LocalDate hasta;
 
-    /** true si no hay ningun criterio cargado. */
-    public boolean estaVacio() {
-        return idComercio == null && idDeposito == null
-                && (estado == null || estado.isBlank())
-                && (producto == null || producto.isBlank())
-                && desde == null && hasta == null;
-    }
 
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }

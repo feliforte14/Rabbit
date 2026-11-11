@@ -24,7 +24,7 @@ public interface IConsultaUsuarios {
 
     /**
      * @param id ID del usuario
-     * @return el usuario, nunca con su passwordHash expuesto
+     * @return el usuario, nunca con el hash de su contraseña
      * @throws ValidacionException si el usuario no existe
      */
     UsuarioDTO obtenerUsuario(Long id);

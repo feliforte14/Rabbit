@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Recepcion de mercaderia (ADR-058): las ordenes que anunciaron los comercios y el formulario para
+    registrar lo que llego de cada producto (con ?orden=N). Solo el personal. Se bindea a recepcionBean
+    (RecepcionBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewParam name="orden" value="#{recepcionBean.orden}" />
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+        <f:viewAction action="#{recepcionBean.abrir}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Recepción de mercadería</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Recepción de mercadería</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Los comercios avisan qué mercadería mandan. Cuando llega al depósito, abrí la orden y poné
+                cuánto llegó de cada producto: queda <b>Recibida</b> si no faltó nada y <b>Recibida con
+                faltantes</b> si faltó algo. Se suma al stock del comercio solo lo que llegó. La recepción se
+                registra una sola vez; si no llegó nada, cancelá la orden.
+            </p>
+        </details>
+
+        <!-- Formulario de la orden que se esta recibiendo. -->
+        <h:panelGroup rendered="#{not empty recepcionBean.abierta}">
+            <h2>Recibir la orden N° #{recepcionBean.abierta.id}</h2>
+            <p class="ayuda">
+                #{recepcionBean.nombreComercio(recepcionBean.abierta.idComercio)} → #{recepcionBean.abierta.deposito}
+                · anunciada el #{recepcionBean.abierta.fechaAnuncio}
+                <h:panelGroup rendered="#{not empty recepcionBean.abierta.notas}">
+                    · Aclaración: #{recepcionBean.abierta.notas}
+                </h:panelGroup>
+            </p>
+            <h:form id="formRecepcion" styleClass="formulario">
+                <ui:repeat value="#{recepcionBean.filas}" var="f">
+                    <div class="campo fila-recepcion">
+                        <h:outputLabel for="recibida" value="#{f.producto} (anunciadas: #{f.esperada})" />
+                        <h:inputText id="recibida" value="#{f.recibida}" pt:type="number" pt:min="0"
+                                     converterMessage="Lo recibido tiene que ser un número entero">
+                            <f:convertNumber integerOnly="true" />
+                        </h:inputText>
+                        <h:message for="recibida" styleClass="error-campo" />
+                    </div>
+                </ui:repeat>
+                <div class="form-acciones">
+                    <h:commandButton value="Registrar recepción" styleClass="btn btn-primary"
+                                     action="#{recepcionBean.registrar}"
+                                     onclick="return confirm('¿Registrar lo recibido? Se suma al stock del comercio y no se puede volver a registrar.');" />
+                    <h:link outcome="/personal/recepciones" value="Volver" styleClass="btn btn-secondary" />
+                </div>
+            </h:form>
+        </h:panelGroup>
+
+        <h2>Órdenes</h2>
+        <h:form id="formOrdenes">
+            <h:dataTable value="#{recepcionBean.ordenes}" var="o"
+                         styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
+                         rendered="#{not empty recepcionBean.ordenes}">
+                <h:column>
+                    <f:facet name="header">Orden</f:facet>
+                    N° #{o.id}
+                    <span class="dato-secundario">#{o.fechaAnuncio}</span>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Comercio</f:facet>
+                    #{recepcionBean.nombreComercio(o.idComercio)}
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Depósito</f:facet>
+                    #{o.deposito}
+                </h:column>
+                <h:column styleClass="col-p2" headerClass="col-p2">
+                    <f:facet name="header">Mercadería</f:facet>
+                    <ui:repeat value="#{o.lineas}" var="l">
+                        <span class="dato-secundario">
+                            #{l.producto}: anunciadas #{l.cantidadEsperada}<h:outputText rendered="#{not empty l.cantidadRecibida}"
+                                value=" · llegaron #{l.cantidadRecibida} (#{l.diferenciaTexto})" />
+                        </span>
+                    </ui:repeat>
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Estado</f:facet>
+                    <h:outputText value="#{etiquetas.estadoRecepcion(o.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoRecepcion(o.estado)}" />
+                    <h:panelGroup rendered="#{not empty o.fechaRecepcion}">
+                        <span class="dato-secundario">#{o.fechaRecepcion} · #{o.recibidaPor}</span>
+                    </h:panelGroup>
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:link outcome="/personal/recepciones" value="Registrar recepción" styleClass="btn btn-secondary"
+                            rendered="#{o.anunciada}">
+                        <f:param name="orden" value="#{o.id}" />
+                    </h:link>
+                    <h:commandButton value="Cancelar" styleClass="btn btn-danger" rendered="#{o.anunciada}"
+                                     action="#{recepcionBean.cancelar(o.id)}"
+                                     onclick="return confirm('¿Cancelar la orden? El comercio ve que se canceló.');" />
+                </h:column>
+            </h:dataTable>
+            <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty recepcionBean.ordenes}">
+                Todavía no hay órdenes de recepción. Las crean los comercios desde Mi stock.
+            </h:panelGroup>
+        </h:form>
+    </ui:define>
+</ui:composition>

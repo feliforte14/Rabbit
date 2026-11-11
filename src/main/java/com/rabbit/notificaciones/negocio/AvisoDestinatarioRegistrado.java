@@ -1,0 +1,16 @@
+package com.rabbit.notificaciones.negocio;
+
+/**
+ * Evento CDI: se guardó un aviso para quien recibe un pedido (ADR-040). Lo
+ * observa AvisosPorMail recién cuando la transacción se confirma
+ * (AFTER_SUCCESS), con todo ya resuelto: después del commit no se puede
+ * consultar la base (ver AvisoRegistrado).
+ */
+public record AvisoDestinatarioRegistrado(Long idPedido, String email, String asunto, String texto,
+                                          String enlace, String codigoSeguimiento, String codigoEntrega) {
+
+    /** Sin link ni códigos: el mail sale solo con el texto. */
+    public AvisoDestinatarioRegistrado(Long idPedido, String email, String asunto, String texto) {
+        this(idPedido, email, asunto, texto, null, null, null);
+    }
+}

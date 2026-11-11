@@ -88,6 +88,13 @@ public class UsuarioRepository {
                 .setParameter("id", idComercio).getSingleResult();
     }
 
+    // Cuántas cuentas (activas o no) representan a un repartidor (ver
+    // EliminacionDeRepartidor).
+    public long contarCuentasDeRepartidor(Long idRepartidor) {
+        return em.createQuery("SELECT COUNT(u) FROM Usuario u WHERE u.idRepartidor = :id", Long.class)
+                .setParameter("id", idRepartidor).getSingleResult();
+    }
+
     // Un repartidor tiene una sola cuenta.
     public boolean existeUsuarioDeRepartidor(Long idRepartidor) {
         return em.createQuery(
@@ -116,5 +123,10 @@ public class UsuarioRepository {
      */
     public Usuario actualizar(Usuario usuario) {
         return em.merge(usuario);
+    }
+
+    /** Borra la cuenta de la BD (baja física). */
+    public void eliminar(Usuario usuario) {
+        em.remove(em.contains(usuario) ? usuario : em.merge(usuario));
     }
 }

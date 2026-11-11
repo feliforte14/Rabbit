@@ -18,7 +18,7 @@ public final class CodigosPostales {
 
     private static final Pattern CP_NUMERICO = Pattern.compile("^\\d{4}$");
     private static final Pattern CPA = Pattern.compile("(?i)\\b[A-HJ-NP-Z](\\d{4})[A-Z]{3}\\b");
-    private static final Pattern CP_ROTULADO = Pattern.compile("(?i)\\bC\\.?\\s?P\\.?\\s*:?\\s*(\\d{4})\\b");
+    private static final Pattern CP_ROTULADO = Pattern.compile("(?i)\\bC\\.?\\s?P\\.?\\s*+:?+\\s*+(\\d{4})\\b");
     private static final Pattern CP_ENTRE_PARENTESIS = Pattern.compile("\\((\\d{4})\\)");
 
     private CodigosPostales() {}

@@ -1,0 +1,35 @@
+# =====================================================================
+# Rabbit: que WildFly valide el login contra la base compartida (ADR-031)
+# =====================================================================
+# Cada integrante lo corre UNA VEZ en su WildFly, con WildFly arriba,
+# el datasource RabbitDS ya creado y Rabbit desplegado al menos una vez
+# con esta versión (el despliegue agrega la columna usuarios.hash_clave):
+#
+#   $WILDFLY_HOME/bin/jboss-cli.sh --connect --file=scripts/configurar-realm-compartido.cli
+#
+# Qué hace:
+#   1. RabbitRealmBase (jdbc-realm): lee la tabla "usuarios" con el
+#      mismo RabbitDS. La primera consulta trae el hash bcrypt de una
+#      cuenta activa; la segunda, su rol. Una cuenta dada de baja
+#      devuelve rol pero no contraseña: existe y no puede entrar.
+#   2. RabbitRealmCompartido (distributed-realm): busca la cuenta primero
+#      en la base y, si no está, en los archivos de add-user.sh de esta
+#      máquina (el administrador inicial y las cuentas de antes).
+#   3. ApplicationDomain, el dominio que usa Rabbit, pasa a usar ese realm.
+#
+# No lleva contraseñas: usa el datasource que ya existe.
+# Para volver atrás: scripts/revertir-realm-compartido.cli
+# =====================================================================
+
+batch
+
+/subsystem=elytron/jdbc-realm=RabbitRealmBase:add(principal-query=[{sql="SELECT hash_clave FROM usuarios WHERE username = ? AND activo AND hash_clave IS NOT NULL", data-source=RabbitDS, modular-crypt-mapper={password-index=1}}, {sql="SELECT rol FROM usuarios WHERE username = ? AND (hash_clave IS NOT NULL OR NOT activo)", data-source=RabbitDS, attribute-mapping=[{index=1, to=groups}]}])
+
+/subsystem=elytron/distributed-realm=RabbitRealmCompartido:add(realms=[RabbitRealmBase, ApplicationRealm])
+
+/subsystem=elytron/security-domain=ApplicationDomain:write-attribute(name=realms, value=[{realm=RabbitRealmCompartido, role-decoder=groups-to-roles}, {realm=local}])
+/subsystem=elytron/security-domain=ApplicationDomain:write-attribute(name=default-realm, value=RabbitRealmCompartido)
+
+run-batch
+
+reload

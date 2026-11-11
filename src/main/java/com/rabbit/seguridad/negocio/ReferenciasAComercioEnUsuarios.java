@@ -3,7 +3,8 @@ package com.rabbit.seguridad.negocio;
 /**
  * Impide eliminar un comercio que tiene cuentas de usuario asociadas: la
  * cuenta quedaría representando a un comercio inexistente (ver
- * EliminacionDeComercio). Hay que dar de baja la cuenta primero.
+ * EliminacionDeComercio). Hay que eliminar la cuenta primero
+ * (Usuarios → Eliminar).
  */
 
 import com.rabbit.comercios.negocio.EliminacionDeComercio;

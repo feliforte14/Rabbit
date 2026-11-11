@@ -2,6 +2,8 @@ package com.rabbit.ruteo.negocio;
 
 import com.rabbit.ruteo.dto.GrupoZonaDTO;
 import com.rabbit.ruteo.dto.HojaDeRutaDTO;
+import com.rabbit.ruteo.dto.ParadaDTO;
+import com.rabbit.ruteo.dto.RecorridoDTO;
 import com.rabbit.ruteo.dto.ResultadoDespachoDTO;
 import jakarta.ejb.Local;
 import java.util.List;
@@ -12,7 +14,8 @@ import java.util.List;
  * Arma la hoja de ruta de cada pedido (retiro → entrega), agrupa los
  * pendientes por zona y los despacha según la cobertura de su zona:
  * repartidor propio de la zona, transportista de la zona o de respaldo.
- * No optimiza el orden de las paradas (no hay coordenadas; ver ADR-017).
+ * El orden recomendado de las paradas es aproximado, por código postal:
+ * no hay coordenadas (ver ADR-017 y ADR-038).
  */
 @Local
 public interface IRuteo {
@@ -20,10 +23,38 @@ public interface IRuteo {
     /** Tablero del personal de Rabbit: pedidos CONFIRMADO o EN_CAMINO con su hoja de ruta. */
     List<HojaDeRutaDTO> listarEntregasEnCurso();
 
-    /** La entrega que tiene a cargo el repartidor que llama, o null si no tiene ninguna. */
-    HojaDeRutaDTO entregaActualDelRepartidor();
+    /**
+     * Las entregas que tiene a cargo el repartidor que llama (CONFIRMADO o
+     * EN_CAMINO), en el orden en que se le asignaron. Con capacidad en el
+     * vehículo pueden ser varias (ADR-032); vacía si no tiene ninguna.
+     */
+    List<HojaDeRutaDTO> entregasEnCursoDelRepartidor();
 
-    /** Entregas terminadas (ENTREGADO o CANCELADO) del repartidor que llama. */
+    /**
+     * La hoja de ruta recomendada del repartidor: los retiros que le faltan
+     * y después las entregas, encadenadas por cercanía de código postal,
+     * con el recorrido en Google Maps en tramos de hasta 10 puntos
+     * (ADR-038).
+     *
+     * @param entregasEnCurso lo que devolvió entregasEnCursoDelRepartidor
+     */
+    RecorridoDTO recorridoRecomendado(List<HojaDeRutaDTO> entregasEnCurso);
+
+    /**
+     * La hoja de ruta recomendada de un repartidor puntual, la misma que ve
+     * él en "Mis entregas". Solo el personal; el seguimiento público la usa
+     * a través de LlegadaEstimadaService (@RunAs), que devuelve solo la
+     * posición del pedido y la franja (ADR-043).
+     */
+    RecorridoDTO recorridoDeRepartidor(Long idRepartidor);
+
+    /**
+     * La parada de salida del día: el depósito marcado como base de salida
+     * (Depósitos y stock), con su ubicación en el mapa si ya se conoce.
+     */
+    ParadaDTO depositoDeSalida();
+
+    /** Entregas terminadas (ENTREGADO, CANCELADO o DEVUELTO_AL_COMERCIO) del repartidor que llama. */
     List<HojaDeRutaDTO> historialDelRepartidor();
 
     /** Tablero de ruteo: pedidos PENDIENTE agrupados por zona (y los sin zona al final). */

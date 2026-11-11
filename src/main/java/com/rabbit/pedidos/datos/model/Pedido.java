@@ -19,6 +19,7 @@ package com.rabbit.pedidos.datos.model;
 import com.rabbit.pagos.dto.MedioPago;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -57,6 +58,14 @@ public class Pedido {
     @Enumerated(EnumType.STRING)
     private MedioPago medioPago;
 
+    // Kilos totales del pedido: con STOCK_CONSIGNADO, la suma de peso por
+    // unidad x cantidad de cada línea; con PUNTO_PICKING, lo que informó el
+    // comercio. Null si no se conoce (ítems sin peso, picking sin informar,
+    // pedidos anteriores): ahí el límite del repartidor solo cuenta bultos
+    // (ADR-032).
+    @Column(precision = 10, scale = 3)
+    private BigDecimal pesoKg;
+
     // Adónde se entrega (la manda el ERP con el pedido). Es el destino de
     // la hoja de ruta del repartidor (ver RuteoService). Nullable: los
     // pedidos anteriores a este cambio no la tienen.
@@ -82,6 +91,119 @@ public class Pedido {
     @Column(length = 16, unique = true)
     private String codigoSeguimiento;
 
+    // Cuándo se entregó y quién lo registró (ADR-033). La fecha la usa la
+    // liquidación mensual (ADR-034). Null en pedidos no entregados y en los
+    // entregados antes de este cambio.
+    private LocalDateTime fechaEntrega;
+
+    @Column(length = 30)
+    private String entregadoPor;
+
+    // Si tiene foto del remito (RemitoEntrega), para no consultar esa
+    // tabla al listar. Boolean y no boolean: las filas anteriores quedan
+    // en NULL.
+    private Boolean conRemito;
+
+    // Lista de espera: el pedido se quiso confirmar pero ningún repartidor
+    // tenía lugar, o ya había pasado la hora de corte de la hoja de ruta.
+    // Sigue PENDIENTE y AsignadorDeEspera lo asigna solo, por orden de
+    // llegada, cuando alguno se libera. Null = no está esperando.
+    private LocalDateTime enEsperaDesde;
+
+    // Por qué espera (o por qué salió de la espera sin asignarse), para el
+    // personal.
+    @Column(length = 300)
+    private String motivoEspera;
+
+    // Zona del pedido según Ruteo, para que la asignación automática busque
+    // primero ahí, como lo habría hecho el despacho por zona.
+    private Long idZonaEspera;
+
+    // Devolución al depósito: el repartidor que lo devolvió (no se le
+    // vuelve a asignar este pedido) y por qué.
+    private Long idRepartidorExcluido;
+
+    @Column(length = 300)
+    private String motivoDevolucion;
+
+    // Si ya tiene cobro registrado en Pagos: un pedido devuelto al depósito
+    // vuelve a PENDIENTE con su cobro, y al reasignarlo no se cobra de nuevo.
+    // Boolean y no boolean: las filas anteriores quedan en NULL.
+    private Boolean cobroRegistrado;
+
+    // Cómo recibe quien compró (ADR-053). Null en las filas anteriores: cuenta como DOMICILIO.
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private TipoEntrega tipoEntrega;
+
+    // Cuántas cajas o paquetes forman el pedido: etiquetas con QR a imprimir (ADR-056). Null = 1:
+    // las filas anteriores. No es getBultos(), que cuenta unidades para el límite del repartidor.
+    private Integer cantidadDeBultos;
+
+    // Solo RETIRO_EN_DEPOSITO: el depósito donde retira (el que tiene su stock), decidido al sincronizar.
+    private Long idDepositoRetiro;
+
+    // Quién recibe (ADR-039): los manda el ERP, opcionales. Con el email,
+    // Rabbit le avisa cada cambio de estado (ADR-040); nombre y teléfono
+    // los ve el repartidor. Nunca salen en el seguimiento público.
+    @Column(length = 100)
+    private String nombreDestinatario;
+
+    @Column(length = 30)
+    private String telefonoDestinatario;
+
+    @Column(length = 120)
+    private String emailDestinatario;
+
+    // Día en que Rabbit se compromete a entregarlo (ADR-042): se calcula al
+    // recibirlo con la hora de corte. Es contra lo que se mide "a tiempo"
+    // (ADR-044). Null si no se pudo prometer (sin código postal) o en los
+    // pedidos anteriores a este cambio.
+    private LocalDate fechaPrometida;
+
+    // Opciones que elige quien recibe desde el seguimiento (ADR-057). fechaPrometidaOriginal solo
+    // se llena si reprogramó: guarda lo que se había prometido antes. cambiosDelCliente tiene tope.
+    private LocalDate fechaPrometidaOriginal;
+    @Column(length = 200)
+    private String instruccionesEntrega;
+    @Column(length = 100)
+    private String nombreAutorizado;
+    private Integer cambiosDelCliente;
+
+    // Código de 4 dígitos que recibe quien compra y le dice al repartidor al entregar
+    // (ADR-055). Se genera al salir a reparto; null en los pedidos anteriores o que lleva un
+    // transportista: ahí no se pide. Nunca va en el PedidoDTO.
+    @Column(length = 4)
+    private String codigoEntrega;
+
+    // Cuántas veces se equivocó el repartidor con ese código.
+    private Integer intentosDeCodigo;
+
+    // Visitas al cliente que no terminaron en entrega (ADR-041). Integer y
+    // no int: las filas anteriores quedan en NULL (= ninguna).
+    private Integer intentosFallidos;
+
+    // Por qué falló la última visita (o la devolución), con motivos fijos
+    // para poder contarlos. El detalle libre sigue en motivoDevolucion.
+    @Enumerated(EnumType.STRING)
+    private MotivoEntregaFallida motivoEntregaFallida;
+
+    // Si esa última falla le contó una visita al cliente (ADR-045): no
+    // alcanza con el motivo, porque desde CONFIRMADO ninguno cuenta. Los
+    // avisos cambian según esto. Boolean: las filas anteriores quedan en NULL.
+    private Boolean ultimaFallaContoComoVisita;
+
+    // El momento del cambio de estado de esa última falla (ADR-045): con
+    // esto Notificaciones reconoce su aviso aunque llegue después del de
+    // la reasignación, y no lo descarta por viejo.
+    private LocalDateTime fechaUltimaFalla;
+
+    // Si alguna vez salió a reparto (pasó a EN_CAMINO). No se apaga: un
+    // pedido que salió y volvió al depósito para otra visita ya no se
+    // puede cancelar (ver ReglaDeCancelacion). Boolean y no boolean: las
+    // filas anteriores quedan en NULL.
+    private Boolean salioAReparto;
+
     public Pedido() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -96,8 +218,27 @@ public class Pedido {
     public void setLineas(List<LineaPedido> lineas) { this.lineas = lineas; }
     public EstadoPedido getEstado() { return estado; }
     public void setEstado(EstadoPedido estado) { this.estado = estado; }
+
+    // Ciclo de vida (State): el pedido delega en el objeto estado, que decide si la operación se
+    // permite y a qué estado lleva. Lanzan TransicionInvalidaException si el estado actual no la permite.
+    public EstadoDelPedido estadoActual() { return EstadoDelPedido.de(estado); }
+    public void confirmar() { transicionar(estadoActual().confirmar(this)); }
+    public void despachar() { transicionar(estadoActual().despachar(this)); }
+    public void entregar() { transicionar(estadoActual().entregar(this)); }
+    public void cancelar() { transicionar(estadoActual().cancelar(this)); }
+    public void devolverADeposito() { transicionar(estadoActual().devolverADeposito(this)); }
+    public void devolverAlComercio() { transicionar(estadoActual().devolverAlComercio(this)); }
+
+    private void transicionar(EstadoDelPedido nuevo) {
+        this.estado = nuevo.codigo();
+        nuevo.alEntrar(this);
+    }
     public BigDecimal getImporte() { return importe; }
     public void setImporte(BigDecimal importe) { this.importe = importe; }
+    public BigDecimal getPesoKg() { return pesoKg; }
+    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
+    /** Bultos del pedido: la suma de las cantidades de sus líneas. */
+    public int getBultos() { return lineas == null ? 0 : lineas.stream().mapToInt(LineaPedido::getCantidad).sum(); }
     public MedioPago getMedioPago() { return medioPago; }
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
     public String getDireccionEntrega() { return direccionEntrega; }
@@ -110,6 +251,69 @@ public class Pedido {
     public void setFechaCreacion(LocalDateTime fechaCreacion) { this.fechaCreacion = fechaCreacion; }
     public LocalDateTime getFechaActualizacion() { return fechaActualizacion; }
     public void setFechaActualizacion(LocalDateTime fechaActualizacion) { this.fechaActualizacion = fechaActualizacion; }
+    public LocalDateTime getFechaEntrega() { return fechaEntrega; }
+    public void setFechaEntrega(LocalDateTime fechaEntrega) { this.fechaEntrega = fechaEntrega; }
+    public String getEntregadoPor() { return entregadoPor; }
+    public void setEntregadoPor(String entregadoPor) { this.entregadoPor = entregadoPor; }
+    public boolean isConRemito() { return Boolean.TRUE.equals(conRemito); }
+    public void setConRemito(boolean conRemito) { this.conRemito = conRemito; }
     public String getCodigoSeguimiento() { return codigoSeguimiento; }
     public void setCodigoSeguimiento(String codigoSeguimiento) { this.codigoSeguimiento = codigoSeguimiento; }
+    public LocalDateTime getEnEsperaDesde() { return enEsperaDesde; }
+    public void setEnEsperaDesde(LocalDateTime enEsperaDesde) { this.enEsperaDesde = enEsperaDesde; }
+    public boolean isEnEspera() { return enEsperaDesde != null; }
+    public String getMotivoEspera() { return motivoEspera; }
+    public void setMotivoEspera(String motivoEspera) { this.motivoEspera = motivoEspera; }
+    public Long getIdZonaEspera() { return idZonaEspera; }
+    public void setIdZonaEspera(Long idZonaEspera) { this.idZonaEspera = idZonaEspera; }
+    public Long getIdRepartidorExcluido() { return idRepartidorExcluido; }
+    public void setIdRepartidorExcluido(Long idRepartidorExcluido) { this.idRepartidorExcluido = idRepartidorExcluido; }
+    public String getMotivoDevolucion() { return motivoDevolucion; }
+    public void setMotivoDevolucion(String motivoDevolucion) { this.motivoDevolucion = motivoDevolucion; }
+    public boolean isCobroRegistrado() { return Boolean.TRUE.equals(cobroRegistrado); }
+    public void setCobroRegistrado(boolean cobroRegistrado) { this.cobroRegistrado = cobroRegistrado; }
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
+    public String getTelefonoDestinatario() { return telefonoDestinatario; }
+    public void setTelefonoDestinatario(String telefonoDestinatario) { this.telefonoDestinatario = telefonoDestinatario; }
+    public TipoEntrega getTipoEntrega() { return tipoEntrega != null ? tipoEntrega : TipoEntrega.DOMICILIO; }
+    public void setTipoEntrega(TipoEntrega tipoEntrega) { this.tipoEntrega = tipoEntrega; }
+    public int getCantidadDeBultos() { return cantidadDeBultos == null ? 1 : cantidadDeBultos; }
+    public void setCantidadDeBultos(int cantidadDeBultos) { this.cantidadDeBultos = cantidadDeBultos; }
+    public boolean isRetiroEnDeposito() { return getTipoEntrega() == TipoEntrega.RETIRO_EN_DEPOSITO; }
+    public Long getIdDepositoRetiro() { return idDepositoRetiro; }
+    public void setIdDepositoRetiro(Long idDepositoRetiro) { this.idDepositoRetiro = idDepositoRetiro; }
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
+    public LocalDate getFechaPrometida() { return fechaPrometida; }
+    public void setFechaPrometida(LocalDate fechaPrometida) { this.fechaPrometida = fechaPrometida; }
+    public LocalDate getFechaPrometidaOriginal() { return fechaPrometidaOriginal; }
+    public void setFechaPrometidaOriginal(LocalDate fechaPrometidaOriginal) { this.fechaPrometidaOriginal = fechaPrometidaOriginal; }
+    public String getInstruccionesEntrega() { return instruccionesEntrega; }
+    public void setInstruccionesEntrega(String instruccionesEntrega) { this.instruccionesEntrega = instruccionesEntrega; }
+    public String getNombreAutorizado() { return nombreAutorizado; }
+    public void setNombreAutorizado(String nombreAutorizado) { this.nombreAutorizado = nombreAutorizado; }
+    public int getCambiosDelCliente() { return cambiosDelCliente == null ? 0 : cambiosDelCliente; }
+    public void setCambiosDelCliente(int cambiosDelCliente) { this.cambiosDelCliente = cambiosDelCliente; }
+    public String getCodigoEntrega() { return codigoEntrega; }
+    public void setCodigoEntrega(String codigoEntrega) { this.codigoEntrega = codigoEntrega; }
+    public int getIntentosDeCodigo() { return intentosDeCodigo == null ? 0 : intentosDeCodigo; }
+    public void setIntentosDeCodigo(int intentosDeCodigo) { this.intentosDeCodigo = intentosDeCodigo; }
+    public int getIntentosFallidos() { return intentosFallidos == null ? 0 : intentosFallidos; }
+    public void setIntentosFallidos(int intentosFallidos) { this.intentosFallidos = intentosFallidos; }
+    public MotivoEntregaFallida getMotivoEntregaFallida() { return motivoEntregaFallida; }
+    public void setMotivoEntregaFallida(MotivoEntregaFallida motivoEntregaFallida) { this.motivoEntregaFallida = motivoEntregaFallida; }
+    public boolean isUltimaFallaContoComoVisita() { return Boolean.TRUE.equals(ultimaFallaContoComoVisita); }
+    public void setUltimaFallaContoComoVisita(boolean conto) { this.ultimaFallaContoComoVisita = conto; }
+    public LocalDateTime getFechaUltimaFalla() { return fechaUltimaFalla; }
+    public void setFechaUltimaFalla(LocalDateTime fechaUltimaFalla) { this.fechaUltimaFalla = fechaUltimaFalla; }
+    /**
+     * Si alguna vez estuvo EN_CAMINO. Para los pedidos anteriores a la
+     * marca: una visita fallida solo cuenta si había salido.
+     */
+    public boolean isSalioAReparto() {
+        return Boolean.TRUE.equals(salioAReparto) || estado == EstadoPedido.EN_CAMINO
+                || (intentosFallidos != null && intentosFallidos > 0);
+    }
+    public void setSalioAReparto(boolean salioAReparto) { this.salioAReparto = salioAReparto; }
 }

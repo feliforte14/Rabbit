@@ -2,12 +2,14 @@
 <!--
     VISTA (Facelet) - Capa de Presentacion.
     Administra el stock de UN deposito puntual, recibido por query param
-    (?idDeposito=X). Se bindea a itemInventarioBean (ItemInventarioBean.java).
+    (?idDeposito=X): cargar, editar (producto, cantidad y peso) y eliminar
+    (solo administrador). Se bindea a itemInventarioBean (ItemInventarioBean.java).
 -->
 <ui:composition xmlns="http://www.w3.org/1999/xhtml"
                  xmlns:h="jakarta.faces.html"
                  xmlns:f="jakarta.faces.core"
                  xmlns:ui="jakarta.faces.facelets"
+                 xmlns:pt="jakarta.faces.passthrough"
                  template="/WEB-INF/plantillas/template.xhtml">
     <f:metadata>
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
@@ -43,6 +45,60 @@
             </div>
         </h:form>
 
+        <h:panelGroup rendered="#{not empty itemInventarioBean.itemEnEdicion}">
+            <h2>Editar #{itemInventarioBean.itemEnEdicion.producto}</h2>
+            <h:form id="formEdicion" styleClass="formulario">
+                <p class="ayuda">
+                    Stock de #{itemInventarioBean.nombreComercio(itemInventarioBean.itemEnEdicion.idComercio)}.
+                    La cantidad es la que hay en el depósito; no puede quedar por debajo de lo
+                    reservado (#{itemInventarioBean.itemEnEdicion.cantidadReservada}). Los pedidos ya
+                    creados conservan el nombre y el peso con los que se armaron.
+                </p>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" value="Producto" for="productoEd" />
+                    <h:inputText id="productoEd" value="#{itemInventarioBean.edicion.producto}" required="true"
+                                 label="Producto" requiredMessage="Ingresá el producto" />
+                    <h:message for="productoEd" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" value="Cantidad en el depósito" for="cantidadEd" />
+                    <h:inputText id="cantidadEd" value="#{itemInventarioBean.edicion.cantidadDisponible}" required="true"
+                                 label="Cantidad" requiredMessage="Ingresá la cantidad"
+                                 converterMessage="La cantidad tiene que ser un número entero" />
+                    <h:message for="cantidadEd" styleClass="error-campo" />
+                </div>
+                <div class="campo">
+                    <h:outputLabel styleClass="obligatorio" value="Peso por unidad (kg)" for="pesoEd" />
+                    <h:inputText id="pesoEd" value="#{itemInventarioBean.edicion.pesoKg}" required="true"
+                                 label="Peso por unidad" requiredMessage="Ingresá el peso por unidad"
+                                 converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
+                    <h:message for="pesoEd" styleClass="error-campo" />
+                </div>
+                <div class="campo campo-medidas">
+                    <h:outputLabel value="Medidas de una unidad (cm): alto, ancho y largo" for="altoEd" />
+                    <h:inputText id="altoEd" value="#{itemInventarioBean.edicion.altoCm}" pt:placeholder="Alto"
+                                 pt:inputmode="decimal" pt:aria-label="Alto en centímetros"
+                                 converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                    <h:inputText id="anchoEd" value="#{itemInventarioBean.edicion.anchoCm}" pt:placeholder="Ancho"
+                                 pt:inputmode="decimal" pt:aria-label="Ancho en centímetros"
+                                 converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                    <h:inputText id="largoEd" value="#{itemInventarioBean.edicion.largoCm}" pt:placeholder="Largo"
+                                 pt:inputmode="decimal" pt:aria-label="Largo en centímetros"
+                                 converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                    <h:message for="altoEd" styleClass="error-campo" />
+                    <h:message for="anchoEd" styleClass="error-campo" />
+                    <h:message for="largoEd" styleClass="error-campo" />
+                    <p class="ayuda">Con las medidas y el peso, Rabbit deduce el tamaño (pequeño, mediano o grande) y el costo de guardarlo. Las tres o ninguna: si queda vacío se conservan las anteriores.</p>
+                </div>
+                <div class="form-acciones">
+                    <h:commandButton value="Guardar cambios" styleClass="btn btn-primary"
+                                     action="#{itemInventarioBean.guardarEdicion}" />
+                    <h:commandButton value="Cancelar" styleClass="btn btn-secondary" immediate="true"
+                                     action="#{itemInventarioBean.cancelarEdicion}" />
+                </div>
+            </h:form>
+        </h:panelGroup>
+
         <h:form id="formTabla">
             <h:dataTable value="#{itemInventarioBean.items}" var="i"
                          styleClass="tabla tabla-tarjetas" rowClasses="fila-impar,fila-par"
@@ -71,6 +127,28 @@
                     <f:facet name="header">Libre</f:facet>
                     #{i.cantidadLibre}
                 </h:column>
+                <h:column>
+                    <f:facet name="header">Peso por unidad</f:facet>
+                    <h:outputText value="#{etiquetas.kilos(i.pesoKg)}" rendered="#{not empty i.pesoKg}" />
+                    <h:outputText value="Sin cargar" styleClass="badge badge-naranja" rendered="#{empty i.pesoKg}" />
+                </h:column>
+                <h:column>
+                    <f:facet name="header">Tamaño</f:facet>
+                    #{i.categoriaEtiqueta}
+                    <h:panelGroup rendered="#{not i.sinMedidas}">
+                        <span class="dato-secundario">#{i.medidasTexto}</span>
+                    </h:panelGroup>
+                    <h:outputText value="Medidas sin cargar" styleClass="badge badge-naranja" rendered="#{i.sinMedidas}" />
+                </h:column>
+                <h:column styleClass="acciones">
+                    <f:facet name="header">Acciones</f:facet>
+                    <h:commandButton value="Editar" styleClass="btn btn-secondary"
+                                     action="#{itemInventarioBean.editar(i.id)}" />
+                    <h:commandButton value="Eliminar" styleClass="btn btn-danger"
+                                     action="#{itemInventarioBean.eliminar(i.id)}"
+                                     rendered="#{sesionBean.admin}"
+                                     onclick="return confirm('¿Eliminar este producto del depósito? Se borra con su stock (#{i.cantidadDisponible} u.). Las reservas viejas quedan en el historial.');" />
+                </h:column>
             </h:dataTable>
             <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty itemInventarioBean.items}">
                 No hay stock cargado en este depósito.
@@ -84,7 +162,7 @@
         </p>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel value="Comercio" for="comercio" />
+                <h:outputLabel styleClass="obligatorio" value="Comercio" for="comercio" />
                 <h:selectOneMenu id="comercio" value="#{itemInventarioBean.nuevoItem.idComercio}"
                                  required="true" label="Comercio"
                                  requiredMessage="Elegí de qué comercio es el stock">
@@ -97,24 +175,54 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel value="Producto" for="producto" />
+                <h:outputLabel styleClass="obligatorio" value="Producto" for="producto" />
                 <h:inputText id="producto" value="#{itemInventarioBean.nuevoItem.producto}" required="true"
                              label="Producto" requiredMessage="Ingresá el producto" />
                 <h:message for="producto" styleClass="error-campo" />
             </div>
 
             <div class="campo">
-                <h:outputLabel value="Cantidad" for="cantidad" />
+                <h:outputLabel styleClass="obligatorio" value="Cantidad" for="cantidad" />
                 <h:inputText id="cantidad" value="#{itemInventarioBean.nuevoItem.cantidadDisponible}" required="true"
                              label="Cantidad" requiredMessage="Ingresá la cantidad"
                              converterMessage="La cantidad tiene que ser un número entero" />
                 <h:message for="cantidad" styleClass="error-campo" />
             </div>
 
+            <div class="campo">
+                <h:outputLabel styleClass="obligatorio" value="Peso por unidad (kg)" for="peso" />
+                <h:inputText id="peso" value="#{itemInventarioBean.nuevoItem.pesoKg}" required="true"
+                             label="Peso por unidad" requiredMessage="Ingresá el peso por unidad"
+                             converterMessage="El peso tiene que ser un número, con punto para los decimales (ej: 1.25)" />
+                <h:message for="peso" styleClass="error-campo" />
+                <p class="ayuda">Con el peso, Rabbit calcula cuánto pesa cada pedido y no le asigna a un repartidor más de lo que soporta su vehículo.</p>
+            </div>
+
+            <div class="campo campo-medidas">
+                <h:outputLabel styleClass="obligatorio" value="Medidas de una unidad (cm): alto, ancho y largo" for="alto" />
+                <h:inputText id="alto" value="#{itemInventarioBean.nuevoItem.altoCm}" required="true" label="Alto"
+                             requiredMessage="Ingresá el alto" pt:placeholder="Alto" pt:inputmode="decimal"
+                             pt:aria-label="Alto en centímetros"
+                             converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                <h:inputText id="ancho" value="#{itemInventarioBean.nuevoItem.anchoCm}" required="true" label="Ancho"
+                             requiredMessage="Ingresá el ancho" pt:placeholder="Ancho" pt:inputmode="decimal"
+                             pt:aria-label="Ancho en centímetros"
+                             converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                <h:inputText id="largo" value="#{itemInventarioBean.nuevoItem.largoCm}" required="true" label="Largo"
+                             requiredMessage="Ingresá el largo" pt:placeholder="Largo" pt:inputmode="decimal"
+                             pt:aria-label="Largo en centímetros"
+                             converterMessage="Las medidas tienen que ser números, con punto para los decimales (ej: 12.5)" />
+                <h:message for="alto" styleClass="error-campo" />
+                <h:message for="ancho" styleClass="error-campo" />
+                <h:message for="largo" styleClass="error-campo" />
+                <p class="ayuda">Con las medidas y el peso, Rabbit deduce el tamaño del producto (pequeño, mediano o grande), que define cuánto se cobra por guardarlo.</p>
+            </div>
+
             <div class="form-acciones">
                 <h:commandButton value="Cargar stock" styleClass="btn btn-primary" action="#{itemInventarioBean.registrar}" />
             </div>
         </h:form>
+
         </h:panelGroup>
     </ui:define>
 </ui:composition>

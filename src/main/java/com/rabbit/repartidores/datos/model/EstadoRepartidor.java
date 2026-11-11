@@ -7,9 +7,10 @@ package com.rabbit.repartidores.datos.model;
  *        ^                                        |
  *        +------------ liberarRepartidor() -------+
  *
- * Un repartidor OCUPADO tiene exactamente un pedido a cargo
- * (Repartidor.idPedidoActual); se libera cuando ese pedido se entrega o
- * se cancela.
+ * Un repartidor OCUPADO tiene al menos un pedido a cargo (CargaAsignada);
+ * vuelve a DISPONIBLE cuando se entrega o se cancela el último. Estar
+ * OCUPADO no impide que le asignen otro si tiene capacidad cargada y le
+ * entra (ADR-032).
  */
 public enum EstadoRepartidor {
     DISPONIBLE,

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Inicio del personal (ADR-054): un vistazo a la operacion y la lista de lo
+    que pide atencion, con el enlace a donde se resuelve cada cosa. Solo lectura.
+    Se bindea a inicioBean (InicioBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewAction action="#{sesionBean.exigirPersonal}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Inicio</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Inicio</h1>
+
+        <h2>Requiere atención</h2>
+        <ul class="atencion-lista">
+            <ui:repeat value="#{inicioBean.atencion}" var="a">
+                <li class="#{a.nivel}">
+                    <span>#{a.texto}</span>
+                    <h:link outcome="#{a.destino}" value="Resolver" rendered="#{not empty a.destino}" />
+                </li>
+            </ui:repeat>
+        </ul>
+
+        <h2>La operación</h2>
+        <div class="stat-grid">
+            <div class="stat-card">
+                <p class="stat-label">Por confirmar</p>
+                <p class="stat-valor">#{inicioBean.porConfirmar}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">En lista de espera</p>
+                <p class="stat-valor">#{inicioBean.enEspera}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">En camino</p>
+                <p class="stat-valor">#{inicioBean.enCamino}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Listos para retirar</p>
+                <p class="stat-valor">#{inicioBean.listosParaRetirar}</p>
+            </div>
+            <div class="stat-card">
+                <p class="stat-label">Entregados</p>
+                <p class="stat-valor">#{inicioBean.entregados}</p>
+            </div>
+        </div>
+    </ui:define>
+</ui:composition>

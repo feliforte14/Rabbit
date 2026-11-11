@@ -18,10 +18,14 @@
         <f:viewAction action="#{sesionBean.exigirPersonal}" />
     </f:metadata>
 
-    <ui:define name="titulo">Rabbit · Depósitos</ui:define>
+    <ui:define name="titulo">Rabbit · Depósitos y stock</ui:define>
 
     <ui:define name="contenido">
-        <h1>Depósitos</h1>
+        <h1>Depósitos y stock</h1>
+        <p class="ayuda">
+            La base de salida es el depósito de donde arrancan los camiones cada día: la hoja de ruta de
+            los repartidores empieza ahí. Si ninguno está marcado, la hoja no indica dirección de salida.
+        </p>
 
         <h:messages globalOnly="true" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
@@ -56,6 +60,13 @@
                     #{d.codigoPostal}
                 </h:column>
                 <h:column>
+                    <f:facet name="header">Base de salida</f:facet>
+                    <h:outputText value="Base de salida" styleClass="badge badge-verde" rendered="#{d.baseDeSalida}" />
+                    <h:commandButton value="Usar como base de salida" styleClass="btn btn-secondary"
+                                     rendered="#{not d.baseDeSalida}"
+                                     action="#{depositoBean.marcarBaseDeSalida(d.id)}" />
+                </h:column>
+                <h:column>
                     <f:facet name="header">Stock</f:facet>
                     <!--
                         Los dos links llevan el deposito de la fila: al llegar
@@ -77,35 +88,35 @@
         <h2>Registrar nuevo depósito</h2>
         <h:form id="formAlta" styleClass="formulario">
             <div class="campo">
-                <h:outputLabel for="nombre" value="Nombre" />
+                <h:outputLabel styleClass="obligatorio" for="nombre" value="Nombre" />
                 <h:inputText id="nombre" value="#{depositoBean.nuevoDeposito.nombre}" required="true" label="Nombre"
                              requiredMessage="Ingresá el nombre del depósito" />
                 <h:message for="nombre" styleClass="error-campo" />
             </div>
 
             <div class="campo">
-                <h:outputLabel for="direccion" value="Dirección" />
+                <h:outputLabel styleClass="obligatorio" for="direccion" value="Dirección" />
                 <h:inputText id="direccion" value="#{depositoBean.nuevoDeposito.direccion}" required="true" label="Dirección"
                              requiredMessage="Ingresá la dirección" />
                 <h:message for="direccion" styleClass="error-campo" />
             </div>
 
             <div class="campo">
-                <h:outputLabel for="provincia" value="Provincia" />
+                <h:outputLabel styleClass="obligatorio" for="provincia" value="Provincia" />
                 <h:inputText id="provincia" value="#{depositoBean.nuevoDeposito.provincia}" required="true" label="Provincia"
                              requiredMessage="Ingresá la provincia" />
                 <h:message for="provincia" styleClass="error-campo" />
             </div>
 
             <div class="campo">
-                <h:outputLabel for="localidad" value="Localidad" />
+                <h:outputLabel styleClass="obligatorio" for="localidad" value="Localidad" />
                 <h:inputText id="localidad" value="#{depositoBean.nuevoDeposito.localidad}" required="true" label="Localidad"
                              requiredMessage="Ingresá la localidad" />
                 <h:message for="localidad" styleClass="error-campo" />
             </div>
 
             <div class="campo">
-                <h:outputLabel for="codigoPostal" value="Código Postal" />
+                <h:outputLabel styleClass="obligatorio" for="codigoPostal" value="Código Postal" />
                 <h:inputText id="codigoPostal" value="#{depositoBean.nuevoDeposito.codigoPostal}" required="true" label="Código Postal"
                              requiredMessage="Ingresá el código postal" />
                 <h:message for="codigoPostal" styleClass="error-campo" />

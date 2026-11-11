@@ -1,0 +1,96 @@
+package com.rabbit.pagos.dto;
+
+import com.rabbit.pagos.datos.model.Liquidacion;
+import java.math.BigDecimal;
+import java.time.format.DateTimeFormatter;
+
+/**
+ * DTO de salida: una liquidación mensual (ADR-034), guardada o calculada
+ * para la vista previa (id null, estado "VISTA_PREVIA").
+ */
+public class LiquidacionDTO {
+
+    private static final DateTimeFormatter FORMATO = DateTimeFormatter.ofPattern("dd/MM HH:mm");
+
+    public Long id;
+    public Long idComercio;
+    public String periodo;
+    public int cantidadEnvios;
+    public BigDecimal kilos;
+    public BigDecimal abono;
+    public BigDecimal cargoEnvios;
+    public BigDecimal cargoKilos;
+    // Almacenamiento (ADR-059): unidades-día por categoría de tamaño y su cargo.
+    public long unidadesDiaPequeno;
+    public long unidadesDiaMediano;
+    public long unidadesDiaGrande;
+    public BigDecimal cargoAlmacenamiento = BigDecimal.ZERO;
+    // De esas unidades-día: cuántas fueron gratis y cuántas llevaron recargo (stock antiguo), con lo que se ahorró
+    // el comercio y lo que se cobró de más.
+    public long unidadesDiaGratis;
+    public long unidadesDiaConRecargo;
+    public BigDecimal ahorroPorDiasGratis = BigDecimal.ZERO;
+    public BigDecimal cargoPorStockAntiguo = BigDecimal.ZERO;
+    // El detalle por tamaño con el que se calculó, para liquidar sin volver a calcular. Solo en la vista previa.
+    public com.rabbit.pagos.negocio.AlmacenamientoDelMes almacenamiento;
+    // Productos que todavía no tienen medidas (se cuentan como medianos). Solo en la vista previa.
+    public int productosSinMedidas;
+    public BigDecimal total;
+    public String estado;
+    public String motivo;
+    public String codigoAutorizacion;
+    public int intentos;
+    public String fechaCobro;
+
+    public static LiquidacionDTO desde(Liquidacion l) {
+        LiquidacionDTO dto = new LiquidacionDTO();
+        dto.id = l.getId();
+        dto.idComercio = l.getIdComercio();
+        dto.periodo = l.getPeriodo();
+        dto.cantidadEnvios = l.getCantidadEnvios();
+        dto.kilos = l.getKilos();
+        dto.abono = l.getAbono();
+        dto.cargoEnvios = l.getCargoEnvios();
+        dto.cargoKilos = l.getCargoKilos();
+        dto.unidadesDiaPequeno = l.getUnidadesDiaPequeno();
+        dto.unidadesDiaMediano = l.getUnidadesDiaMediano();
+        dto.unidadesDiaGrande = l.getUnidadesDiaGrande();
+        dto.cargoAlmacenamiento = l.getCargoAlmacenamiento();
+        dto.unidadesDiaGratis = l.getUnidadesDiaGratis();
+        dto.unidadesDiaConRecargo = l.getUnidadesDiaConRecargo();
+        dto.ahorroPorDiasGratis = l.getAhorroPorDiasGratis();
+        dto.cargoPorStockAntiguo = l.getCargoPorStockAntiguo();
+        dto.total = l.getTotal();
+        dto.estado = l.getEstado() != null ? l.getEstado().name() : null;
+        dto.motivo = l.getMotivo();
+        dto.codigoAutorizacion = l.getCodigoAutorizacion();
+        dto.intentos = l.getIntentos();
+        dto.fechaCobro = l.getFechaCobro() != null ? l.getFechaCobro().format(FORMATO) : null;
+        return dto;
+    }
+
+    public Long getId() { return id; }
+    public Long getIdComercio() { return idComercio; }
+    public String getPeriodo() { return periodo; }
+    public int getCantidadEnvios() { return cantidadEnvios; }
+    public BigDecimal getKilos() { return kilos; }
+    public BigDecimal getAbono() { return abono; }
+    public BigDecimal getCargoEnvios() { return cargoEnvios; }
+    public BigDecimal getCargoKilos() { return cargoKilos; }
+    public long getUnidadesDiaPequeno() { return unidadesDiaPequeno; }
+    public long getUnidadesDiaMediano() { return unidadesDiaMediano; }
+    public long getUnidadesDiaGrande() { return unidadesDiaGrande; }
+    public long getUnidadesDia() { return unidadesDiaPequeno + unidadesDiaMediano + unidadesDiaGrande; }
+    public BigDecimal getCargoAlmacenamiento() { return cargoAlmacenamiento; }
+    public long getUnidadesDiaGratis() { return unidadesDiaGratis; }
+    public long getUnidadesDiaConRecargo() { return unidadesDiaConRecargo; }
+    public BigDecimal getAhorroPorDiasGratis() { return ahorroPorDiasGratis; }
+    public BigDecimal getCargoPorStockAntiguo() { return cargoPorStockAntiguo; }
+    public int getProductosSinMedidas() { return productosSinMedidas; }
+    public BigDecimal getTotal() { return total; }
+    public String getEstado() { return estado; }
+    public String getMotivo() { return motivo; }
+    public String getCodigoAutorizacion() { return codigoAutorizacion; }
+    public int getIntentos() { return intentos; }
+    public String getFechaCobro() { return fechaCobro; }
+}

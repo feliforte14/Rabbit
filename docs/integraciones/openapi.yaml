@@ -60,6 +60,19 @@ paths:
                   medioPago: PREPAGO
                   direccionEntrega: Av. Corrientes 1234, CABA
                   codigoPostalEntrega: "1043"
+                  nombreDestinatario: Ana Pérez
+                  telefonoDestinatario: "+54 11 4567-8901"
+                  emailDestinatario: ana@correo.com
+              retiroEnDeposito:
+                summary: Lo retira quien compró en el depósito (sin dirección ni repartidor)
+                value:
+                  origen: STOCK_CONSIGNADO
+                  tipoEntrega: RETIRO_EN_DEPOSITO
+                  lineas:
+                    - { idItem: 3, cantidad: 1 }
+                  importe: 2500.00
+                  medioPago: PREPAGO
+                  emailDestinatario: ana@correo.com
               puntoPicking:
                 summary: A retirar de un punto de picking del comercio
                 value:
@@ -70,6 +83,8 @@ paths:
                   importe: 89000.00
                   medioPago: CONTRA_ENTREGA
                   direccionEntrega: Lima 775, CABA
+                  emailDestinatario: cliente@correo.com
+                  pesoKg: 1.2
       responses:
         '201':
           description: Pedido registrado (o ya registrado con esa clave). Queda Pendiente hasta que se sincroniza.
@@ -77,6 +92,7 @@ paths:
             Location:
               description: URI del pedido externo.
               schema: { type: string, format: uri }
+            ETag: { $ref: '#/components/headers/ETag' }
           content:
             application/json:
               schema:
@@ -84,6 +100,7 @@ paths:
               example:
                 idPedidoExterno: 42
                 resultado: Pendiente
+                fechaPrometida: "2026-10-16"
                 _links:
                   self: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42" }
                   cancelar: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion", method: POST }
@@ -121,6 +138,7 @@ paths:
                     title: Clave de idempotencia reutilizada
                     status: 422
                     detail: La clave de idempotencia "7f3c9e1a-..." ya se usó con otro pedido
+        '415': { $ref: '#/components/responses/FormatoNoAdmitido' }
         '500': { $ref: '#/components/responses/ErrorInterno' }
 
   /v1/pedidos-externos/{id}:
@@ -132,9 +150,16 @@ paths:
         - basicAuth: []
       parameters:
         - $ref: '#/components/parameters/IdPedidoExterno'
+        - name: If-None-Match
+          in: header
+          required: false
+          description: El ETag de la última consulta. Si el pedido no cambió, responde 304 sin cuerpo.
+          schema: { type: string, example: '"9f2c4a1b7e3d5f60a8b1c2d3e4f50617"' }
       responses:
         '200':
           description: Estado del pedido externo y, si ya se generó, del pedido real.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
           content:
             application/json:
               schema:
@@ -145,10 +170,15 @@ paths:
                 idPedido: 118
                 estadoPedido: PENDIENTE
                 codigoSeguimiento: RB-7KQ2M9XHTA
+                fechaPrometida: "2026-10-16"
                 _links:
                   self: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42" }
                   cancelar: { href: "https://localhost:8443/Rabbit/api/v1/pedidos-externos/42/cancelacion", method: POST }
                   seguimiento: { href: "https://localhost:8443/Rabbit/api/v1/seguimiento/RB-7KQ2M9XHTA" }
+        '304':
+          description: El pedido no cambió desde el ETag de `If-None-Match`. Sin cuerpo.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
         '401': { $ref: '#/components/responses/NoAutenticado' }
         '403': { $ref: '#/components/responses/SinPermiso' }
         '404': { $ref: '#/components/responses/PedidoExternoInexistente' }
@@ -164,14 +194,27 @@ paths:
         Si ya es un pedido `PENDIENTE`, se cancela y se devuelve el stock
         (`estadoPedido: CANCELADO`). Desde `CONFIRMADO` en adelante ya tiene
         cobro y repartidor: responde 409 y lo cancela el personal de Rabbit.
+        Lo mismo con un `PENDIENTE` que el repartidor devolvió al depósito:
+        ya salió a reparto (409).
         Idempotente: cancelar algo ya cancelado devuelve 200 con el mismo estado.
+
+        Concurrencia: con `If-Match` y el ETag de la última consulta, solo
+        cancela si el pedido no cambió desde entonces; si cambió, responde 412
+        con el ETag actual. Sin `If-Match` cancela igual.
       security:
         - basicAuth: []
       parameters:
         - $ref: '#/components/parameters/IdPedidoExterno'
+        - name: If-Match
+          in: header
+          required: false
+          description: El ETag que leyó el ERP. Si el pedido cambió desde entonces, no cancela y responde 412.
+          schema: { type: string, example: '"9f2c4a1b7e3d5f60a8b1c2d3e4f50617"' }
       responses:
         '200':
           description: El pedido quedó cancelado (o ya lo estaba).
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
           content:
             application/json:
               schema:
@@ -210,6 +253,20 @@ paths:
                     title: El stock cambió al mismo tiempo, reintentá
                     status: 409
                     detail: "No se pudo devolver el stock del pedido: Otro usuario acaba de modificar el stock de \"Afeitadoras eléctricas\" al mismo tiempo. Volvé a intentarlo para ver el stock actualizado."
+        '412':
+          description: El pedido cambió desde el ETag de `If-Match`. No se canceló; el ETag actual va en la respuesta.
+          headers:
+            ETag: { $ref: '#/components/headers/ETag' }
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/Problema'
+              example:
+                type: /problemas/pedido-modificado
+                title: El pedido cambió desde que lo consultaste
+                status: 412
+                detail: Volvé a consultarlo (GET) y decidí con el estado actual; el ETag nuevo va en esta respuesta
+        '415': { $ref: '#/components/responses/FormatoNoAdmitido' }
         '500': { $ref: '#/components/responses/ErrorInterno' }
 
   /v1/seguimiento/{codigo}:
@@ -217,7 +274,7 @@ paths:
       tags: [Seguimiento]
       operationId: consultarSeguimiento
       summary: Estado de un pedido por su código de seguimiento
-      description: Público, sin autenticación. Solo expone el estado.
+      description: Público, sin autenticación. Solo expone el estado, la fecha prometida y, en camino, la parada y la franja; nunca datos de quien recibe.
       security: []
       parameters:
         - name: codigo
@@ -257,7 +314,13 @@ components:
       name: id
       in: path
       required: true
-      schema: { type: integer, format: int64 }
+      description: Solo dígitos (hasta 18). Cualquier otra cosa responde 404.
+      schema: { type: integer, format: int64, minimum: 1, maximum: 999999999999999999 }
+
+  headers:
+    ETag:
+      description: Huella del estado del pedido (cambia cuando cambia cualquier dato que ve el ERP). Va en `If-None-Match` o `If-Match`.
+      schema: { type: string, example: '"9f2c4a1b7e3d5f60a8b1c2d3e4f50617"' }
 
   responses:
     NoAutenticado:
@@ -288,6 +351,17 @@ components:
             title: Pedido externo inexistente
             status: 404
             detail: No hay ningún pedido externo 42 de tu comercio
+    FormatoNoAdmitido:
+      description: El cuerpo no viene como application/json (o falta el Content-Type).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problema'
+          example:
+            type: /problemas/formato-no-admitido
+            title: Unsupported Media Type
+            status: 415
+            detail: La API recibe application/json.
     ErrorInterno:
       description: Falla de Rabbit. El detalle queda en el log del servidor, nunca en la respuesta.
       content:
@@ -298,7 +372,15 @@ components:
   schemas:
     PedidoExternoRequest:
       type: object
-      required: [lineas, importe, medioPago, direccionEntrega]
+      required: [lineas, importe, medioPago, emailDestinatario]
+      # La dirección es obligatoria salvo en un retiro en depósito.
+      if:
+        required: [tipoEntrega]
+        properties:
+          tipoEntrega: { const: RETIRO_EN_DEPOSITO }
+      then: {}
+      else:
+        required: [direccionEntrega]
       properties:
         origen:
           type: string
@@ -321,13 +403,48 @@ components:
         medioPago:
           type: string
           enum: [PREPAGO, CONTRA_ENTREGA]
+        tipoEntrega:
+          type: string
+          enum: [DOMICILIO, RETIRO_EN_DEPOSITO]
+          default: DOMICILIO
+          description: >
+            RETIRO_EN_DEPOSITO: quien compró retira el pedido en el depósito donde está el stock, mostrando
+            el código de seguimiento. Solo con origen STOCK_CONSIGNADO y con todos los productos en el mismo
+            depósito (si no, 422). No lleva repartidor, ni lista de espera, ni dirección.
+        bultos:
+          type: integer
+          minimum: 1
+          maximum: 99
+          default: 1
+          description: Cuántas cajas o paquetes forman el pedido. Rabbit imprime una etiqueta con QR por bulto.
         direccionEntrega:
           type: string
+          minLength: 1
           maxLength: 200
+          description: Obligatoria con tipoEntrega DOMICILIO (el valor por defecto). En un retiro en depósito se ignora.
         codigoPostalEntrega:
           type: string
           maxLength: 8
           description: 4 dígitos o CPA (C1414ABC). Si no viene, se busca en la dirección. Con otro formato ("12") responde 422 (regla de negocio, no de formato).
+        pesoKg:
+          type: number
+          minimum: 0.001
+          maximum: 5000
+          description: Solo con PUNTO_PICKING, opcional. Kilos totales del pedido, con hasta 3 decimales; sin él, el límite del repartidor solo cuenta bultos. Con STOCK_CONSIGNADO no se informa (responde 422) porque Rabbit lo calcula con el peso de cada ítem.
+        nombreDestinatario:
+          type: string
+          maxLength: 100
+          description: Opcional. Quién recibe; lo ve el repartidor. Nunca sale en el seguimiento público (ADR-039).
+        telefonoDestinatario:
+          type: string
+          maxLength: 30
+          description: Opcional. Números, espacios, guiones, paréntesis y un + al principio; uno que no sirve responde 422.
+        emailDestinatario:
+          type: string
+          format: email
+          maxLength: 120
+          description: |
+            Obligatorio desde el 18/10/2026: Rabbit le avisa por mail a quien recibe cada cambio de estado, con el link al seguimiento (ADR-040). Si falta, responde 400 con el campo `emailDestinatario` en `errores`. Los pedidos dados de alta antes de ese día pueden no tenerlo.
     LineaPedido:
       type: object
       required: [cantidad]
@@ -357,10 +474,27 @@ components:
           description: Pedido real generado (con resultado Sincronizado).
         estadoPedido:
           type: string
-          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO]
+          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO, DEVUELTO_AL_COMERCIO]
+          description: "DEVUELTO_AL_COMERCIO es final: se agotaron las visitas o el cliente lo rechazó (ADR-041)."
+        fechaPrometida:
+          type: string
+          format: date
+          description: |
+            Día en que Rabbit se compromete a entregarlo (ADR-042): hoy si llegó
+            antes de la hora de corte (07:00), mañana si no. Viene desde la
+            respuesta del alta. No viene si el pedido no tiene código postal.
+        intentosFallidos:
+          type: integer
+          description: Visitas que no terminaron en entrega (ADR-041). No viene si es 0.
         codigoSeguimiento:
           type: string
           description: Para el seguimiento público. Se lo puede pasar al cliente final.
+        enListaDeEspera:
+          type: boolean
+          description: |
+            Solo con `estadoPedido: PENDIENTE`. `true` si Rabbit lo quiso
+            confirmar pero ningún repartidor tenía lugar (o ya había pasado la
+            hora de corte de la hoja de ruta): se asigna solo en cuanto se pueda.
         motivo:
           type: string
           description: Por qué se descartó o canceló.
@@ -383,7 +517,27 @@ components:
         codigoSeguimiento: { type: string, example: RB-7KQ2M9XHTA }
         estado:
           type: string
-          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO]
+          enum: [PENDIENTE, CONFIRMADO, EN_CAMINO, ENTREGADO, CANCELADO, DEVUELTO_AL_COMERCIO]
+        fechaPrometida:
+          type: string
+          format: date
+          example: "2026-10-16"
+          description: Día prometido (ADR-042). No viene si no se pudo prometer.
+        llegadaEstimada:
+          type: object
+          description: Solo EN_CAMINO con un repartidor de Rabbit (ADR-043). En qué parada de su hoja de ruta va y una franja aproximada. Si no se puede estimar, el campo no viene.
+          properties:
+            numeroParada: { type: integer, example: 4 }
+            totalParadas: { type: integer, example: 9 }
+            desde: { type: string, example: "15:00" }
+            hasta: { type: string, example: "15:30" }
+        ubicacionRepartidor:
+          type: object
+          description: Solo EN_CAMINO con un repartidor de Rabbit que compartió su ubicación en los últimos 15 minutos. Si no, el campo no viene.
+          properties:
+            latitud: { type: number, example: -34.6037 }
+            longitud: { type: number, example: -58.3816 }
+            actualizada: { type: string, description: "Hora local de Rabbit (sin zona), ej. 2026-10-15T14:05:12" }
     Problema:
       type: object
       description: Problem Details (RFC 9457).

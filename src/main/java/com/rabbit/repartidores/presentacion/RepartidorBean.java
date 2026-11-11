@@ -13,6 +13,7 @@ import com.rabbit.repartidores.negocio.ValidacionException;
 import com.rabbit.ruteo.dto.ZonaDTO;
 import com.rabbit.ruteo.negocio.IZonas;
 import jakarta.annotation.PostConstruct;
+import jakarta.ejb.EJBAccessException;
 import jakarta.faces.view.ViewScoped;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
@@ -38,6 +39,11 @@ public class RepartidorBean implements Serializable {
     private DatosRepartidorDTO nuevoRepartidor = new DatosRepartidorDTO();
     private Long idRepartidorACambiar;
     private Long idZonaNueva;
+
+    // Formulario "Capacidad del vehículo" (ADR-032).
+    private Long idRepartidorCapacidad;
+    private java.math.BigDecimal capacidadKgNueva;
+    private Integer capacidadBultosNueva;
 
     @PostConstruct
     public void cargar() {
@@ -66,6 +72,48 @@ public class RepartidorBean implements Serializable {
         }
     }
 
+    public void cambiarCapacidad() {
+        try {
+            service.actualizarCapacidad(idRepartidorCapacidad, capacidadKgNueva, capacidadBultosNueva);
+            Mensajes.info(capacidadKgNueva == null && capacidadBultosNueva == null
+                    ? "Sin capacidad cargada: va a llevar un pedido a la vez"
+                    : "Capacidad actualizada");
+            idRepartidorCapacidad = null;
+            capacidadKgNueva = null;
+            capacidadBultosNueva = null;
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        }
+    }
+
+    // "120 kg · 40 bultos", o "Un pedido a la vez" si no tiene capacidad cargada.
+    public String capacidad(RepartidorDTO r) {
+        if (!r.isConCapacidad()) {
+            return "Un pedido a la vez";
+        }
+        StringBuilder texto = new StringBuilder();
+        if (r.getCapacidadKg() != null) {
+            texto.append(com.rabbit.infraestructura.Formatos.kilos(r.getCapacidadKg()));
+        }
+        if (r.getCapacidadBultos() != null) {
+            texto.append(texto.length() > 0 ? " · " : "").append(r.getCapacidadBultos()).append(" bultos");
+        }
+        return texto.toString();
+    }
+
+    // Lo que lleva ahora: "2 pedidos (35 kg, 12 bultos)".
+    public String carga(RepartidorDTO r) {
+        int pedidos = r.getPedidosEnCurso();
+        if (pedidos == 0) {
+            return "—";
+        }
+        return pedidos + (pedidos == 1 ? " pedido" : " pedidos") + " ("
+                + (r.getCargaKg().signum() > 0 ? com.rabbit.infraestructura.Formatos.kilos(r.getCargaKg()) + ", " : "")
+                + r.getCargaBultos() + " bultos): "
+                + r.getPedidosEnCursoTexto();
+    }
+
     public void registrar() {
         try {
             service.registrarRepartidor(nuevoRepartidor);
@@ -77,12 +125,32 @@ public class RepartidorBean implements Serializable {
         }
     }
 
+    // Solo administrador: el botón solo se le muestra a él y el EJB lo
+    // exige con @RolesAllowed.
+    public void eliminar(Long idRepartidor) {
+        try {
+            service.eliminarRepartidor(idRepartidor);
+            Mensajes.info("Repartidor eliminado");
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        } catch (EJBAccessException e) {
+            Mensajes.error("Solo un administrador puede eliminar repartidores.");
+        }
+    }
+
     public List<RepartidorDTO> getRepartidores() { return repartidores; }
     public List<ZonaDTO> getListaZonas() { return listaZonas; }
     public Long getIdRepartidorACambiar() { return idRepartidorACambiar; }
     public void setIdRepartidorACambiar(Long idRepartidorACambiar) { this.idRepartidorACambiar = idRepartidorACambiar; }
     public Long getIdZonaNueva() { return idZonaNueva; }
     public void setIdZonaNueva(Long idZonaNueva) { this.idZonaNueva = idZonaNueva; }
+    public Long getIdRepartidorCapacidad() { return idRepartidorCapacidad; }
+    public void setIdRepartidorCapacidad(Long idRepartidorCapacidad) { this.idRepartidorCapacidad = idRepartidorCapacidad; }
+    public java.math.BigDecimal getCapacidadKgNueva() { return capacidadKgNueva; }
+    public void setCapacidadKgNueva(java.math.BigDecimal capacidadKgNueva) { this.capacidadKgNueva = capacidadKgNueva; }
+    public Integer getCapacidadBultosNueva() { return capacidadBultosNueva; }
+    public void setCapacidadBultosNueva(Integer capacidadBultosNueva) { this.capacidadBultosNueva = capacidadBultosNueva; }
     public DatosRepartidorDTO getNuevoRepartidor() { return nuevoRepartidor; }
     public void setNuevoRepartidor(DatosRepartidorDTO nuevoRepartidor) { this.nuevoRepartidor = nuevoRepartidor; }
 }

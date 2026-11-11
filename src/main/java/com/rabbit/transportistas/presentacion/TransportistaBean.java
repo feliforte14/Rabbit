@@ -44,7 +44,7 @@ public class TransportistaBean implements Serializable {
     public void registrar() {
         try {
             gestion.registrarTransportista(nuevoTransportista);
-            Mensajes.info("Transportista registrado");
+            Mensajes.info("Empresa de logística registrada");
             nuevoTransportista = new DatosTransportistaDTO();
             cargar();
         } catch (ValidacionException e) {
@@ -55,7 +55,7 @@ public class TransportistaBean implements Serializable {
     public void darDeBaja(Long id) {
         try {
             gestion.darDeBajaTransportista(id);
-            Mensajes.info("Transportista dado de baja: no recibe envíos nuevos (los que tiene siguen su curso)");
+            Mensajes.info("Empresa de logística dada de baja: no recibe envíos nuevos (los que tiene siguen su curso)");
             cargar();
         } catch (ValidacionException e) {
             Mensajes.error(e.getMessage());
@@ -65,7 +65,7 @@ public class TransportistaBean implements Serializable {
     public void reactivar(Long id) {
         try {
             gestion.reactivarTransportista(id);
-            Mensajes.info("Transportista reactivado");
+            Mensajes.info("Empresa de logística reactivada");
             cargar();
         } catch (ValidacionException e) {
             Mensajes.error(e.getMessage());

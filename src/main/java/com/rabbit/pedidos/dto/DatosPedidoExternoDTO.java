@@ -2,6 +2,7 @@ package com.rabbit.pedidos.dto;
 
 import com.rabbit.pagos.dto.MedioPago;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
+import com.rabbit.pedidos.datos.model.TipoEntrega;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,10 +26,21 @@ public class DatosPedidoExternoDTO {
     // Total de la venta que cerró el comercio y cómo la cobra (ver PedidoExterno).
     public BigDecimal importe;
     public MedioPago medioPago = MedioPago.CONTRA_ENTREGA;
-    // Adónde se entrega el pedido.
+    // Cómo lo recibe quien compró (ADR-053). Null = DOMICILIO. Con RETIRO_EN_DEPOSITO no hace
+    // falta dirección ni código postal: lo retira en un depósito de Rabbit.
+    public TipoEntrega tipoEntrega;
+    // Cantidad de bultos (ADR-056). Null = 1.
+    public Integer bultos;
+    // Adónde se entrega el pedido (solo DOMICILIO).
     public String direccionEntrega;
     // Opcional: si no viene, se busca en la dirección (ver CodigosPostales).
     public String codigoPostalEntrega;
+    // Solo PUNTO_PICKING, opcional: kilos totales (ver PedidoExterno.pesoKg).
+    public BigDecimal pesoKg;
+    // Quién recibe, opcionales (ADR-039).
+    public String nombreDestinatario;
+    public String telefonoDestinatario;
+    public String emailDestinatario;
 
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public Long getIdComercio() { return idComercio; }
@@ -43,8 +55,20 @@ public class DatosPedidoExternoDTO {
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public MedioPago getMedioPago() { return medioPago; }
     public void setMedioPago(MedioPago medioPago) { this.medioPago = medioPago; }
+    public Integer getBultos() { return bultos; }
+    public void setBultos(Integer bultos) { this.bultos = bultos; }
+    public TipoEntrega getTipoEntrega() { return tipoEntrega; }
+    public void setTipoEntrega(TipoEntrega tipoEntrega) { this.tipoEntrega = tipoEntrega; }
     public String getDireccionEntrega() { return direccionEntrega; }
     public void setDireccionEntrega(String direccionEntrega) { this.direccionEntrega = direccionEntrega; }
+    public BigDecimal getPesoKg() { return pesoKg; }
+    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
     public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
     public void setCodigoPostalEntrega(String codigoPostalEntrega) { this.codigoPostalEntrega = codigoPostalEntrega; }
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
+    public String getTelefonoDestinatario() { return telefonoDestinatario; }
+    public void setTelefonoDestinatario(String telefonoDestinatario) { this.telefonoDestinatario = telefonoDestinatario; }
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
 }

@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<!--
+    VISTA (Facelet) - Capa de Presentacion.
+    Lo que ve el repartidor al escanear con la camara el QR de una etiqueta (ADR-056):
+    el pedido (solo si es suyo) y, si esta por retirar, el boton que marca el retiro.
+    Se bindea a escaneoBean (EscaneoBean.java).
+-->
+<ui:composition xmlns="http://www.w3.org/1999/xhtml"
+                 xmlns:h="jakarta.faces.html"
+                 xmlns:f="jakarta.faces.core"
+                 xmlns:ui="jakarta.faces.facelets"
+                 template="/WEB-INF/plantillas/template.xhtml">
+    <f:metadata>
+        <f:viewParam name="codigo" value="#{escaneoBean.codigo}" />
+        <f:viewAction action="#{sesionBean.exigirRepartidor}" />
+        <f:viewAction action="#{escaneoBean.buscar}" />
+    </f:metadata>
+
+    <ui:define name="titulo">Rabbit · Escaneo de etiqueta</ui:define>
+
+    <ui:define name="contenido">
+        <h1>Etiqueta escaneada</h1>
+
+        <h:messages globalOnly="true" showDetail="false" showSummary="true"
+                    layout="list" styleClass="mensajes"
+                    errorClass="mensaje-error" infoClass="mensaje-info" />
+
+        <h:panelGroup layout="block" styleClass="vacio" rendered="#{empty escaneoBean.pedido}">
+            Este pedido no está entre tus entregas (o el código no existe).
+            Si te lo asignaron hace un momento, volvé a Mis entregas y actualizá.
+            <div class="form-acciones">
+                <h:link outcome="/repartidor/mis-entregas" value="Ir a Mis entregas" styleClass="btn btn-secondary" />
+            </div>
+        </h:panelGroup>
+
+        <h:form rendered="#{not empty escaneoBean.pedido}">
+            <div class="hoja-ruta">
+                <p class="parada-tipo">Pedido #{escaneoBean.pedido.idPedido} · <code>#{escaneoBean.pedido.codigoSeguimiento}</code></p>
+                <p><b>#{escaneoBean.pedido.comercio}</b></p>
+                <p class="parada-lugar">#{escaneoBean.pedido.direccionEntrega}</p>
+                <p>
+                    <h:outputText value="#{etiquetas.estadoPedido(escaneoBean.pedido.estado)}"
+                                  styleClass="#{etiquetas.claseEstadoPedido(escaneoBean.pedido.estado)}" />
+                </p>
+                <h:panelGroup layout="block" styleClass="form-acciones" rendered="#{escaneoBean.porRetirar}">
+                    <h:commandButton value="Marcar como retirado" styleClass="btn btn-primary"
+                                     action="#{escaneoBean.retirar}" />
+                </h:panelGroup>
+                <h:panelGroup rendered="#{escaneoBean.enCamino}">
+                    <p class="ayuda">Ya está en camino. Para entregarlo, usá Mis entregas (te pide el código del cliente y la foto del remito).</p>
+                </h:panelGroup>
+            </div>
+            <h:link outcome="/repartidor/mis-entregas" value="Ir a Mis entregas" styleClass="btn btn-secondary" />
+        </h:form>
+    </ui:define>
+</ui:composition>

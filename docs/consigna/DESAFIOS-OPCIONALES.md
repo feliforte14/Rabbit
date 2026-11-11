@@ -3,12 +3,10 @@
 Qué desafíos opcionales de la consigna encara Rabbit, cómo se cumplen y
 cómo se muestran en la defensa.
 
-| Desafío | Estado |
-|---|---|
-| [Resiliencia ante fallas](#1-resiliencia-ante-fallas) | Cumple |
-| [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada) | Cumple: con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido) |
-| [Architecture Decision Records](#3-architecture-decision-records) | Cumple: 30 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md); acá se desarrollan 3 con sus alternativas |
-| [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica) | Cumple: el banco legado también está implementado en Node.js y Rabbit (Java) lo consume por SOAP sin cambiar código; el transportista moderno, en Python, por REST |
+- [Resiliencia ante fallas](#1-resiliencia-ante-fallas): Cumple
+- [Escalabilidad horizontal bajo carga simulada](#2-escalabilidad-horizontal-bajo-carga-simulada): Cumple: con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido)
+- [Architecture Decision Records](#3-architecture-decision-records): Cumple: 72 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md); acá se desarrollan 3 con sus alternativas
+- [Heterogeneidad tecnológica](#4-heterogeneidad-tecnológica): Cumple: el banco legado también está implementado en Node.js y Rabbit (Java) lo consume por SOAP sin cambiar código; el transportista moderno, en Python, por REST
 
 ## 1. Resiliencia ante fallas
 
@@ -17,17 +15,39 @@ resto, y que el sistema se recupere solo cuando la falla termina.
 
 ### Fallas contempladas
 
-| Qué falla | Qué pasa en Rabbit | Mecanismo |
-|---|---|---|
-| El banco legado no responde | El pedido prepago no se confirma y sigue PENDIENTE; el resto de la plataforma sigue funcionando | Timeout de 5 s en el cliente SOAP |
-| El banco sigue caído | Después de 3 fallas seguidas, los pedidos prepago fallan al instante, sin esperar el timeout; a los 30 s se prueba una llamada y, si el banco volvió, todo sigue normal | Circuit breaker (ADR-011) |
-| El banco cobró pero Rabbit falla después (por ejemplo, no hay repartidor) | Rabbit deshace su parte y le pide al banco que devuelva la plata | Transacción compensatoria (ADR-010) |
-| Se pierde el mensaje de un pedido del ERP (broker caído, mensaje sin enviar) | El pedido se sincroniza igual en menos de un minuto | Polling de respaldo sobre la cola (ADR-001) |
-| Un suscriptor del tópico está caído (por ejemplo, en un redeploy) | Recibe los cambios de estado cuando vuelve; no se pierde ningún cobro contra entrega | Suscripciones durables (ADR-009) |
-| Un transportista no responde al derivarle un pedido | El pedido no se deriva y sigue PENDIENTE (si ya se había cobrado, se revierte); el personal puede probar con otro | Timeout de 5 s en el adaptador REST y rollback de la derivación (ADR-016) |
-| El transportista aceptó el envío pero Rabbit falla después | Rabbit deshace su parte y le pide al transportista que cancele el envío | Transacción compensatoria (`CancelacionesDeEnvios`, ADR-016) |
-| El seguimiento de un envío falla (transportista caído o novedad que no se puede aplicar) | Ese envío se reintenta en la próxima pasada, 15 s después; los demás siguen | Una transacción por novedad (`REQUIRES_NEW`) |
-| Un mensaje llega dos veces | Se procesa una sola vez | Sincronización y cobro contra entrega idempotentes |
+- **El banco legado no responde**
+  - Qué pasa en Rabbit: El pedido prepago no se confirma y sigue PENDIENTE; el resto de la plataforma sigue funcionando
+  - Mecanismo: Timeout de 5 s en el cliente SOAP
+- **El banco sigue caído**
+  - Qué pasa en Rabbit: Después de 3 fallas seguidas, los pedidos prepago fallan al instante, sin esperar el timeout; a los 30 s se prueba una llamada y, si el banco volvió, todo sigue normal
+  - Mecanismo: Circuit breaker (ADR-011)
+- **El banco cobró pero Rabbit falla después (por ejemplo, no hay repartidor)**
+  - Qué pasa en Rabbit: Rabbit deshace su parte y le pide al banco que devuelva la plata
+  - Mecanismo: Transacción compensatoria (ADR-010)
+- **Se pierde el mensaje de un pedido del ERP (broker caído, mensaje sin enviar)**
+  - Qué pasa en Rabbit: El pedido se sincroniza igual en menos de un minuto
+  - Mecanismo: Polling de respaldo sobre la cola (ADR-001)
+- **Un suscriptor del tópico está caído (por ejemplo, en un redeploy)**
+  - Qué pasa en Rabbit: Recibe los cambios de estado cuando vuelve; no se pierde ningún cobro contra entrega
+  - Mecanismo: Suscripciones durables (ADR-009)
+- **Un transportista no responde al derivarle un pedido**
+  - Qué pasa en Rabbit: El pedido no se deriva y sigue PENDIENTE (si ya se había cobrado, se revierte); el personal puede probar con otro
+  - Mecanismo: Timeout de 5 s en el adaptador REST y rollback de la derivación (ADR-016)
+- **El transportista aceptó el envío pero Rabbit falla después**
+  - Qué pasa en Rabbit: Rabbit deshace su parte y le pide al transportista que cancele el envío
+  - Mecanismo: Transacción compensatoria (`CancelacionesDeEnvios`, ADR-016)
+- **El seguimiento de un envío falla (transportista caído o novedad que no se puede aplicar)**
+  - Qué pasa en Rabbit: Ese envío se reintenta en la próxima pasada, 15 s después; los demás siguen
+  - Mecanismo: Una transacción por novedad (`REQUIRES_NEW`)
+- **Un mensaje llega dos veces**
+  - Qué pasa en Rabbit: Se procesa una sola vez
+  - Mecanismo: Sincronización y cobro contra entrega idempotentes
+- **El broker falla al publicar un cambio de estado**
+  - Qué pasa en Rabbit: El aviso no se pierde: sale apenas el broker vuelve, y con él el cobro contra entrega y la notificación
+  - Mecanismo: Bandeja de salida (`eventos_estado_pedido`, guardada en la misma transacción que el cambio de estado) y reenvío cada 15 s
+- **El servidor de correo no responde**
+  - Qué pasa en Rabbit: El aviso queda en el portal y el mail sale cuando el servidor vuelve (hasta 24 horas después)
+  - Mecanismo: Bandeja de correos (`BandejaDeCorreos`) y reintento cada minuto (`EnvioDeCorreosPendientes`)
 
 ### El circuit breaker, en detalle
 
@@ -55,12 +75,18 @@ Implementación: `CircuitBreakerBanco` (`@Singleton`), consultado por
 Con el banco simulado colgado y 4 pedidos prepago confirmados seguidos,
 en la app desplegada:
 
-| Intento | Tiempo hasta la respuesta | Estado del circuito |
-|---|---|---|
-| 1 | 5,2 s (timeout) | CERRADO, 1 falla |
-| 2 | 5,2 s (timeout) | CERRADO, 2 fallas |
-| 3 | 5,2 s (timeout) | Se abre |
-| 4 | **0,2 s** (no se llama al banco) | ABIERTO |
+- **1**
+  - Tiempo hasta la respuesta: 5,2 s (timeout)
+  - Estado del circuito: CERRADO, 1 falla
+- **2**
+  - Tiempo hasta la respuesta: 5,2 s (timeout)
+  - Estado del circuito: CERRADO, 2 fallas
+- **3**
+  - Tiempo hasta la respuesta: 5,2 s (timeout)
+  - Estado del circuito: Se abre
+- **4**
+  - Tiempo hasta la respuesta: **0,2 s** (no se llama al banco)
+  - Estado del circuito: ABIERTO
 
 Con el banco repuesto, pasados 30 s, la siguiente confirmación prueba al
 banco, cobra en 1,9 s y el circuito se cierra solo.
@@ -145,16 +171,34 @@ no se cuentan. Rabbit corría en WildFly 41 local (10 núcleos) contra la base
 de Supabase (región sa-east-1, Session Pooler), con el pool de conexiones
 en 10. Ninguna corrida tuvo errores ni pedidos descartados.
 
-| Consumidores | Tiempo total | Pedidos/s | Espera media | Espera p95 | Hilos que procesaron | Mejora |
-|---|---|---|---|---|---|---|
-| 1 | 43,2 s | 2,3 | 22,2 s | 41,1 s | 1 | base |
-| 4 | 11,3 s | 8,9 | 6,1 s | 10,8 s | 4 | **x3,8** |
-| 8 | 6,8 s | 14,6 | 3,8 s | 6,4 s | 8 | **x6,3** |
+- **1**
+  - Tiempo total: 43,2 s
+  - Pedidos/s: 2,3
+  - Espera media: 22,2 s
+  - Espera p95: 41,1 s
+  - Hilos que procesaron: 1
+  - Mejora: base
+- **4**
+  - Tiempo total: 11,3 s
+  - Pedidos/s: 8,9
+  - Espera media: 6,1 s
+  - Espera p95: 10,8 s
+  - Hilos que procesaron: 4
+  - Mejora: **x3,8**
+- **8**
+  - Tiempo total: 6,8 s
+  - Pedidos/s: 14,6
+  - Espera media: 3,8 s
+  - Espera p95: 6,4 s
+  - Hilos que procesaron: 8
+  - Mejora: **x6,3**
+
+Qué mide cada columna:
 
 - **Tiempo total:** desde que se reanuda la cola hasta que se sincroniza
   el último pedido.
 - **Espera:** cuánto tarda cada pedido en quedar sincronizado desde que se
-  reanuda la cola; p95 es la espera del 95 % más rápido.
+  reanuda la cola; p95 es la espera que no superó el 95 % de los pedidos.
 - **Hilos que procesaron:** confirma que el paralelismo fue real (tantos
   hilos como consumidores).
 
@@ -210,14 +254,14 @@ más conexiones.
 - La prueba escala instancias dentro de un servidor. En varios servidores
   el mecanismo es el mismo, pero no se probó: el broker embebido es de
   cada WildFly y habría que compartir uno.
-- En un cluster, los usuarios (archivos del realm) y el estado del
-  circuit breaker son de cada servidor.
+- En un cluster, el estado del circuit breaker es de cada servidor. Los
+  usuarios no: están en la base compartida (ADR-031).
 - La latencia hasta Supabase domina el tiempo de cada pedido: los números
   dependen de la red desde donde se corra.
 
 ## 3. Architecture Decision Records
 
-Los 24 ADR del proyecto están en [DECISIONES.md](../arquitectura/DECISIONES.md). Estos
+Los 72 ADR del proyecto están en [DECISIONES.md](../arquitectura/DECISIONES.md). Estos
 tres son los de más peso en la arquitectura; acá se desarrollan con las
 alternativas consideradas y por qué se descartaron.
 
@@ -232,17 +276,21 @@ demora por pedido.
 y un MDB lo sincroniza en el momento. El timer (`SincronizadorDePedidos`)
 queda como red de contención para los pedidos cuyo mensaje se perdió.
 
-| Alternativa | Por qué se descartó |
-|---|---|
-| Solo polling (lo que había) | Hasta un minuto de demora, y todo el trabajo concentrado en una pasada |
-| Solo cola, sin polling | Si el broker falla o el mensaje no sale, el pedido queda huérfano para siempre |
-| Llamada sincrónica desde la API | El ERP esperaría la reserva de stock en cada pedido, y una base lenta o caída rechazaría pedidos válidos |
-| Patrón outbox o transacción XA entre base y broker | Garantiza que el mensaje salga, pero agrega una tabla y un proceso de envío (outbox) o un coordinador de dos fases (XA); el polling ya cubre esa ventana con mucho menos |
+- **Solo polling (lo que había)**: Hasta un minuto de demora, y todo el trabajo concentrado en una pasada
+- **Solo cola, sin polling**: Si el broker falla o el mensaje no sale, el pedido queda huérfano para siempre
+- **Llamada sincrónica desde la API**: El ERP esperaría la reserva de stock en cada pedido, y una base lenta o caída rechazaría pedidos válidos
+- **Patrón outbox o transacción XA entre base y broker**: Garantiza que el mensaje salga, pero agrega una tabla y un proceso de envío (outbox) o un coordinador de dos fases (XA); el polling ya cubre esa ventana con mucho menos
 
 **Consecuencias.** Latencia casi nula en el caso normal y ningún pedido
 perdido. A cambio hay dos disparadores sobre la misma fila, y por eso la
 sincronización bloquea la fila y es idempotente. Esta misma decisión es
 la que permite escalar el consumidor (sección 2).
+
+En la cola el outbox no hacía falta porque la tabla `pedidos_externos` ya
+cumple ese papel: el polling la recorre. El tópico de cambios de estado no
+tenía una tabla así, y ahí sí se usa una bandeja de salida
+(`eventos_estado_pedido`): si el broker falla, el aviso se reenvía y no se
+pierde el cobro contra entrega.
 
 ### ADR-010: Cobro por SOAP en un banco legado, con reversa compensatoria
 
@@ -257,12 +305,10 @@ cobro dispara un evento; si la transacción se deshace, un observer
 anular un cobro, la reversa se pide recién después del commit
 (`AFTER_SUCCESS`).
 
-| Alternativa | Por qué se descartó |
-|---|---|
-| Transacción distribuida (XA / 2PC) con el banco | Un sistema legado expuesto por SOAP no participa de la transacción de Rabbit |
-| Cobrar después de asignar el repartidor | Achica la ventana pero no la elimina (el commit puede fallar igual) y deja reservado un repartidor para un pedido que el banco puede rechazar |
-| Cobrar de forma asincrónica, después de confirmar | El pedido quedaría confirmado sin saber si se cobró; habría que "desconfirmarlo" si el banco rechaza |
-| No compensar: devolver a mano | Un pedido fallido deja al cliente cobrado hasta que alguien lo note |
+- **Transacción distribuida (XA / 2PC) con el banco**: Un sistema legado expuesto por SOAP no participa de la transacción de Rabbit
+- **Cobrar después de asignar el repartidor**: Achica la ventana pero no la elimina (el commit puede fallar igual) y deja reservado un repartidor para un pedido que el banco puede rechazar
+- **Cobrar de forma asincrónica, después de confirmar**: El pedido quedaría confirmado sin saber si se cobró; habría que "desconfirmarlo" si el banco rechaza
+- **No compensar: devolver a mano**: Un pedido fallido deja al cliente cobrado hasta que alguien lo note
 
 **Consecuencias.** El cliente nunca queda cobrado por un pedido que no se
 confirmó, salvo que falle la reversa (queda logueada). Sin respuesta del
@@ -279,12 +325,10 @@ banco agota los hilos del servidor y afecta al resto de la plataforma.
 cada llamada. Tras 3 fallas seguidas se abre y se contesta "banco no
 disponible" al instante; a los 30 s deja pasar una llamada de prueba.
 
-| Alternativa | Por qué se descartó |
-|---|---|
-| `@CircuitBreaker` de MicroProfile Fault Tolerance | No viene en la configuración `standalone-full` de WildFly que usa Rabbit; habría que cambiar de configuración solo por esto |
-| Solo el timeout (lo que había) | Protege un pedido, pero no evita que muchos pedidos juntos agoten los hilos |
-| Reintentar automáticamente | Con el banco caído multiplica la carga y la espera; y reintentar un cobro sin clave de idempotencia puede cobrar dos veces |
-| Bulkhead (limitar las llamadas simultáneas al banco) | Contiene el daño pero igual hace esperar a cada usuario el timeout completo; el circuit breaker corta la espera |
+- **`@CircuitBreaker` de MicroProfile Fault Tolerance**: No viene en la configuración `standalone-full` de WildFly que usa Rabbit; habría que cambiar de configuración solo por esto
+- **Solo el timeout (lo que había)**: Protege un pedido, pero no evita que muchos pedidos juntos agoten los hilos
+- **Reintentar automáticamente**: Con el banco caído multiplica la carga y la espera; y reintentar un cobro sin clave de idempotencia puede cobrar dos veces
+- **Bulkhead (limitar las llamadas simultáneas al banco)**: Contiene el daño pero igual hace esperar a cada usuario el timeout completo; el circuit breaker corta la espera
 
 **Consecuencias.** Con el banco caído, los pedidos prepago fallan en
 milisegundos y el resto de Rabbit no se degrada (medido en la sección 1).
@@ -296,6 +340,12 @@ haya vuelto. Cada servidor tiene su propio circuito.
 **Qué se pide:** que el sistema integre componentes construidos con
 tecnologías distintas.
 
+Vive en la rama `desafio-heterogeneidad` (ADR-030): `main` tiene el
+sistema de Rabbit solo, con el banco y los transportistas simulados dentro
+del mismo WAR, para que cualquiera del equipo lo levante sin instalar Node
+ni Python. Esta rama es `main` más los dos servicios de abajo; para traerla
+al día, `git merge main` (o `dev`).
+
 ### Qué se hizo
 
 El banco legado, el sistema externo con el que Rabbit cobra los pedidos
@@ -305,16 +355,15 @@ banco simulado en Java que vive dentro de Rabbit: las mismas dos
 operaciones (`autorizarPago`, `reversarPago`) y el mismo fault tipado
 (`PagoRechazado`) para los rechazos.
 
-| | Rabbit | Banco legado |
-|---|---|---|
-| Lenguaje y plataforma | Java 17, Jakarta EE 10 sobre WildFly 41 | JavaScript sobre Node.js |
-| Librería SOAP | Apache CXF (JAX-WS de WildFly) | `soap` (node-soap) |
-| Proceso | WAR desplegado en el servidor de aplicaciones | Proceso independiente, puerto 8090 |
-| Contrato | Cliente del WSDL | Servidor construido a partir del mismo WSDL |
+- **Lenguaje y plataforma:** Rabbit, Java 17 y Jakarta EE 10 sobre WildFly 41; el banco, JavaScript sobre Node.js.
+- **Librería SOAP:** Rabbit, Apache CXF (el JAX-WS de WildFly); el banco, `soap` (node-soap).
+- **Proceso:** Rabbit, un WAR en el servidor de aplicaciones; el banco, un proceso independiente en el puerto 8090.
+- **Contrato:** Rabbit es cliente del WSDL; el banco es un servidor construido a partir del mismo WSDL.
 
 Rabbit no cambia una línea para usarlo: `BancoClient` arma su cliente a
-partir del WSDL que indica la system property `rabbit.banco.wsdl`. Lo que
-acopla a los dos sistemas es el contrato, no la tecnología.
+partir del WSDL que indica la system property `rabbit.banco.wsdl` y llama a
+la dirección que dice ese WSDL. Lo que acopla a los dos sistemas es el
+contrato, no la tecnología.
 
 ```mermaid
 flowchart LR
@@ -333,11 +382,15 @@ mismo servidor.
 
 **Y un segundo sistema en otra tecnología: el transportista moderno.**
 `transportista-moderno/servidor.py` (Python, solo biblioteca estándar) es
-el transportista REST como servicio aparte: mismo contrato que el
-simulado del WAR. Rabbit lo da de alta como
-cualquier transportista REST, con su endpoint, y no nota la diferencia.
+el transportista REST como servicio aparte, con el mismo contrato y las
+mismas reglas que el simulado del WAR (cotización, envío, consulta,
+cancelación, más de 50 bultos rechazados). Rabbit lo da de alta como
+cualquier transportista REST, con su endpoint, y lo sigue por polling como
+a los demás.
 
 ### Qué se probó
+
+El 14/10/2026, cuando se armó la rama:
 
 1. **El contrato:** las mismas peticiones SOAP al banco en Java y al banco
    en Node dan respuestas equivalentes (cambia solo el prefijo del
@@ -349,17 +402,35 @@ cualquier transportista REST, con su endpoint, y no nota la diferencia.
    motivo y reversa.
 3. **Rabbit en WildFly** apuntando al banco en Node, confirmando pedidos
    prepago desde la pantalla de Pedidos:
+   - **Pedido de $1.500 sin repartidor libre:** Rabbit deshizo la confirmación y pidió la reversa; Node registró `Autorizado AUT-3` y, 160 ms después, `Reversado AUT-3`. (Desde ADR-037, sin repartidor libre el pedido va a la lista de espera sin cobrar: la reversa ahora se ve al cancelar un prepago confirmado.)
+   - **Pedido de $600.000:** "Pago rechazado por el banco: El importe supera el límite de $500000"; Node registró `Rechazado el pago de PEDIDO-703`.
+   - **Banco en Node caído, 4 intentos seguidos:** 5,2 s, 5,2 s, 5,2 s y **0,3 s** (circuito abierto); Node recibió solo 3 llamadas: la cuarta Rabbit ni la hizo.
 
-| Caso | Rabbit (Java) | Banco en Node |
-|---|---|---|
-| Pedido de $1.500 sin repartidor libre | Confirmación deshecha, pide la reversa | `Autorizado AUT-3` y, 160 ms después, `Reversado AUT-3` |
-| Pedido de $600.000 | "Pago rechazado por el banco: El importe supera el límite de $500000" | `Rechazado el pago de PEDIDO-703` |
-| Banco en Node caído, 4 intentos seguidos | 5,2 s, 5,2 s, 5,2 s y **0,3 s** (circuito abierto) | Recibe solo 3 llamadas: la cuarta Rabbit ni la hace |
+El 11/11/2026, al traer la rama al día con `dev`:
 
-El último caso muestra que la resiliencia (sección 1) funciona igual con
-el banco en otra tecnología.
+4. **El WSDL del banco en Node es el mismo** que el versionado en
+   `docs/integraciones/wsdl/` (contra el que el CI compara al banco en
+   Java), salvo la dirección.
+5. **Mismas respuestas que el banco en Java** a los mismos pedidos SOAP:
+   autoriza, rechaza más de $500.000 con el mismo fault y motivo, y reversa.
+   Con zeep (la librería del job de contrato), pedido y respuesta validan
+   contra el XSD y la reversa es idempotente.
+6. **La caída simulada** hace que la llamada no responda en más de 5 s:
+   Rabbit corta por timeout y abre el circuito.
+7. **Desde el contenedor de Rabbit** (el `docker compose` del README), con
+   `URL_PUBLICA=http://host.docker.internal:8090`: el WSDL publica esa
+   dirección y un cobro llega al banco en Node (`Autorizado AUT-1`).
+8. **El transportista en Python** responde igual que el simulado del WAR:
+   la misma cotización ($3.700 por 2 bultos cobrando al entregar), 201 con el
+   código, SOLICITADO → EN_TRANSITO → ENTREGADO, 204 al cancelar uno vivo,
+   409 al cancelar uno entregado, 422 con más de 50 bultos y 404 si no
+   existe.
+
+La resiliencia (sección 1) funciona igual con el banco en otra tecnología.
 
 ### Cómo mostrarlo en la defensa
+
+Con WildFly instalado en la misma máquina:
 
 ```bash
 # 1. Levantar el banco en Node
@@ -370,6 +441,21 @@ $WILDFLY_HOME/bin/jboss-cli.sh --connect --command="/deployment=Rabbit.war:redep
 # 3. Confirmar un pedido prepago en Pedidos: la autorización aparece en la consola de Node
 # 4. (Opcional) Circuit breaker con el banco en Node caído
 curl -X POST "http://localhost:8090/admin/caida?activa=true"
+# 5. Transportista en Python: levantarlo y registrarlo en Transportistas (API REST, http://localhost:8095)
+python3 transportista-moderno/servidor.py
+```
+
+Con Rabbit en Docker, el contenedor llega a la máquina como
+`host.docker.internal` (Docker Desktop y OrbStack; en Linux, con
+`extra_hosts`):
+
+```bash
+cd banco-legado && npm install && URL_PUBLICA=http://host.docker.internal:8090 npm start
+docker compose exec -T wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect \
+  --command="/system-property=rabbit.banco.wsdl:add(value=http://host.docker.internal:8090/BancoLegadoService?wsdl)"
+docker compose exec -T wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect \
+  --command="/deployment=Rabbit.war:redeploy"
+# transportista en Python: registrarlo con endpoint http://host.docker.internal:8095
 ```
 
 Para volver al banco en Java: `/system-property=rabbit.banco.wsdl:remove`
@@ -378,12 +464,11 @@ y redesplegar.
 ### Limitaciones
 
 - El banco en Node guarda sus movimientos en memoria, igual que el de
-  Java: se pierden al reiniciarlo.
-- El puerto está fijo en el WSDL (`soap:address`, 8090): para otro puerto
-  hay que cambiar los dos.
+  Java: se pierden al reiniciarlo. Lo mismo el transportista en Python.
 - Rabbit lee `rabbit.banco.wsdl` al desplegar: cambiar de banco requiere
   redesplegar.
-- El banco en Node no tiene autenticación, igual que el de Java.
+- El banco en Node y el transportista en Python no tienen autenticación,
+  igual que los simulados del WAR.
 - Rabbit no guarda qué banco autorizó cada cobro: la reversa va al banco
   configurado **ahora**. Si se cambia de banco con pedidos PREPAGO
   confirmados y después se cancela uno, la reversa le llega al banco

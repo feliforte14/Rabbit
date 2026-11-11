@@ -1,0 +1,142 @@
+<?xml version='1.0' encoding='UTF-8'?><wsdl:definitions xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/" xmlns:tns="http://rabbit.example/legado/transportista" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:ns1="http://schemas.xmlsoap.org/soap/http" name="TransportistaLegadoService" targetNamespace="http://rabbit.example/legado/transportista">
+  <wsdl:types>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:tns="http://rabbit.example/legado/transportista" attributeFormDefault="unqualified" elementFormDefault="unqualified" targetNamespace="http://rabbit.example/legado/transportista" version="1.0">
+  <xs:element name="anularEnvio" type="tns:anularEnvio"/>
+  <xs:element name="anularEnvioResponse" type="tns:anularEnvioResponse"/>
+  <xs:element name="consultarEnvio" type="tns:consultarEnvio"/>
+  <xs:element name="consultarEnvioResponse" type="tns:consultarEnvioResponse"/>
+  <xs:element name="registrarEnvio" type="tns:registrarEnvio"/>
+  <xs:element name="registrarEnvioResponse" type="tns:registrarEnvioResponse"/>
+  <xs:complexType name="consultarEnvio">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="codigoSeguimiento" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="consultarEnvioResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="estado" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="anularEnvio">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="codigoSeguimiento" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="anularEnvioResponse">
+    <xs:sequence/>
+  </xs:complexType>
+  <xs:complexType name="envioRechazadoFaultInfo">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="motivo" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="registrarEnvio">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="referencia" type="xs:string"/>
+      <xs:element minOccurs="0" name="direccionRetiro" type="xs:string"/>
+      <xs:element minOccurs="0" name="direccionEntrega" type="xs:string"/>
+      <xs:element name="bultos" type="xs:int"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:complexType name="registrarEnvioResponse">
+    <xs:sequence>
+      <xs:element minOccurs="0" name="codigoSeguimiento" type="xs:string"/>
+    </xs:sequence>
+  </xs:complexType>
+  <xs:element name="EnvioRechazado" nillable="true" type="tns:envioRechazadoFaultInfo"/>
+</xs:schema>
+  </wsdl:types>
+  <wsdl:message name="EnvioRechazadoException">
+    <wsdl:part element="tns:EnvioRechazado" name="EnvioRechazadoException">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="anularEnvio">
+    <wsdl:part element="tns:anularEnvio" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="registrarEnvioResponse">
+    <wsdl:part element="tns:registrarEnvioResponse" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="consultarEnvio">
+    <wsdl:part element="tns:consultarEnvio" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="consultarEnvioResponse">
+    <wsdl:part element="tns:consultarEnvioResponse" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="anularEnvioResponse">
+    <wsdl:part element="tns:anularEnvioResponse" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:message name="registrarEnvio">
+    <wsdl:part element="tns:registrarEnvio" name="parameters">
+    </wsdl:part>
+  </wsdl:message>
+  <wsdl:portType name="TransportistaLegadoPortType">
+    <wsdl:operation name="consultarEnvio">
+      <wsdl:input message="tns:consultarEnvio" name="consultarEnvio">
+    </wsdl:input>
+      <wsdl:output message="tns:consultarEnvioResponse" name="consultarEnvioResponse">
+    </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="anularEnvio">
+      <wsdl:input message="tns:anularEnvio" name="anularEnvio">
+    </wsdl:input>
+      <wsdl:output message="tns:anularEnvioResponse" name="anularEnvioResponse">
+    </wsdl:output>
+      <wsdl:fault message="tns:EnvioRechazadoException" name="EnvioRechazadoException">
+    </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="registrarEnvio">
+      <wsdl:input message="tns:registrarEnvio" name="registrarEnvio">
+    </wsdl:input>
+      <wsdl:output message="tns:registrarEnvioResponse" name="registrarEnvioResponse">
+    </wsdl:output>
+      <wsdl:fault message="tns:EnvioRechazadoException" name="EnvioRechazadoException">
+    </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="TransportistaLegadoServiceSoapBinding" type="tns:TransportistaLegadoPortType">
+    <soap:binding style="document" transport="http://schemas.xmlsoap.org/soap/http"/>
+    <wsdl:operation name="consultarEnvio">
+      <soap:operation soapAction="" style="document"/>
+      <wsdl:input name="consultarEnvio">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="consultarEnvioResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="anularEnvio">
+      <soap:operation soapAction="" style="document"/>
+      <wsdl:input name="anularEnvio">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="anularEnvioResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="EnvioRechazadoException">
+        <soap:fault name="EnvioRechazadoException" use="literal"/>
+      </wsdl:fault>
+    </wsdl:operation>
+    <wsdl:operation name="registrarEnvio">
+      <soap:operation soapAction="" style="document"/>
+      <wsdl:input name="registrarEnvio">
+        <soap:body use="literal"/>
+      </wsdl:input>
+      <wsdl:output name="registrarEnvioResponse">
+        <soap:body use="literal"/>
+      </wsdl:output>
+      <wsdl:fault name="EnvioRechazadoException">
+        <soap:fault name="EnvioRechazadoException" use="literal"/>
+      </wsdl:fault>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="TransportistaLegadoService">
+    <wsdl:port binding="tns:TransportistaLegadoServiceSoapBinding" name="TransportistaLegadoPort">
+      <soap:address location="http://localhost:8080/Rabbit/TransportistaLegadoService"/>
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

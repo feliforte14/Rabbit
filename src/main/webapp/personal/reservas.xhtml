@@ -41,13 +41,16 @@
 
         <h1>Reserva de stock</h1>
 
-        <p class="ayuda">
-            Esta reserva es manual: la usa un operador de Rabbit para comprometer stock propio
-            (los depósitos, a diferencia de los puntos de picking, son infraestructura de Rabbit,
-            no de un comercio) antes de que exista un pedido formal, o para resolver a mano un
-            caso que el sincronizador automático no pudo procesar. El flujo normal — un pedido que
-            ya nació en el ERP del comercio — se ve en la pantalla de Pedidos y no pasa por acá.
-        </p>
+        <details class="ayuda-plegable">
+            <summary>Cómo funciona</summary>
+            <p class="ayuda">
+                Esta reserva es manual: la usa un operador de Rabbit para comprometer stock propio
+                (los depósitos, a diferencia de los puntos de picking, son infraestructura de Rabbit,
+                no de un comercio) antes de que exista un pedido formal, o para resolver a mano un
+                caso que el sincronizador automático no pudo procesar. El flujo normal — un pedido que
+                ya nació en el ERP del comercio — se ve en la pantalla de Pedidos y no pasa por acá.
+            </p>
+        </details>
 
         <h:messages globalOnly="true" showDetail="false" showSummary="true"
                     layout="list" styleClass="mensajes"
@@ -183,7 +186,7 @@
                 Los productos que se ofrecen aca ya vienen filtrados por el.
             -->
             <div class="campo">
-                <h:outputLabel for="item" value="Producto" />
+                <h:outputLabel styleClass="obligatorio" for="item" value="Producto" />
                 <h:selectOneMenu id="item" value="#{reservaBean.idItem}"
                                  required="true" label="Producto"
                                  requiredMessage="Elegí el producto a reservar">
@@ -203,7 +206,7 @@
             </div>
 
             <div class="campo">
-                <h:outputLabel for="cantidad" value="Cantidad" />
+                <h:outputLabel styleClass="obligatorio" for="cantidad" value="Cantidad" />
                 <h:inputText id="cantidad" value="#{reservaBean.cantidad}"
                              required="true" label="Cantidad"
                              requiredMessage="Ingresá la cantidad a reservar" />

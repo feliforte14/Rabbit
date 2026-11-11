@@ -17,26 +17,54 @@ import jakarta.ejb.Local;
 public interface IAsignacionRepartidores {
 
     /**
-     * Toma un repartidor DISPONIBLE y lo deja OCUPADO con este pedido.
+     * Le asigna el pedido al primer repartidor al que le entra (ver
+     * AsignacionPorCapacidad), prefiriendo los de la zona indicada, y lo
+     * deja OCUPADO.
      *
      * @param idPedido pedido a repartir
+     * @param idZonaPreferida zona del pedido; null = cualquiera
+     * @param pesoKg kilos del pedido; null si no se conocen
+     * @param bultos bultos del pedido
+     * @param idRepartidorExcluido el que devolvió el pedido al depósito; null = ninguno
      * @return el ID del repartidor asignado
-     * @throws RuntimeException de aplicación (rollback) si no hay ningún
-     *         repartidor disponible
+     * @throws SinLugarException (rollback) si no le entra a nadie o ya pasó
+     *         la hora de corte
      */
-    Long asignarRepartidor(Long idPedido);
+    Long asignarRepartidor(Long idPedido, Long idZonaPreferida, java.math.BigDecimal pesoKg, int bultos,
+                           Long idRepartidorExcluido);
 
     /**
-     * Como asignarRepartidor, pero prefiere un repartidor de la zona
-     * indicada; si no hay ninguno libre ahí, toma cualquiera.
+     * Por qué el pedido no se puede asignar ahora (y tiene que ir a la
+     * lista de espera), o null si hay a quién dárselo. Es una consulta sin
+     * bloqueo: Pedidos la usa antes de cobrar, para no cobrar un pedido que
+     * va a quedar esperando.
      */
-    Long asignarRepartidor(Long idPedido, Long idZonaPreferida);
+    String motivoParaEsperar(java.math.BigDecimal pesoKg, int bultos, Long idRepartidorExcluido);
+
+    /** Si a esta hora todavía se suman pedidos a la hoja del día (ver HoraDeCorte). */
+    boolean antesDelCorte();
 
     /**
-     * Devuelve el repartidor a DISPONIBLE: cuando el pedido se entrega o
-     * se cancela después de confirmado.
+     * En qué hoja de ruta entra un pedido recibido a esa hora: la de ese
+     * día si llegó antes del corte, la del siguiente si no (ADR-042). Pedidos
+     * la usa para la fecha prometida.
+     */
+    java.time.LocalDate diaDeEntregaPara(java.time.LocalDateTime recibido);
+
+    /**
+     * Le saca el pedido al repartidor (se entregó o se canceló después de
+     * confirmado). Si era el último que llevaba, vuelve a DISPONIBLE.
      *
-     * @param idRepartidor repartidor a liberar
+     * @param idRepartidor repartidor que lo llevaba
+     * @param idPedido pedido que deja de llevar
      */
-    void liberarRepartidor(Long idRepartidor);
+    void liberarRepartidor(Long idRepartidor, Long idPedido);
+
+    /**
+     * La última ubicación que compartió el repartidor (ADR-035), sea de
+     * cuando sea, o null si nunca compartió. Pedidos la usa como respaldo
+     * de la ubicación de una visita fallida (ADR-045) y decide si es
+     * reciente.
+     */
+    com.rabbit.repartidores.dto.UbicacionDTO ultimaUbicacion(Long idRepartidor);
 }

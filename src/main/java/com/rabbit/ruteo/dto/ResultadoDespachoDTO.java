@@ -8,6 +8,8 @@ public class ResultadoDespachoDTO {
         REPARTIDOR,
         /** Derivado a un transportista (el de la zona o el de respaldo). */
         DERIVADO,
+        /** Ningún repartidor tenía lugar (o pasó la hora de corte): quedó en la lista de espera. */
+        EN_ESPERA,
         /** Sin código postal o fuera de toda zona: queda para decidir a mano. */
         SIN_ZONA,
         /** No se pudo despachar (sin repartidores, banco o transportista rechazó...). */

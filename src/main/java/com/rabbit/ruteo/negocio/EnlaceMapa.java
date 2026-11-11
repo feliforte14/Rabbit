@@ -35,6 +35,34 @@ final class EnlaceMapa {
         return url.toString();
     }
 
+    /** Puntos por link: la partida y hasta 9 paradas (límite de Google Maps). */
+    static final int PARADAS_POR_TRAMO = 9;
+
+    /**
+     * El recorrido completo, partido en tramos de hasta 10 puntos. El
+     * primero no lleva origen (arranca desde donde esté el repartidor) y
+     * cada uno de los siguientes arranca en la última parada del anterior.
+     */
+    static List<String> tramos(List<String> paradas) {
+        List<String> links = new java.util.ArrayList<>();
+        String origen = null;
+        for (int i = 0; i < paradas.size(); i += PARADAS_POR_TRAMO) {
+            List<String> tramo = paradas.subList(i, Math.min(i + PARADAS_POR_TRAMO, paradas.size()));
+            StringBuilder url = new StringBuilder(BASE);
+            if (origen != null) {
+                url.append("&origin=").append(codificar(origen));
+            }
+            url.append("&destination=").append(codificar(tramo.get(tramo.size() - 1)));
+            if (tramo.size() > 1) {
+                url.append("&waypoints=").append(tramo.subList(0, tramo.size() - 1).stream()
+                        .map(EnlaceMapa::codificar).collect(Collectors.joining("%7C")));
+            }
+            links.add(url.toString());
+            origen = tramo.get(tramo.size() - 1);
+        }
+        return links;
+    }
+
     // Las direcciones vienen sin país ("Av. Corrientes 1234, CABA"): se
     // agrega para que Maps no las busque en otro lado.
     private static String codificar(String direccion) {

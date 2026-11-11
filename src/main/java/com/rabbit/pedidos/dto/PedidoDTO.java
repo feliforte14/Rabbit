@@ -5,10 +5,13 @@ package com.rabbit.pedidos.dto;
  * Nunca se persiste (ver Pedido para la entidad).
  */
 
+import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
 import com.rabbit.pedidos.datos.model.OrigenPedido;
 import com.rabbit.pedidos.datos.model.Pedido;
+import com.rabbit.pedidos.datos.model.TipoEntrega;
 import com.rabbit.pagos.dto.MedioPago;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -16,6 +19,7 @@ import java.util.stream.Collectors;
 public class PedidoDTO {
 
     private static final DateTimeFormatter FORMATO = DateTimeFormatter.ofPattern("dd/MM HH:mm");
+    private static final DateTimeFormatter DIA = DateTimeFormatter.ofPattern("dd/MM");
 
     public Long id;
     public Long idComercio;
@@ -23,6 +27,7 @@ public class PedidoDTO {
     public Long idPuntoPicking;
     public List<LineaPedidoDTO> lineas;
     public BigDecimal importe;
+    public BigDecimal pesoKg;
     public MedioPago medioPago;
     public Long idRepartidor;
     public String estado;
@@ -31,6 +36,44 @@ public class PedidoDTO {
     public String direccionEntrega;
     public String codigoPostalEntrega;
     public String codigoSeguimiento;
+    // Retiro en depósito (ADR-053): null = a domicilio. El texto del depósito lo completa
+    // PedidoService al consultar el seguimiento.
+    public TipoEntrega tipoEntrega;
+    public Long idDepositoRetiro;
+    // Lo que eligió quien recibe (ADR-057): instrucciones, persona autorizada y si reprogramó (con el
+    // día que se había prometido antes). El repartidor las ve en su hoja de ruta.
+    public String instruccionesEntrega;
+    public String nombreAutorizado;
+    public LocalDate fechaPrometidaOriginal;
+    // Lo completa PedidoService al consultar el seguimiento público (ADR-057); en el resto es false.
+    public boolean modificableDesdeSeguimiento;
+    // Cajas o paquetes del pedido: etiquetas con QR a imprimir (ADR-056).
+    public int cantidadDeBultos = 1;
+    public String depositoRetiro;
+    public String fechaEntrega;
+    public String entregadoPor;
+    public boolean conRemito;
+    // Lista de espera y devolución al depósito (ADR-037).
+    public boolean enEspera;
+    // Si alguna vez salió a reparto: ya no se puede cancelar (ReglaDeCancelacion).
+    public boolean salioAReparto;
+    public String enEsperaDesde;
+    public String motivoEspera;
+    public String motivoDevolucion;
+    // Quién recibe (ADR-039). Para el personal, el comercio y el repartidor:
+    // el seguimiento público no los muestra.
+    public String nombreDestinatario;
+    public String telefonoDestinatario;
+    public String emailDestinatario;
+    // Día prometido (ADR-042); null si no se pudo prometer.
+    public LocalDate fechaPrometida;
+    // Visitas fallidas y el motivo de la última (ADR-041).
+    public int intentosFallidos;
+    public MotivoEntregaFallida motivoEntregaFallida;
+    // Si la última falla le contó una visita al cliente (ADR-045).
+    public boolean ultimaFallaContoComoVisita;
+    // Cuándo cambió de estado por esa falla: identifica su aviso (ADR-045).
+    public java.time.LocalDateTime fechaUltimaFalla;
 
     // Convierte una entidad Pedido en un DTO listo para mostrar en la vista.
     public static PedidoDTO desde(Pedido p) {
@@ -40,6 +83,7 @@ public class PedidoDTO {
         dto.origen = p.getOrigen();
         dto.idPuntoPicking = p.getIdPuntoPicking();
         dto.importe = p.getImporte();
+        dto.pesoKg = p.getPesoKg();
         dto.medioPago = p.getMedioPago();
         dto.idRepartidor = p.getIdRepartidor();
         dto.lineas = p.getLineas().stream().map(LineaPedidoDTO::desde).collect(Collectors.toList());
@@ -49,7 +93,35 @@ public class PedidoDTO {
         dto.direccionEntrega = p.getDireccionEntrega();
         dto.codigoPostalEntrega = p.getCodigoPostalEntrega();
         dto.codigoSeguimiento = p.getCodigoSeguimiento();
+        dto.tipoEntrega = p.getTipoEntrega();
+        dto.idDepositoRetiro = p.getIdDepositoRetiro();
+        dto.cantidadDeBultos = p.getCantidadDeBultos();
+        dto.instruccionesEntrega = p.getInstruccionesEntrega();
+        dto.nombreAutorizado = p.getNombreAutorizado();
+        dto.fechaPrometidaOriginal = p.getFechaPrometidaOriginal();
+        dto.modificableDesdeSeguimiento = false; // lo completa PedidoService.consultarSeguimiento
+        dto.fechaEntrega = p.getFechaEntrega() != null ? p.getFechaEntrega().format(FORMATO) : null;
+        dto.entregadoPor = p.getEntregadoPor();
+        dto.conRemito = p.isConRemito();
+        dto.enEspera = p.isEnEspera();
+        dto.salioAReparto = p.isSalioAReparto();
+        dto.enEsperaDesde = p.getEnEsperaDesde() != null ? p.getEnEsperaDesde().format(FORMATO) : null;
+        dto.motivoEspera = p.getMotivoEspera();
+        dto.motivoDevolucion = p.getMotivoDevolucion();
+        dto.nombreDestinatario = p.getNombreDestinatario();
+        dto.telefonoDestinatario = p.getTelefonoDestinatario();
+        dto.emailDestinatario = p.getEmailDestinatario();
+        dto.fechaPrometida = p.getFechaPrometida();
+        dto.intentosFallidos = p.getIntentosFallidos();
+        dto.motivoEntregaFallida = p.getMotivoEntregaFallida();
+        dto.ultimaFallaContoComoVisita = p.isUltimaFallaContoComoVisita();
+        dto.fechaUltimaFalla = p.getFechaUltimaFalla();
         return dto;
+    }
+
+    /** La fecha prometida como "16/10", o null. */
+    public String getFechaPrometidaTexto() {
+        return fechaPrometida != null ? fechaPrometida.format(DIA) : null;
     }
 
     // Cantidad total de unidades del pedido, sumando todas las líneas.
@@ -70,6 +142,7 @@ public class PedidoDTO {
     public Long getIdPuntoPicking() { return idPuntoPicking; }
     public List<LineaPedidoDTO> getLineas() { return lineas; }
     public BigDecimal getImporte() { return importe; }
+    public BigDecimal getPesoKg() { return pesoKg; }
     public MedioPago getMedioPago() { return medioPago; }
     public Long getIdRepartidor() { return idRepartidor; }
     public String getEstado() { return estado; }
@@ -78,4 +151,29 @@ public class PedidoDTO {
     public String getDireccionEntrega() { return direccionEntrega; }
     public String getCodigoPostalEntrega() { return codigoPostalEntrega; }
     public String getCodigoSeguimiento() { return codigoSeguimiento; }
+    public TipoEntrega getTipoEntrega() { return tipoEntrega; }
+    public Long getIdDepositoRetiro() { return idDepositoRetiro; }
+    public int getCantidadDeBultos() { return cantidadDeBultos; }
+    public String getInstruccionesEntrega() { return instruccionesEntrega; }
+    public String getNombreAutorizado() { return nombreAutorizado; }
+    public LocalDate getFechaPrometidaOriginal() { return fechaPrometidaOriginal; }
+    public boolean isReprogramado() { return fechaPrometidaOriginal != null; }
+    public boolean isModificableDesdeSeguimiento() { return modificableDesdeSeguimiento; }
+    public String getDepositoRetiro() { return depositoRetiro; }
+    /** ¿Se retira en un depósito en vez de recibirse en la puerta? (ADR-053) */
+    public boolean isRetiroEnDeposito() { return tipoEntrega == TipoEntrega.RETIRO_EN_DEPOSITO; }
+    public String getFechaEntrega() { return fechaEntrega; }
+    public String getEntregadoPor() { return entregadoPor; }
+    public boolean isConRemito() { return conRemito; }
+    public boolean isEnEspera() { return enEspera; }
+    public boolean isSalioAReparto() { return salioAReparto; }
+    public String getEnEsperaDesde() { return enEsperaDesde; }
+    public String getMotivoEspera() { return motivoEspera; }
+    public String getMotivoDevolucion() { return motivoDevolucion; }
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public String getTelefonoDestinatario() { return telefonoDestinatario; }
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public LocalDate getFechaPrometida() { return fechaPrometida; }
+    public int getIntentosFallidos() { return intentosFallidos; }
+    public MotivoEntregaFallida getMotivoEntregaFallida() { return motivoEntregaFallida; }
 }

@@ -13,6 +13,8 @@ package com.rabbit.notificaciones.negocio;
  * los duplicados los resuelve NotificacionService con fechaCambio.
  */
 
+import com.rabbit.infraestructura.MensajeIlegibleException;
+
 import jakarta.ejb.ActivationConfigProperty;
 import jakarta.ejb.MessageDriven;
 import jakarta.inject.Inject;
@@ -23,6 +25,7 @@ import jakarta.jms.TextMessage;
 import jakarta.json.Json;
 import jakarta.json.JsonException;
 import jakarta.json.JsonObject;
+import jakarta.json.JsonReader;
 import java.io.StringReader;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -49,11 +52,11 @@ public class SuscriptorNotificacionesEstadoPedido implements MessageListener {
         JsonObject json;
         try {
             if (!(mensaje instanceof TextMessage texto)) {
-                LOG.severe("[Notificaciones][JMS] Mensaje de tipo inesperado: " + mensaje.getClass().getName());
-                return;
+                throw new MensajeIlegibleException("Mensaje de tipo inesperado: " + mensaje.getClass().getName());
             }
-            try (StringReader reader = new StringReader(texto.getText())) {
-                json = Json.createReader(reader).readObject();
+            try (StringReader reader = new StringReader(texto.getText());
+                    JsonReader lector = Json.createReader(reader)) {
+                json = lector.readObject();
             }
             notificaciones.avisarCambioDeEstado(
                     json.getJsonNumber("idPedido").longValue(),
@@ -61,8 +64,10 @@ public class SuscriptorNotificacionesEstadoPedido implements MessageListener {
                     json.getString("estado"),
                     LocalDateTime.parse(json.getString("fechaCambio")));
         } catch (JMSException | JsonException | ClassCastException | NullPointerException | DateTimeParseException e) {
-            // Mensaje ilegible: reintentarlo no lo arregla, se consume y se loguea.
+            // Mensaje ilegible: se relanza. El broker reintenta la entrega y, agotados
+            // los intentos, lo manda a la DLQ en vez de perderlo (ver MensajeIlegibleException).
             LOG.log(Level.SEVERE, "[Notificaciones][JMS] Mensaje ilegible en topico.pedidos.estado", e);
+            throw new MensajeIlegibleException("Mensaje ilegible en topico.pedidos.estado", e);
         }
     }
 }

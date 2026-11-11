@@ -23,12 +23,33 @@ final class HuellaDePedido {
     }
 
     static String de(DatosPedidoExternoDTO datos, OrigenPedido origen) {
+        boolean retiro = ReglaDeRetiro.esRetiro(datos.tipoEntrega);
         StringBuilder texto = new StringBuilder()
                 .append(origen).append('|').append(datos.idPuntoPicking).append('|')
                 .append(datos.importe.stripTrailingZeros().toPlainString()).append('|')
-                .append(datos.medioPago).append('|')
-                .append(datos.direccionEntrega.trim()).append('|')
-                .append(CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega));
+                .append(datos.medioPago).append('|');
+        if (retiro) {
+            // Retiro en depósito (ADR-053): no hay dirección ni código postal. El marcador distingue
+            // un retiro de un pedido a domicilio igual en todo lo demás.
+            texto.append("retiro-en-deposito");
+        } else {
+            // A domicilio, la huella queda igual que antes de que existiera el tipo de entrega.
+            texto.append(datos.direccionEntrega.trim()).append('|')
+                    .append(CodigosPostales.resolver(datos.codigoPostalEntrega, datos.direccionEntrega));
+        }
+        // Solo si vino: un pedido sin peso da la misma huella que antes de
+        // que existiera el campo.
+        if (datos.pesoKg != null) {
+            texto.append("|peso:").append(datos.pesoKg.stripTrailingZeros().toPlainString());
+        }
+        // Los bultos (ADR-056): solo si hay más de uno, así queda igual que antes para el caso común.
+        if (datos.bultos != null && datos.bultos > 1) {
+            texto.append("|bultos:").append(datos.bultos);
+        }
+        // Lo mismo con quien recibe (ADR-039), ya normalizado.
+        agregarSiVino(texto, "nombre", Destinatarios.nombre(datos.nombreDestinatario));
+        agregarSiVino(texto, "telefono", Destinatarios.telefono(datos.telefonoDestinatario));
+        agregarSiVino(texto, "email", Destinatarios.email(datos.emailDestinatario));
         for (DatosLineaPedidoDTO linea : datos.lineas) {
             texto.append('|').append(linea.idItem).append(':')
                     .append(linea.producto != null ? linea.producto.trim() : null).append(':')
@@ -40,6 +61,12 @@ final class HuellaDePedido {
         } catch (NoSuchAlgorithmException e) {
             // Todo JRE trae SHA-256 (lo exige la especificación de Java).
             throw new IllegalStateException(e);
+        }
+    }
+
+    private static void agregarSiVino(StringBuilder texto, String campo, String valor) {
+        if (valor != null) {
+            texto.append('|').append(campo).append(':').append(valor);
         }
     }
 }

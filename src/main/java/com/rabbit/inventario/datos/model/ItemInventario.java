@@ -14,6 +14,8 @@ package com.rabbit.inventario.datos.model;
  * sale del depósito al confirmar (baja cantidadDisponible).
  */
 
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import jakarta.persistence.*;
 
 @Entity
@@ -28,6 +30,22 @@ public class ItemInventario {
     private int cantidadDisponible;
     private int cantidadReservada;
 
+    // Peso de UNA unidad, en kilos. Con él se calcula el peso de cada
+    // pedido de stock consignado, que limita cuánto lleva un repartidor
+    // (ADR-032). Null en los ítems cargados antes de este cambio.
+    @Column(precision = 8, scale = 3)
+    private BigDecimal pesoKg;
+
+    // Medidas de UNA unidad, en centímetros (ADR-059): con ellas y el peso se calcula la categoría de
+    // tamaño (CategoriaDeTamano) que define cuánto se cobra por guardarla. Null en lo cargado antes de
+    // este cambio: se cuenta como mediano hasta que se carguen.
+    @Column(precision = 6, scale = 1)
+    private BigDecimal altoCm;
+    @Column(precision = 6, scale = 1)
+    private BigDecimal anchoCm;
+    @Column(precision = 6, scale = 1)
+    private BigDecimal largoCm;
+
     // Comercio dueño de esta mercadería consignada. El depósito es de
     // Rabbit (ver Deposito), pero lo que hay adentro sigue siendo del
     // comercio que lo consignó, y solo él puede reservarlo — ver
@@ -41,6 +59,13 @@ public class ItemInventario {
     // negocio lo exige en las altas nuevas y rechaza reservar sobre un
     // ítem sin dueño asignado.
     private Long idComercio;
+
+    // Antigüedad del stock (días gratis y recargo por stock antiguo). Fecha del último ingreso de
+    // mercadería (alta, recepción o corrección hacia arriba) y del último movimiento (ingreso o venta). Nulas en
+    // los productos anteriores: sin fecha de ingreso no tienen días gratis, y la antigüedad para el recargo
+    // empieza a contar el día de la primera foto de ocupación, para no recargar de golpe lo que ya estaba.
+    private LocalDate fechaUltimoIngreso;
+    private LocalDate fechaUltimoMovimiento;
 
     /**
      * BLOQUEO OPTIMISTA contra la sobreventa por concurrencia.
@@ -71,6 +96,19 @@ public class ItemInventario {
 
     public ItemInventario() {}
 
+    public BigDecimal getAltoCm() { return altoCm; }
+    public BigDecimal getAnchoCm() { return anchoCm; }
+    public BigDecimal getLargoCm() { return largoCm; }
+    public void setMedidas(BigDecimal altoCm, BigDecimal anchoCm, BigDecimal largoCm) {
+        this.altoCm = altoCm;
+        this.anchoCm = anchoCm;
+        this.largoCm = largoCm;
+    }
+    /** La categoría de tamaño de este ítem (ADR-059). */
+    public CategoriaDeTamano getCategoria() {
+        return CategoriaDeTamano.de(pesoKg, altoCm, anchoCm, largoCm);
+    }
+
     // Getters/setters JavaBean estándar de la entidad.
     public Long getId() { return id; }
     public String getProducto() { return producto; }
@@ -79,10 +117,29 @@ public class ItemInventario {
     public void setCantidadDisponible(int cantidadDisponible) { this.cantidadDisponible = cantidadDisponible; }
     public int getCantidadReservada() { return cantidadReservada; }
     public void setCantidadReservada(int cantidadReservada) { this.cantidadReservada = cantidadReservada; }
+    public BigDecimal getPesoKg() { return pesoKg; }
+    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
     public Long getIdComercio() { return idComercio; }
     public void setIdComercio(Long idComercio) { this.idComercio = idComercio; }
     /** Lo administra Hibernate; no tiene setter a proposito. */
     public Long getVersion() { return version; }
     public Deposito getDeposito() { return deposito; }
     public void setDeposito(Deposito deposito) { this.deposito = deposito; }
+
+    public LocalDate getFechaUltimoIngreso() { return fechaUltimoIngreso; }
+    public void setFechaUltimoIngreso(LocalDate fechaUltimoIngreso) { this.fechaUltimoIngreso = fechaUltimoIngreso; }
+
+    public LocalDate getFechaUltimoMovimiento() { return fechaUltimoMovimiento; }
+    public void setFechaUltimoMovimiento(LocalDate fechaUltimoMovimiento) { this.fechaUltimoMovimiento = fechaUltimoMovimiento; }
+
+    /** Entró mercadería: arranca de nuevo el período de días gratis y se corta la antigüedad. */
+    public void registrarIngreso(LocalDate dia) {
+        this.fechaUltimoIngreso = dia;
+        this.fechaUltimoMovimiento = dia;
+    }
+
+    /** Salió mercadería (una venta): el producto se mueve, así que deja de ser stock sin rotación. */
+    public void registrarSalida(LocalDate dia) {
+        this.fechaUltimoMovimiento = dia;
+    }
 }

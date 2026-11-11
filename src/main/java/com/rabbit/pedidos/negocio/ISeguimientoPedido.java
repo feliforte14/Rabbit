@@ -8,8 +8,10 @@ package com.rabbit.pedidos.negocio;
  * Implementada por {@link PedidoService}.
  */
 
+import com.rabbit.pedidos.dto.CalificacionDTO;
 import com.rabbit.pedidos.dto.PedidoDTO;
 import com.rabbit.pedidos.dto.PedidoExternoDTO;
+import com.rabbit.pedidos.dto.ResumenEntregasDTO;
 import jakarta.ejb.Local;
 import java.util.List;
 
@@ -47,6 +49,49 @@ public interface ISeguimientoPedido {
     PedidoDTO consultarSeguimiento(String codigoSeguimiento);
 
     /**
+     * La calificación que dejó quien recibió el pedido (ADR-052), por el
+     * código de seguimiento. Pública, igual que el seguimiento.
+     *
+     * @return la calificación, o null si todavía no calificó
+     * @throws PedidoNoEncontradoException si ningún pedido tiene ese código
+     */
+    CalificacionDTO consultarCalificacion(String codigoSeguimiento);
+
+    /**
+     * Lo que puede cambiar quien recibe desde el seguimiento (ADR-057): reprogramar el día (hasta
+     * 7 días, desde el prometido), dejar instrucciones de entrega y autorizar a otra persona.
+     * Pública: la autoriza el código de seguimiento. Cada dato reemplaza al anterior (vacío = quitarlo);
+     * fecha null = no reprogramar.
+     *
+     * @return el pedido como queda
+     * @throws ValidacionException si el pedido ya salió a reparto o se resolvió, es de retiro, se
+     *         llegó al tope de cambios, o los datos no sirven; o si no se cambió nada
+     * @throws PedidoNoEncontradoException si ningún pedido tiene ese código
+     */
+    PedidoDTO modificarEntrega(String codigoSeguimiento, java.time.LocalDate fecha, String instrucciones,
+                               String nombreAutorizado);
+
+    /**
+     * El código de 4 dígitos con el que se entrega el pedido (ADR-055), o null si no está en
+     * reparto o no lleva código. SOLO para el aviso al destinatario: es el único camino por el
+     * que sale del servicio, y no se muestra en ninguna pantalla.
+     */
+    String consultarCodigoDeEntrega(Long idPedido);
+
+    /** Dónde estaba el repartidor al entregar (ADR-055), o null si no la dio. Solo el personal. */
+    com.rabbit.pedidos.dto.UbicacionEntregaDTO consultarUbicacionDeEntrega(Long idPedido);
+
+    /**
+     * Califica la entrega (ADR-052), desde el seguimiento público: 1 a 5
+     * estrellas y un comentario opcional. Una sola vez por pedido y solo si
+     * ya está ENTREGADO (ver ReglaDeCalificacion).
+     *
+     * @throws PedidoNoEncontradoException si ningún pedido tiene ese código
+     * @throws ValidacionException si no se puede calificar, los datos no sirven o ya la calificaron
+     */
+    CalificacionDTO calificarEntrega(String codigoSeguimiento, int estrellas, String comentario);
+
+    /**
      * @return todos los pedidos, de todos los comercios
      */
     List<PedidoDTO> listarTodos();
@@ -60,6 +105,18 @@ public interface ISeguimientoPedido {
      */
     List<PedidoDTO> listarPedidosDeComercio(Long idComercio);
 
+    /**
+     * Pedidos entregados en [desde, hasta), por comercio: cantidad y kilos.
+     * Para la liquidación mensual (ADR-034). Solo el personal.
+     */
+    List<ResumenEntregasDTO> resumenEntregas(java.time.LocalDateTime desde, java.time.LocalDateTime hasta);
+
+    /**
+     * Lo mismo, solo del comercio que representa el usuario que llama (la
+     * vista previa de su liquidación). Solo COMERCIO: no ve lo de otros.
+     */
+    ResumenEntregasDTO resumenEntregasDelComercioActual(java.time.LocalDateTime desde, java.time.LocalDateTime hasta);
+
     /** Pedidos CONFIRMADO o EN_CAMINO: los que tienen que salir o están en viaje. */
     List<PedidoDTO> listarEntregasEnCurso();
 
@@ -68,4 +125,11 @@ public interface ISeguimientoPedido {
 
     /** Pedidos que tuvo o tiene asignados el repartidor que llama (rol REPARTIDOR). */
     List<PedidoDTO> listarPedidosDelRepartidorActual();
+
+    /**
+     * Lo que un repartidor tiene en curso (CONFIRMADO o EN_CAMINO), en el
+     * orden en que se le asignó: lo mismo que ve él en "Mis entregas". Solo
+     * el personal (el seguimiento público entra con @RunAs, ADR-043).
+     */
+    List<PedidoDTO> listarEntregasEnCursoDeRepartidor(Long idRepartidor);
 }

@@ -21,6 +21,7 @@ package com.rabbit.pedidos.datos.model;
 import com.rabbit.pagos.dto.MedioPago;
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -63,6 +64,12 @@ public class PedidoExterno {
 
     @Enumerated(EnumType.STRING)
     private MedioPago medioPago;
+
+    // Kilos totales que informa el comercio para un pedido de PUNTO_PICKING
+    // (Rabbit no conoce esa mercadería). Opcional. Con STOCK_CONSIGNADO
+    // queda null: el peso sale de los ítems del depósito (ADR-032).
+    @Column(precision = 10, scale = 3)
+    private BigDecimal pesoKg;
 
     // Adónde se entrega (la manda el ERP con el pedido). Es el destino de
     // la hoja de ruta del repartidor (ver RuteoService). Nullable: los
@@ -109,6 +116,29 @@ public class PedidoExterno {
     // y las filas anteriores a este cambio quedan en null (= no cancelado).
     private Boolean cancelado;
 
+    // Cómo recibe quien compró (ADR-053). Null en las filas anteriores: cuenta como DOMICILIO.
+    @Enumerated(EnumType.STRING)
+    @Column(length = 30)
+    private TipoEntrega tipoEntrega;
+
+    // Cuántas cajas o paquetes forman el pedido: etiquetas con QR a imprimir (ADR-056). Null = 1:
+    // las filas anteriores. No es getBultos(), que cuenta unidades para el límite del repartidor.
+    private Integer cantidadDeBultos;
+
+    // Quién recibe (ADR-039), opcionales: viajan tal cual al Pedido.
+    @Column(length = 100)
+    private String nombreDestinatario;
+
+    @Column(length = 30)
+    private String telefonoDestinatario;
+
+    @Column(length = 120)
+    private String emailDestinatario;
+
+    // Se promete al recibirlo, no al sincronizar: así el ERP la tiene en la
+    // respuesta del alta (ADR-042).
+    private LocalDate fechaPrometida;
+
     public PedidoExterno() {}
 
     // Getters/setters JavaBean estándar de la entidad.
@@ -123,6 +153,8 @@ public class PedidoExterno {
     public void setLineas(List<LineaPedidoExterno> lineas) { this.lineas = lineas; }
     public LocalDateTime getFechaPedido() { return fechaPedido; }
     public void setFechaPedido(LocalDateTime fechaPedido) { this.fechaPedido = fechaPedido; }
+    public BigDecimal getPesoKg() { return pesoKg; }
+    public void setPesoKg(BigDecimal pesoKg) { this.pesoKg = pesoKg; }
     public BigDecimal getImporte() { return importe; }
     public void setImporte(BigDecimal importe) { this.importe = importe; }
     public MedioPago getMedioPago() { return medioPago; }
@@ -143,4 +175,17 @@ public class PedidoExterno {
     public void setHuellaSolicitud(String huellaSolicitud) { this.huellaSolicitud = huellaSolicitud; }
     public boolean isCancelado() { return Boolean.TRUE.equals(cancelado); }
     public void setCancelado(boolean cancelado) { this.cancelado = cancelado; }
+    public String getNombreDestinatario() { return nombreDestinatario; }
+    public void setNombreDestinatario(String nombreDestinatario) { this.nombreDestinatario = nombreDestinatario; }
+    public String getTelefonoDestinatario() { return telefonoDestinatario; }
+    public void setTelefonoDestinatario(String telefonoDestinatario) { this.telefonoDestinatario = telefonoDestinatario; }
+    public TipoEntrega getTipoEntrega() { return tipoEntrega != null ? tipoEntrega : TipoEntrega.DOMICILIO; }
+    public void setTipoEntrega(TipoEntrega tipoEntrega) { this.tipoEntrega = tipoEntrega; }
+    public int getCantidadDeBultos() { return cantidadDeBultos == null ? 1 : cantidadDeBultos; }
+    public void setCantidadDeBultos(int cantidadDeBultos) { this.cantidadDeBultos = cantidadDeBultos; }
+    public boolean isRetiroEnDeposito() { return getTipoEntrega() == TipoEntrega.RETIRO_EN_DEPOSITO; }
+    public String getEmailDestinatario() { return emailDestinatario; }
+    public void setEmailDestinatario(String emailDestinatario) { this.emailDestinatario = emailDestinatario; }
+    public LocalDate getFechaPrometida() { return fechaPrometida; }
+    public void setFechaPrometida(LocalDate fechaPrometida) { this.fechaPrometida = fechaPrometida; }
 }

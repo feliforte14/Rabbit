@@ -3,15 +3,75 @@
 Para cada patrón: qué problema concreto resuelve en Rabbit, dónde está y
 qué alternativa se descartó.
 
+## Catálogo
+
+Todos los patrones que se aplican, de un vistazo. Los que tienen sección propia más abajo llevan enlace; el resto se
+explican en una línea.
+
+### GoF
+
+- **State** (comportamiento): `EstadoDelPedido` y sus seis estados, en `pedidos/datos/model` (ver la [sección](#máquina-de-estados-state)). **ADR:** [ADR-061](DECISIONES.md#adr-061-state-para-el-ciclo-de-vida-del-pedido) y [ADR-005](DECISIONES.md#adr-005-máquina-de-estados-del-pedido-en-el-enum).
+- **Observer** (comportamiento): Eventos CDI (`EstadoPedidoCambiado`, `PedidoExternoRegistrado`, `EstadoEnvioCambiado`) y eventos síncronos de eliminación (ver la [sección](#observer-eventos-cdi)). **ADR:** [ADR-006](DECISIONES.md#adr-006-tópico-para-los-cambios-de-estado-del-pedido), ADR-009 y ADR-040.
+- **Adapter** (estructural): `IAdaptadorTransportista` con su adaptador REST y su adaptador SOAP legado; el cliente del banco legado (ver la [sección](#adapter)). **ADR:** [ADR-062](DECISIONES.md#adr-062-adapter-para-los-transportistas-externos) y ADR-016.
+- **Facade** (estructural): `IGestionPedidos`, `IConsultaStock`, `IRegistroComercios`, `IRegistroUsuarios` (ver la [sección](#facade)). **ADR:** [ADR-070](DECISIONES.md#adr-070-facade-en-la-entrada-de-cada-componente).
+- **Singleton** (creacional): `@Singleton` del contenedor (14): timers, bandejas de salida, `CircuitBreakerBanco`, `AsignadorDeEspera` (ver la [sección](#singleton)). **ADR:** [ADR-071](DECISIONES.md#adr-071-tareas-periódicas-y-estado-compartido-como-singleton), ADR-011 y ADR-037.
+- **Factory / Provider** (creacional): `Instance<IReservaStock>` en `PedidoService`; métodos de fábrica estáticos como `EstadoDelPedido.de(...)` y `TarifaMensual.vigente()` (ver la [sección](#provider-instancet-como-fábrica)). **ADR:** [ADR-072](DECISIONES.md#adr-072-provider-instancet-para-el-ejb-stateful-de-la-reserva).
+- **Chain of Responsibility** (comportamiento): `FiltroHsts`, un filtro de servlet dentro de la cadena de filtros. Una línea: agrega la cabecera HSTS y deja seguir la cadena **ADR:** ADR-050 (HSTS).
+- **Proxy** (estructural): Lo provee el contenedor (EJB y CDI); no hay código propio
+
+### GRASP y principios
+
+- **Fabricación pura**: `ReglaDeCancelacion`, `ReglaDeCalificacion`, `ReglaDeOpcionesDeEntrega`, `ReglaDeRetiro`: clases sin estado ni contenedor que se prueban solas **ADR:** [ADR-060](DECISIONES.md#adr-060-fabricación-pura-para-las-reglas-del-pedido).
+- **Controlador**: `PedidoService` coordina el caso de uso; los beans de JSF y los recursos REST solo traducen
+- **Indirección y Variaciones protegidas**: Las interfaces `I*` entre componentes, `IAdaptadorTransportista`, `IBancoClient` y los eventos
+- **Bajo acoplamiento**: Los componentes se hablan por interfaces inyectadas, sin `new` de servicios concretos
+
+### Arquitectura (PoEAA)
+
+- **Repository / DAO**: Un repositorio principal por componente (`PedidoRepository`, …) y otro cuando una tabla tiene un uso propio: 13 en total (ver la [sección](#dao-repository)). **ADR:** [ADR-068](DECISIONES.md#adr-068-un-repositorio-dao-por-componente).
+- **DTO**: Las clases `*DTO` entre capas y hacia la API (ver la [sección](#dto)). **ADR:** [ADR-069](DECISIONES.md#adr-069-dto-entre-capas-y-componentes).
+- **Service Layer**: Los servicios `@Stateless` (`PedidoService`, `PagoService`, …)
+- **MVC / Backing Bean**: Vistas JSF (`.xhtml`) y beans de presentación
+- **Data Mapper y Unit of Work**: JPA: las entidades y el `EntityManager`
+- **Value Object**: `record` inmutables, por ejemplo `TarifaMensual`
+- **Exception Mapper**: `ProblemaMapper`: todos los errores de la API salen como Problem Details (RFC 9457) (ver la [sección](#exception-mapper-traductor-de-errores)). **ADR:** ADR-018 (Problem Details).
+
+### Integración y mensajería (EIP)
+
+- **Publish/Subscribe**: El tópico `topico.pedidos.estado` y sus suscriptores (Notificaciones, Pagos, Destinatario) (ver [Observer](#observer-eventos-cdi)). **ADR:** ADR-006, ADR-009 y ADR-040.
+- **Point-to-Point Channel y Message-Driven Bean**: La cola `cola.pedidos.externos` y `PedidoExternoListener` **ADR:** ADR-001 y ADR-014.
+- **Idempotent Receiver**: `Idempotency-Key` más una huella del pedido y una restricción única (ver la [sección](#idempotency-key)). **ADR:** ADR-018.
+- **Polling de respaldo**: `SincronizadorDePedidos`, por timer, por si falla la cola **ADR:** ADR-001.
+- **Transactional Outbox**: la bandeja de salida de los avisos de estado (`BandejaDeEstados`, tabla `eventos_estado_pedido`) y la de los mails (`BandejaDeCorreos`, tabla `correos_pendientes`): se guardan en la misma transacción que el cambio y un timer los publica o reintenta. **ADR:** [ADR-063](DECISIONES.md#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado).
+- **Gateway**: `BancoClient` oculta el SOAP del banco legado **ADR:** ADR-010.
+
+### Resiliencia y concurrencia
+
+- **Circuit Breaker**: `CircuitBreakerBanco` (ver la [sección](#circuit-breaker)). **ADR:** ADR-011.
+- **Timeout y degradación controlada**: Corte a los 5 s; la falta de respuesta viaja como resultado (`NO_DISPONIBLE`) **ADR:** ADR-010 y ADR-011.
+- **Transacción compensatoria**: `ReversasBancarias` y `CancelacionesDeEnvios` (ver la [sección](#transacción-compensatoria)). **ADR:** ADR-010.
+- **Bloqueo pesimista**: Stock y estado del pedido (`PESSIMISTIC`) **ADR:** ADR-025 y ADR-026.
+
+### Lo que no se aplica
+
+- **Strategy real:** no hay clases intercambiables (ver la aclaración en la sección Strategy).
+- **Builder, Decorator, Command y Template Method:** no aparecen en el código.
+
 ## DAO (Repository)
 
 - **Problema:** que las reglas de negocio no dependan de JPQL ni del
   `EntityManager`.
-- **Dónde:** un repositorio por componente: `ComercioRepository`,
+- **Dónde:** un repositorio principal por componente: `ComercioRepository`,
   `InventarioRepository`, `PedidoRepository`, `CobroRepository`,
   `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`,
-  `TransportistaRepository` y `ZonaRepository` (Ruteo).
-- **Cómo:** el repositorio es la única clase que toca el `EntityManager`.
+  `TransportistaRepository` y `ZonaRepository` (Ruteo). Cuando una tabla
+  tiene un uso propio, el componente suma otro: `EventoEstadoRepository`
+  (Pedidos, bandeja de salida), `LiquidacionRepository` (Pagos),
+  `CorreoPendienteRepository` (Notificaciones, bandeja de correos) y
+  `CoordenadaRepository` (Ruteo, caché de coordenadas). Son 13.
+- **Cómo:** los repositorios son las únicas clases de negocio que tocan el
+  `EntityManager` (fuera de ellos, solo dos tareas técnicas que corren al
+  desplegar: `AlineadorDeRestriccionesEnum` y `LimpiezaDeCredenciales`).
   También encapsula decisiones de acceso, como el bloqueo
   `PESSIMISTIC_WRITE` de `buscarPedidoExternoParaActualizar`.
 - **Descartado:** usar el `EntityManager` directo en los EJB (mezcla
@@ -43,6 +103,11 @@ qué alternativa se descartó.
 
 ## Strategy
 
+- **Aclaración:** no hay clases Strategy intercambiables. Los tres
+  casos de abajo se resuelven con un `if`, porque cada uno tiene solo dos
+  variantes. El único punto donde se elige una implementación en tiempo
+  de ejecución es `AdaptadoresTransportista.para(TipoIntegracion)` (ver
+  Adapter), que es lo más cercano a una Strategy real.
 - **Hoy:** el comportamiento según `OrigenPedido` (`STOCK_CONSIGNADO`
   reserva stock; `PUNTO_PICKING` solo valida el punto de picking).
 - **Descartado por ahora:** el cobro según `MedioPago` (`PREPAGO` se
@@ -65,6 +130,17 @@ qué alternativa se descartó.
   `AlineadorDeRestriccionesEnum` (`@Singleton @Startup`), que corre una
   sola vez al desplegar. `SeguimientoDeEnvios` (`@Singleton @Startup` +
   `@Schedule`) consulta a los transportistas en una sola pasada a la vez.
+  `AsignadorDeEspera` (`@Singleton @Startup`, ADR-037) recorre la lista de
+  espera de a una pasada; con concurrencia `BEAN`, un aviso que llega
+  durante una pasada no espera: pide otra vuelta al terminar.
+  Con el mismo criterio, el resto de las tareas periódicas también son
+  `@Singleton`: `EnvioDeEstadosPendientes` y `EnvioDeCorreosPendientes`
+  (las bandejas de salida, ADR-063: con la concurrencia `WRITE` por
+  defecto, el envío inmediato y el timer no mandan dos veces lo mismo),
+  `LiquidacionMensual` (ADR-034), `FotoDiariaDeOcupacion` (ADR-059),
+  `VencimientoDeRetiros` (ADR-053) y `Geocodificador` (ADR-046). Además
+  `LimpiezaDeCredenciales` (corre al desplegar) y `AvisosDeEspera`. Son 14
+  (ver ADR-071).
 
 ## Provider (`Instance<T>` como fábrica)
 
@@ -93,14 +169,27 @@ qué alternativa se descartó.
     cancelados, avisos, cobros anulados, envíos cancelados). Comercios no
     depende de ellos (ya dependen de él), y nada queda apuntando a un
     comercio inexistente. Implementado.
+  - `EliminacionDeRepartidor` / `RepartidorEliminado` y `ZonaEliminada`
+    (sincrónicos, ADR-036): el mismo esquema para eliminar un repartidor
+    (Pedidos y Seguridad lo impiden si tiene entregas en curso o cuenta, y
+    después Pedidos le suelta sus pedidos terminados) y una zona
+    (Repartidores deja sin zona fija a los suyos). Implementado.
+  - `EstadoPedidoCambiado` → `AvisosDeEspera` (`AFTER_SUCCESS`,
+    ADR-037): una entrega, cancelación o devolución puede haber liberado
+    lugar, así que programa una pasada de la lista de espera. Implementado.
   - `EstadoEnvioCambiado` (sincrónico): Transportistas avisa que un
     transportista informó un estado nuevo; Pedidos
     (`ActualizacionDePedidosPorEnvio`) mueve el pedido en la misma
     transacción. Transportistas no depende de Pedidos. Implementado.
+  - `AvisoDestinatarioRegistrado` → `AvisosPorMail` (`AFTER_SUCCESS`,
+    ADR-040): el aviso a quien recibe sale por mail recién cuando quedó
+    guardado. Implementado.
 - **Y entre componentes, publicación/suscripción:** del otro lado del
-  tópico, `SuscriptorPagosEstadoPedido` y
-  `SuscriptorNotificacionesEstadoPedido` reaccionan al mismo evento sin
-  que Pedidos los conozca.
+  tópico, `SuscriptorPagosEstadoPedido`,
+  `SuscriptorNotificacionesEstadoPedido` y
+  `SuscriptorDestinatarioEstadoPedido` (ADR-040) reaccionan al mismo
+  evento sin que Pedidos los conozca. El tercero se sumó sin tocar a
+  Pedidos ni a los otros dos.
 - **Descartado:** llamar al publicador directo desde el servicio (ver
   ADR-002 en [DECISIONES.md](DECISIONES.md)).
 
@@ -116,22 +205,36 @@ qué alternativa se descartó.
   dos implementaciones, `AdaptadorRestTransportista` (API REST con JSON) y
   `AdaptadorSoapTransportista` (SOAP legado). Cada una traduce protocolo,
   formato y hasta el vocabulario de estados de su transportista (el legado
-  dice `EN_VIAJE`, Rabbit `EN_TRANSITO`), e incluso si una operación
+  dice `EN_VIAJE`; Rabbit, en el envío, `EN_TRANSITO`, y el pedido pasa a
+  `EN_CAMINO`), e incluso si una operación
   existe: el legado no cotiza, y su adaptador responde "no cotiza" sin
   llamarlo. `AdaptadoresTransportista` elige
   según el `TipoIntegracion` del transportista; `TransportistaService` no
   sabe con cuál habla. Sumar un transportista EDI sería una implementación
   más.
 
-## Máquina de estados (State simplificado)
+## Máquina de estados (State)
 
 - **Problema:** las reglas de "desde qué estado se puede pasar a cuál"
-  estaban repartidas en `if` dentro de cada operación.
-- **Dónde:** `EstadoPedido.puedePasarA(...)` +
-  `PedidoService.cambiarEstado(...)`.
-- **Por qué no el patrón State completo** (una clase por estado): con
-  cinco estados sin comportamiento propio, un `switch` en el enum es más
-  simple de explicar y de mantener.
+  estaban repartidas en `if` dentro de cada operación y, después, en un
+  `switch` del enum que decía qué se puede pero no qué provoca cada estado.
+- **Dónde:** `EstadoDelPedido` (interfaz sellada) y una clase por estado en
+  `pedidos/datos/model`. `Pedido` delega (`despachar()`, `cancelar()`, …) y
+  `PedidoService.aplicar(...)` es el único lugar que cambia el estado de un
+  pedido existente.
+- **Cómo funciona:** cada estado implementa solo las operaciones que permite;
+  el resto lanza `TransicionInvalidaException`, que el servicio traduce a
+  `TransicionNoPermitidaException` (409 en la API del ERP al cancelar). Los
+  efectos de entrar a un estado (dejar la lista de espera, marcar que salió a
+  reparto) están en `alEntrar`. `EstadoPedido.puedePasarA` consulta al
+  estado. La columna de la base sigue siendo el enum.
+- **Descartado:** un enum con métodos por constante (mezcla persistencia con
+  reglas y los estados consultan el pedido, por el retiro en depósito) y una
+  librería de máquinas de estados (una dependencia para seis estados).
+- **Mensajes de cancelación:** el motivo por el que un estado no se puede
+  cancelar también lo da el estado (`motivoParaNoCancelar` y
+  `queLeQuedaAlErp`); `ReglaDeCancelacion` le pregunta y ya no decide según el
+  estado.
 
 ## Transacción compensatoria
 

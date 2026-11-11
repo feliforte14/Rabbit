@@ -52,6 +52,17 @@ public class DepositoBean implements Serializable {
         }
     }
 
+    // La hoja de ruta del día arranca en el depósito marcado (ver OrdenDeRecorrido).
+    public void marcarBaseDeSalida(Long idDeposito) {
+        try {
+            service.marcarBaseDeSalida(idDeposito);
+            Mensajes.info("Ese depósito es ahora la base de salida de los camiones");
+            cargar();
+        } catch (ValidacionException e) {
+            Mensajes.error(e.getMessage());
+        }
+    }
+
     // Getters/setters JavaBean: los requiere Expression Language (JSF).
     public List<DepositoDTO> getDepositos() { return depositos; }
     public DatosDepositoDTO getNuevoDeposito() { return nuevoDeposito; }

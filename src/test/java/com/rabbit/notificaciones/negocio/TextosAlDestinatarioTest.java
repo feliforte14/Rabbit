@@ -1,0 +1,227 @@
+package com.rabbit.notificaciones.negocio;
+
+import static com.rabbit.pedidos.datos.model.MotivoEntregaFallida.*;
+import static org.junit.jupiter.api.Assertions.*;
+
+import com.rabbit.pedidos.datos.model.MotivoEntregaFallida;
+
+import java.time.LocalDate;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+
+/** Lo que le llega a quien recibe el pedido (ADR-040). */
+class TextosAlDestinatarioTest {
+
+    private static final LocalDate HOY = LocalDate.of(2026, 10, 16);
+
+    @AfterEach
+    void limpiar() {
+        System.clearProperty(AvisoDestinatarioService.PROPIEDAD_URL);
+    }
+
+    private static TextosAlDestinatario.Datos datos(String estado, LocalDate prometida, MotivoEntregaFallida motivo) {
+        return datos(estado, prometida, motivo, motivo != null && motivo.isCuentaComoVisita(), 1, 3);
+    }
+
+    private static TextosAlDestinatario.Datos datos(String estado, LocalDate prometida, MotivoEntregaFallida motivo,
+                                                    boolean conto, int visitas, int maximo) {
+        return new TextosAlDestinatario.Datos(estado, "Ana", "Librería Sur", "RB-7KQ2M9XHTA",
+                "https://rabbit.example/seguimiento.xhtml?codigo=RB-7KQ2M9XHTA", prometida, HOY, motivo, conto,
+                visitas, maximo);
+    }
+
+    @Test
+    void alRecibirloLePrometeElDia() {
+        TextosAlDestinatario.Datos d = datos("PENDIENTE", HOY, null);
+        assertEquals("Recibimos tu pedido de Librería Sur", TextosAlDestinatario.asunto(d));
+        String cuerpo = TextosAlDestinatario.cuerpo(d);
+        assertTrue(cuerpo.startsWith("Hola, Ana. "));
+        assertTrue(cuerpo.contains("Llega hoy."));
+        assertTrue(cuerpo.endsWith("Seguilo con el código RB-7KQ2M9XHTA: https://rabbit.example/seguimiento.xhtml?codigo=RB-7KQ2M9XHTA"));
+    }
+
+    @Test
+    void unaVisitaFallidaNoEsUnPedidoNuevo() {
+        TextosAlDestinatario.Datos d = datos("PENDIENTE", HOY, CLIENTE_AUSENTE);
+        assertEquals("No pudimos entregar tu pedido de Librería Sur", TextosAlDestinatario.asunto(d));
+        assertTrue(TextosAlDestinatario.cuerpo(d).contains("no había nadie"));
+        assertTrue(TextosAlDestinatario.cuerpo(d).contains("Lo vamos a intentar de nuevo"));
+        assertFalse(TextosAlDestinatario.cuerpo(d).contains("Llega"));
+    }
+
+    @Test
+    void cadaMotivoLeDiceAlClienteQueHacer() {
+        assertTrue(TextosAlDestinatario.cuerpo(datos("PENDIENTE", null, DIRECCION_INCORRECTA))
+                .contains("Comunicate con Librería Sur para confirmarla o corregirla"));
+        assertTrue(TextosAlDestinatario.cuerpo(datos("PENDIENTE", null, NADIE_HABILITADO))
+                .contains("mayor de edad con DNI"));
+        assertTrue(TextosAlDestinatario.cuerpo(datos("PENDIENTE", null, DOMICILIO_CERRADO))
+                .contains("en qué horario se puede entregar"));
+    }
+
+    @Test
+    void avisaCuandoLaProximaEsLaUltimaVisita() {
+        // Visita 1 de 2 fallida: la próxima es la última.
+        String cuerpo = TextosAlDestinatario.cuerpo(datos("PENDIENTE", null, CLIENTE_AUSENTE, true, 1, 2));
+        assertTrue(cuerpo.contains("es la última visita"));
+        assertTrue(cuerpo.contains("vuelve a Librería Sur"));
+    }
+
+    @Test
+    void unProblemaDelRepartidorNoCulpaAlCliente() {
+        TextosAlDestinatario.Datos d = datos("PENDIENTE", null, PROBLEMA_DEL_REPARTIDOR, false, 0, 2);
+        assertEquals("Tu pedido de Librería Sur se demora un poco", TextosAlDestinatario.asunto(d));
+        assertTrue(TextosAlDestinatario.cuerpo(d).contains("No tenés que hacer nada"));
+        assertFalse(TextosAlDestinatario.cuerpo(d).contains("Pasamos"));
+    }
+
+    @Test
+    void unPaqueteDanadoPideCoordinarUnReemplazo() {
+        String cuerpo = TextosAlDestinatario.cuerpo(datos("DEVUELTO_AL_COMERCIO", null, PAQUETE_DANADO, false, 0, 2));
+        assertTrue(cuerpo.contains("se dañó"));
+        assertTrue(cuerpo.contains("coordinar un reemplazo"));
+    }
+
+    @Test
+    void enCaminoLlegaHoy() {
+        assertEquals("¡Tu pedido de Librería Sur llega hoy!", TextosAlDestinatario.asunto(datos("EN_CAMINO", null, null)));
+    }
+
+    @Test
+    void devueltoAlComercioDiceConQuienHablar() {
+        String cuerpo = TextosAlDestinatario.cuerpo(datos("DEVUELTO_AL_COMERCIO", null, RECHAZADO));
+        assertTrue(cuerpo.contains("se lo devolvimos a Librería Sur"));
+        String agotadas = TextosAlDestinatario.cuerpo(datos("DEVUELTO_AL_COMERCIO", null, CLIENTE_AUSENTE, true, 2, 2));
+        assertTrue(agotadas.contains("después de 2 visitas (cliente ausente)"));
+    }
+
+    @Test
+    void sinNombreSaludaIgual() {
+        TextosAlDestinatario.Datos d = new TextosAlDestinatario.Datos("ENTREGADO", null, "Librería Sur", "RB-X",
+                "link", null, HOY, null, false, 0, 2);
+        assertTrue(TextosAlDestinatario.cuerpo(d).startsWith("Hola. "));
+    }
+
+    @Test
+    void elDiaPrometidoComoLoDiriaUnaPersona() {
+        assertEquals(" Llega mañana.", TextosAlDestinatario.cuando(HOY.plusDays(1), HOY));
+        assertEquals(" Llega el lunes 19/10.", TextosAlDestinatario.cuando(LocalDate.of(2026, 10, 19), HOY));
+        assertEquals("", TextosAlDestinatario.cuando(null, HOY));
+        assertEquals("", TextosAlDestinatario.cuando(HOY.minusDays(1), HOY));
+    }
+
+    @Test
+    void elLinkUsaLaUrlPublicaConfigurada() {
+        assertEquals("https://localhost:8443/Rabbit/seguimiento.xhtml?codigo=RB-X",
+                AvisoDestinatarioService.enlaceSeguimiento("RB-X"));
+        System.setProperty(AvisoDestinatarioService.PROPIEDAD_URL, "https://rabbit.example.com/Rabbit/");
+        assertEquals("https://rabbit.example.com/Rabbit/seguimiento.xhtml?codigo=RB-X",
+                AvisoDestinatarioService.enlaceSeguimiento("RB-X"));
+    }
+
+    private static TextosAlDestinatario.Datos retiro(String estado) {
+        return new TextosAlDestinatario.Datos(estado, "Ana", "Librería Sur", "RB-7KQ2M9XHTA",
+                "https://rabbit.example/seguimiento.xhtml?codigo=RB-7KQ2M9XHTA", HOY, HOY, null, false, 0, 3,
+                "Galpón Norte (Av. Siempreviva 742)");
+    }
+
+    @Test
+    void unRetiroListoLeDiceDondeYConQueCodigo() {
+        TextosAlDestinatario.Datos d = retiro("CONFIRMADO");
+        assertEquals("Tu pedido de Librería Sur está listo para retirar", TextosAlDestinatario.asunto(d));
+        String cuerpo = TextosAlDestinatario.cuerpo(d);
+        assertTrue(cuerpo.contains("Galpón Norte (Av. Siempreviva 742)"));
+        assertTrue(cuerpo.contains("Mostrá el código RB-7KQ2M9XHTA"));
+        assertFalse(cuerpo.contains("quién lo lleva"));
+    }
+
+    @Test
+    void unRetiroNoPrometeReparto() {
+        assertFalse(TextosAlDestinatario.cuerpo(retiro("PENDIENTE")).contains("Llega"));
+        assertTrue(TextosAlDestinatario.cuerpo(retiro("ENTREGADO")).contains("Retiraste"));
+        assertEquals("Retiraste tu pedido de Librería Sur", TextosAlDestinatario.asunto(retiro("ENTREGADO")));
+    }
+
+    private static TextosAlDestinatario.Datos enCaminoConCodigo(String codigoEntrega) {
+        return new TextosAlDestinatario.Datos("EN_CAMINO", "Ana", "Librería Sur", "RB-7KQ2M9XHTA",
+                "https://rabbit.example/seguimiento.xhtml?codigo=RB-7KQ2M9XHTA", HOY, HOY, null, false, 0, 3,
+                null, codigoEntrega);
+    }
+
+    @Test
+    void elMailDeEnCaminoLlevaElCodigoDeEntrega() {
+        String cuerpo = TextosAlDestinatario.cuerpo(enCaminoConCodigo("0427"));
+        assertTrue(cuerpo.contains("Tu código de entrega es 0427"));
+        assertTrue(cuerpo.contains("sin el código no puede dejártelo"));
+    }
+
+    @Test
+    void laVersionQueSeGuardaNoLlevaElCodigo() {
+        String guardado = TextosAlDestinatario.cuerpo(enCaminoConCodigo("0427").sinCodigoDeEntrega());
+        assertFalse(guardado.contains("0427"));
+        assertFalse(guardado.contains("código de entrega"));
+    }
+
+    @Test
+    void sinCodigoElMailDeEnCaminoEsElDeSiempre() {
+        String cuerpo = TextosAlDestinatario.cuerpo(enCaminoConCodigo(null));
+        assertFalse(cuerpo.contains("código de entrega"));
+        assertTrue(cuerpo.contains("salió a reparto"));
+    }
+
+    @Test
+    void elCodigoSoloVaEnElMailDeEnCamino() {
+        for (String estado : new String[] {"PENDIENTE", "CONFIRMADO", "ENTREGADO", "CANCELADO"}) {
+            TextosAlDestinatario.Datos d = new TextosAlDestinatario.Datos(estado, "Ana", "Librería Sur", "RB-X",
+                    "https://rabbit.example/s", HOY, HOY, null, false, 0, 3, null, "0427");
+            assertFalse(TextosAlDestinatario.cuerpo(d).contains("0427"), estado);
+        }
+    }
+
+    @Test
+    void elCambioDeEntregaMuestraLoQueSeGuardoYInvitaAAvisarSiNoFueElCliente() {
+        LocalDate hoy = LocalDate.of(2026, 11, 9);
+        TextosAlDestinatario.CambioDeEntrega d = new TextosAlDestinatario.CambioDeEntrega("Ana", "Tienda Feliz",
+                "RB-ABC", "https://r.test/seguimiento.xhtml?codigo=RB-ABC", LocalDate.of(2026, 11, 11), hoy,
+                "Dejar en portería", "Marta Gómez");
+
+        assertEquals("Guardamos los cambios de tu entrega de Tienda Feliz",
+                TextosAlDestinatario.asuntoCambioDeEntrega(d));
+        String cuerpo = TextosAlDestinatario.cuerpoCambioDeEntrega(d);
+        assertTrue(cuerpo.startsWith("Hola, Ana. Guardamos los cambios de tu entrega."), cuerpo);
+        assertTrue(cuerpo.contains("Llega"), cuerpo);
+        assertTrue(cuerpo.contains("Instrucciones para el repartidor: Dejar en portería"), cuerpo);
+        assertTrue(cuerpo.contains("Autorizaste a Marta Gómez a recibirlo."), cuerpo);
+        assertTrue(cuerpo.contains("código de entrega"), cuerpo);
+        assertTrue(cuerpo.contains("Si no fuiste vos, avisale a Tienda Feliz."), cuerpo);
+        assertTrue(cuerpo.endsWith("Seguilo con el código RB-ABC: https://r.test/seguimiento.xhtml?codigo=RB-ABC"), cuerpo);
+    }
+
+    @Test
+    void elCambioDeEntregaOmiteLoQueNoSeCargo() {
+        LocalDate hoy = LocalDate.of(2026, 11, 9);
+        TextosAlDestinatario.CambioDeEntrega d = new TextosAlDestinatario.CambioDeEntrega(null, "Tienda Feliz",
+                "RB-ABC", "https://r.test/s", null, hoy, "  ", null);
+
+        String cuerpo = TextosAlDestinatario.cuerpoCambioDeEntrega(d);
+
+        assertTrue(cuerpo.startsWith("Hola. Guardamos los cambios de tu entrega."), cuerpo);
+        assertFalse(cuerpo.contains("Instrucciones"), cuerpo);
+        assertFalse(cuerpo.contains("Autorizaste"), cuerpo);
+        assertFalse(cuerpo.contains("Llega"), cuerpo);
+    }
+
+    @Test
+    void unRetiroQueNoSeBuscoSeCuentaComoUnRetiroYNoComoUnaVisitaFallida() {
+        TextosAlDestinatario.Datos d = new TextosAlDestinatario.Datos("DEVUELTO_AL_COMERCIO", "Ana", "Tienda Feliz",
+                "RB-ABC", "https://r.test/s", null, LocalDate.of(2026, 11, 9), null, false, 0, 2, "el Depósito Central");
+
+        String cuerpo = TextosAlDestinatario.cuerpo(d);
+
+        assertTrue(cuerpo.contains("No retiraste tu pedido a tiempo en el Depósito Central y se lo devolvimos a Tienda Feliz."),
+                cuerpo);
+        assertTrue(cuerpo.contains("Comunicate con la tienda para coordinar una nueva entrega."), cuerpo);
+        assertFalse(cuerpo.contains("No pudimos entregar"), cuerpo);
+        assertEquals("Tu pedido de Tienda Feliz volvió a la tienda", TextosAlDestinatario.asunto(d));
+    }
+}

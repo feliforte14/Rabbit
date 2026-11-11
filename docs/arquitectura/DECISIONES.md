@@ -3,6 +3,202 @@
 Formato: contexto → decisión → consecuencias. Estado: Aceptada,
 Propuesta o Reemplazada.
 
+Última revisión del registro: 10/11/2026 (se agregan ADR-060 a 062 de la Clase 12, ADR-065 a 067 y los ADR de patrones 068 a 072, y el índice por componente). Hay 72 ADR.
+
+## Índice por componente
+
+Cada ADR aparece una sola vez, bajo el componente al que más pertenece (los nueve componentes de negocio de
+[ARQUITECTURA.md](ARQUITECTURA.md), la capa técnica de integración y lo que cruza a todos). Los números no cambian: son los
+de siempre. Un ADR que toca a varios componentes lo dice en su texto.
+
+### Pedidos
+
+- [ADR-004](#adr-004-importe-y-medio-de-pago-vienen-del-erp): Importe y medio de pago vienen del ERP (Aceptada)
+- [ADR-005](#adr-005-máquina-de-estados-del-pedido-en-el-enum): Máquina de estados del pedido en el enum (Aceptada)
+- [ADR-007](#adr-007-endpoint-rest-de-entrada-reemplaza-al-formulario-del-erp): Endpoint REST de entrada reemplaza al formulario del ERP (Aceptada)
+- [ADR-018](#adr-018-api-rest-del-erp-versionada-idempotente-y-atada-al-comercio): API REST del ERP versionada, idempotente y atada al comercio (Aceptada)
+- [ADR-025](#adr-025-mismo-orden-de-bloqueo-pedido--envío-en-cancelación-y-novedades): Mismo orden de bloqueo (pedido → envío) en cancelación y novedades (Aceptada)
+- [ADR-033](#adr-033-la-entrega-se-registra-con-la-foto-del-remito-y-solo-quien-estuvo-ahí): La entrega se registra con la foto del remito, y solo quien estuvo ahí (Aceptada)
+- [ADR-039](#adr-039-datos-de-quien-recibe-el-pedido): Datos de quien recibe el pedido (Aceptada)
+- [ADR-041](#adr-041-entrega-fallida-con-motivo-fijo-intentos-y-devolución-al-comercio): Entrega fallida con motivo fijo, intentos y devolución al comercio (Aceptada)
+- [ADR-042](#adr-042-fecha-prometida-con-la-hora-de-corte): Fecha prometida con la hora de corte (Aceptada)
+- [ADR-044](#adr-044-tablero-de-indicadores-de-entrega): Tablero de indicadores de entrega (Aceptada)
+- [ADR-045](#adr-045-evidencia-de-la-visita-fallida-y-un-motivo-para-cada-caso): Evidencia de la visita fallida y un motivo para cada caso (Aceptada)
+- [ADR-048](#adr-048-un-pedido-que-salió-a-reparto-no-se-cancela): Un pedido que salió a reparto no se cancela (Aceptada)
+- [ADR-052](#adr-052-calificación-de-la-entrega-en-el-seguimiento-público): Calificación de la entrega en el seguimiento público (Aceptada)
+- [ADR-053](#adr-053-retiro-en-depósito): Retiro en depósito (Aceptada)
+- [ADR-055](#adr-055-prueba-de-entrega-reforzada-código-de-4-dígitos-y-ubicación): Prueba de entrega reforzada: código de 4 dígitos y ubicación (Aceptada)
+- [ADR-056](#adr-056-etiquetas-con-qr-por-bulto): Etiquetas con QR por bulto (Aceptada)
+- [ADR-057](#adr-057-opciones-de-quien-recibe-desde-el-seguimiento): Opciones de quien recibe desde el seguimiento (Aceptada)
+- [ADR-060](#adr-060-fabricación-pura-para-las-reglas-del-pedido): Fabricación pura para las reglas del pedido (Aceptada)
+- [ADR-061](#adr-061-state-para-el-ciclo-de-vida-del-pedido): State para el ciclo de vida del pedido (Aceptada)
+
+### Inventario
+
+- [ADR-024](#adr-024-sin-catálogo-de-productos-en-rabbit): Sin catálogo de productos en Rabbit (Aceptada)
+- [ADR-026](#adr-026-cierre-de-una-reserva-de-stock-con-el-mismo-bloqueo-que-abrirla): Cierre de una reserva de stock, con el mismo bloqueo que abrirla (Aceptada)
+- [ADR-027](#adr-027-consultas-de-stock-en-un-ejb-stateless-separado-de-la-reserva): Consultas de stock en un EJB @Stateless, separado de la reserva (Aceptada)
+- [ADR-049](#adr-049-editar-y-eliminar-el-stock-de-un-depósito): Editar y eliminar el stock de un depósito (Aceptada)
+- [ADR-058](#adr-058-órdenes-de-recepción-de-mercadería): Órdenes de recepción de mercadería (Aceptada)
+
+### Pagos y Cobranzas
+
+- [ADR-010](#adr-010-cobro-por-soap-en-un-banco-legado-con-reversa-compensatoria): Cobro por SOAP en un banco legado, con reversa compensatoria (Aceptada)
+- [ADR-034](#adr-034-liquidación-mensual-a-comercios): Liquidación mensual a comercios (Aceptada)
+- [ADR-059](#adr-059-cobro-por-almacenamiento): Cobro por almacenamiento (Aceptada)
+- [ADR-065](#adr-065-días-gratis-y-recargo-por-stock-antiguo): Días gratis y recargo por stock antiguo (Aceptada)
+
+### Repartidores
+
+- [ADR-032](#adr-032-peso-de-los-bultos-y-capacidad-del-vehículo-del-repartidor): Peso de los bultos y capacidad del vehículo del repartidor (Aceptada)
+- [ADR-035](#adr-035-ubicación-del-repartidor-en-vivo-y-mapa): Ubicación del repartidor en vivo y mapa (Aceptada)
+- [ADR-037](#adr-037-lista-de-espera-hora-de-corte-y-devolución-al-depósito): Lista de espera, hora de corte y devolución al depósito (Aceptada)
+
+### Ruteo
+
+- [ADR-017](#adr-017-zonas-por-rango-de-código-postal-y-despacho-según-la-cobertura): Zonas por rango de código postal y despacho según la cobertura (Aceptada)
+- [ADR-038](#adr-038-hoja-de-ruta-recomendada-del-repartidor): Hoja de ruta recomendada del repartidor (Aceptada)
+- [ADR-043](#adr-043-horario-estimado-en-el-seguimiento-parada-n-de-m): Horario estimado en el seguimiento (parada N de M) (Aceptada)
+- [ADR-046](#adr-046-hoja-de-ruta-por-distancia-con-openstreetmap): Hoja de ruta por distancia, con OpenStreetMap (Aceptada)
+
+### Transportistas
+
+- [ADR-016](#adr-016-transportistas-externos-con-un-adapter-por-tecnología-y-seguimiento-por-polling): Transportistas externos con un Adapter por tecnología y seguimiento por polling (Aceptada)
+- [ADR-020](#adr-020-cotización-con-los-transportistas-antes-de-derivar): Cotización con los transportistas antes de derivar (Aceptada)
+- [ADR-022](#adr-022-webhook-de-novedades-y-transportista-moderno-como-servicio-aparte): Webhook de novedades y transportista moderno como servicio aparte (Reemplazada)
+- [ADR-029](#adr-029-seguimiento-de-envíos-solo-por-polling-sin-webhook): Seguimiento de envíos solo por polling (sin webhook) (Aceptada)
+- [ADR-062](#adr-062-adapter-para-los-transportistas-externos): Adapter para los transportistas externos (Aceptada)
+
+### Notificaciones
+
+- [ADR-040](#adr-040-avisos-a-quien-recibe-con-un-tercer-suscriptor-del-tópico): Avisos a quien recibe, con un tercer suscriptor del tópico (Aceptada)
+- [ADR-047](#adr-047-mails-reales-por-smtp-con-login-y-tls-gmail): Mails reales por SMTP con login y TLS (Gmail) (Aceptada)
+- [ADR-051](#adr-051-los-avisos-se-ven-en-una-campana-de-notificaciones): Los avisos se ven en una campana de notificaciones (Aceptada)
+
+### Comercios
+
+- [ADR-003](#adr-003-timeout-del-padrón-fiscal-no-bloquea-el-alta): Timeout del padrón fiscal no bloquea el alta (Reemplazada)
+- [ADR-028](#adr-028-un-comercio-con-solo-pedidos-cancelados-se-puede-eliminar): Un comercio con solo pedidos cancelados se puede eliminar (Aceptada)
+
+### Seguridad
+
+- [ADR-012](#adr-012-sin-alta-pública-de-usuarios): Sin alta pública de usuarios (Aceptada)
+- [ADR-019](#adr-019-https-obligatorio-salvo-los-sistemas-externos-simulados): HTTPS obligatorio, salvo los sistemas externos simulados (Aceptada)
+- [ADR-023](#adr-023-las-contraseñas-solo-en-el-realm-límite-de-intentos-en-el-login): Las contraseñas, solo en el realm; límite de intentos en el login (Aceptada; en parte reemplazada por ADR-031)
+- [ADR-031](#adr-031-las-cuentas-en-la-base-compartida-realm-jdbc-con-bcrypt): Las cuentas, en la base compartida (realm JDBC con bcrypt) (Aceptada)
+- [ADR-036](#adr-036-el-administrador-puede-eliminar-usuarios-repartidores-y-zonas): El administrador puede eliminar usuarios, repartidores y zonas (Aceptada)
+- [ADR-050](#adr-050-logs-sin-datos-personales-y-hsts): Logs sin datos personales y HSTS (Aceptada)
+- [ADR-067](#adr-067-autenticación-con-sesión-en-la-web-y-http-basic-en-la-api-del-erp-sin-jwt): Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT) (Aceptada)
+
+### Integración (banco legado e IA)
+
+- [ADR-011](#adr-011-circuit-breaker-propio-frente-al-banco-legado): Circuit breaker propio frente al banco legado (Aceptada)
+- [ADR-015](#adr-015-banco-legado-en-nodejs-detrás-del-mismo-wsdl): Banco legado en Node.js, detrás del mismo WSDL (Aceptada)
+- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Retirada de `dev`: rama `AI-GateWay`)
+
+### Mensajería y plataforma (transversal)
+
+- [ADR-001](#adr-001-cola-jms--polling-de-respaldo-para-sincronizar-pedidos): Cola JMS + polling de respaldo para sincronizar pedidos (Aceptada)
+- [ADR-002](#adr-002-el-envío-del-mensaje-no-comparte-transacción-con-el-guardado): El envío del mensaje no comparte transacción con el guardado (Aceptada)
+- [ADR-006](#adr-006-tópico-para-los-cambios-de-estado-del-pedido): Tópico para los cambios de estado del pedido (Aceptada)
+- [ADR-008](#adr-008-restricciones-check-de-columnas-enum-alineadas-al-desplegar): Restricciones CHECK de columnas enum alineadas al desplegar (Aceptada)
+- [ADR-009](#adr-009-suscripciones-durables-y-selector-en-el-tópico-de-estados): Suscripciones durables y selector en el tópico de estados (Aceptada)
+- [ADR-014](#adr-014-escalar-el-consumidor-de-la-cola-con-consumidores-competidores): Escalar el consumidor de la cola con consumidores competidores (Aceptada)
+- [ADR-030](#adr-030-la-heterogeneidad-tecnológica-en-una-rama-aparte): La heterogeneidad tecnológica, en una rama aparte (Aceptada)
+- [ADR-063](#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado): Bandeja de salida (outbox) para los avisos de estado (Aceptada)
+- [ADR-064](#adr-064-mensajes-ilegibles-a-la-cola-de-mensajes-muertos-dlq-con-reintentos-acotados): Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados (Aceptada)
+
+### Interfaz de usuario (transversal)
+
+- [ADR-013](#adr-013-vistas-por-tipo-de-usuario-y-ruteo-mínimo): Vistas por tipo de usuario y ruteo mínimo (Aceptada)
+- [ADR-021](#adr-021-página-pública-de-seguimiento-y-tablas-como-tarjetas-en-el-celular): Página pública de seguimiento y tablas como tarjetas en el celular (Aceptada)
+- [ADR-054](#adr-054-mejoras-de-diseño-visual): Mejoras de diseño visual (Aceptada)
+
+### Arquitectura general (patrones transversales)
+
+- [ADR-068](#adr-068-un-repositorio-dao-por-componente): Un repositorio (DAO) por componente (Aceptada)
+- [ADR-069](#adr-069-dto-entre-capas-y-componentes): DTO entre capas y componentes (Aceptada)
+- [ADR-070](#adr-070-facade-en-la-entrada-de-cada-componente): Facade en la entrada de cada componente (Aceptada)
+- [ADR-071](#adr-071-tareas-periódicas-y-estado-compartido-como-singleton): Tareas periódicas y estado compartido como Singleton (Aceptada)
+- [ADR-072](#adr-072-provider-instancet-para-el-ejb-stateful-de-la-reserva): Provider (`Instance<T>`) para el EJB stateful de la reserva (Aceptada)
+
+## Índice cronológico
+
+Todos los ADR por número (el orden en que se tomaron las decisiones).
+
+- [ADR-001](#adr-001-cola-jms--polling-de-respaldo-para-sincronizar-pedidos): Cola JMS + polling de respaldo para sincronizar pedidos (Aceptada)
+- [ADR-002](#adr-002-el-envío-del-mensaje-no-comparte-transacción-con-el-guardado): El envío del mensaje no comparte transacción con el guardado (Aceptada)
+- [ADR-003](#adr-003-timeout-del-padrón-fiscal-no-bloquea-el-alta): Timeout del padrón fiscal no bloquea el alta (Reemplazada)
+- [ADR-004](#adr-004-importe-y-medio-de-pago-vienen-del-erp): Importe y medio de pago vienen del ERP (Aceptada)
+- [ADR-005](#adr-005-máquina-de-estados-del-pedido-en-el-enum): Máquina de estados del pedido en el enum (Aceptada)
+- [ADR-006](#adr-006-tópico-para-los-cambios-de-estado-del-pedido): Tópico para los cambios de estado del pedido (Aceptada)
+- [ADR-007](#adr-007-endpoint-rest-de-entrada-reemplaza-al-formulario-del-erp): Endpoint REST de entrada reemplaza al formulario del ERP (Aceptada)
+- [ADR-008](#adr-008-restricciones-check-de-columnas-enum-alineadas-al-desplegar): Restricciones CHECK de columnas enum alineadas al desplegar (Aceptada)
+- [ADR-009](#adr-009-suscripciones-durables-y-selector-en-el-tópico-de-estados): Suscripciones durables y selector en el tópico de estados (Aceptada)
+- [ADR-010](#adr-010-cobro-por-soap-en-un-banco-legado-con-reversa-compensatoria): Cobro por SOAP en un banco legado, con reversa compensatoria (Aceptada)
+- [ADR-011](#adr-011-circuit-breaker-propio-frente-al-banco-legado): Circuit breaker propio frente al banco legado (Aceptada)
+- [ADR-012](#adr-012-sin-alta-pública-de-usuarios): Sin alta pública de usuarios (Aceptada)
+- [ADR-013](#adr-013-vistas-por-tipo-de-usuario-y-ruteo-mínimo): Vistas por tipo de usuario y ruteo mínimo (Aceptada)
+- [ADR-014](#adr-014-escalar-el-consumidor-de-la-cola-con-consumidores-competidores): Escalar el consumidor de la cola con consumidores competidores (Aceptada)
+- [ADR-015](#adr-015-banco-legado-en-nodejs-detrás-del-mismo-wsdl): Banco legado en Node.js, detrás del mismo WSDL (Aceptada)
+- [ADR-016](#adr-016-transportistas-externos-con-un-adapter-por-tecnología-y-seguimiento-por-polling): Transportistas externos con un Adapter por tecnología y seguimiento por polling (Aceptada)
+- [ADR-017](#adr-017-zonas-por-rango-de-código-postal-y-despacho-según-la-cobertura): Zonas por rango de código postal y despacho según la cobertura (Aceptada)
+- [ADR-018](#adr-018-api-rest-del-erp-versionada-idempotente-y-atada-al-comercio): API REST del ERP versionada, idempotente y atada al comercio (Aceptada)
+- [ADR-019](#adr-019-https-obligatorio-salvo-los-sistemas-externos-simulados): HTTPS obligatorio, salvo los sistemas externos simulados (Aceptada)
+- [ADR-020](#adr-020-cotización-con-los-transportistas-antes-de-derivar): Cotización con los transportistas antes de derivar (Aceptada)
+- [ADR-021](#adr-021-página-pública-de-seguimiento-y-tablas-como-tarjetas-en-el-celular): Página pública de seguimiento y tablas como tarjetas en el celular (Aceptada)
+- [ADR-022](#adr-022-webhook-de-novedades-y-transportista-moderno-como-servicio-aparte): Webhook de novedades y transportista moderno como servicio aparte (Reemplazada)
+- [ADR-023](#adr-023-las-contraseñas-solo-en-el-realm-límite-de-intentos-en-el-login): Las contraseñas, solo en el realm; límite de intentos en el login (Aceptada; en parte reemplazada por ADR-031)
+- [ADR-024](#adr-024-sin-catálogo-de-productos-en-rabbit): Sin catálogo de productos en Rabbit (Aceptada)
+- [ADR-025](#adr-025-mismo-orden-de-bloqueo-pedido--envío-en-cancelación-y-novedades): Mismo orden de bloqueo (pedido → envío) en cancelación y novedades (Aceptada)
+- [ADR-026](#adr-026-cierre-de-una-reserva-de-stock-con-el-mismo-bloqueo-que-abrirla): Cierre de una reserva de stock, con el mismo bloqueo que abrirla (Aceptada)
+- [ADR-027](#adr-027-consultas-de-stock-en-un-ejb-stateless-separado-de-la-reserva): Consultas de stock en un EJB @Stateless, separado de la reserva (Aceptada)
+- [ADR-028](#adr-028-un-comercio-con-solo-pedidos-cancelados-se-puede-eliminar): Un comercio con solo pedidos cancelados se puede eliminar (Aceptada)
+- [ADR-029](#adr-029-seguimiento-de-envíos-solo-por-polling-sin-webhook): Seguimiento de envíos solo por polling (sin webhook) (Aceptada)
+- [ADR-030](#adr-030-la-heterogeneidad-tecnológica-en-una-rama-aparte): La heterogeneidad tecnológica, en una rama aparte (Aceptada)
+- [ADR-031](#adr-031-las-cuentas-en-la-base-compartida-realm-jdbc-con-bcrypt): Las cuentas, en la base compartida (realm JDBC con bcrypt) (Aceptada)
+- [ADR-032](#adr-032-peso-de-los-bultos-y-capacidad-del-vehículo-del-repartidor): Peso de los bultos y capacidad del vehículo del repartidor (Aceptada)
+- [ADR-033](#adr-033-la-entrega-se-registra-con-la-foto-del-remito-y-solo-quien-estuvo-ahí): La entrega se registra con la foto del remito, y solo quien estuvo ahí (Aceptada)
+- [ADR-034](#adr-034-liquidación-mensual-a-comercios): Liquidación mensual a comercios (Aceptada)
+- [ADR-035](#adr-035-ubicación-del-repartidor-en-vivo-y-mapa): Ubicación del repartidor en vivo y mapa (Aceptada)
+- [ADR-036](#adr-036-el-administrador-puede-eliminar-usuarios-repartidores-y-zonas): El administrador puede eliminar usuarios, repartidores y zonas (Aceptada)
+- [ADR-037](#adr-037-lista-de-espera-hora-de-corte-y-devolución-al-depósito): Lista de espera, hora de corte y devolución al depósito (Aceptada)
+- [ADR-038](#adr-038-hoja-de-ruta-recomendada-del-repartidor): Hoja de ruta recomendada del repartidor (Aceptada)
+- [ADR-039](#adr-039-datos-de-quien-recibe-el-pedido): Datos de quien recibe el pedido (Aceptada)
+- [ADR-040](#adr-040-avisos-a-quien-recibe-con-un-tercer-suscriptor-del-tópico): Avisos a quien recibe, con un tercer suscriptor del tópico (Aceptada)
+- [ADR-041](#adr-041-entrega-fallida-con-motivo-fijo-intentos-y-devolución-al-comercio): Entrega fallida con motivo fijo, intentos y devolución al comercio (Aceptada)
+- [ADR-042](#adr-042-fecha-prometida-con-la-hora-de-corte): Fecha prometida con la hora de corte (Aceptada)
+- [ADR-043](#adr-043-horario-estimado-en-el-seguimiento-parada-n-de-m): Horario estimado en el seguimiento (parada N de M) (Aceptada)
+- [ADR-044](#adr-044-tablero-de-indicadores-de-entrega): Tablero de indicadores de entrega (Aceptada)
+- [ADR-045](#adr-045-evidencia-de-la-visita-fallida-y-un-motivo-para-cada-caso): Evidencia de la visita fallida y un motivo para cada caso (Aceptada)
+- [ADR-046](#adr-046-hoja-de-ruta-por-distancia-con-openstreetmap): Hoja de ruta por distancia, con OpenStreetMap (Aceptada)
+- [ADR-047](#adr-047-mails-reales-por-smtp-con-login-y-tls-gmail): Mails reales por SMTP con login y TLS (Gmail) (Aceptada)
+- [ADR-048](#adr-048-un-pedido-que-salió-a-reparto-no-se-cancela): Un pedido que salió a reparto no se cancela (Aceptada)
+- [ADR-049](#adr-049-editar-y-eliminar-el-stock-de-un-depósito): Editar y eliminar el stock de un depósito (Aceptada)
+- [ADR-050](#adr-050-logs-sin-datos-personales-y-hsts): Logs sin datos personales y HSTS (Aceptada)
+- [ADR-051](#adr-051-los-avisos-se-ven-en-una-campana-de-notificaciones): Los avisos se ven en una campana de notificaciones (Aceptada)
+- [ADR-052](#adr-052-calificación-de-la-entrega-en-el-seguimiento-público): Calificación de la entrega en el seguimiento público (Aceptada)
+- [ADR-053](#adr-053-retiro-en-depósito): Retiro en depósito (Aceptada)
+- [ADR-054](#adr-054-mejoras-de-diseño-visual): Mejoras de diseño visual (Aceptada)
+- [ADR-055](#adr-055-prueba-de-entrega-reforzada-código-de-4-dígitos-y-ubicación): Prueba de entrega reforzada: código de 4 dígitos y ubicación (Aceptada)
+- [ADR-056](#adr-056-etiquetas-con-qr-por-bulto): Etiquetas con QR por bulto (Aceptada)
+- [ADR-057](#adr-057-opciones-de-quien-recibe-desde-el-seguimiento): Opciones de quien recibe desde el seguimiento (Aceptada)
+- [ADR-058](#adr-058-órdenes-de-recepción-de-mercadería): Órdenes de recepción de mercadería (Aceptada)
+- [ADR-059](#adr-059-cobro-por-almacenamiento): Cobro por almacenamiento (Aceptada)
+- [ADR-060](#adr-060-fabricación-pura-para-las-reglas-del-pedido): Fabricación pura para las reglas del pedido (Aceptada)
+- [ADR-061](#adr-061-state-para-el-ciclo-de-vida-del-pedido): State para el ciclo de vida del pedido (Aceptada)
+- [ADR-062](#adr-062-adapter-para-los-transportistas-externos): Adapter para los transportistas externos (Aceptada)
+- [ADR-063](#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado): Bandeja de salida (outbox) para los avisos de estado (Aceptada)
+- [ADR-064](#adr-064-mensajes-ilegibles-a-la-cola-de-mensajes-muertos-dlq-con-reintentos-acotados): Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados (Aceptada)
+- [ADR-065](#adr-065-días-gratis-y-recargo-por-stock-antiguo): Días gratis y recargo por stock antiguo (Aceptada)
+- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Retirada de `dev`: rama `AI-GateWay`)
+- [ADR-067](#adr-067-autenticación-con-sesión-en-la-web-y-http-basic-en-la-api-del-erp-sin-jwt): Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT) (Aceptada)
+- [ADR-068](#adr-068-un-repositorio-dao-por-componente): Un repositorio (DAO) por componente (Aceptada)
+- [ADR-069](#adr-069-dto-entre-capas-y-componentes): DTO entre capas y componentes (Aceptada)
+- [ADR-070](#adr-070-facade-en-la-entrada-de-cada-componente): Facade en la entrada de cada componente (Aceptada)
+- [ADR-071](#adr-071-tareas-periódicas-y-estado-compartido-como-singleton): Tareas periódicas y estado compartido como Singleton (Aceptada)
+- [ADR-072](#adr-072-provider-instancet-para-el-ejb-stateful-de-la-reserva): Provider (`Instance<T>`) para el EJB stateful de la reserva (Aceptada)
+
 ## ADR-001: Cola JMS + polling de respaldo para sincronizar pedidos
 
 - **Estado:** Aceptada.
@@ -27,6 +223,10 @@ Propuesta o Reemplazada.
   falla del broker no afecta al pedido. Existe una ventana donde el pedido
   se guardó pero el mensaje no salió; la cubre el polling (ADR-001). Se
   descartó XA/outbox por complejidad.
+- **Actualización (08/11/2026):** esto vale para la cola de pedidos externos,
+  que tiene el polling como respaldo. El tópico de estados no tenía respaldo
+  y perdía el aviso si el broker estaba caído: ahí sí se hizo una bandeja de
+  salida (outbox, ADR-063), sin XA.
 
 ## ADR-003: Timeout del padrón fiscal no bloquea el alta
 
@@ -54,14 +254,32 @@ Propuesta o Reemplazada.
 
 ## ADR-005: Máquina de estados del pedido en el enum
 
-- **Estado:** Aceptada.
+- **Estado:** Aceptada. El patrón State completo se documenta en ADR-061.
 - **Contexto:** se agregan `EN_CAMINO` y `ENTREGADO`; las reglas de
   transición estaban repartidas en cada operación.
 - **Decisión:** `EstadoPedido.puedePasarA` + un único
-  `PedidoService.cambiarEstado`. No se usa el patrón State completo.
+  `PedidoService.cambiarEstado`. En ese momento no se usó el patrón State
+  completo (ver la actualización del 26/10/2026, más abajo).
 - **Consecuencias:** una sola regla para validar y para disparar el
   evento de cambio de estado. `cancelarPedido` deja de aceptar pedidos
   `EN_CAMINO` o `ENTREGADO`.
+- **Actualización (26/10/2026):** el ciclo de vida pasó al patrón State
+  completo. `EstadoDelPedido` (interfaz sellada) tiene una clase por estado
+  (`Pendiente`, `Confirmado`, `EnCamino`, `Entregado`, `Cancelado`,
+  `DevueltoAlComercio`, en `pedidos/datos/model`): cada una decide qué
+  operaciones permite y a qué estado lleva, y tiene una acción de entrada
+  (`alEntrar`) con los efectos de antes (dejar la lista de espera, marcar que
+  salió a reparto). `Pedido` delega (`confirmar()`, `despachar()`, …),
+  `PedidoService.aplicar` es el único lugar que cambia el estado y
+  `EstadoPedido.puedePasarA` consulta al estado. Una operación no permitida
+  lanza `TransicionInvalidaException`, que el servicio traduce a
+  `TransicionNoPermitidaException` (409 en la API del ERP al cancelar). La
+  columna de la base sigue siendo el enum. Se descartó el enum con métodos por
+  constante porque los estados consultan el pedido (retiro en depósito).
+  Los mensajes de "por qué no se puede cancelar" también viven en cada estado
+  (`motivoParaNoCancelar`, para el personal y el ERP, y `queLeQuedaAlErp`, para
+  el detalle del 409 de la API); `ReglaDeCancelacion` solo le pregunta al
+  estado y ya no tiene `switch`.
 - **Nota de despliegue:** Hibernate crea un `CHECK` con los valores del
   enum que `hbm2ddl=update` no regenera; ver README (sección "Cómo
   levantar el sistema").
@@ -75,7 +293,10 @@ Propuesta o Reemplazada.
   `EstadoPedidoCambiado`; orden resuelto por `fechaCambio` en cada
   suscriptor.
 - **Consecuencias:** Pedidos no conoce a sus suscriptores. Cada suscriptor
-  tiene que ser idempotente y tolerar desorden.
+  tiene que ser idempotente y tolerar desorden. Desde la bandeja de salida
+  (ADR-063) el aviso llega "al menos una vez": un suscriptor puede recibir el
+  mismo evento dos veces, y los tres lo toleran (Pagos solo acredita un cobro
+  pendiente; los avisos descartan lo que no es más nuevo que lo ya avisado).
 
 ## ADR-007: Endpoint REST de entrada reemplaza al formulario del ERP
 
@@ -114,17 +335,25 @@ Propuesta o Reemplazada.
 - **Contexto:** si un suscriptor no está activo cuando se publica un
   cambio de estado (por ejemplo durante un redeploy), una suscripción
   común pierde el mensaje. Para Pagos eso es un cobro contra entrega que
-  nunca se acredita. Además, Pagos solo necesita `ENTREGADO`.
-- **Decisión:** las dos suscripciones son durables (`clientId` +
+  nunca se acredita. Además, Pagos solo necesita `ENTREGADO` (y, desde
+  ADR-041, `DEVUELTO_AL_COMERCIO`, para anular el cobro).
+- **Decisión:** las suscripciones son durables (`clientId` +
   `subscriptionName`, con `shareSubscriptions` para el pool del MDB).
-  Pagos usa `messageSelector = "estado = 'ENTREGADO'"` sobre una propiedad
-  JMS del mensaje, así el broker no le entrega el resto.
+  Hoy son tres: Pagos (`rabbit-pagos`), avisos al comercio
+  (`rabbit-notificaciones`) y avisos a quien recibe
+  (`rabbit-destinatarios`, ADR-040). Pagos usa
+  `messageSelector = "estado IN ('ENTREGADO', 'DEVUELTO_AL_COMERCIO')"`
+  sobre una propiedad JMS del mensaje, así el broker no le entrega el
+  resto.
 - **Consecuencias:** ningún cambio de estado se pierde por un suscriptor
   caído (probado con `stop-delivery`/`start-delivery`). A cambio, el
   broker guarda mensajes por cada suscripción hasta que se consumen, y
   cambiar `clientId` o `subscriptionName` crea una suscripción nueva.
-  Si falla la publicación misma, el aviso se pierde: no hay polling de
-  respaldo como en la cola (ADR-001).
+  Si falla la publicación misma, el aviso no se pierde: se guarda antes
+  en una bandeja de salida (`eventos_estado_pedido`, en la misma
+  transacción que el cambio de estado) y un timer reenvía lo pendiente
+  cada 15 s (outbox, al menos una vez). Un mensaje ilegible se relanza y,
+  tras 5 intentos, va a la DLQ (`scripts/dlq.sh`). Ver ADR-063 y ADR-064.
 
 ## ADR-010: Cobro por SOAP en un banco legado, con reversa compensatoria
 
@@ -314,8 +543,9 @@ Propuesta o Reemplazada.
   - *Zona derivada de la localidad (texto libre):* las direcciones vienen
     escritas de mil formas; un rango numérico se valida y no es ambiguo.
   - *Viajes con varias paradas y orden óptimo del recorrido:* cambia el
-    modelo del repartidor (hoy lleva un pedido por viaje) y ordenar por
-    distancia necesita coordenadas. Queda fuera del alcance.
+    modelo del repartidor y ordenar por distancia necesita coordenadas.
+    Desde ADR-032 un repartidor con capacidad lleva varios pedidos; el
+    orden de las paradas sigue fuera del alcance.
   - *Despachar la zona en una sola transacción:* un pedido que falla (por
     ejemplo, el cobro) desharía los demás. Cada pedido va en su propia
     transacción y el resultado se informa pedido por pedido.
@@ -383,6 +613,14 @@ Propuesta o Reemplazada.
   carga, actualizado en el mismo cambio. Las cuentas ERP creadas con
   `add-user.sh` dejan de funcionar (`403`) hasta crearlas desde la app.
   Los pedidos anteriores no tienen código de seguimiento.
+- **Concurrencia (29/10/2026):** cada respuesta con un pedido externo trae
+  un `ETag` (huella SHA-256 de la representación, sin `_links`). `GET` con
+  `If-None-Match` igual responde `304`; la cancelación con `If-Match`
+  distinto responde `412` (`pedido-modificado`) con el `ETag` nuevo, así el
+  ERP no cancela a ciegas algo que cambió desde que lo leyó. `If-Match` es
+  opcional para no romper a los ERP que ya cancelaban sin él. Está en el
+  contrato (`openapi.yaml`) y lo prueba Schemathesis (ver
+  `docs/pruebas/CONTRATO.md`).
 
 ## ADR-019: HTTPS obligatorio, salvo los sistemas externos simulados
 
@@ -496,7 +734,9 @@ Propuesta o Reemplazada.
 
 ## ADR-023: Las contraseñas, solo en el realm; límite de intentos en el login
 
-- **Estado:** Aceptada. Reemplaza el SHA-256 sin salt de la tabla `usuarios`.
+- **Estado:** Aceptada. Reemplaza el SHA-256 sin salt de la tabla
+  `usuarios`. Desde ADR-031, las contraseñas vuelven a la base (con bcrypt
+  y usadas por el login); el límite de intentos sigue igual.
 - **Contexto:** la tabla `usuarios` guardaba un SHA-256 sin salt de cada
   contraseña, pero quien autentica es el ApplicationRealm de WildFly
   (`request.login`): ese hash no se usaba para nada. Tampoco había freno a
@@ -549,8 +789,9 @@ Propuesta o Reemplazada.
   (`flush` + `detach` + `find` con bloqueo) para releer el estado real tras
   el bloqueo, no una copia de antes. Si el pedido no se pudo mover (regla
   de negocio) o el envío cambió mientras tanto, se deshace todo y se
-  responde `409` (`PEDIDO_EN_CONFLICTO`): el webhook lo reintenta solo, el
-  polling lo vuelve a tomar en la próxima pasada.
+  lanza `NovedadRechazadaException`: el polling la vuelve a tomar en la
+  próxima pasada. (Mientras existió el webhook, ADR-022, ese caso respondía
+  `409` y el transportista reintentaba; ADR-029 lo sacó.)
 - **Alternativas descartadas:**
   - *Bloquear siempre el envío primero:* invierte el problema en vez de
     resolverlo (la cancelación sería la que corre el riesgo).
@@ -558,8 +799,8 @@ Propuesta o Reemplazada.
     abortando una transacción; agregar un reintento acá duplicaría esa
     lógica sin eliminar la causa (el orden cruzado).
 - **Consecuencias:** sin deadlocks entre estos dos caminos. El contrato de
-  `recibirNovedad`/`registrarNovedad` ahora incluye `409` como respuesta
-  posible (documentado en `ISeguimientoEnvios` y el OpenAPI del webhook).
+  `registrarNovedad` incluye `NovedadRechazadaException` (documentado en
+  `ISeguimientoEnvios`).
 
 ## ADR-026: Cierre de una reserva de stock, con el mismo bloqueo que abrirla
 
@@ -697,4 +938,1366 @@ Propuesta o Reemplazada.
     `rabbit.banco.wsdl` y el registro de transportistas por endpoint son
     configuración genérica; quedan en `main`.
 - **Consecuencias:** para mostrar la heterogeneidad hay que cambiar de
-  rama y redesplegar. La rama hay que mantenerla al día con `main`.
+  rama y redesplegar. La rama hay que mantenerla al día con `main`: al
+  08/11/2026 está 134 commits atrás de `main` (y tiene 1 propio, el que
+  vuelve a sumar los servicios), así que antes de una demo hay que hacer
+  `git merge main` en ella.
+- **Actualización (11/11/2026):** la rama se trajo al día con `dev` (sin la funcionalidad de IA, que se trabaja en
+  `AI-GateWay`). Desde que existe el `docker compose`, Rabbit corre en un contenedor y no llega a `localhost` de la
+  máquina: el banco en Node publica en su WSDL la dirección de `URL_PUBLICA` (`http://host.docker.internal:8090`
+  con Docker) y el transportista en Python se registra con `http://host.docker.internal:8095`. Probado desde el
+  contenedor; los dos servicios responden igual que los simulados del WAR.
+
+## ADR-031: Las cuentas, en la base compartida (realm JDBC con bcrypt)
+
+- **Estado:** Aceptada (15/10/2026). Reemplaza la parte de ADR-023 que
+  dejaba las contraseñas solo en el realm de archivos.
+- **Contexto:** cada integrante levanta su propio WildFly contra la misma
+  base de Supabase. Las contraseñas vivían en los archivos de add-user.sh
+  de cada WildFly, así que una cuenta creada desde la app de una máquina
+  aparecía en la base de todos pero solo entraba en esa máquina. Para
+  probar entre todos había que repetir cada cuenta con `add-user.sh` en
+  cada WildFly.
+- **Decisión:**
+  - La tabla `usuarios` guarda el hash bcrypt de la contraseña
+    (`hash_clave`, costo 10, generado con jBCrypt; clase `Claves`).
+  - WildFly valida el login con un `jdbc-realm` de Elytron
+    (`RabbitRealmBase`) que lee esa tabla por el mismo `RabbitDS`. Una
+    consulta trae el hash solo de cuentas activas; otra trae el rol. Una
+    cuenta dada de baja devuelve rol sin contraseña: existe, así que no
+    se sigue buscando, y no puede entrar.
+  - Un `distributed-realm` (`RabbitRealmCompartido`) busca primero en la
+    base y, si la cuenta no está, en los archivos de add-user.sh. Así
+    siguen entrando el administrador inicial de cada instalación y las
+    cuentas viejas mientras se migran.
+  - `ApplicationDomain` (el dominio que ya usaba Rabbit) pasa a usar ese
+    realm: la app no cambia su configuración de seguridad (`web.xml`,
+    `@RolesAllowed`).
+  - La configuración la deja `scripts/configurar-realm-compartido.cli`,
+    que cada integrante corre una vez. No lleva contraseñas.
+  - La pantalla Usuarios suma "Restablecer contraseña": pasa a la base las
+    cuentas viejas y sirve para quien olvidó la suya.
+- **Alternativas descartadas:**
+  - *Copiar los archivos del realm entre máquinas:* hay que repetirlo con
+    cada cuenta, y subirlos al repositorio (público) expone los hashes.
+  - *Que Rabbit escriba los archivos del realm desde la base al
+    desplegar:* casi el mismo trabajo, y una cuenta nueva no llega a las
+    otras máquinas hasta su próximo despliegue.
+  - *Un dominio de seguridad propio para Rabbit (`jboss-web.xml`,
+    `jboss-ejb3.xml`):* más archivos para el mismo resultado; si alguien
+    no corrió el script, el despliegue fallaría en vez de seguir
+    funcionando con las cuentas locales.
+  - *PBKDF2 (está en el JDK, sin dependencia nueva):* Elytron lo lee solo
+    como SCRAM, con tres columnas (hash, sal, iteraciones); bcrypt entra
+    en una sola y es el formato más conocido.
+- **Consecuencias:** una cuenta creada, dada de baja o con contraseña
+  nueva vale en el WildFly de todos al mismo tiempo. Las altas ya no
+  escriben archivos fuera de la transacción, así que desaparece la
+  compensación del Flujo 5 de TRANSACCIONES.md. Si la base no responde,
+  nadie con cuenta en la base puede entrar (tampoco funcionaría el resto
+  del sistema). El formato de los archivos (MD5) no se puede pasar a
+  bcrypt: las cuentas viejas necesitan una contraseña nueva una vez. Una
+  cuenta de la base con el mismo nombre que una de add-user.sh de alguna
+  máquina le gana a esa.
+
+## ADR-032: Peso de los bultos y capacidad del vehículo del repartidor
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero del equipo
+  ("límite de pedidos por repartidor" y "peso de los bultos").
+- **Contexto:** un repartidor llevaba un solo pedido a la vez, sin
+  importar si era un sobre o una heladera. Rabbit no conocía el peso de
+  nada.
+- **Decisión:**
+  - **Peso por unidad en el stock** (`ItemInventario.pesoKg`, obligatorio
+    en las altas; lo ya cargado se corrige con "Editar", ADR-049). Un pedido de
+    stock consignado calcula su peso al sincronizarse: peso por unidad ×
+    cantidad. Si algún ítem no tiene peso, el del pedido queda
+    desconocido (null): contarlo como 0 lo haría pasar por liviano. La
+    sincronización corre sin usuario (JMS y timer), así que el peso se
+    pide con `IConsultaStock.pesosPorItem`, sin rol y que solo devuelve el
+    peso de cada ítem; el listado completo del stock sigue siendo del
+    personal.
+  - **Punto de picking:** Rabbit no conoce esa mercadería; el ERP puede
+    informar `pesoKg` (opcional). Con stock consignado no se acepta (422):
+    lo calcula Rabbit. La huella de idempotencia solo incluye el peso si
+    vino, así las claves de antes siguen valiendo.
+  - **Capacidad del vehículo** (`Repartidor.capacidadKg` y
+    `capacidadBultos`, opcionales). Se mide por las dos cosas: el peso
+    (lo que soporta) y los bultos (el espacio). La regla vive en
+    `CapacidadRepartidor`:
+    - con capacidad cargada, lleva varios pedidos mientras la suma no pase
+      ninguno de los límites que tenga;
+    - sin capacidad, un pedido a la vez, como antes (los repartidores que
+      ya existían no cambian);
+    - un pedido de peso desconocido solo se controla por bultos.
+  - **Qué lleva cada uno:** una fila por pedido asignado
+    (`CargaAsignada`, tabla `repartidores_cargas`), con el peso y los
+    bultos del momento. Se borra al entregar o cancelar. Asignar bloquea
+    a los candidatos (`SELECT ... FOR UPDATE`): dos confirmaciones a la
+    vez no cargan de más al mismo repartidor.
+  - El despacho por zona pregunta "¿a quién de la zona le entra este
+    pedido?" en lugar de "¿quién está libre?", y si a nadie, usa el
+    transportista de respaldo como antes.
+- **Alternativas descartadas:**
+  - *Solo cantidad de pedidos:* una moto y un camión tendrían el mismo
+    límite.
+  - *Solo kilos:* veinte cajas livianas no entran en una moto.
+  - *Contadores en el repartidor (carga actual):* se desincronizan si una
+    liberación falla o se repite; una fila por pedido se puede recalcular.
+- **Consecuencias:** la hoja de ruta del repartidor muestra todas sus
+  entregas en curso; el orden recomendado de las paradas llegó después,
+  por código postal (ADR-038). Si no le entra a nadie, el pedido va a la
+  lista de espera (ADR-037). Cada unidad cuenta como un bulto (3 yerbas son 3
+  bultos). En pantalla los kilos se muestran como "1 kg" o "0,95 kg"
+  (`infraestructura/Formatos`), no con la escala de la columna ("1.000").
+
+## ADR-033: La entrega se registra con la foto del remito, y solo quien estuvo ahí
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero ("cambio de estado
+  en camino / entregado").
+- **Contexto:** cualquiera del personal podía marcar un pedido como
+  entregado con un clic, sin prueba. ENTREGADO dispara el cobro contra
+  entrega: es el cambio de estado que mueve plata.
+- **Decisión:**
+  - **ENTREGADO:** solo el `REPARTIDOR` que lleva el pedido, o un
+    `ADMINISTRADOR` como contingencia (por ejemplo, el repartidor se quedó
+    sin batería). Un `OPERADOR` ya no. Los dos tienen que subir la **foto
+    del remito firmado**. Se guarda quién y cuándo (`entregadoPor`,
+    `fechaEntrega`).
+  - **EN_CAMINO:** lo sigue pudiendo marcar el repartidor o el personal
+    (por ejemplo, al despachar desde el depósito): no mueve plata.
+  - **Pedidos derivados a un transportista externo:** entran por otra
+    operación (`registrarEntregaDeTransportista`), sin remito de Rabbit:
+    la prueba es del transportista. Esa operación rechaza los pedidos con
+    repartidor propio, así no sirve para saltear el remito.
+  - **La foto:** JPEG, PNG o WEBP, reconocida por sus primeros bytes (no
+    por el nombre ni por lo que dice el navegador), hasta 5 MB. El celular
+    la achica antes de subirla (`remito.js`, ~300 KB). Se guarda en la
+    base compartida, en su propia tabla (`remitos_entrega`), y se ve en
+    `/remito?pedido=ID`: el personal, el comercio dueño y su repartidor;
+    a cualquier otro le responde 404.
+- **Alternativas descartadas:**
+  - *Guardarla en el disco del WildFly:* cada integrante levanta el suyo;
+    la foto solo la vería quien registró la entrega (el mismo problema que
+    ADR-031 con las contraseñas).
+  - *Supabase Storage:* sería lo prolijo en producción, pero suma claves
+    de API y otro servicio que configurar en cada máquina. Para el volumen
+    del TP, la base alcanza.
+  - *Firma en pantalla en lugar de foto:* el remito en papel ya lo firma
+    el cliente; la foto prueba también qué se entregó.
+- **Consecuencias:** el aviso al comercio de ENTREGADO menciona el
+  remito, y el comercio lo ve en "Mis pedidos". La base crece unos 300 KB
+  por entrega.
+
+## ADR-034: Liquidación mensual a comercios
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero ("cálculo de
+  cobranzas a comercios"). La tarifa es una propuesta para que el equipo
+  la ajuste.
+- **Contexto:** Rabbit cobraba cada pedido (la venta del comercio a su
+  cliente), pero no cobraba su propio servicio al comercio.
+- **Decisión:**
+  - Una vez por mes, a cada comercio activo: **abono fijo + un cargo por
+    pedido entregado + un cargo por kilo entregado**. Tarifa por defecto:
+    $15.000 de abono, $1.200 por envío y $80 por kilo. Se cambia con
+    system properties (`rabbit.tarifa.abono`, `rabbit.tarifa.por-envio`,
+    `rabbit.tarifa.por-kilo`) sin tocar el código (`TarifaMensual`).
+  - Se liquida **solo un mes cerrado**. Los pedidos del mes se cuentan
+    por su fecha de entrega. Cada liquidación queda guardada con los
+    importes del momento (`liquidaciones`, una por comercio y mes) y se
+    cobra por el **banco legado** (SOAP, referencia `LIQ-<id>`), con el
+    mismo circuit breaker que los pedidos.
+  - **Timer diario a las 6** (`LiquidacionMensual`): el día 1 liquida el
+    mes anterior; los demás días solo completa lo que falte (si WildFly
+    estaba apagado el 1) y reintenta los cobros PENDIENTE (el banco no
+    respondió). Un rechazo del banco queda RECHAZADA y un administrador lo
+    reintenta a mano.
+  - Cada comercio va en sus propias transacciones (crear, después cobrar):
+    el banco no se deshace con un rollback, así que la liquidación existe
+    antes de llamarlo.
+  - Pantalla "Liquidaciones" (personal): lo cobrado por mes, el
+    botón para liquidar un mes cerrado (administrador) y una **vista
+    previa del mes en curso**, que calcula sin guardar ni cobrar. El
+    comercio ve las suyas en "Mis liquidaciones", también con la vista
+    previa del mes en curso, calculada solo con sus entregas (el
+    resumen de entregas de todos los comercios es solo del personal).
+- **Alternativas descartadas:**
+  - *Descontarlo de lo que se cobra contra entrega:* mezcla la plata del
+    comercio con la de Rabbit y obliga a hacer rendiciones.
+  - *Cobrar por pedido al confirmar:* más llamadas al banco y más
+    reversas cuando un pedido se cancela.
+- **Consecuencias:** un comercio sin entregas paga solo el abono. Si un
+  pedido se entrega pero se informa después del cierre, entra en el mes
+  de su fecha de entrega solo si ese mes todavía no se liquidó.
+
+## ADR-035: Ubicación del repartidor en vivo y mapa
+
+- **Estado:** Aceptada (15/10/2026). Mejora del tablero ("mapa para
+  repartidores internos").
+- **Decisión:**
+  - Mientras el repartidor tiene entregas en curso y la pantalla "Mis
+    entregas" abierta, su celular manda la ubicación cada 30 segundos
+    (`ubicacion.js`, geolocalización del navegador, por el mismo
+    formulario JSF). Se guarda **solo la última** (`Repartidor.latitud`,
+    `longitud`, `fechaUbicacion`), no el recorrido. Sin entregas en curso
+    no se acepta: es para seguir entregas, no a la persona.
+  - **Personal:** "Mapa de repartidores" con los que repartieron en los
+    últimos 15 minutos; se actualiza solo por ajax.
+  - **Cliente:** la página pública de seguimiento muestra el mapa mientras
+    el pedido está EN_CAMINO con un repartidor de Rabbit, y la API de
+    seguimiento devuelve `ubicacionRepartidor`. Solo si ese repartidor
+    tiene **ese** pedido en curso: el código de un pedido viejo no sirve
+    para seguirlo en otro reparto.
+  - **Aviso:** el de EN_CAMINO al comercio incluye el código para que su
+    cliente lo siga en vivo.
+  - Mapas con Leaflet (cdnjs, con hash de integridad) y teselas de
+    OpenStreetMap, gratis y sin claves.
+- **Alternativas descartadas:**
+  - *Google Maps:* pide clave de API y facturación.
+  - *WebSockets para tiempo real:* para posiciones cada 30 segundos, una
+    consulta periódica alcanza y no suma infraestructura.
+  - *Guardar el recorrido completo:* más datos personales de los que
+    hacen falta.
+- **Consecuencias:** el navegador solo da la ubicación por HTTPS y con
+  permiso del repartidor; en el celular, con el certificado autofirmado
+  hay que aceptar la advertencia. Sin coordenadas de las direcciones de
+  entrega no se calcula cuánto falta.
+
+## ADR-036: El administrador puede eliminar usuarios, repartidores y zonas
+
+- **Estado:** Aceptada (15/10/2026). Pedido del equipo durante las
+  pruebas.
+- **Contexto:** usuarios, repartidores y zonas solo se podían dar de baja.
+  Las cuentas y zonas de prueba se acumulaban en el padrón compartido y
+  un repartidor cargado por error no se podía sacar.
+- **Decisión:** baja física, **solo `ADMINISTRADOR`** (`@RolesAllowed` en
+  el EJB; el botón "Eliminar" solo se le muestra a él). Mismo patrón que
+  la eliminación de comercios (ADR-028): cada componente que guarda una
+  referencia puede impedirlo o la suelta, en la misma transacción, por
+  eventos CDI, así el componente dueño no depende de los demás.
+  - **Usuario** (`eliminarUsuario`): nada apunta a una cuenta (quién
+    entregó cada pedido queda como texto, ADR-033). No se puede eliminar
+    la propia cuenta ni al último administrador activo. También se borra
+    su línea del realm de archivos de esa máquina, si tenía.
+  - **Repartidor** (`eliminarRepartidor`): no se puede con entregas en
+    curso ni con una cuenta de usuario asociada, activa o dada de baja
+    (`EliminacionDeRepartidor`; hay que eliminar la cuenta primero). Sus
+    pedidos ya terminados quedan sin repartidor asignado
+    (`RepartidorEliminado`).
+  - **Zona** (`eliminarZona`): los pedidos no guardan su zona (se calcula
+    por el código postal), así que no hay nada que impedir. Los
+    repartidores de esa zona quedan sin zona fija (`ZonaEliminada`).
+- **Alternativas descartadas:**
+  - *Borrar también la cuenta del repartidor:* una cuenta es acceso al
+    sistema; que desaparezca sin que nadie la elimine a propósito es
+    peligroso.
+  - *Solo baja lógica:* no resolvía el padrón lleno de pruebas.
+- **Consecuencias:** eliminar no se deshace. Para que alguien deje de
+  operar sin perder nada, sigue estando la baja.
+
+## ADR-037: Lista de espera, hora de corte y devolución al depósito
+
+- **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
+  "Testing NO OK"). La devolución al depósito sin límite la reemplaza
+  ADR-041 (motivos fijos e intentos).
+- **Contexto:** si ningún repartidor tenía lugar (ADR-032), confirmar
+  fallaba y el pedido quedaba PENDIENTE hasta que alguien lo volviera a
+  confirmar a mano. La asignación ya probaba con todos los repartidores,
+  primero los de la zona. Además, no había un horario límite para armar
+  la hoja de ruta del día, y el repartidor no tenía cómo devolver un
+  pedido que no pudo entregar.
+- **Decisión:**
+  - **A otro repartidor:** se recorren los candidatos en orden y gana el
+    primero al que le entra (`AsignacionPorCapacidad`). Nunca se espera a
+    un repartidor puntual.
+  - **Lista de espera:** si no le entra a nadie, el pedido **no se cobra**
+    y queda PENDIENTE con la marca `enEsperaDesde` y el motivo. No es un
+    estado nuevo: así no cambian la máquina de estados, el tópico ni el
+    seguimiento. `AsignadorDeEspera` (`@Singleton`, `@RunAs("OPERADOR")`)
+    los asigna por orden de llegada, con cobro y asignación juntos como
+    siempre. Corre enseguida que un pedido se entrega, se cancela o se
+    devuelve (lo dispara `AvisosDeEspera`) y, de respaldo, cada minuto.
+    Un pedido grande que no entra no tapa la fila: se prueba con los
+    siguientes. Si falla por otra cosa (el banco rechaza el pago), sale de
+    la fila con el motivo a la vista del personal.
+  - **Antes de cobrar se consulta si hay lugar**
+    (`IAsignacionRepartidores.motivoParaEsperar`, sin bloqueo). Si otro se
+    queda con el lugar entre esa consulta y la asignación, el banco ya
+    cobró y se reversa como antes (`ReversasBancarias`).
+  - **Hora de corte: 07:00**, definida por el equipo el 18/10/2026
+    (`HoraDeCorte.POR_DEFECTO`; del 16 al 18/10 fue 21:00). A las 7 se
+    cierra la hoja del día, así hay tiempo de preparar los pedidos y salir
+    a la calle a las 9. Desde esa hora no se suman pedidos a la hoja del
+    día aunque haya lugar: lo que se confirma después va a la lista de
+    espera y se asigna solo al día siguiente, antes del corte. Se cambia
+    con la system property `rabbit.ruteo.hora-corte` (`HH:mm`), leída en
+    cada uso, y con el valor `ninguno` no hay corte. Un valor inválido se
+    ignora y rige el de 07:00.
+  - **Devolver a depósito:** el repartidor del pedido (o un
+    administrador), desde CONFIRMADO o EN_CAMINO, con motivo obligatorio.
+    El pedido vuelve a PENDIENTE en la lista de espera, el repartidor deja
+    de llevarlo y **no se le vuelve a asignar ese pedido**
+    (`idRepartidorExcluido`). Conserva su cobro (`cobroRegistrado`): al
+    reasignarlo no se cobra de nuevo, y si se cancela se anula. El ERP ya
+    no lo puede cancelar por la API (salió a reparto). El comercio recibe
+    el aviso "volvió al depósito".
+  - Despacho por zona (Ruteo): un pedido que va a la espera devuelve el
+    resultado "En espera" en lugar de un error.
+- **Alternativas descartadas:**
+  - *Estado nuevo EN_ESPERA o DEVUELTO:* obligaba a tocar la máquina de
+    estados, el tópico, los suscriptores y el seguimiento, para algo que
+    sigue siendo "pendiente de asignar".
+  - *Cobrar al confirmar aunque quede en espera:* cobra un servicio que
+    todavía no tiene fecha, y obliga a reversar si se cancela antes.
+  - *Corte a las 21:00* (el que rigió primero): seguía sumando pedidos a
+    la hoja durante todo el día, y el repartidor no podía planificar su
+    recorrido antes de salir.
+  - *Corte a las 9:00:* deja sin margen para preparar los pedidos antes
+    de salir a la calle a esa hora.
+- **Consecuencias:** con el corte a las 07:00, durante el día todo lo
+  que se confirma queda en espera para el día siguiente: para una demo o
+  una prueba hay que configurar `ninguno` (README, paso 7b). Las columnas nuevas de `pedidos` admiten NULL y las
+  crea Hibernate al desplegar (`update`); las versiones anteriores siguen
+  funcionando sobre la misma base. La API del ERP agrega `enListaDeEspera`
+  y no ofrece el link de cancelar un pedido devuelto.
+
+## ADR-038: Hoja de ruta recomendada del repartidor
+
+- **Estado:** Aceptada (16/10/2026). Correcciones del equipo (Trello,
+  "Testing NO OK"). El orden por código postal lo mejora ADR-046, que ordena
+  por distancia con las direcciones ubicadas en el mapa (queda el código
+  postal para las que todavía no se ubicaron).
+- **Contexto:** el repartidor tenía un link de Google Maps por pedido; con
+  varios pedidos a la vez (ADR-032) no tenía un recorrido para el día.
+- **Decisión:**
+  - Arriba de "Mis entregas", la **hoja de ruta recomendada** con todas
+    sus paradas: primero los retiros que le faltan (sin repetir lugares),
+    después las entregas encadenadas por **cercanía de código postal**
+    (vecino más cercano, desde el último retiro). Varios pedidos a la
+    misma dirección son una sola parada (`OrdenDeRecorrido`).
+  - El orden se calcula **en el back** y se abre en Google Maps con un
+    link común: hasta 10 puntos por link (la partida y 9 paradas). Con más
+    paradas se parte en tramos, y cada uno arranca donde terminó el
+    anterior. El primero no lleva origen: arranca donde está el
+    repartidor.
+  - Se sacaron el botón "Ver recorrido en el mapa" de cada pedido y la
+    sección "Registrar una entrega": "Entregar pedido" abre una ventana
+    para subir ahí la foto del remito, con las mismas validaciones
+    (ADR-033). "Devolver a depósito" abre otra para el motivo (ADR-037).
+- **Alternativas descartadas:**
+  - *Solo un link de Google Maps:* los links no reordenan las paradas;
+    eso lo hace la Directions API, que pide clave y facturación.
+  - *Geocodificar las direcciones para usar distancias reales:* contradice
+    ADR-017 y suma un servicio externo. Queda para que lo decida el
+    equipo.
+- **Consecuencias:** el orden es una aproximación (los CP cercanos suelen
+  ser barrios vecinos, no siempre). En el navegador de un celular sin la
+  app de Google Maps, Google acepta menos paradas por link que en la app.
+
+## ADR-039: Datos de quien recibe el pedido
+
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
+  El email pasó a ser obligatorio el 18/10 (ver "Actualización" al final).
+  Sale de la comparación con los líderes de última milla: todos saben a
+  quién le entregan.
+- **Contexto:** el pedido solo tenía dirección y código postal. Rabbit no
+  sabía por quién preguntar en la puerta, no tenía a quién llamar si no
+  encontraba la dirección y no podía avisarle nada al cliente (ADR-040).
+- **Decisión (original):** tres campos **opcionales** en el alta (API y pantalla),
+  en `PedidoExterno` y en `Pedido`: `nombreDestinatario` (100),
+  `telefonoDestinatario` (30) y `emailDestinatario` (120). Los normaliza y
+  valida `Destinatarios`: vacío es "no vino", el teléfono se acepta como
+  lo escribe la gente (`+54 11 4567-8901`, `(011) 4567-8901`) y el email
+  tiene que tener forma de email porque es para avisar. El repartidor ve
+  nombre y teléfono (con link para llamar); el personal y el comercio, en
+  sus listados. El seguimiento público **no** los muestra.
+- **Alternativas descartadas:**
+  - *Obligatorios:* rompían a todo ERP que ya integra. Con opcionales, un
+    ERP que no los manda sigue igual, solo sin avisos al cliente.
+  - *Una entidad aparte (Destinatario):* para tres columnas que no se
+    reusan entre pedidos, era una tabla y un join más sin beneficio.
+- **Consecuencias:** las columnas nuevas admiten NULL (`update`). La huella
+  de idempotencia suma estos datos solo si vienen: un reintento de antes
+  de este cambio da la misma huella. Son datos personales: se borran con
+  el pedido cuando se elimina su comercio.
+- **Actualización (18/10/2026): el email pasa a ser obligatorio.** El
+  equipo lo pidió porque es por donde se le avisa al cliente (ADR-040).
+  - **Alta de pedidos nuevos:** la API responde **400** si falta
+    (`datos-con-formato-invalido`, con `emailDestinatario` en `errores` y
+    el motivo "es obligatorio porque Rabbit le avisa por mail…"); la
+    pantalla "Simular un pedido del ERP" lo marca obligatorio; y el negocio
+    lo vuelve a exigir (`Destinatarios.emailObligatorio`), así ningún
+    camino lo saltea. Nombre y teléfono siguen opcionales.
+  - **Lo que ya existía no se toca:** los pedidos y los pedidos del ERP
+    dados de alta antes, sin email, siguen funcionando igual (se
+    sincronizan, se reparten y se entregan) y solo no reciben avisos. La
+    columna sigue admitiendo NULL y no hay migración de datos.
+  - **ERP ya integrados:** tienen que empezar a mandar el email; hasta
+    entonces sus altas nuevas reciben 400 con el campo indicado. Se
+    descartó una perilla para seguir aceptando altas sin email: los únicos
+    clientes de la API hoy son los nuestros (simulador, tests, Postman y
+    la prueba de carga), y se actualizaron todos. Caso borde: reintentar
+    con la misma clave un alta enviada antes del cambio, sin email, ahora
+    da 400 (antes devolvía el pedido ya creado).
+
+## ADR-040: Avisos a quien recibe, con un tercer suscriptor del tópico
+
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
+- **Contexto:** solo se le avisaba al comercio. Onfleet, Bringg, Andreani
+  y DHL le avisan a quien recibe en cada cambio, con el link al
+  seguimiento.
+- **Decisión:** `SuscriptorDestinatarioEstadoPedido`, un **tercer MDB**
+  sobre `topico.pedidos.estado`, con su propia suscripción durable
+  (`rabbit-destinatarios`). Llama a `AvisoDestinatarioService`, que:
+  descarta eventos viejos o repetidos con la `fechaCambio` (igual que los
+  avisos al comercio), no hace nada si el pedido no tiene email, arma el
+  texto (`TextosAlDestinatario`: "Recibimos tu pedido de X, llega hoy",
+  "llega hoy", "no pudimos entregarlo", "entregado"...) con el link
+  público (`rabbit.url-publica`), lo guarda en `avisos_destinatario` y lo
+  manda por mail después del commit con el mismo `AvisosPorMail`.
+- **Alternativas descartadas:**
+  - *Que `NotificacionService` también le avise al cliente:* mezcla dos
+    destinatarios con reglas distintas en el mismo método, y una falla de
+    uno frenaría al otro.
+  - *Llamarlo desde `PedidoService.cambiarEstado`:* acopla Pedidos a
+    Notificaciones y hace esperar al usuario. El tópico existe justo para
+    no tener que tocar Pedidos al sumar un interesado (ADR-006).
+  - *SMS o WhatsApp:* exigen un proveedor pago; el mail ya estaba.
+- **Consecuencias:** sumar el canal no tocó Pedidos ni a los otros dos
+  suscriptores. Sin servidor de correo, los avisos quedan registrados y el
+  personal los ve en la campana de la cabecera → "Avisos a quien recibe" (ADR-051). El texto usa el
+  motivo de devolución vigente al momento del aviso.
+
+## ADR-041: Entrega fallida con motivo fijo, intentos y devolución al comercio
+
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8). Reemplaza en parte a
+  ADR-037 (la devolución al depósito ya no es ilimitada).
+- **Contexto:** "Devolver a depósito" mandaba el pedido a PENDIENTE con
+  texto libre y sin límite: un cliente que nunca estaba hacía dar vueltas
+  al pedido para siempre, y "entrega al primer intento" (el indicador que
+  usa toda la industria) no se podía medir.
+- **Decisión:**
+  - **Motivos fijos** (`MotivoEntregaFallida`): cliente ausente, dirección
+    incorrecta, rechazado, zona peligrosa, no entra en el vehículo y otro
+    (con detalle obligatorio). El texto libre sigue como detalle.
+  - **Visitas:** una devolución cuenta como intento si el pedido estaba
+    EN_CAMINO y el motivo implica haber ido a la dirección ("no entra en
+    el vehículo" no). Se cuentan en `intentosFallidos`.
+  - **Estado final `DEVUELTO_AL_COMERCIO`** (EN_CAMINO → DEVUELTO) al
+    llegar a **2 visitas** (`rabbit.entregas.max-intentos`, de 1 a 10) o
+    enseguida si el cliente **lo rechazó**. El stock consignado vuelve al
+    stock del comercio (como al cancelar), el repartidor queda libre y
+    **Pagos anula el cobro** al recibir el evento por el tópico (su MDB
+    ahora filtra `ENTREGADO` y `DEVUELTO_AL_COMERCIO`): un CONTRA_ENTREGA
+    nunca se cobró, y un PREPAGO se reversa en el banco como al cancelar.
+  - El pedido conserva el repartidor de la última visita, para saber
+    quién lo devolvió.
+- **Alternativas descartadas:**
+  - *Anular el cobro en la misma transacción:* `anularCobro` es solo de
+    ADMINISTRADOR y quien devuelve es el repartidor. Por el tópico, como
+    el cobro contra entrega, el permiso sigue intacto y el cobro se anula
+    aunque Pagos esté caído un rato (suscripción durable).
+  - *3 visitas:* lo hace algún operador, pero en la demo obliga a tres
+    vueltas completas. Con la propiedad se cambia sin tocar código.
+  - *Que el personal decida a mano cuándo devolverlo:* es justo lo que no
+    escala.
+- **Consecuencias:** `EstadoPedido` suma un valor (el CHECK lo realinea
+  `AlineadorDeRestriccionesEnum`) y una columna enum nueva
+  (`motivoentregafallida`). Cambiar el selector del MDB de Pagos hace que
+  Artemis recree esa suscripción durable al desplegar: conviene desplegar
+  sin cobros contra entrega pendientes de acreditar. Los pedidos devueltos
+  no entran en la liquidación mensual (solo cuenta ENTREGADO).
+
+- **Textos de los avisos revisados (18/10/2026):** todos los avisos de
+  entrega fallida siguen la misma forma, qué pasó (con el motivo), qué
+  sigue con el pedido y qué conviene hacer, en frases cortas y sin
+  mayúsculas ni "visita(s)" (`TextosAlComercio`, `TextosAlDestinatario`).
+  Al comercio no se le dice que "el stock vuelve" si el pedido salió de un
+  punto de picking (no hay stock en Rabbit). Ninguno pasa de 255
+  caracteres, el largo de la columna del portal.
+- **Cancelar (ADR-048):** un pedido que salió a reparto ya no se cancela;
+  el único final si no se entrega es DEVUELTO_AL_COMERCIO.
+
+## ADR-042: Fecha prometida con la hora de corte
+
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
+- **Contexto:** el ERP no sabía si el pedido llegaba hoy o mañana. Mercado
+  Libre Flex promete "llega hoy" según la hora de corte.
+- **Decisión:** al **recibir** el pedido (no al sincronizarlo), Rabbit
+  calcula `fechaPrometida` con la misma hora de corte de la hoja de ruta
+  (ADR-037): antes del corte, hoy; después, mañana
+  (`HoraDeCorte.diaDeEntrega`, expuesta a Pedidos por
+  `IAsignacionRepartidores.diaDeEntregaPara`). Sin código postal no se
+  promete nada (no se sabe la zona). Va en la respuesta del alta y en el
+  GET de la API, en el seguimiento ("Llega hoy") y en los listados.
+- **Alternativas descartadas:**
+  - *Calcularla al sincronizar:* el ERP recibe el 201 antes, sin fecha.
+  - *Hora de corte por zona:* es mejor (una zona lejana no llega a la
+    misma hora), pero exige un dato nuevo por zona. Queda como mejora; el
+    cálculo ya está en un solo lugar.
+  - *Saltear fines de semana y feriados:* Rabbit reparte todos los días;
+    si el equipo define días hábiles, se agrega en `diaDeEntrega`.
+- **Consecuencias:** la promesa no se mueve: es contra lo que se mide
+  "a tiempo" (ADR-044). Si una visita falla, el seguimiento deja de
+  mostrarla en lugar de mostrar una fecha vencida.
+
+## ADR-043: Horario estimado en el seguimiento (parada N de M)
+
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
+- **Contexto:** el cliente veía el mapa pero no cuándo llegaba. Amazon
+  muestra cuántas paradas faltan; Onfleet, una ETA.
+- **Decisión:** con el pedido EN_CAMINO, el seguimiento (página y API)
+  dice en qué parada de la **hoja de ruta recomendada** del repartidor
+  está (ADR-038) y una franja: desde "ahora + paradas de antes x 20 min"
+  (nunca antes de la hora actual) hasta dos paradas más de margen,
+  redondeada a cuartos de hora; si es la próxima parada, "llega antes de
+  las HH:mm"
+  (`EstimacionDeLlegada`; `rabbit.ruteo.minutos-por-parada`). Armar el
+  recorrido lee direcciones de otros pedidos y depósitos, que solo ve el
+  personal: lo hace `LlegadaEstimadaService` con `@RunAs("OPERADOR")` y
+  devuelve solo números. Si algo falla, el seguimiento se ve sin horario.
+- **Alternativas descartadas:**
+  - *Abrir sin rol `listarItemsPorIds` y la hoja de ruta:* expondría
+    direcciones de terceros a cualquier llamada sin usuario.
+  - *ETA real con tráfico:* exige geocodificar (ADR-017) y una API paga.
+- **Consecuencias:** es una aproximación, igual que el orden por código
+  postal. Coincide con lo que ve el repartidor, porque se arma con el
+  mismo orden de asignación.
+
+## ADR-044: Tablero de indicadores de entrega
+
+- **Estado:** Aceptada (16/10/2026; en `main` desde el 18/10/2026, PR #8).
+- **Contexto:** Rabbit no medía si entregaba a tiempo. ShipBob, Onfleet y
+  Bringg tienen tableros con esos indicadores, para el operador y para
+  el comercio.
+- **Decisión:** "Indicadores" para el personal (toda la red o un comercio,
+  con el detalle por repartidor) y "Mis indicadores" para el comercio,
+  sobre los pedidos recibidos en los últimos 7, 30 o 90 días:
+  - **a tiempo:** entregados el día prometido o antes, sobre los que
+    tenían promesa;
+  - **al primer intento:** entregados sin visitas fallidas, sobre los que
+    terminaron el reparto (entregados + devueltos al comercio);
+  - horas promedio de recibido a entregado, pedidos en espera ahora,
+    motivos de las visitas fallidas;
+  - **costo por envío:** la liquidación del mes en curso (abono + cargos)
+    dividida por los envíos, que la vista toma de Pagos.
+  Se calcula en memoria (`CalculoDeIndicadores`) sobre los pedidos del
+  período: no hay tablas ni columnas de agregados.
+  - **Visualización, estilo tablero de BI:** fila de KPIs (con medidor
+    en los porcentajes) y gráficos en SVG propios (`indicadores.js`, sin
+    librerías): entregas por día en columnas apiladas (a tiempo / fuera
+    de término / sin fecha prometida), pedidos por estado, motivos de las
+    visitas fallidas y, para el personal, barras agrupadas por
+    repartidor. Cada gráfico tiene leyenda, tooltip (también con el
+    teclado), "Ver como tabla" y "Descargar CSV" (separado por ";" y en
+    UTF-8, como lo abre Excel en castellano); los filtros van en una fila
+    arriba. La paleta (azul, naranja, aqua) se validó contra el fondo de
+    cada tema, también daltonismo, y sigue el tema elegido sin redibujar.
+  - **Comparación con el período anterior** del mismo largo en cada KPI
+    ("▲ 6 pts vs. período anterior"), con flecha y texto además del
+    color, que depende de si subir es bueno (más horas hasta la entrega
+    es peor).
+- **Alternativas descartadas:**
+  - *Consultas agregadas en SQL:* más rápidas con millones de filas, pero
+    reparten cada regla entre JPQL y Java y no se prueban sin base.
+  - *Medir desde la confirmación:* no hay fecha de confirmación guardada;
+    "desde que se recibió" es lo que ve el cliente.
+  - *Una librería de gráficos (Chart.js) o Power BI embebido:* una
+    librería suma una dependencia externa para cuatro gráficos simples, y
+    Power BI exige licencias y sacar los datos de Rabbit.
+- **Consecuencias:** los porcentajes salen como "—" si no hay base, en
+  vez de 0 %. Los pedidos anteriores a ADR-042 no tienen promesa y no
+  cuentan en "a tiempo".
+
+## ADR-045: Evidencia de la visita fallida y un motivo para cada caso
+
+- **Estado:** Aceptada (17/10/2026; en `main` desde el 18/10/2026, PR #8).
+- **Contexto:** ADR-041 dejó motivos fijos e intentos, pero comparado con
+  la tabla de casos típicos de una entrega fallida faltaban varios
+  (paquete dañado, nadie habilitado para recibir, domicilio cerrado,
+  problema del repartidor), no se guardaba ninguna prueba de la visita y
+  un problema del repartidor ya en camino (moto rota, lluvia) solo podía
+  cargarse como "Otro", que **le gastaba una visita al cliente**.
+- **Decisión:**
+  - **Motivos:** se suman `NADIE_HABILITADO`, `DOMICILIO_CERRADO`
+    (cuentan como visita), `PAQUETE_DANADO` (vuelve al comercio sin
+    reintentar, también desde Confirmado si lo detecta al retirarlo, y
+    **sin devolver el stock**: la mercadería está dañada) y
+    `PROBLEMA_DEL_REPARTIDOR` (no cuenta como visita, se reasigna). Cada
+    motivo dice si cuenta como visita, si devuelve al comercio y qué
+    evidencia pide (`MotivoEntregaFallida`).
+  - **Evidencia** (`IntentoEntrega` y `FotoIntentoEntrega`, tablas
+    `intentos_entrega` y `fotos_intento_entrega`): cada vez queda el
+    motivo, un comentario de hasta 500 caracteres (obligatorio con un
+    rechazo o "Otro"), hasta 3 fotos (al menos una con un paquete dañado;
+    JPEG/PNG/WEBP de hasta 5 MB, que el celular achica antes de subir) y
+    dónde estaba el repartidor. Las ven el personal y el comercio dueño en
+    "Ver visitas" (`comercio/visitas.xhtml`, `/foto-visita`); el
+    repartidor no, porque deja de tener el pedido.
+  - **Ubicación:** al abrir la ventana, el celular da la posición del
+    momento (`entrega-fallida.js`, `getCurrentPosition`). Si no la da (sin
+    permiso, sin señal), se usa la última que compartió mientras repartía
+    (ADR-035) si es de los últimos 10 minutos, marcada como aproximada. Si
+    no hay ninguna, la visita se registra igual (`EvidenciaDeVisita`).
+  - **Avisos:** al cliente, un texto por motivo con lo que puede hacer
+    (dejar a alguien mayor con DNI, revisar la dirección con la tienda...),
+    avisando cuando la próxima es la última visita; si el problema fue del
+    reparto, "se demora" sin culparlo. Nunca el comentario del repartidor.
+    Al comercio, el motivo con el comentario, la visita N de M, qué hacer y
+    dónde ver las fotos; un paquete dañado es una INCIDENCIA. El aviso de
+    la falla ya no se descarta si llega después del de la reasignación
+    (pasa en menos de un segundo): se reconoce por `fechaUltimaFalla`
+    (`AvisosDeFalla`). Antes, el comercio no se enteraba.
+  - El botón del repartidor dice "Devolver pedido" (puede haber salido de
+    un depósito o de un punto de picking).
+- **Alternativas descartadas:**
+  - *Fotos y ubicación obligatorias siempre:* sin señal o sin permiso el
+    repartidor no podría cerrar la visita y el pedido quedaría trabado.
+  - *Guardar las fotos en disco:* cada integrante tiene su WildFly; como
+    el remito (ADR-033), van a la base.
+  - *Pausar el pedido para que el comercio corrija la dirección, retiro
+    en un punto y franjas horarias:* quedan para una etapa siguiente
+    (necesitan pantallas y estados nuevos).
+- **Consecuencias:** el aviso del portal al comercio se recorta a 255
+  caracteres (largo de la columna); el mail lleva el texto completo. Un
+  paquete dañado no devuelve stock: lo resuelve el comercio con Rabbit.
+
+## ADR-046: Hoja de ruta por distancia, con OpenStreetMap
+
+- **Estado:** Aceptada (17/10/2026; en `main` desde el 18/10/2026, PR #8).
+- **Contexto:** la hoja de ruta recomendada (ADR-038) arrancaba por los
+  retiros y seguía por la entrega de código postal más cercano: sin
+  coordenadas, el número de CP era la única forma de aproximar la
+  distancia, y a veces mandaba al repartidor lejos (CP vecinos que no son
+  barrios vecinos).
+- **Decisión:** ubicar las direcciones en el mapa con **Nominatim
+  (OpenStreetMap)** y ordenar por distancia en línea recta:
+  - **En segundo plano** (`Geocodificador`, timer cada minuto): toma las
+    direcciones de entrega y de retiro (depósito o punto de picking) de
+    los pedidos en curso que no estén en la caché y las consulta, como
+    mucho una por segundo y 20 por pasada, con un User-Agent propio (las
+    reglas de uso del servicio). Si falla, reintenta al minuto siguiente.
+  - **Caché** (`CoordenadaDireccion`, tabla `coordenadas_direcciones`):
+    cada dirección (normalizada, con su CP) se consulta una sola vez; las
+    no encontradas se reintentan a los 7 días.
+  - **Orden** (`OrdenDeRecorrido`): retiros pendientes primero; las
+    entregas, desde el último retiro o, si ya retiró todo, desde el
+    depósito o punto de picking de donde salieron, siempre a la más
+    cercana (haversine). Las que todavía no se ubicaron van después, por
+    CP como antes. La hoja de ruta solo lee la caché: nunca espera a un
+    servicio externo.
+  - `rabbit.geocodificacion=ninguna` lo apaga (todo por CP);
+    `rabbit.geocodificacion.url` usa otro servidor Nominatim.
+- **Alternativas descartadas:**
+  - *Google Maps (Geocoding y Directions):* más preciso y con calles
+    reales, pero exige una clave con facturación.
+  - *Geocodificar al dar de alta el pedido:* el alta llegaría a depender
+    de un servicio externo lento o caído.
+  - *Optimizar el recorrido completo (problema del viajante) o por
+    calles:* para 5 a 15 paradas, el vecino más cercano en línea recta
+    alcanza; ruteo por calles necesitaría un servicio de rutas.
+- **Consecuencias:** las direcciones de entrega y retiro (solo dirección y
+  CP, nunca quién recibe) salen hacia OpenStreetMap. Un pedido recién
+  confirmado puede ordenarse por CP hasta la pasada siguiente (menos de un
+  minuto). Una dirección mal cargada puede ubicarse en otro lugar: el
+  orden es una recomendación, el repartidor puede seguir otro.
+
+## ADR-047: Mails reales por SMTP con login y TLS (Gmail)
+
+- **Estado:** Aceptada (17/10/2026; en `main` desde el 18/10/2026, PR #8).
+- **Contexto:** los avisos por mail (al comercio y a quien recibe, ADR-040)
+  solo sabían hablar con un servidor SMTP sin login ni cifrado: servían
+  para un servidor de prueba local, no para que lleguen a casillas reales.
+  Gmail y cualquier proveedor real exigen usuario, contraseña y TLS.
+- **Decisión:** `ConfiguracionSmtp` arma la conexión con system
+  properties leídas en cada envío: host, puerto, usuario, contraseña,
+  seguridad (`starttls` por defecto con usuario; `ssl` para el 465;
+  `ninguna`) y remitente (con login, por defecto la misma cuenta, que es
+  lo que exige Gmail). Sin usuario se comporta como antes.
+- **Por qué system properties y no un recurso `mail-session` de
+  WildFly:** es el mismo mecanismo que el resto de la configuración de
+  Rabbit (banco, hora de corte, tarifa) y se cambia sin redesplegar. Las
+  credenciales quedan en la configuración de cada WildFly, como las de la
+  base, nunca en el repositorio público.
+- **Consecuencias:** hace falta una cuenta de correo para Rabbit (en
+  Gmail, con verificación en dos pasos y una contraseña de aplicación).
+  Gmail limita a unos 500 envíos por día. El envío sigue siendo después
+  del commit: un correo caído no frena ni deshace nada.
+
+## ADR-048: Un pedido que salió a reparto no se cancela
+
+- **Estado:** Aceptada (18/10/2026). Pedido del equipo (Trello).
+- **Contexto:** la máquina de estados ya impedía cancelar un pedido
+  EN_CAMINO, pero un pedido que salió, falló la visita y volvió al
+  depósito para otra (PENDIENTE en la lista de espera, ADR-041) se podía
+  cancelar desde Pedidos. Además, si alguien forzaba la cancelación de uno
+  en camino, el mensaje era el técnico ("está EN_CAMINO y no puede pasar a
+  CANCELADO").
+- **Decisión:** una vez que el pedido **salió a reparto**, Rabbit no lo
+  cancela: solo queda entregarlo. Si no se puede, el repartidor registra
+  la entrega fallida ("Devolver a depósito") y Rabbit lo reintenta; al
+  agotar las visitas, con un rechazo o con el paquete dañado, termina
+  DEVUELTO_AL_COMERCIO, y la devolución con el cliente la gestiona el
+  comercio.
+  - `Pedido.salioAReparto` se prende la primera vez que pasa a EN_CAMINO
+    (al entrar a EN_CAMINO) y no se apaga. Para las filas anteriores, un
+    pedido con visitas fallidas cuenta como salido (solo se cuentan si
+    estaba EN_CAMINO).
+  - `ReglaDeCancelacion` decide, igual para el personal (web) y para el
+    ERP (API, 409 `cancelacion-no-permitida`), con un mensaje claro: "ya
+    salió a reparto y no se puede cancelar: solo queda entregarlo. Si no se
+    puede entregar, vuelve al comercio…".
+  - En Pedidos no se muestra el botón Cancelar en esos pedidos, y en su
+    lugar dice "Ya salió a reparto: no se puede cancelar".
+  - Un pedido devuelto **sin haber salido** (por ejemplo, no entraba en el
+    vehículo, desde CONFIRMADO) se sigue pudiendo cancelar.
+- **Cómo encaja con la entrega fallida:** "Devolver a depósito" no es una
+  cancelación: es registrar una visita que no se pudo completar. El único
+  final para un pedido que salió y no se entrega es DEVUELTO_AL_COMERCIO.
+- **Consecuencias:** la columna nueva admite NULL (`update`). El personal
+  ya no puede "cortar por lo sano" un pedido que salió: tiene que pasar
+  por la entrega fallida, que deja la visita, el motivo y la evidencia.
+
+## ADR-049: Editar y eliminar el stock de un depósito
+
+- **Estado:** Aceptada (18/10/2026). Pedido del equipo.
+- **Contexto:** en "Depósitos y stock" solo se podía cargar stock y
+  corregir el peso. Un producto mal escrito, una cantidad que no coincidía
+  con lo que había en el galpón o un producto que ya no se guarda no
+  tenían arreglo desde la aplicación.
+- **Decisión:**
+  - **Editar** (personal: administrador y operador): cada fila tiene un
+    botón "Editar" que abre un formulario con el producto, la cantidad en
+    el depósito y el peso por unidad (reemplaza a "Corregir peso"). El
+    comercio dueño no se cambia: sería pasarle mercadería a otro. La
+    cantidad no puede quedar por debajo de lo **reservado** (ya está
+    comprometido con un pedido que se está armando), y el nombre no puede
+    repetir otro producto del mismo comercio en ese depósito. Si alguien
+    reserva del mismo ítem mientras tanto, el bloqueo optimista (`@Version`)
+    rechaza el cambio con un mensaje para volver a abrirlo.
+  - **Eliminar** (solo administrador, como el resto de las eliminaciones,
+    ADR-036): borra el ítem. No se puede si tiene unidades reservadas, si
+    lo usa un pedido **en curso** (ni entregado, ni cancelado, ni devuelto
+    al comercio) o un pedido del ERP sin procesar: si se cancela, el stock
+    tiene que volver a ese ítem. Lo comprueba Pedidos con el evento
+    `EliminacionDeItem`, igual que `EliminacionDeComercio`, así Inventario
+    no depende de Pedidos.
+  - Las reservas del ítem **quedan en el historial**: dejan de apuntarle
+    (`item_id` en NULL) y conservan el nombre del producto, la cantidad y
+    el estado. Los pedidos terminados guardan el nombre en cada línea.
+  - Las reglas de cantidad están en `ReglasDeStock` (con tests).
+- **Alternativa descartada:** dar de baja en vez de borrar (un ítem
+  oculto con stock 0). Obligaba a filtrar los dados de baja en todas las
+  consultas de stock y a decidir qué hacer si volvía mercadería a un ítem
+  oculto. Con las condiciones de arriba, borrar no deja nada colgado.
+- **Consecuencias:** en el Historial, el filtro por depósito no encuentra
+  las reservas de un ítem eliminado (ya no se sabe en qué depósito
+  estaba); con "Todos" siguen apareciendo.
+
+## ADR-050: Logs sin datos personales y HSTS
+
+- **Estado:** Aceptada (21/10/2026). Pendientes de seguridad del tablero
+  (SEC-05 y SEC-09).
+- **Contexto:** dos logs escribían datos personales: `AvisosPorMail` el
+  email completo de a quien se le avisa (en el aviso enviado y en el error) y
+  `SimuladorDeEnvios` la dirección de entrega. El log del servidor lo puede
+  leer más gente que la que ve el pedido y se conserva mucho tiempo. Además,
+  Rabbit exigía HTTPS con `CONFIDENTIAL`, pero esa redirección ocurre después
+  de que el primer pedido por HTTP ya viajó en claro, y no había HSTS.
+- **Decisión:**
+  - **Logs:** se loguea el ID del pedido. El email se enmascara con
+    `DatosPersonales.emailEnmascarado` (primera letra, seis asteriscos fijos y
+    el dominio, para no filtrar el largo del nombre), y los mensajes de error de
+    JavaMail pasan por `DatosPersonales.sinEmails` porque a veces traen la
+    dirección. La dirección de entrega no se escribe.
+  - **HSTS:** `FiltroHsts` manda `Strict-Transport-Security: max-age=31536000`
+    solo en respuestas por HTTPS, configurable con `rabbit.hsts.max.age` (0 la
+    apaga). Sin `includeSubDomains` ni `preload`: Rabbit no controla otros
+    subdominios del dominio donde se publique.
+  - **JMS (SEC-08):** los publicadores arman el cuerpo en `construirPayload`, y
+    un test verifica que solo lleve IDs, estado y fecha.
+- **Consecuencias:** investigar un problema de mail con el log sigue siendo
+  posible (se ve el ID del pedido y el dominio y la inicial del email), pero ya
+  no se puede reconstruir a quién se le avisó. HSTS no tiene efecto con el
+  certificado autofirmado de desarrollo (el navegador la ignora si el
+  certificado no es válido): hay que verificarla en un entorno con certificado
+  reconocido. Las pruebas automáticas de SEC-03 y SEC-04 necesitan dos cuentas
+  extra (un ERP de otro comercio y un usuario con rol `COMERCIO`) y la app
+  desplegada; sin ellas esos tests se saltean.
+
+## ADR-051: Los avisos se ven en una campana de notificaciones
+
+- **Estado:** Aceptada (21/10/2026). Pedido del equipo.
+- **Contexto:** los avisos de Notificaciones se listaban en tablas al final
+  de Mis pedidos (comercio) y de Pedidos (personal): había que bajar hasta el
+  final de la pantalla para verlos, y no se distinguía lo nuevo de lo ya visto.
+- **Decisión:** una **campana en la cabecera** de todas las pantallas
+  (`template.xhtml`, `CampanaBean`). Al tocarla se abre un panel con los
+  últimos 15 avisos; sobre la campana, un contador de los nuevos.
+  - **Quién la ve:** el comercio (los avisos de sus pedidos) y el personal
+    (avisos a comercios y avisos a quien recibe, ADR-040, que tienen el email
+    del cliente final). Repartidor y ERP no tienen campana. Lo que cada rol
+    puede leer lo sigue decidiendo el EJB con `@RolesAllowed`; el bean solo
+    elige qué pedir según el rol.
+  - **Sin JavaScript también anda:** es un `<details>` que abre y cierra solo.
+    `campana.js` suma el contador, cerrar con Escape o al tocar afuera y marcar
+    como vistos los avisos al abrirla.
+  - **"Nuevo" se recuerda en el navegador** (`localStorage`, un valor por
+    usuario y por tipo de aviso): un aviso es nuevo si su id es mayor al último
+    que ese usuario vio. No se agregó ninguna tabla ni columna: la base no cambia.
+  - Se sacaron las tablas viejas y los campos que las alimentaban en
+    `PedidoBean` y `PortalComercioBean`. Los recursos pasaron a `1_18`
+    (convención de versionado del CSS y JS).
+- **Consecuencias:** "visto" es por navegador, no por cuenta: quien entra desde
+  otra computadora vuelve a ver los últimos avisos como nuevos. Si más adelante
+  se necesita un "leído" por cuenta (o una pantalla con todo el historial, hoy
+  limitado a los últimos 15), hace falta guardarlo en la base. La campana
+  consulta los avisos en cada pantalla que se dibuja (dos consultas chicas para
+  el personal, una para el comercio).
+
+## ADR-052: Calificación de la entrega en el seguimiento público
+
+- **Estado:** Aceptada (21/10/2026). Pedido del equipo (Trello).
+- **Contexto:** Rabbit sabía cuándo se entregaba un pedido pero no cómo había
+  sido la entrega para quien lo recibió. El seguimiento público ya es lo único
+  que ve esa persona (sin cuenta), así que es el lugar natural para preguntarlo.
+- **Decisión:** cuando el pedido está ENTREGADO, `seguimiento.xhtml` pregunta
+  "¿Cómo fue la entrega?": de 1 a 5 estrellas y un comentario opcional. Después
+  de enviarla, muestra lo que se calificó y ya no ofrece el formulario.
+  - **Dónde vive:** entidad nueva `CalificacionEntrega` (tabla
+    `calificaciones_entrega`, con `idPedido` único), por ID de pedido y no por
+    relación JPA, igual que el remito y las visitas fallidas. Operaciones públicas
+    `consultarCalificacion` y `calificarEntrega` en `ISeguimientoPedido`; la tabla
+    se agrega sola con `hibernate.hbm2ddl.auto=update`. Al eliminar un comercio se
+    borran también las calificaciones de sus pedidos.
+  - **Regla (`ReglaDeCalificacion`):** solo un pedido ENTREGADO; 1 a 5 estrellas;
+    comentario de hasta 500 caracteres, recortado y sin caracteres de control; un
+    comentario vacío no se guarda. Una sola calificación por pedido: se chequea y,
+    además, `idPedido` único cubre dos envíos a la vez.
+  - **Seguridad:** es la única escritura pública, así que es mínima: la autoriza el
+    código aleatorio, no se guarda quién calificó, el comentario se escapa siempre
+    al mostrarlo y no va al log (ver SEGURIDAD.md).
+  - **Estrellas sin JavaScript:** cinco radios HTML comunes con la etiqueta
+    dibujada como estrella (CSS), accesibles con teclado y con el nombre de cada
+    opción para el lector de pantalla. El código del pedido viaja en un campo oculto
+    porque en el envío del formulario el parámetro de la URL no se vuelve a leer.
+  - Recursos a `1_19`.
+- **Consecuencias:** no hay forma de corregir una calificación una vez enviada
+  (es a propósito: es una opinión sobre una entrega ya hecha). El promedio se ve en
+  Indicadores (21/10/2026): una tarjeta "Calificación de las entregas" para el personal y el
+  comercio, y dos columnas por repartidor (promedio y cantidad de calificadas). Solo cuentan
+  los pedidos entregados del período; sin calificaciones se muestra "—", no 0. Todavía no se
+  ve el comentario en las pantallas del comercio ni del personal. Un enlace de seguimiento compartido
+  permite calificar a quien lo tenga; es el mismo alcance que tiene ver el estado.
+
+## ADR-053: Retiro en depósito
+
+- **Estado:** Aceptada (21/10/2026). Pedido del equipo (Trello).
+- **Contexto:** todos los pedidos salían a reparto. Hay compradores que prefieren
+  pasar a buscar el pedido, y si el stock ya está en un depósito de Rabbit no tiene
+  sentido asignarle un repartidor ni armarle una ruta.
+- **Decisión:** el ERP manda `tipoEntrega = RETIRO_EN_DEPOSITO` (por defecto sigue
+  siendo `DOMICILIO`). El pedido no lleva dirección, ni repartidor, ni lista de
+  espera, ni pasa por Ruteo; queda "listo para retirar" al confirmarlo y se entrega
+  mostrando el código de seguimiento.
+  - **Modelo:** enum `TipoEntrega` y columna `tipoEntrega` en `Pedido` y `PedidoExterno`
+    (null = domicilio, para no tocar los pedidos existentes), más `Pedido.idDepositoRetiro`.
+  - **Reglas (`ReglaDeRetiro`):** solo con stock consignado (con punto de picking la
+    mercadería está en el comercio); todos los productos en el mismo depósito (si no,
+    422 explicando por qué); el código se compara sin importar mayúsculas ni espacios.
+    El depósito se determina al sincronizar, antes de reservar, con
+    `IConsultaStock.depositosPorItem`.
+  - **Estados:** `EstadoPedido.puedePasarA(destino, tipo)`: un retiro pasa de CONFIRMADO
+    a ENTREGADO directo y nunca por EN_CAMINO. `confirmarPedido` de un retiro solo cobra
+    (si es prepago) y confirma. `entregarEnDeposito(idPedido, código)` (ADMINISTRADOR u
+    OPERADOR) es la prueba de la entrega; al pasar a ENTREGADO se efectiviza el cobro
+    contra entrega como siempre. Despachar, registrar entrega con remito, derivar,
+    cotizar y devolver al depósito se rechazan con un mensaje claro, y `listarPendientes`
+    (lo que ve Ruteo) excluye los retiros.
+  - **Contrato:** `tipoEntrega` en la solicitud y en la respuesta; `direccionEntrega` pasa a
+    ser obligatoria solo a domicilio (restricción de clase que reporta el error en ese campo).
+    La huella de idempotencia distingue un retiro de un domicilio.
+  - **Quien compró lo ve:** seguimiento con tres pasos (Recibido → Listo para retirar →
+    Retirado), con el depósito y el código; los mails dicen "listo para retirar" en vez de
+    "ya tiene quién lo lleve".
+- **Vencimiento (10/11/2026):** un retiro que nadie busca no queda CONFIRMADO para siempre.
+  `VencimientoDeRetiros` (timer diario a las 04:10) busca los retiros CONFIRMADO con más de
+  21 días (`PlazoDeRetiro`, configurable con `rabbit.retiro.dias`) y cada uno, en su propia
+  transacción (`vencerRetiro`), vuelve al comercio: el stock consignado se repone, el pedido
+  pasa a DEVUELTO_AL_COMERCIO con el motivo "No se retiró del depósito en N días" y Pagos anula
+  el cobro al recibir el cambio por el tópico, como en ADR-041.
+- **Consecuencias:** mientras espera el retiro, las unidades siguen ocupando lugar y cuentan
+  para el cobro por almacenamiento (ADR-059). La prueba de entrega es solo el
+  código, más débil que la foto del remito; el código lo conoce quien tenga el enlace.
+
+## ADR-054: Mejoras de diseño visual
+
+- **Estado:** Aceptada (22/10/2026). Surge de una revisión del diseño de toda la aplicación.
+- **Contexto:** la revisión encontró contraste insuficiente (texto blanco sobre el naranja de la
+  marca: 2,8:1; el menú, 4,4:1), tablas muy anchas sin búsqueda, filtro ni orden, páginas
+  públicas con anchos y botones distintos, estados que dependían solo del color, y una
+  dependencia de Google Fonts en cada visita.
+- **Decisión** (todo es presentación; no cambia ninguna regla de negocio):
+  - **Contraste:** el texto de los botones naranjas pasa a azul marino (6,4:1; token
+    `--sobre-naranja`), los enlaces naranja usan `--acento-texto` (5,2:1) y el texto del menú
+    se aclara. Los temas claro y oscuro definen sus propios valores.
+  - **Páginas públicas:** login y seguimiento comparten ancho, botón y color de ayuda, y se
+    centran verticalmente.
+  - **Fuentes propias:** Inter y Barlow Condensed (latin y latin-ext) en `/fuentes`, sin pedir
+    nada a Google. Se sirven fuera de `resources` a propósito: la URL del CSS de JSF es
+    relativa a `/jakarta.faces.resource/`.
+  - **Tablas (`mejoras.js`):** encabezados con `scope`, nombre accesible, orden al hacer clic
+    (o con teclado), y en tablas de 6 filas o más, buscador, filtro por estado y vista
+    compacta que se recuerda. Todo se arma sobre lo que JSF ya dibuja y se repite tras un
+    AJAX; sin JavaScript la tabla se ve igual.
+  - **Accesibilidad:** los mensajes de error se anuncian (`role=alert`); los estados llevan un
+    símbolo además del color.
+  - **Ayuda plegable** ("Cómo funciona") en las pantallas con texto largo, y estados vacíos
+    con ícono.
+  - **Inicio del personal** (`personal/inicio.xhtml`, `InicioBean`): "Requiere atención"
+    (lista de espera, liquidaciones sin cobrar, devueltos, por confirmar, retiros) y un resumen
+    de la operación. Es la página a la que entra el personal.
+  - **Seguimiento:** tilde en los pasos hechos y, en un retiro listo, un recuadro con el
+    depósito y el código en grande.
+  - **Menú lateral sin scroll propio** (23/10/2026): al sumar opciones (Inicio, Recepción de mercadería) el menú del
+    administrador pasó a necesitar unos 820 px de alto y, en ventanas más bajas, la barra mostraba su propio
+    scroll. Ahora se compacta por escalones según la altura (hasta 840 px y hasta 740 px) y, por debajo de 640 px,
+    la barra se desplaza con la página en vez de tener scroll propio. Medido con el menú completo en alturas de
+    600 a 900 px: antes había scroll entre 660 y 800 px, ahora en ninguna. Recursos a `1_22`.
+  - Recursos a `1_20`.
+- **Consecuencias:** quedó afuera dividir el CSS (2.900 líneas) en archivos y unificar los pares
+  de colores de estado en una sola familia de tokens: se hace mejor con las pantallas a la vista.
+  La búsqueda y el filtro actúan sobre la página cargada, no sobre la base: con miles de
+  pedidos habrá que paginar en el servidor.
+
+## ADR-055: Prueba de entrega reforzada: código de 4 dígitos y ubicación
+
+- **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencias: Mercado Libre Flex
+  (código) y Onfleet (firma y ubicación).
+- **Contexto:** la única prueba de una entrega era la foto del remito. Una foto no demuestra
+  que quien recibió sea quien compró, ni dónde estaba el repartidor.
+- **Decisión:**
+  - **Código:** al salir a reparto con un repartidor de Rabbit (`despacharPedido`) se genera un
+    código de 4 dígitos (`CodigoDeEntrega`, `SecureRandom`) en `Pedido.codigoEntrega`. Viaja en el
+    mail de "en camino" a quien recibe. Para marcar la entrega el repartidor tiene que ingresarlo:
+    sin el código correcto no se puede. Un pedido sin código (anterior a este cambio, o de un
+    transportista) no lo pide.
+  - **Intentos:** son solo 10.000 combinaciones, así que se limitan a 5 por pedido
+    (`Pedido.intentosDeCodigo`). Para que el intento fallido quede contado, el error es una
+    `CodigoIncorrectoException` con `rollback = false` (el resto de las `ValidacionException` sí
+    deshacen la transacción). Agotados los intentos, ni el código correcto sirve: lo entrega un
+    administrador.
+  - **Contingencia:** un ADMINISTRADOR puede registrar la entrega sin código (es la pantalla
+    de Pedidos, para cuando el repartidor no pudo). El repartidor, no.
+  - **Dónde se ve el código:** solo en el mail. No va en `PedidoDTO` (lo ven el repartidor y el
+    seguimiento público), no se guarda en el aviso que ve el personal (se guarda la versión sin
+    código) y no está en ninguna pantalla ni en la API. Sale del servicio por un único camino,
+    `consultarCodigoDeEntrega`, que usa el aviso al destinatario.
+  - **Ubicación:** al abrir "Entregar pedido", el celular toma la posición y se guarda junto al
+    remito (`RemitoEntrega.latitud/longitud/precisionMetros`). Es opcional: sin permiso del
+    navegador la entrega se registra igual, sin ubicación (bloquearla dejaría pedidos trabados).
+    Se valida igual que la de una visita fallida (`EvidenciaDeVisita`). El personal la ve en
+    Pedidos, con un enlace a un mapa.
+- **Consecuencias:** el código es una prueba de presencia, no un secreto fuerte. Si el cliente
+  perdió el mail, el repartidor no puede entregar y el pedido lo cierra un administrador. La
+  ubicación se toma al abrir la ventana, no al enviar el formulario, y el navegador puede
+  darla imprecisa: por eso se guarda con su precisión. No se compara contra la dirección de
+  entrega (queda como mejora: marcar entregas lejos del domicilio).
+
+## ADR-056: Etiquetas con QR por bulto
+
+- **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencias: Andreani y Onfleet
+  (escaneo al retirar y al entregar).
+- **Contexto:** el repartidor retiraba marcando el pedido a mano en la pantalla. Una etiqueta pegada
+  en cada caja permite identificar el bulto y marcar el retiro con la cámara.
+- **Decisión:**
+  - **Bultos:** nuevo dato opcional `bultos` en el alta del pedido (1 a 99; por defecto 1), guardado
+    como `cantidadDeBultos`. No es `Pedido.getBultos()`, que ya existía y cuenta *unidades* para el
+    límite de carga del repartidor: 40 remeras pueden ir en 2 cajas.
+  - **Etiquetas:** `personal/etiquetas.xhtml?pedido=N` (botón "Etiquetas" en Pedidos, solo personal)
+    arma una etiqueta de 100×60 mm por bulto con QR, "BULTO 2 DE 3", código de seguimiento, dirección,
+    CP y quien recibe. El personal puede pedir otra cantidad (`&bultos=`) sin cambiar el pedido, por
+    ejemplo para reimprimir una. Se imprime desde el navegador (`@page` de 100×60 mm, una por hoja).
+  - **QR:** se dibuja en el navegador con `qrcode.js` (MIT, dentro del proyecto: no se pide nada a
+    internet). Lleva `…/escaneo.xhtml?codigo=RB-…`, armado con `rabbit.url-publica` si está definida
+    (lo impreso tiene que servir desde la calle). Verificado: un lector (jsQR) decodifica el link exacto.
+  - **Escaneo:** `escaneo.xhtml` no muestra nada, solo reparte: un repartidor con sesión va a
+    `repartidor/escaneo.xhtml` y cualquier otra persona, al seguimiento público. Esa pantalla busca el
+    código **solo entre las entregas del propio repartidor**: si el pedido no es suyo, no se muestra
+    nada de él. Si está por retirar, un botón marca el retiro (el mismo `despacharPedido` de siempre,
+    con sus controles).
+- **Consecuencias:** el QR contiene el código de seguimiento, que ya viaja en los mails y que da acceso
+  solo a lo que muestra el seguimiento público. Escanear un bulto marca el retiro de todo el pedido,
+  no de ese bulto: no se controla que estén todos. Un repartidor sin sesión que escanea llega al
+  seguimiento público, no al login; tiene que tener abierta su sesión. El escaneo al entregar sigue
+  siendo por Mis entregas (código de 4 dígitos y foto, ADR-055).
+
+## ADR-057: Opciones de quien recibe desde el seguimiento
+
+- **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencia: DHL On Demand Delivery.
+- **Contexto:** quien recibe el pedido solo podía mirarlo. No podía pedir otro día, avisar cómo
+  entrar al edificio ni autorizar a un vecino, y eso termina en visitas fallidas (ADR-041).
+- **Decisión:** un formulario en `seguimiento.xhtml` ("¿Querés cambiar algo de la entrega?") con tres
+  opciones, solo mientras el pedido no salió:
+  - **Reprogramar** el día, hasta 7 días desde hoy y nunca antes de lo ya prometido (adelantar no se
+    puede garantizar). Cambia `Pedido.fechaPrometida` y guarda la anterior en `fechaPrometidaOriginal`:
+    la métrica "a tiempo" (ADR-044) se mide contra el día que se reprogramó, y el personal ve que fue
+    reprogramado. No bloquea la confirmación antes de esa fecha: es un aviso visible (Pedidos y
+    la hoja de ruta), no una regla.
+  - **Instrucciones** ("dejar en portería", "tocar timbre 3B"): hasta 200 caracteres.
+  - **Persona autorizada:** solo un nombre (hasta 100).
+  El repartidor las ve en Mis entregas (`HojaDeRutaDTO`); el personal, en Pedidos.
+- **Cuándo se puede** (`ReglaDeOpcionesDeEntrega`): pedido a domicilio PENDIENTE, o CONFIRMADO con un
+  repartidor de Rabbit. No en un retiro en depósito, ni EN_CAMINO o resuelto, ni confirmado sin
+  repartidor (lo lleva una empresa de logística, a la que no se le pasan estos datos). Un PENDIENTE
+  después de una visita fallida sí puede: es justo cuando más sirve reprogramar.
+- **Seguridad:** es una escritura pública (la autoriza el código de seguimiento, como la calificación
+  del ADR-052), así que es mínima y acotada: tres datos cortos, texto de un tercero sin caracteres de
+  control y siempre escapado al mostrarlo, tope de 5 cambios por pedido, y nada de lo escrito va al log
+  (solo qué se cambió). Con el pedido bloqueado y el estado releído, si justo salió a reparto no se
+  cambia nada. **Autorizar a otra persona no reemplaza el código de entrega** (ADR-055): la persona
+  autorizada tiene que conocerlo para recibir el pedido, así que alguien que solo tenga el enlace no
+  se puede hacer pasar por quien recibe.
+- **Consecuencias:** quien tenga el enlace del seguimiento puede reprogramar o dejar instrucciones
+  (no puede recibir el pedido). Desde el 09/11/2026 cada cambio le manda un mail a quien recibe
+  con lo que quedó guardado (`EntregaModificada` → `AvisosPorMail`, por la bandeja de correos
+  de ADR-063): si el cambio lo hizo un tercero, quien recibe se entera. Reprogramar no
+  retiene el pedido hasta esa fecha: lo decide el personal al confirmar y asignar.
+
+## ADR-058: Órdenes de recepción de mercadería
+
+- **Estado:** Aceptada (22/10/2026). Pedido del equipo (Trello). Referencia: ShipBob (orden de
+  recepción con cantidades esperadas, recibidas y guardadas).
+- **Contexto:** el stock consignado lo cargaba el personal al verlo entrar, sin que el depósito supiera qué
+  esperar ni quedara registro de lo que faltó o sobró.
+- **Decisión:** el comercio anuncia la mercadería desde Mi stock (producto, cantidad y peso de una unidad, a
+  un depósito) y el personal registra lo que llegó, línea por línea, en `personal/recepciones.xhtml`.
+  - **Estados:** `ANUNCIADA` → `RECIBIDA` (no faltó nada) o `PARCIAL` (en alguna línea llegó menos). Agregué
+    `CANCELADA` (el comercio, o el personal si no llegó nada): sin ella una orden que nunca llega quedaría
+    anunciada para siempre. Todos menos ANUNCIADA son finales.
+  - **Stock:** al registrar la recepción se suma SOLO lo que llegó. Si el comercio ya tenía ese producto en
+    ese depósito se le suma a esa fila (una por producto, depósito y comercio); si no, se crea con el peso
+    del anuncio. Va en la misma transacción que el cambio de estado.
+  - **Diferencias:** cada línea guarda lo esperado y lo recibido; se ven en las dos pantallas ("Faltaron 3",
+    "Llegaron 2 de más"). Llegar de más no vuelve parcial la orden: se anota como diferencia.
+  - **Reglas (`ReglaDeRecepcion`):** de 1 a 50 productos sin repetir (sin importar mayúsculas), cantidad de 1
+    a 100.000, peso como en el alta de stock; al recibir hay que informar cada línea y no se registra una
+    recepción en la que no llegó nada (eso es cancelar).
+  - **Seguridad:** `anunciar` y `listarDelComercioActual` son del COMERCIO y siempre del comercio que llama (el
+    ID sale de la sesión, no del formulario); `cancelar` del comercio solo sirve para lo suyo; registrar la
+    recepción es del ADMINISTRADOR y el OPERADOR. La orden se lee con bloqueo, así dos registros a la vez no
+    suman el stock dos veces. No se puede eliminar un comercio con órdenes anunciadas.
+  - Tablas nuevas `ordenes_recepcion` y `lineas_recepcion` (las crea Hibernate al desplegar). El inicio del
+    personal avisa cuántas órdenes esperan mercadería. Recursos a `1_21`.
+- **Consecuencias:** la recepción se registra una sola vez: si lo que faltó llega después, el comercio
+  anuncia otra orden. Un comercio puede anunciar cualquier cosa (no hay catálogo): el nombre lo escribe él y
+  tiene que coincidir con el del stock para sumarse a la misma fila; si difiere en una letra se crea otra.
+  No se avisa por mail al personal ni al comercio de cada cambio. No se controlan lotes ni vencimientos.
+
+## ADR-059: Cobro por almacenamiento
+
+- **Estado:** Aceptada (22/10/2026). Precios por defecto fijados el 26/10/2026 ($10, $30 y $90). Pedido del equipo
+  (Trello). Referencia: Mercado Libre Full.
+- **Contexto:** Rabbit cobraba solo el reparto (ADR-034). El lugar que ocupa la mercadería en el depósito es otro
+  servicio, con otro costo, y un comercio con mucho stock que rota poco no pagaba nada por él.
+- **Decisión:** se **suma** al modelo actual (abono + envíos + kilos): el comercio paga por unidad y por día guardada,
+  según el tamaño del producto. Se hizo en dos entregas:
+  1. **Medidas y categoría (no cobra nada).** `ItemInventario` suma alto, ancho y largo de una unidad (cm), obligatorias
+     en el alta y opcionales al editar (las tres o ninguna; vacías = se conservan). La categoría (`CategoriaDeTamano`:
+     pequeño, mediano, grande o fuera de rango) **no se carga**: se deduce del peso y las medidas y manda la más grande
+     que le toque por cualquiera de sus datos. Límites "hasta" (inclusivos), configurables por system property. Un
+     producto sin medidas cuenta como **mediano** (o más, si lo pesa): no sale gratis por un dato faltante, y se marca
+     "medidas sin cargar". Lo fuera de rango no se acepta en consignación (ni al cargar stock ni al anunciar mercadería).
+  2. **Foto diaria y cargo.** Un timer (`FotoDiariaDeOcupacion`, 23:55) guarda en `ocupacion_diaria` cuántas unidades de
+     cada categoría tenía cada comercio ese día. Un día sin foto (WildFly apagado) se completa con la anterior
+     (`UnidadesDia`); el día de hoy, con lo que hay ahora, así la vista previa llega hasta hoy. Cuentan las unidades
+     disponibles, que ya incluyen las reservadas: una reservada sigue ocupando lugar hasta que sale. La liquidación guarda
+     las unidades-día de cada categoría y el cargo por almacenamiento, con los importes del momento, y el total lo suma.
+     Aparece como línea nueva en las dos liquidaciones (personal y comercio), también en la vista previa del mes en curso.
+- **Precios:** `rabbit.tarifa.almacenamiento.pequeno|mediano|grande`, **por defecto $10, $30 y $90** por unidad y por día
+  (ejemplo: 100 unidades pequeñas todo un mes de 30 días = 100 × 30 × $10 = $30.000). Se cambian sin redesplegar; con los tres
+  en 0 el almacenamiento no se cobra y la liquidación lo muestra en $0 junto con las unidades-día. Rangos por defecto: pequeño
+  hasta 1 kg, 25 cm y 3 L; mediano hasta 10 kg, 60 cm y 50 L; grande hasta 50 kg, 150 cm y 500 L; más que eso es fuera de rango.
+- **Días gratis y recargo por stock antiguo:** quedaron para después y se implementaron el 10/11/2026 (ver ADR-065).
+  Tampoco se decidió desde qué mes se cobra (se recomendó: el siguiente a cargar las medidas).
+- **Consecuencias:** al desplegar, todo el stock existente no tiene medidas y cuenta como mediano: conviene cargarlas antes de
+  poner precios. La mercadería que entra por una orden de recepción (ADR-058) llega sin medidas (el anuncio no las pide) y
+  también cuenta como mediana hasta que el personal las cargue. La primera foto es la del día del despliegue: lo anterior no
+  se reconstruye (los meses ya liquidados no cambian). La foto es del día y no del instante: una unidad que entra y sale entre
+  dos fotos no se cobra. Cobrar un mes con datos a medias sería injusto: como los precios ya vienen activos, conviene cargar las
+  medidas del stock existente antes de que se liquide el mes.
+
+## ADR-063: Bandeja de salida (outbox) para los avisos de estado
+
+- **Estado:** Aceptada (08/11/2026). Sale de los *Criterios de Testing* (Clase 15,
+  eje C: "se apaga el broker y no se pierden mensajes") y completa ADR-002 y ADR-009.
+- **Contexto:** `PublicadorEstadosPedido` mandaba el aviso al tópico después del commit
+  del cambio de estado, y si el broker estaba caído lo dejaba en un warning del log.
+  Pagos y Notificaciones se enteran por ese tópico, así que un pedido podía quedar
+  ENTREGADO con el cobro contra entrega sin acreditar y sin aviso al comercio ni a quien
+  recibe. A diferencia de la cola de pedidos externos, no había polling de respaldo
+  (ADR-002), y el estado no guarda historial para reconstruir qué avisos faltaron.
+- **Decisión:** el aviso se guarda en la tabla `eventos_estado_pedido`
+  (`EventoEstadoPedido`, `BandejaDeEstados`) **dentro de la misma transacción** que el
+  cambio de estado, con un observador de CDI durante la transacción. Si el cambio se
+  deshace, el aviso también. Después del commit (`AFTER_SUCCESS`) se manda lo pendiente
+  al tópico (`EnvioDeEstadosPendientes`) y cada aviso publicado se marca con
+  `publicadoEn`. Lo que no salió queda pendiente y un timer (cada 15 s) lo reenvía.
+  - **Orden:** se envía por id (el orden en que pasó) y la pasada se corta al primer
+    fallo: si el broker está caído, el resto también fallaría, y así se conserva el orden.
+  - **Sin duplicar dentro del servidor:** `EnvioDeEstadosPendientes` es `@Singleton` con
+    la concurrencia por defecto (`WRITE`), así que el camino rápido y el timer no se pisan.
+  - **Limpieza:** los publicados se borran a los 7 días (timer diario a las 03:20); sirven
+    para auditar. Cada aviso cuenta sus `intentosFallidos`.
+  - **Prioridades:** el registro (100) corre antes que el envío (200), por si no hay
+    transacción y CDI llama a los dos observadores en el momento.
+- **Alternativas descartadas:**
+  - *XA entre la base y el broker:* ya descartado en ADR-002; suma complejidad de
+    configuración (datasource XA, recuperación) para algo que la bandeja resuelve con una
+    tabla.
+  - *Polling de reconciliación sobre los pedidos:* no se guarda qué estados se avisaron,
+    así que habría que inventar ese dato igual.
+  - *Reintentar el envío en el momento:* no ayuda si el broker sigue caído un rato, y
+    demora la respuesta al usuario.
+- **Consecuencias:** el aviso llega **al menos una vez**: dos servidores sobre la misma
+  base podrían mandar el mismo, y un envío exitoso cuya marca falló se repite. Los tres
+  suscriptores lo toleran (ver ADR-006). Con el broker de vuelta, lo pendiente sale en
+  hasta 15 s. La bandeja suma una escritura por cambio de estado en la misma transacción.
+  Probado el 08/11/2026 con la aplicación en Docker: se forzó que el tópico rechazara
+  envíos, se dieron de alta pedidos (se crearon igual, con su aviso pendiente y los
+  reintentos contados) y, al restaurarlo, el timer los publicó y llegaron todas las
+  notificaciones. En los tests: `BandejaDeEstadosTest`, `EnvioDeEstadosPendientesTest` y
+  `PublicadorEstadosPedidoTest`.
+- **Extensión a los mails (10/11/2026):** los mails tenían el mismo problema: salían después
+  del commit y, si el servidor de correo no respondía, se perdían. Ahora `AvisosPorMail`
+  guarda cada mail en la tabla `correos_pendientes` (`CorreoPendiente`, `BandejaDeCorreos`)
+  **dentro de la transacción** del aviso y lo manda después del commit
+  (`EnvioDeCorreosPendientes`). Si el servidor no responde, el mail queda PENDIENTE y un
+  timer lo reintenta cada minuto; si rechaza la dirección para siempre, se DESCARTA y se
+  sigue con el siguiente. Un mail que lleva más de 24 horas esperando también se descarta
+  (un "llega hoy" al otro día confunde). Los enviados se borran al día siguiente y los
+  descartados a los 7 días (timer diario a las 03:40). Sin servidor SMTP configurado no se
+  guarda nada. Tests: `BandejaDeCorreosTest`, `EnvioDeCorreosPendientesTest`,
+  `CorreoPendienteRepositoryTest` y `AvisosPorMailTest`.
+
+## ADR-064: Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados
+
+- **Estado:** Aceptada (08/11/2026). Sale de los *Criterios de Testing* (Clase 15, eje C:
+  "mensaje inválido o que falla N veces termina en la DLQ, con registro y posibilidad de
+  reproceso").
+- **Contexto:** los cuatro consumidores (`PedidoExternoListener` y los tres suscriptores
+  del tópico) tragaban los mensajes que no podían interpretar: lo registraban en el log y
+  lo consumían, así que el mensaje se perdía y nunca llegaba a la DLQ. Los fallos
+  transitorios (la base caída un instante) ya se relanzaban para que el broker
+  reintentara, pero con los valores por defecto de WildFly (10 intentos seguidos, sin
+  espera) y sin que nada de eso estuviera configurado ni documentado.
+- **Decisión:**
+  - Un mensaje que no se puede leer (no es de texto, el JSON está roto, falta un campo)
+    lanza `MensajeIlegibleException`: la entrega se deshace y el broker la reintenta.
+  - `docker/wildfly/configurar.cli` fija en el address-setting `#` (alcanza a la cola y a
+    las suscripciones durables del tópico) `max-delivery-attempts=5` y
+    `redelivery-delay=2000`. Agotados los intentos, el mensaje pasa a `jms.queue.DLQ`
+    (que WildFly ya trae como dead-letter-address) con su cola de origen
+    (`_AMQ_ORIG_QUEUE`).
+  - `scripts/dlq.sh` lista lo que hay, lo reprocesa (lo devuelve a su cola de origen) o lo
+    descarta.
+  - Lo que **no** cambia: una `ValidacionException` (comercio de baja, sin stock) es un
+    resultado de negocio, no un fallo del transporte; sigue descartando la fila del pedido
+    externo con su motivo y consumiendo el mensaje, porque reintentarlo no lo arregla.
+- **Alternativas descartadas:**
+  - *Seguir consumiendo y logueando:* se pierde el mensaje y no hay nada que reprocesar.
+  - *Una DLQ por cola:* más configuración para el mismo resultado; con el setting `#` y el
+    dato de origen en cada mensaje alcanza.
+  - *Reproceso automático desde la DLQ:* un mensaje roto volvería a fallar en bucle; el
+    reproceso es una decisión de una persona después de ver la causa.
+- **Consecuencias:** un mensaje roto deja 5 errores en el log (uno por intento, con 2 s
+  entre sí) y después espera en la DLQ. Reprocesar sin corregir la causa lo devuelve a la
+  DLQ tras otros 5 intentos. Un fallo transitorio que dura más de unos 10 s pasa a la DLQ
+  en lugar de seguir reintentando (antes eran 10 intentos sin espera, o sea menos tiempo).
+  La configuración vive en la imagen de Docker: en un WildFly propio hay que correr
+  `/subsystem=messaging-activemq/server=default/address-setting=\#:write-attribute(name=max-delivery-attempts, value=5)`
+  y lo mismo con `redelivery-delay, value=2000`. Probado el 08/11/2026 con la aplicación
+  en Docker: un mensaje roto en la cola tuvo exactamente 5 intentos y quedó en la DLQ con
+  su cola de origen; `scripts/dlq.sh reprocesar` lo devolvió a la cola y, como seguía roto,
+  volvió a la DLQ; uno roto en el tópico llegó a la DLQ desde las suscripciones de
+  Notificaciones (la de Pagos filtra por estado y no lo recibe).
+
+## ADR-065: Días gratis y recargo por stock antiguo
+
+- **Estado:** Aceptada (10/11/2026). Completa ADR-059. **Los valores son una propuesta y el equipo tiene que
+  confirmarlos** (el pedido de Trello decía "confirmar precios"). Referencia: Mercado Libre Full.
+- **Contexto:** ADR-059 cobra por unidad y por día guardada, pero dejó afuera dos reglas: que la mercadería recién
+  ingresada no pague un tiempo, y que lo que lleva mucho sin venderse pague más. Faltaban los números.
+- **Decisión:** dos reglas sobre el cobro de almacenamiento, ambas **por producto** y no por lote:
+  1. **Días gratis (7).** Una unidad no se cobra durante los primeros 7 días desde el último ingreso de mercadería de su
+     producto (alta, recepción de una orden o corrección del stock hacia arriba). Cuenta desde `fechaUltimoIngreso`.
+  2. **Recargo por stock antiguo (50 % a los 120 días).** Un producto sin ingresos ni ventas durante 120 días paga lo
+     que le toca más un 50 %. Cuenta desde `fechaUltimoMovimiento`, que se actualiza al ingresar mercadería y al
+     confirmar una reserva (una venta). Bajar el stock a mano o devolver un pedido no la toca.
+  La foto diaria (ADR-059) guarda, además de las unidades de cada categoría, cuántas fueron gratis y cuántas llevaron
+  recargo (son parte del total, no se suman a él). La liquidación guarda esas unidades, lo que el comercio se ahorró y
+  lo que se le cobró de más, y las dos pantallas de liquidación los muestran junto con la política.
+- **Valores:** `rabbit.almacenamiento.dias-gratis` (7, con 0 no hay días gratis), `rabbit.almacenamiento.dias-recargo`
+  (120, con 0 no hay recargo) y `rabbit.tarifa.almacenamiento.recargo-stock-antiguo` (50, es un porcentaje). Se cambian
+  sin redesplegar; un valor inválido se ignora y se usa el de por defecto. La política vive en `PoliticaDeAlmacenamiento`
+  (Inventario) y el cálculo en `TarifaMensual` (Pagos), que no se mezclan.
+- **Consecuencias:** al desplegar, los productos que ya existían no tienen fechas: reciben su fecha de movimiento en la
+  primera foto diaria (**sin recargo retroactivo**) y no tienen días gratis hasta su próximo ingreso. Por ser por producto,
+  una recepción nueva reinicia los 7 días de **todas** las unidades de ese producto, incluidas las viejas; hacerlo exacto
+  unidad por unidad exige llevar cada lote y hoy no se justifica. Un producto en sus días gratis nunca lleva recargo.
+  Las liquidaciones de antes de este cambio muestran los nuevos campos en cero. Probado en WildFly con productos de
+  fechas atrasadas (500 unidades gratis y 300 con recargo en la foto) y con tests unitarios.
+
+
+## ADR-066: Gateway de IA para clasificar los comentarios de las calificaciones
+
+- **Estado:** Retirada de `dev` (11/11/2026). La funcionalidad de IA se trabaja aparte, en la rama `AI-GateWay`, y no
+  está en `dev`. Se aceptó el 10/11/2026 (pedido de la cátedra: la funcionalidad de IA es obligatoria y la llamada al
+  modelo tiene que pasar por una capa propia, con desacople del proveedor, timeout de 5 s con fallback y validación de
+  entrada y salida). En la rama se está reemplazando la clasificación de comentarios por indicaciones para el repartidor
+  sacadas de las instrucciones de entrega. Cuando vuelva a `dev`, esta ADR se actualiza con la decisión final.
+
+## ADR-067: Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT)
+
+- **Estado:** Aceptada (10/11/2026). La cátedra confirmó por Teams que JWT no es obligatorio si se cumplen las condiciones
+  de abajo y la decisión queda documentada.
+- **Contexto:** el diseño pedía autenticación con JWT y control de acceso por rol. Rabbit tiene dos tipos de clientes: personas
+  con un navegador (personal, comercios y repartidores) y el sistema del comercio (ERP), que llama a la API con usuario y clave.
+- **Decisión:** **no usar JWT.** La web usa sesión del lado del servidor con login por formulario del contenedor (WildFly), y
+  la API REST usa HTTP Basic con el rol `ERP`. Es el mecanismo estándar del servidor de aplicaciones, con una sola
+  implementación de autenticación y autorización (declarativa, `web.xml` y `@RolesAllowed`) y sin código propio de firma ni
+  de renovación de tokens, que sería un riesgo de seguridad por sí mismo.
+- **Las condiciones y dónde se cumplen:**
+  1. **Todo por HTTPS:** `transport-guarantee CONFIDENTIAL`; con Basic, sin TLS las credenciales viajarían en cada request (ADR-019).
+  2. **Contraseñas con hash:** bcrypt, en la tabla `usuarios` (ADR-031); un paso del CI verifica que no quede otro hash (SEG-04).
+  3. **Cookie de sesión** `HttpOnly`, `Secure` y `SameSite=Lax` (`web.xml` y `undertow-handlers.conf`), solo en cookie y nunca en la
+     URL; el ID se **regenera al loguearse** (`changeSessionId`); **expira a los 30 minutos** de inactividad
+     (`session-timeout`) y hay **logout** que la invalida. Probado en el E2E SEG-3.
+  4. **CSRF:** los formularios de la web llevan el `ViewState` de JSF, que hace de token anti-CSRF por vista y por sesión (y
+     la vista vencida vuelve al login, SEG-4). La API con Basic no usa cookie de sesión, así que no es atacable por CSRF.
+  5. **Credenciales del ERP sin hardcodear:** salen de variables de entorno (`.env`) y la semilla las guarda como bcrypt.
+  6. **Rol validado en el backend en cada operación:** `@RolesAllowed` en los EJB y restricciones de seguridad en el `web.xml`;
+     la vista oculta botones pero no es la barrera. Probado con BOLA/BFLA en `SeguridadIT` y el E2E-5.
+  7. **ADR y matriz:** este documento, y la fila de JWT del informe de seguridad lo referencia.
+- **Consecuencias:** las pruebas de JWT de los criterios (vencido, firma alterada, `alg=none`) no aplican; se cubren con su
+  equivalente (Bearer, Basic mal formado y otros esquemas devuelven 401: `SeguridadIT`). Si más adelante hubiera clientes
+  móviles o de terceros que necesiten tokens, habría que sumar un emisor de tokens para la API y migrar a los consumidores
+  (Newman, Schemathesis, ZAP, k6 y los tests de integración mandan Basic hoy).
+
+## ADR-060: Fabricación pura para las reglas del pedido
+
+- **Estado:** Aceptada. Documentada en la entrega de la Clase 12 (26/10/2026); patrón GRASP *Fabricación pura*.
+- **Contexto:** las reglas sobre qué se puede hacer con un pedido (cuándo se cancela, cuándo se puede calificar, cómo
+  se retira en el depósito) cambian seguido. Si viven en el servicio principal, cada cambio toca la clase más grande del
+  sistema.
+- **Decisión:** cada regla es una clase chica, sin estado ni dependencias del servidor: `ReglaDeCancelacion`,
+  `ReglaDeCalificacion`, `ReglaDeOpcionesDeEntrega` y `ReglaDeRetiro` (en `pedidos/negocio`). La usan por igual el personal
+  (web) y el ERP (API).
+- **Consecuencias:** se prueban sin servidor ni base; un cambio de regla toca una sola clase; personal y ERP aplican la
+  misma regla. Al ser estáticas no se pueden reemplazar.
+- **Descartado:** ponerlas en la entidad `Pedido` (la llenaría de mensajes de pantalla), dejarlas en el servicio principal
+  o guardarlas en la base de datos.
+
+
+## ADR-061: State para el ciclo de vida del pedido
+
+- **Estado:** Aceptada e implementada (26/10/2026). Completa y en parte reemplaza a ADR-005, que dejó la máquina de estados
+  en el enum; patrón GoF *State*.
+- **Contexto:** el pedido tiene seis estados y diez transiciones. Una tabla decía si se podía pasar de un estado a otro, pero
+  lo que cada estado permite o provoca estaba repartido en varios lugares. Entre el 16 y el 21/10 el ciclo cambió cuatro veces.
+- **Decisión:** una clase por estado detrás de una interfaz común sellada: `EstadoDelPedido` y `Pendiente`, `Confirmado`,
+  `EnCamino`, `Entregado`, `Cancelado` y `DevueltoAlComercio` (en `pedidos/datos/model`). Cada estado implementa solo lo que
+  permite y rechaza el resto con `TransicionInvalidaException`; los efectos de entrar a un estado están en `alEntrar`.
+  `Pedido` delega en su estado, `PedidoService.aplicar` es el único lugar que cambia el estado y la base guarda el mismo
+  valor de antes (el enum `EstadoPedido`). **La API del ERP responde 409 Conflict** ante una acción no permitida
+  (`TransicionNoPermitidaException`; prueba `TransicionesInvalidasDevuelven409Test`).
+- **Consecuencias:** un estado nuevo es una clase nueva y las reglas de cada estado están en un solo lugar. Hay más clases
+  para solo seis estados. Los mensajes de "por qué no se puede cancelar" también viven en cada estado
+  (`motivoParaNoCancelar`, `queLeQuedaAlErp`).
+- **Descartado:** dejar la tabla del enum (no dice qué provoca cada estado), un enum con métodos por constante (mezcla
+  persistencia con reglas y los estados consultan el pedido, por el retiro en depósito) y una librería de máquinas de estados
+  (una dependencia para seis estados).
+
+
+## ADR-062: Adapter para los transportistas externos
+
+- **Estado:** Aceptada. Documentada en la entrega de la Clase 12 (26/10/2026); patrón GoF *Adapter*. Detalle de la
+  integración en ADR-016.
+- **Contexto:** Rabbit deriva pedidos a transportistas con dos tecnologías, REST y SOAP, cada una con su formato y su
+  vocabulario de estados. El negocio no puede depender de esas diferencias ni caerse si un transportista no responde.
+- **Decisión:** una interfaz común, `IAdaptadorTransportista` (solicitar, cotizar, consultar estado y cancelar), y un adaptador
+  por tecnología: `AdaptadorRestTransportista` y `AdaptadorSoapTransportista` (en `integracion/transportistas`). Cada adaptador
+  traduce formato y estados, corta a los 5 segundos e informa la falta de respuesta como resultado, no como error. Un único
+  punto elige el adaptador: `AdaptadoresTransportista.para`.
+- **Consecuencias:** pasar un transportista de SOAP a REST no toca el negocio, una tecnología nueva es una clase nueva y,
+  si un transportista no responde, el flujo sigue. El selector usa una condición simple (mejora propuesta en la auditoría SOLID).
+- **Descartado:** un cliente distinto en cada servicio (se copia y se pega), llamar directo a las clases generadas del SOAP
+  y una sola clase con un `if` por tecnología.
+
+
+## ADR-068: Un repositorio (DAO) por componente
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *Repository / DAO*.
+- **Contexto:** las reglas de negocio no deberían depender de JPQL ni del `EntityManager`.
+- **Decisión:** cada componente tiene su repositorio principal (`ComercioRepository`, `InventarioRepository`,
+  `PedidoRepository`, `CobroRepository`, `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`,
+  `TransportistaRepository`, `ZonaRepository`) y, cuando una tabla tiene un uso propio, uno más dentro del mismo
+  componente: `EventoEstadoRepository` (Pedidos, bandeja de salida, ADR-063), `LiquidacionRepository` (Pagos, ADR-034),
+  `CorreoPendienteRepository` (Notificaciones, bandeja de correos) y `CoordenadaRepository` (Ruteo, caché de
+  coordenadas, ADR-046). Son 13 y son las **únicas clases de negocio que tocan el `EntityManager`**; las otras dos
+  son técnicas y corren al desplegar (`AlineadorDeRestriccionesEnum` y `LimpiezaDeCredenciales`). También encapsula decisiones de acceso, como el
+  bloqueo `PESSIMISTIC_WRITE`.
+- **Consecuencias:** las reglas se leen sin consultas mezcladas y los EJB se prueban con el repositorio simulado.
+- **Descartado:** usar el `EntityManager` directo en los EJB (mezcla consultas con reglas).
+
+
+## ADR-069: DTO entre capas y componentes
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *DTO*.
+- **Contexto:** exponer entidades JPA a la vista o a otro componente acopla todo al esquema y rompe con carga perezosa fuera
+  de la transacción.
+- **Decisión:** los objetos que cruzan capas y componentes son DTO (`dto/` de cada componente). Entrada `Datos*DTO`, salida
+  `*DTO` con `desde(entidad)`. En el borde de la API REST, `PedidoExternoRequest` es el contrato público del alta, separado
+  de `DatosPedidoExternoDTO` (el del formulario JSF): lleva las reglas de Bean Validation, no tiene `idComercio` y se convierte
+  con `aDatos()` antes de llegar al negocio.
+- **Consecuencias:** hay que escribir las conversiones, a cambio de que la vista y la API no vean entidades y de que un campo
+  que no debe llegar (mass assignment) no tenga por dónde entrar.
+- **Descartado:** pasar entidades JPA a la vista o a otros componentes.
+
+
+## ADR-070: Facade en la entrada de cada componente
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *Facade*.
+- **Contexto:** sincronizar un pedido coordina tres componentes (validar comercio, reservar stock, crear el pedido); quien lo
+  dispara no debería conocer esa coordinación.
+- **Decisión:** cada componente expone interfaces `@Local` que esconden su coordinación interna: `IGestionPedidos` /
+  `PedidoService` y, con la misma idea, `IRegistroComercios`, `IConsultaStock` e `IRegistroUsuarios`.
+- **Consecuencias:** la cola (MDB) y el polling (timer) llaman al mismo `sincronizarPedidoExterno`, y la pantalla y la API REST
+  al mismo `registrarPedidoExterno`: la regla no se duplica. A cambio, `PedidoService` crece (ver la auditoría SOLID, principio S).
+- **Descartado:** que cada cliente (cola, timer, pantalla, API) coordine por su cuenta los componentes.
+
+
+## ADR-071: Tareas periódicas y estado compartido como Singleton
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *Singleton* (del contenedor).
+- **Contexto:** una tarea periódica corriendo en varias instancias a la vez procesaría las mismas filas dos veces, y el estado
+  del circuit breaker tiene que ser uno solo para todas las llamadas al banco.
+- **Decisión:** `@Singleton @Startup` del contenedor, con `@Schedule` para las tareas: `BarredorDeReservas`,
+  `SincronizadorDePedidos`, `SeguimientoDeEnvios`, `AsignadorDeEspera` (ADR-037), `EnvioDeEstadosPendientes` y
+  `EnvioDeCorreosPendientes` (ADR-063), `LiquidacionMensual` (ADR-034), `FotoDiariaDeOcupacion` (ADR-059),
+  `VencimientoDeRetiros` (ADR-053), `Geocodificador` (ADR-046), `AlineadorDeRestriccionesEnum` y
+  `LimpiezaDeCredenciales` (corren una vez al desplegar), `AvisosDeEspera` (ADR-037) y `CircuitBreakerBanco` (ADR-011).
+  Son 14.
+- **Consecuencias:** cada tarea corre en una sola pasada a la vez. Con varios nodos habría que coordinar las tareas (hoy hay uno).
+- **Descartado:** tareas en `@Stateless` (una por instancia del pool) y estado del circuit breaker por llamada.
+
+
+## ADR-072: Provider (`Instance<T>`) para el EJB stateful de la reserva
+
+- **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *Provider* (fábrica con `Instance<T>`).
+- **Contexto:** `PedidoService` es stateless y usa `IReservaStock`, que es stateful (ADR-026 y ADR-027). Inyectarlo como campo
+  compartiría una misma conversación entre pedidos procesados en paralelo.
+- **Decisión:** `PedidoService.reservaProvider`: `get()` crea una instancia nueva por línea de pedido y `destroy()` la descarta.
+- **Consecuencias:** cada reserva tiene su propia conversación y no se cruzan entre pedidos. A cambio, hay que acordarse de destruir
+  la instancia.
+- **Descartado:** inyectar `IReservaStock` como campo del servicio.
