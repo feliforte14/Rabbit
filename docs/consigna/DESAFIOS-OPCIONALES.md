@@ -42,6 +42,12 @@ resto, y que el sistema se recupere solo cuando la falla termina.
 - **Un mensaje llega dos veces**
   - Qué pasa en Rabbit: Se procesa una sola vez
   - Mecanismo: Sincronización y cobro contra entrega idempotentes
+- **El broker falla al publicar un cambio de estado**
+  - Qué pasa en Rabbit: El aviso no se pierde: sale apenas el broker vuelve, y con él el cobro contra entrega y la notificación
+  - Mecanismo: Bandeja de salida (`eventos_estado_pedido`, guardada en la misma transacción que el cambio de estado) y reenvío cada 15 s
+- **El servidor de correo no responde**
+  - Qué pasa en Rabbit: El aviso queda en el portal y el mail sale cuando el servidor vuelve (hasta 24 horas después)
+  - Mecanismo: Bandeja de correos (`BandejaDeCorreos`) y reintento cada minuto (`EnvioDeCorreosPendientes`)
 
 ### El circuit breaker, en detalle
 
@@ -187,10 +193,12 @@ en 10. Ninguna corrida tuvo errores ni pedidos descartados.
   - Hilos que procesaron: 8
   - Mejora: **x6,3**
 
+Qué mide cada columna:
+
 - **Tiempo total:** desde que se reanuda la cola hasta que se sincroniza
   el último pedido.
 - **Espera:** cuánto tarda cada pedido en quedar sincronizado desde que se
-  reanuda la cola; p95 es la espera del 95 % más rápido.
+  reanuda la cola; p95 es la espera que no superó el 95 % de los pedidos.
 - **Hilos que procesaron:** confirma que el paralelismo fue real (tantos
   hilos como consumidores).
 
@@ -278,6 +286,12 @@ perdido. A cambio hay dos disparadores sobre la misma fila, y por eso la
 sincronización bloquea la fila y es idempotente. Esta misma decisión es
 la que permite escalar el consumidor (sección 2).
 
+En la cola el outbox no hacía falta porque la tabla `pedidos_externos` ya
+cumple ese papel: el polling la recorre. El tópico de cambios de estado no
+tenía una tabla así, y ahí sí se usa una bandeja de salida
+(`eventos_estado_pedido`): si el broker falla, el aviso se reenvía y no se
+pierde el cobro contra entrega.
+
 ### ADR-010: Cobro por SOAP en un banco legado, con reversa compensatoria
 
 **Contexto.** Para confirmar un pedido prepago hay que cobrarlo en un
@@ -311,7 +325,7 @@ banco agota los hilos del servidor y afecta al resto de la plataforma.
 cada llamada. Tras 3 fallas seguidas se abre y se contesta "banco no
 disponible" al instante; a los 30 s deja pasar una llamada de prueba.
 
-- `@CircuitBreaker` de MicroProfile Fault Tolerance: No viene en la configuración `standalone-full` de WildFly que usa Rabbit; habría que cambiar de configuración solo por esto
+- **`@CircuitBreaker` de MicroProfile Fault Tolerance**: No viene en la configuración `standalone-full` de WildFly que usa Rabbit; habría que cambiar de configuración solo por esto
 - **Solo el timeout (lo que había)**: Protege un pedido, pero no evita que muchos pedidos juntos agoten los hilos
 - **Reintentar automáticamente**: Con el banco caído multiplica la carga y la espera; y reintentar un cobro sin clave de idempotencia puede cobrar dos veces
 - **Bulkhead (limitar las llamadas simultáneas al banco)**: Contiene el daño pero igual hace esperar a cada usuario el timeout completo; el circuit breaker corta la espera

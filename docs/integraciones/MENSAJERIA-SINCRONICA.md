@@ -168,6 +168,8 @@ no por aviso: un transportista legado no avisa (ver ADR-016).
   - Endpoint del simulado: `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl`
   - Estados que usa: `RECIBIDO`, `EN_VIAJE`, `ENTREGADO`, `ANULADO`
 
+Las clases que intervienen:
+
 - `IAdaptadorTransportista`: Contrato común: `cotizarEnvio`, `solicitarEnvio`, `consultarEstado`, `cancelarEnvio`
 - `AdaptadorRestTransportista`: Cliente JAX-RS, timeout de 5 s; 201 → tomado, 422 → rechazado; cotización: 200 → precio y plazo
 - `AdaptadorSoapTransportista`: Proxy JAX-WS desde el WSDL, timeout de 5 s; el fault `EnvioRechazado` → rechazado; no cotiza (el WSDL no tiene esa operación)
@@ -369,11 +371,15 @@ Ruteo ubica el pedido en su zona (ADR-017).
   negocio confirma su propia transacción, así un error al confirmar llega
   al recurso y se responde bien.
 
+### Clases de la API
+
 - `ApiRest`: Activa JAX-RS bajo `/Rabbit/api`
 - `PedidosExternosResource`: Endpoints del ERP; delega en `IGestionPedidos` / `ISeguimientoPedido`
 - `PedidoExternoRequest`: Cuerpo del alta, con Bean Validation
 - `SeguimientoResource`: Endpoint público de seguimiento
 - `Problema` / `ProblemaMapper`: Errores en Problem Details
+
+### Por qué sincrónico y por qué REST
 
 - **Por qué sincrónico:** el ERP necesita saber en el momento si Rabbit
   aceptó el pedido (validación de datos) y con qué ID. La **conversión**
@@ -404,16 +410,18 @@ sequenceDiagram
         API->>PS: registrarPedidoExterno(datos, clave)
         alt la clave ya se usó con el mismo pedido (reintento)
             PS-->>API: id del pedido externo existente
+            API-->>ERP: 201 Created + Location (el mismo pedido, no se duplica)
         else regla de negocio violada
             PS-->>API: ValidacionException
             API-->>ERP: 422 problem+json
         else pedido nuevo
             PS->>PS: INSERT pedidos_externos (comercio de la cuenta ERP)
             PS-)Q: aviso (después del commit)
+            PS-->>API: id del pedido externo nuevo
+            API-->>ERP: 201 Created + Location {resultado: Pendiente, _links}
+            Q-)MDB: onMessage
+            MDB->>PS: sincronizarPedidoExterno
         end
-        API-->>ERP: 201 Created + Location {resultado: Pendiente, _links}
-        Q-)MDB: onMessage
-        MDB->>PS: sincronizarPedidoExterno
     end
     ERP->>API: GET /api/v1/pedidos-externos/{id}
     API-->>ERP: 200 {resultado: Sincronizado, estadoPedido, codigoSeguimiento, _links}

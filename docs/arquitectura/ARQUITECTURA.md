@@ -22,8 +22,8 @@ sentido: **Presentación → Negocio → Datos**.
   - Responsabilidad: Objetos que cruzan capas y componentes
   - Paquete: `dto/`
 
-**Por qué así:** la vista nunca ve entidades JPA (evita
-`LazyInitializationException` y acopla la vista al esquema), y las reglas
+**Por qué así:** la vista nunca ve entidades JPA (así se evitan la
+`LazyInitializationException` y que la vista quede acoplada al esquema), y las reglas
 viven en un solo lugar (el EJB), sin importar si las invoca una pantalla,
 un timer o un MDB.
 
@@ -93,105 +93,89 @@ otro componente. Las referencias entre componentes se guardan como IDs
 ### Operaciones por componente (implementado)
 
 - **Comercios**
-  - Interfaz: `IRegistroComercios`
-  - Operaciones: `registrarComercio`, `actualizarDatosFiscales`, `darDeBajaComercio`, `reactivarComercio`, `eliminarComercio`, `registrarPuntoPicking`, `darDeBajaPuntoPicking`, `reactivarPuntoPicking`
-  - Quién la usa: `ComercioBean`, `PuntoPickingBean`
-- **Comercios**
-  - Interfaz: `IConsultaComercios`
-  - Operaciones: `obtenerComercio`, `listarTodos`, `listarPuntosPicking`, `listarPuntosPickingDeComercio`, `validarComercioActivo`
-  - Quién la usa: Vistas, Inventario, Pedidos, Ruteo, Seguridad (`UsuarioService`, `SesionBean`)
+  - `IRegistroComercios`
+    - Operaciones: `registrarComercio`, `actualizarDatosFiscales`, `darDeBajaComercio`, `reactivarComercio`, `eliminarComercio`, `registrarPuntoPicking`, `darDeBajaPuntoPicking`, `reactivarPuntoPicking`
+    - Quién la usa: `ComercioBean`, `PuntoPickingBean`
+  - `IConsultaComercios`
+    - Operaciones: `obtenerComercio`, `listarTodos`, `listarPuntosPicking`, `listarPuntosPickingDeComercio`, `validarComercioActivo`
+    - Quién la usa: Vistas, Inventario, Pedidos, Ruteo, Seguridad (`UsuarioService`, `SesionBean`)
 - **Inventario**
-  - Interfaz: `IConsultaStock`
-  - Operaciones: `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `actualizarItem`, `eliminarItem` (solo administrador, ADR-049), `listarItemsPorDeposito`, `listarItemsPorComercio`, `listarItemsPorComercioYDeposito`, `listarItemsPorIds`, `pesosPorItem` (sin rol, ADR-032), `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas`, `depositosPorItem`, `marcarBaseDeSalida`
-  - Quién la usa: `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Pedidos, Ruteo
-- **Inventario**
-  - Interfaz: `IReservaStock`
-  - Operaciones: `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion`
-  - Quién la usa: `ReservaBean`, Pedidos
-- **Inventario**
-  - Interfaz: `IRecepcionDeMercaderia` (ADR-058)
-  - Operaciones: `anunciar` (el comercio anuncia la mercadería que va a mandar), `registrarRecepcion` (el personal la recibe y la suma al stock, con la fecha de ingreso de ADR-065), `contarAnunciadas`, `listarDelComercioActual`, `listarTodas`, `obtener`
-  - Quién la usa: las pantallas de recepción del comercio y del personal
-- **Inventario**
-  - Interfaz: `IOcupacionDeDeposito` (ADR-059 y ADR-065)
-  - Operaciones: `tomarFoto` (la foto diaria de las 23:55: unidades por categoría, cuántas gratis y cuántas con recargo), `ocupacionDelMes`, `ocupacionDelMesDelComercioActual`, `fechaDeLaUltimaFoto`
-  - Quién la usa: Pagos (la liquidación mensual) y la pantalla de liquidaciones
+  - `IConsultaStock`
+    - Operaciones: `registrarDeposito`, `listarDepositos`, `obtenerDeposito`, `listarDepositosConStock`, `registrarItem`, `actualizarItem`, `eliminarItem` (solo administrador, ADR-049), `listarItemsPorDeposito`, `listarItemsPorComercio`, `listarItemsPorComercioYDeposito`, `listarItemsPorIds`, `pesosPorItem` (sin rol, ADR-032), `listarStockDelComercioActual`, `consultarDisponibilidad`, `listarHistorialReservas`, `depositosPorItem`, `marcarBaseDeSalida`
+    - Quién la usa: `DepositoBean`, `ItemInventarioBean`, `HistorialReservasBean`, `PedidoBean`, `PortalComercioBean`, Pedidos, Ruteo
+  - `IReservaStock`
+    - Operaciones: `reservarStock`, `confirmarReserva`, `liberarReserva`, `extenderReserva`, `obtenerReservaActual`, `hayReservaVigente`, `registrarDevolucion`
+    - Quién la usa: `ReservaBean`, Pedidos
+  - `IRecepcionDeMercaderia` (ADR-058)
+    - Operaciones: `anunciar` (el comercio anuncia la mercadería que va a mandar), `registrarRecepcion` (el personal la recibe y la suma al stock, con la fecha de ingreso de ADR-065), `contarAnunciadas`, `listarDelComercioActual`, `listarTodas`, `obtener`
+    - Quién la usa: las pantallas de recepción del comercio y del personal
+  - `IOcupacionDeDeposito` (ADR-059 y ADR-065)
+    - Operaciones: `tomarFoto` (la foto diaria de las 23:55: unidades por categoría, cuántas gratis y cuántas con recargo), `ocupacionDelMes`, `ocupacionDelMesDelComercioActual`, `fechaDeLaUltimaFoto`
+    - Quién la usa: Pagos (la liquidación mensual) y la pantalla de liquidaciones
 - **Pedidos**
-  - Interfaz: `IGestionPedidos`
-  - Operaciones: `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona` (null = quedó en lista de espera), `asignarDesdeEspera`, `sacarDeEspera`, `devolverADeposito` (motivo fijo e intentos: ADR-037 y 041), `listarIntentosDeEntrega` y `obtenerFotoDeVisita` (evidencia de cada visita, ADR-045), `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido`, `entregarEnDeposito`, `idsDeRetirosVencidos` y `vencerRetiro` (retiro en depósito y su vencimiento a los 21 días, ADR-053)
-  - Quién la usa: `PedidoBean`, `MisEntregasBean`, `RemitoServlet`, Ruteo, MDB, timer
-- **Pedidos**
-  - Interfaz: `ISeguimientoPedido`
-  - Operaciones: `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `consultarSeguimiento`, `consultarCalificacion` y `calificarEntrega` (públicas, ADR-052; un comentario dispara la clasificación del gateway de IA, ADR-066), `consultarCodigoDeEntrega` y `consultarUbicacionDeEntrega` (ADR-055), `modificarEntrega` (pública, ADR-057), `listarPendientes`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual`, `listarEntregasEnCursoDeRepartidor` (ADR-043), `resumenEntregas`, `resumenEntregasDelComercioActual` (ADR-034)
-  - Quién la usa: `PedidoBean`, `PortalComercioBean`, Ruteo, Pagos, Notificaciones, API REST
-- **Pedidos**
-  - Interfaz: `IIndicadores`
-  - Operaciones: `calcular` (personal: toda la red o un comercio), `calcularDelComercioActual` (ADR-044)
-  - Quién la usa: `IndicadoresBean`
-- **Notificaciones**
-  - Interfaz: `IAvisosAlDestinatario`
-  - Operaciones: `avisar`, `listarRecientes` (ADR-040)
-  - Quién la usa: `SuscriptorDestinatarioEstadoPedido`, `CampanaBean`
+  - `IGestionPedidos`
+    - Operaciones: `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona` (null = quedó en lista de espera), `asignarDesdeEspera`, `sacarDeEspera`, `devolverADeposito` (motivo fijo e intentos: ADR-037 y 041), `listarIntentosDeEntrega` y `obtenerFotoDeVisita` (evidencia de cada visita, ADR-045), `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido`, `entregarEnDeposito`, `idsDeRetirosVencidos` y `vencerRetiro` (retiro en depósito y su vencimiento a los 21 días, ADR-053)
+    - Quién la usa: `PedidoBean`, `MisEntregasBean`, `RemitoServlet`, Ruteo, MDB, timer
+  - `ISeguimientoPedido`
+    - Operaciones: `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `consultarSeguimiento`, `consultarCalificacion` y `calificarEntrega` (públicas, ADR-052; un comentario dispara la clasificación del gateway de IA, ADR-066), `consultarCodigoDeEntrega` y `consultarUbicacionDeEntrega` (ADR-055), `modificarEntrega` (pública, ADR-057), `listarPendientes`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual`, `listarEntregasEnCursoDeRepartidor` (ADR-043), `resumenEntregas`, `resumenEntregasDelComercioActual` (ADR-034)
+    - Quién la usa: `PedidoBean`, `PortalComercioBean`, Ruteo, Pagos, Notificaciones, API REST
+  - `IIndicadores`
+    - Operaciones: `calcular` (personal: toda la red o un comercio), `calcularDelComercioActual` (ADR-044)
+    - Quién la usa: `IndicadoresBean`
 - **Seguridad**
-  - Interfaz: `IRegistroUsuarios`
-  - Operaciones: `registrarUsuario`, `darDeBaja`, `reactivarUsuario`, `restablecerClave` (ADR-031), `eliminarUsuario` (ADR-036)
-  - Quién la usa: `UsuarioBean`
-- **Seguridad**
-  - Interfaz: `IConsultaUsuarios`
-  - Operaciones: `listarTodos`, `obtenerUsuario`
-  - Quién la usa: `UsuarioBean`
-- **Seguridad**
-  - Interfaz: `IContextoUsuario`
-  - Operaciones: `idComercioActual`, `idRepartidorActual`
-  - Quién la usa: Pedidos, Inventario, Comercios, Notificaciones, `SesionBean`
-- **Transportistas**
-  - Interfaz: `IGestionTransportistas`
-  - Operaciones: `registrarTransportista`, `darDeBajaTransportista`, `reactivarTransportista`, `listarTodos`, `listarActivos`
-  - Quién la usa: `TransportistaBean`, `PedidoBean`, `SeguimientoDeEnvios`
-- **Transportistas**
-  - Interfaz: `IEnvios`
-  - Operaciones: `solicitarEnvio`, `cotizarEnvio`, `cancelarEnvioDePedido`, `listarEnvios`, `listarEnviosDelComercioActual`
-  - Quién la usa: Pedidos, Ruteo, `PedidoBean`, `TransportistaBean`, `PortalComercioBean`
-- **Transportistas**
-  - Interfaz: `ISeguimientoEnvios`
-  - Operaciones: `listarEnviosActivos`, `registrarNovedad`
-  - Quién la usa: `SeguimientoDeEnvios` (interna del componente)
-- **Ruteo**
-  - Interfaz: `IRuteo`
-  - Operaciones: `listarEntregasEnCurso`, `entregasEnCursoDelRepartidor`, `recorridoRecomendado` (ADR-038), `recorridoDeRepartidor` (ADR-043), `depositoDeSalida`, `historialDelRepartidor`, `listarPendientesPorZona`, `despacharPedido`, `despacharZona`
-  - Quién la usa: `EntregasBean`, `MisEntregasBean`, `RuteoBean`, `LlegadaEstimadaService`
-- **Ruteo**
-  - Interfaz: `ILlegadaEstimada`
-  - Operaciones: `estimar` (parada y franja de un pedido en camino, ADR-043)
-  - Quién la usa: `SeguimientoBean`, `SeguimientoResource`
-- **Ruteo**
-  - Interfaz: `IZonas`
-  - Operaciones: `registrarZona`, `darDeBajaZona`, `reactivarZona`, `eliminarZona` (ADR-036), `listarTodas`, `zonaDeCodigoPostal`
-  - Quién la usa: `RuteoBean`, `RepartidorBean`, `RuteoService`
+  - `IRegistroUsuarios`
+    - Operaciones: `registrarUsuario`, `darDeBaja`, `reactivarUsuario`, `restablecerClave` (ADR-031), `eliminarUsuario` (ADR-036)
+    - Quién la usa: `UsuarioBean`
+  - `IConsultaUsuarios`
+    - Operaciones: `listarTodos`, `obtenerUsuario`
+    - Quién la usa: `UsuarioBean`
+  - `IContextoUsuario`
+    - Operaciones: `idComercioActual`, `idRepartidorActual`
+    - Quién la usa: Pedidos, Inventario, Comercios, Notificaciones, `SesionBean`
 - **Pagos**
-  - Interfaz: `IRegistroCobros`
-  - Operaciones: `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`), `anularCobroPorDevolucion` (sin rol, ADR-041)
-  - Quién la usa: Pedidos, `SuscriptorPagosEstadoPedido`
-- **Pagos**
-  - Interfaz: `IConsultaCobros`
-  - Operaciones: `obtenerCobroDePedido`, `listarTodos`, `listarCobrosDelComercioActual`
-  - Quién la usa: `PedidoBean`, `PortalComercioBean`
+  - `IRegistroCobros`
+    - Operaciones: `registrarCobro`, `registrarCobroContraEntrega`, `anularCobro` (`ADMINISTRADOR`), `anularCobroPorDevolucion` (sin rol, ADR-041)
+    - Quién la usa: Pedidos, `SuscriptorPagosEstadoPedido`
+  - `IConsultaCobros`
+    - Operaciones: `obtenerCobroDePedido`, `listarTodos`, `listarCobrosDelComercioActual`
+    - Quién la usa: `PedidoBean`, `PortalComercioBean`
+  - `ILiquidaciones`
+    - Operaciones: `liquidarMes`, `previsualizar`, `reintentarCobro`, `reintentarPendientes`, `listarDelPeriodo`, `listarPeriodos`, `listarDelComercioActual`, `previsualizarMesEnCursoDelComercioActual`, `tarifaVigente` (ADR-034)
+    - Quién la usa: `LiquidacionBean`, `MisLiquidacionesBean`, `LiquidacionMensual` (timer)
 - **Repartidores**
-  - Interfaz: `IAsignacionRepartidores`
-  - Operaciones: `asignarRepartidor` (zona preferida, peso, bultos y repartidor excluido: ADR-032 y 037), `motivoParaEsperar`, `antesDelCorte`, `diaDeEntregaPara` (fecha prometida, ADR-042), `liberarRepartidor`, `ultimaUbicacion` (ubicación de la visita fallida, ADR-045)
-  - Quién la usa: Pedidos
-- **Repartidores**
-  - Interfaz: `IGestionRepartidores`
-  - Operaciones: `registrarRepartidor`, `asignarZona`, `actualizarCapacidad`, `eliminarRepartidor` (ADR-036), `listarTodos`, `obtenerRepartidor`, `registrarUbicacion`, `listarUbicacionesRecientes`, `ubicacionParaPedido` (ADR-035)
-  - Quién la usa: `RepartidorBean`, `MapaBean`, `MisEntregasBean`, `SeguimientoBean`, `PedidoBean`, Ruteo, Seguridad
-- **Pagos**
-  - Interfaz: `ILiquidaciones`
-  - Operaciones: `liquidarMes`, `previsualizar`, `reintentarCobro`, `reintentarPendientes`, `listarDelPeriodo`, `listarPeriodos`, `listarDelComercioActual`, `previsualizarMesEnCursoDelComercioActual`, `tarifaVigente` (ADR-034)
-  - Quién la usa: `LiquidacionBean`, `MisLiquidacionesBean`, `LiquidacionMensual` (timer)
+  - `IAsignacionRepartidores`
+    - Operaciones: `asignarRepartidor` (zona preferida, peso, bultos y repartidor excluido: ADR-032 y 037), `motivoParaEsperar`, `antesDelCorte`, `diaDeEntregaPara` (fecha prometida, ADR-042), `liberarRepartidor`, `ultimaUbicacion` (ubicación de la visita fallida, ADR-045)
+    - Quién la usa: Pedidos
+  - `IGestionRepartidores`
+    - Operaciones: `registrarRepartidor`, `asignarZona`, `actualizarCapacidad`, `eliminarRepartidor` (ADR-036), `listarTodos`, `obtenerRepartidor`, `registrarUbicacion`, `listarUbicacionesRecientes`, `ubicacionParaPedido` (ADR-035)
+    - Quién la usa: `RepartidorBean`, `MapaBean`, `MisEntregasBean`, `SeguimientoBean`, `PedidoBean`, Ruteo, Seguridad
 - **Notificaciones**
-  - Interfaz: `INotificaciones`
-  - Operaciones: `avisarCambioDeEstado`, `listarRecientes`, `listarDelComercioActual`
-  - Quién la usa: `SuscriptorNotificacionesEstadoPedido`, `CampanaBean`
+  - `INotificaciones`
+    - Operaciones: `avisarCambioDeEstado`, `listarRecientes`, `listarDelComercioActual`
+    - Quién la usa: `SuscriptorNotificacionesEstadoPedido`, `CampanaBean`
+  - `IAvisosAlDestinatario`
+    - Operaciones: `avisar`, `listarRecientes` (ADR-040)
+    - Quién la usa: `SuscriptorDestinatarioEstadoPedido`, `CampanaBean`
+- **Ruteo**
+  - `IRuteo`
+    - Operaciones: `listarEntregasEnCurso`, `entregasEnCursoDelRepartidor`, `recorridoRecomendado` (ADR-038), `recorridoDeRepartidor` (ADR-043), `depositoDeSalida`, `historialDelRepartidor`, `listarPendientesPorZona`, `despacharPedido`, `despacharZona`
+    - Quién la usa: `EntregasBean`, `MisEntregasBean`, `RuteoBean`, `LlegadaEstimadaService`
+  - `IZonas`
+    - Operaciones: `registrarZona`, `darDeBajaZona`, `reactivarZona`, `eliminarZona` (ADR-036), `listarTodas`, `zonaDeCodigoPostal`
+    - Quién la usa: `RuteoBean`, `RepartidorBean`, `RuteoService`
+  - `ILlegadaEstimada`
+    - Operaciones: `estimar` (parada y franja de un pedido en camino, ADR-043)
+    - Quién la usa: `SeguimientoBean`, `SeguimientoResource`
+- **Transportistas**
+  - `IGestionTransportistas`
+    - Operaciones: `registrarTransportista`, `darDeBajaTransportista`, `reactivarTransportista`, `listarTodos`, `listarActivos`
+    - Quién la usa: `TransportistaBean`, `PedidoBean`, `SeguimientoDeEnvios`
+  - `IEnvios`
+    - Operaciones: `solicitarEnvio`, `cotizarEnvio`, `cancelarEnvioDePedido`, `listarEnvios`, `listarEnviosDelComercioActual`
+    - Quién la usa: Pedidos, Ruteo, `PedidoBean`, `TransportistaBean`, `PortalComercioBean`
+  - `ISeguimientoEnvios`
+    - Operaciones: `listarEnviosActivos`, `registrarNovedad`
+    - Quién la usa: `SeguimientoDeEnvios` (interna del componente)
 
 Otros detalles de cada componente:
 
@@ -276,70 +260,93 @@ Otros detalles de cada componente:
 
 ### Dependencias entre componentes (implementadas)
 
+Las dependencias se muestran en tres diagramas: las llamadas entre
+componentes, los eventos y las integraciones con sistemas externos.
+
+**Llamadas entre componentes.** Cada flecha es una llamada a una interfaz
+`@Local` del otro componente. Para que se lea, no se dibujan dos
+interfaces que usan casi todos:
+
+- `IConsultaComercios` (Comercios): la usan Pedidos, Inventario, Ruteo,
+  Pagos, Notificaciones y Seguridad.
+- `IContextoUsuario` (Seguridad): la usan todos los demás componentes salvo
+  Ruteo, para saber a qué comercio o repartidor representa el usuario (ver
+  Seguridad más abajo).
+
 ```mermaid
 flowchart LR
-    subgraph Rabbit["Rabbit (WildFly)"]
-        Pedidos -->|IConsultaComercios| Comercios
-        Pedidos -->|"Instance&lt;IReservaStock&gt;"| Inventario
-        Pedidos -->|IConsultaStock| Inventario
-        Pedidos -->|IAsignacionRepartidores| Repartidores
-        Pedidos -->|IRegistroCobros| Pagos
-        Pedidos -. "topico.pedidos.estado" .-> Pagos
-        Pedidos -. "topico.pedidos.estado" .-> Notificaciones
-        Pedidos -. "topico.pedidos.estado (destinatario)" .-> Notificaciones
-        Notificaciones -->|ISeguimientoPedido| Pedidos
-        Pedidos -->|"ILlegadaEstimada (seguimiento)"| Ruteo
-        Inventario -->|IConsultaComercios| Comercios
-        Pagos -->|IBancoClient| Banco[Integración banco]
-        Ruteo -->|ISeguimientoPedido| Pedidos
-        Ruteo -->|IConsultaComercios| Comercios
-        Ruteo -->|IConsultaStock| Inventario
-        Ruteo -->|IGestionRepartidores| Repartidores
-        Ruteo -->|IGestionPedidos| Pedidos
-        Ruteo -->|IGestionTransportistas| Transportistas
-        Pedidos -->|IContextoUsuario| Seguridad
-        Inventario -->|IContextoUsuario| Seguridad
-        Pagos -->|IContextoUsuario| Seguridad
-        Pagos -->|"ISeguimientoPedido (liquidación)"| Pedidos
-        Pagos -->|IConsultaComercios| Comercios
-        Repartidores -->|IContextoUsuario| Seguridad
-        Inventario -. "EliminacionDeItem" .-> Pedidos
-        Repartidores -. "EliminacionDeRepartidor" .-> Pedidos
-        Repartidores -. "EliminacionDeRepartidor" .-> Seguridad
-        Ruteo -. "ZonaEliminada" .-> Repartidores
-        Notificaciones -->|IContextoUsuario| Seguridad
-        Notificaciones -->|IConsultaComercios| Comercios
-        Comercios -->|IContextoUsuario| Seguridad
-        Seguridad -->|IConsultaComercios| Comercios
-        Seguridad -->|IGestionRepartidores| Repartidores
-        Comercios -. "EliminacionDeComercio" .-> Pedidos
-        Comercios -. "EliminacionDeComercio" .-> Inventario
-        Comercios -. "EliminacionDeComercio" .-> Seguridad
-        Comercios -. "ComercioEliminado" .-> Pedidos
-        Comercios -. "ComercioEliminado" .-> Pagos
-        Comercios -. "ComercioEliminado" .-> Notificaciones
-        Comercios -. "ComercioEliminado" .-> Transportistas
-        Pedidos -->|IEnvios| Transportistas
-        Ruteo -->|IEnvios| Transportistas
-        Transportistas -. "EstadoEnvioCambiado" .-> Pedidos
-        Transportistas -->|IContextoUsuario| Seguridad
-    end
-    Ruteo -->|HTTP/JSON| OSM[(OpenStreetMap<br/>Nominatim)]
-    Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
-    Transportistas -->|REST/JSON| TransREST[(Transportista REST<br/>simulado)]
-    Transportistas -->|SOAP/HTTP| TransSOAP[(Transportista legado<br/>simulado)]
-    Notificaciones -->|SMTP, opcional| Correo[(Servidor de correo)]
-    Correo -.->|avisos ADR-040| Cliente
-    ERP[ERP del comercio] -->|REST /api/v1/pedidos-externos| Pedidos
-    Cliente[Cliente final] -->|REST /api/v1/seguimiento y seguimiento.xhtml| Pedidos
+    Pedidos -->|"IReservaStock, IConsultaStock"| Inventario
+    Pedidos -->|IAsignacionRepartidores| Repartidores
+    Pedidos -->|IRegistroCobros| Pagos
+    Pedidos -->|IEnvios| Transportistas
+    Pedidos -->|"ILlegadaEstimada (seguimiento)"| Ruteo
+    Ruteo -->|"ISeguimientoPedido, IGestionPedidos"| Pedidos
+    Ruteo -->|IConsultaStock| Inventario
+    Ruteo -->|IGestionRepartidores| Repartidores
+    Ruteo -->|"IGestionTransportistas, IEnvios"| Transportistas
+    Pagos -->|"ISeguimientoPedido (liquidación)"| Pedidos
+    Pagos -->|"IOcupacionDeDeposito (liquidación)"| Inventario
+    Notificaciones -->|ISeguimientoPedido| Pedidos
+    Seguridad -->|IGestionRepartidores| Repartidores
 ```
 
-Las flechas punteadas son eventos, no llamadas: el tópico JMS entre
-Pedidos y sus suscriptores, el evento CDI `EstadoEnvioCambiado` (Transportistas avisa
-sin depender de Pedidos) y el evento CDI `EliminacionDeComercio`, con el
-que Comercios pregunta si algo todavía referencia al comercio sin depender
-de los componentes que ya dependen de él, seguido de `ComercioEliminado`,
-con el que cada uno borra el historial terminado de ese comercio.
+**Eventos.** Las flechas punteadas son avisos, no llamadas: quien publica
+no depende de quien escucha. El tópico JMS lleva los cambios de estado del
+pedido a Pagos y a Notificaciones (dos suscripciones: comercio y
+destinatario). Los eventos CDI resuelven el resto:
+
+- `EstadoEnvioCambiado`: Transportistas avisa sin depender de Pedidos.
+- `EliminacionDeComercio`: Comercios pregunta si algo todavía referencia
+  al comercio sin depender de los componentes que ya dependen de él.
+- `ComercioEliminado`: le sigue a la anterior, y con él cada componente
+  borra el historial terminado de ese comercio.
+- `EliminacionDeItem`, `EliminacionDeRepartidor` y `ZonaEliminada`:
+  siguen el mismo esquema (ADR-036).
+
+```mermaid
+flowchart LR
+    Pedidos -.->|"topico.pedidos.estado"| Pagos
+    Pedidos -.->|"topico.pedidos.estado (comercio y destinatario)"| Notificaciones
+    Transportistas -.->|EstadoEnvioCambiado| Pedidos
+    Inventario -.->|EliminacionDeItem| Pedidos
+    Repartidores -.->|EliminacionDeRepartidor| Pedidos
+    Repartidores -.->|EliminacionDeRepartidor| Seguridad
+    Ruteo -.->|ZonaEliminada| Repartidores
+    Comercios -.->|"EliminacionDeComercio, ComercioEliminado"| Pedidos
+    Comercios -.->|EliminacionDeComercio| Inventario
+    Comercios -.->|EliminacionDeComercio| Seguridad
+    Comercios -.->|ComercioEliminado| Pagos
+    Comercios -.->|ComercioEliminado| Notificaciones
+    Comercios -.->|ComercioEliminado| Transportistas
+```
+
+**Integraciones con sistemas externos.** El banco y la IA pasan por la
+capa técnica `integracion` (no es un componente de negocio). El detalle de
+cada una está en el [mapa de integración](#mapa-de-integración).
+
+```mermaid
+flowchart LR
+    ERP[ERP del comercio] -->|"REST /api/v1/pedidos-externos"| Pedidos
+    Cliente[Cliente final] -->|"REST /api/v1/seguimiento y seguimiento.xhtml"| Pedidos
+    subgraph Rabbit["Rabbit (WildFly)"]
+        Pedidos
+        Pagos
+        Ruteo
+        Transportistas
+        Notificaciones
+        Banco[Integración banco]
+        IA[Gateway de IA]
+    end
+    Pagos -->|IBancoClient| Banco
+    Pedidos -->|IClasificadorIa| IA
+    Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
+    IA -->|"HTTPS, opcional"| Claude[(API de Claude)]
+    Ruteo -->|HTTP/JSON| OSM[(OpenStreetMap<br/>Nominatim)]
+    Transportistas -->|REST/JSON| TransREST[(Transportista REST<br/>simulado)]
+    Transportistas -->|SOAP/HTTP| TransSOAP[(Transportista legado<br/>simulado)]
+    Notificaciones -->|"SMTP, opcional"| Correo[(Servidor de correo)]
+    Correo -.->|avisos ADR-040| Cliente
+```
 
 ## Vistas por tipo de usuario
 
@@ -399,6 +406,10 @@ el repartidor sale siempre de la identidad autenticada
   - Mecanismo: REST/HTTP saliente (Nominatim), desde un timer y con caché
   - Estado: Implementado
   - Detalle: [DECISIONES.md](DECISIONES.md#adr-046-hoja-de-ruta-por-distancia-con-openstreetmap)
+- **Pedidos → API de Claude (ADR-066)**
+  - Mecanismo: REST/HTTPS saliente, a través del gateway `integracion.ia`; en segundo plano (`@Asynchronous`) y después del commit, con timeout de 5 s y sin clasificar si falla
+  - Estado: Implementado (si se configura la clave)
+  - Detalle: [DECISIONES.md](DECISIONES.md#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones)
 - **Pedidos → Comercios, Inventario, Pagos, Repartidores, Transportistas**
   - Mecanismo: Llamada local EJB
   - Estado: Implementado
@@ -435,6 +446,8 @@ stateDiagram-v2
     CONFIRMADO --> EN_CAMINO: despacharPedido
     CONFIRMADO --> CANCELADO: cancelarPedido
     CONFIRMADO --> PENDIENTE: devolverADeposito
+    CONFIRMADO --> ENTREGADO: entregarEnDeposito (retiro)
+    CONFIRMADO --> DEVUELTO_AL_COMERCIO: vencerRetiro (21 días)
     EN_CAMINO --> ENTREGADO: registrarEntrega
     EN_CAMINO --> PENDIENTE: devolverADeposito (le quedan visitas)
     EN_CAMINO --> DEVUELTO_AL_COMERCIO: devolverADeposito (sin visitas o rechazo)
@@ -455,6 +468,12 @@ stateDiagram-v2
   rechazó, el pedido pasa a DEVUELTO_AL_COMERCIO, que es final: el stock
   consignado vuelve al comercio y Pagos anula el cobro al recibir el
   evento por el tópico.
+- **Retiro en depósito (ADR-053):** un pedido que se retira en el
+  depósito no sale a reparto: pasa de CONFIRMADO a ENTREGADO cuando el
+  personal lo entrega contra el código de seguimiento
+  (`entregarEnDeposito`). Si nadie lo busca en 21 días
+  (`PlazoDeRetiro`), un timer lo pasa a DEVUELTO_AL_COMERCIO
+  (`vencerRetiro`): el stock vuelve al comercio y Pagos anula el cobro.
 - **Lista de espera no es un estado:** es un PENDIENTE con
   `enEsperaDesde`, así la máquina de estados y los suscriptores del
   tópico no cambian.
