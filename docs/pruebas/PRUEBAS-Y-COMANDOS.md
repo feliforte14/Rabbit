@@ -9,6 +9,44 @@ donde dice `<contraseña>`, pedísela al equipo. El detalle de cada paso de
 negocio está en [FLUJO-DE-PRUEBAS.md](FLUJO-DE-PRUEBAS.md) y la
 instalación desde cero en el [README](../../README.md#cómo-levantar-el-sistema).
 
+## Con Docker (la forma recomendada)
+
+Con Docker Compose la base (PostgreSQL), WildFly con Rabbit y los datos de demo se levantan juntos (ver el
+[README](../../README.md#cómo-levantar-el-sistema)). Los comandos de abajo de "Parte 1" sirven igual si se los
+corre dentro del contenedor.
+
+```bash
+docker compose up --build -d                  # levantar (y reconstruir si cambió el código)
+docker compose down                           # apagar (los datos de la base se conservan en un volumen)
+docker compose down -v                        # apagar y borrar también los datos
+docker compose run --rm semilla               # volver a cargar los datos de demo (idempotente)
+docker compose logs -f wildfly                # ver el log
+
+# jboss-cli dentro del contenedor (system properties, DLQ, etc.)
+docker compose exec -T wildfly /opt/jboss/wildfly/bin/jboss-cli.sh --connect \
+  --command="/system-property=rabbit.ruteo.hora-corte:write-attribute(name=value,value=ninguno)"
+
+# psql dentro del contenedor (usuario y base del .env: DB_USER y DB_NAME)
+docker compose exec -T db psql -U "$DB_USER" -d "${DB_NAME:-rabbit}" -c "select count(*) from pedidos"
+```
+
+La semilla deja 7 cuentas (el administrador `ADMIN_USER` del `.env`, por defecto `admin`, y las de demo: `demo.operador`,
+`demo.comercio`, `demo.comercio2`, `demo.erp`, `demo.erp2` y `demo.repartidor`), 2 comercios, un depósito, 4 productos,
+un punto de picking y un repartidor. El producto que usan los pedidos de prueba del ERP `demo.erp` es el de
+`Producto de carga` (ID **301** con la semilla actual: mirarlo en Depósitos y stock). Para vaciar los datos de prueba y
+conservar solo las cuentas: opción C de [`scripts/Rabbit-limpieza-datos-de-prueba.sql`](../../scripts/Rabbit-limpieza-datos-de-prueba.sql),
+y después `docker compose run --rm semilla` para recargar la demo.
+
+Pruebas automáticas contra el sistema levantado (hace falta Node 20 o más):
+
+```bash
+cd e2e && npm ci && npx playwright install chromium
+ADMIN_USER=... ADMIN_PASSWORD=... DEMO_PASSWORD=... ITEM=<id del producto> \
+  BASE=https://localhost:8443/Rabbit npx playwright test
+```
+
+Las variables salen del `.env`.
+
 Todos los comandos asumen:
 
 ```bash
@@ -27,7 +65,7 @@ cli() { "$WILDFLY_HOME/bin/jboss-cli.sh" --connect "$@"; }
   - Puerto: 8443 (app, HTTPS), 8080 (simuladores), 9990 (management)
   - Hace falta para: Todo
 - **Base PostgreSQL**
-  - Dónde corre: Supabase (remota, siempre prendida)
+  - Dónde corre: Con Docker, un PostgreSQL local del compose; con WildFly propio, Supabase (remota, siempre prendida)
   - Puerto: 5432 (Session Pooler)
   - Hace falta para: Todo
 
@@ -141,7 +179,7 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
   - Qué hace: Cada cuántos segundos avanza un envío simulado. Menos de 15 hace que el pedido salte de Confirmado a Entregado
   - ¿Hay que redesplegar?: No
 - `rabbit.cola.consumidores`
-  - Por defecto: `1`
+  - Por defecto: `15`
   - Qué hace: Consumidores de la cola de pedidos del ERP
   - ¿Hay que redesplegar?: Sí
 - `rabbit.sincronizador.pausado`
@@ -162,7 +200,19 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
   - ¿Hay que redesplegar?: No
 - `rabbit.url-publica`
   - Por defecto: `https://localhost:8443/Rabbit`
-  - Qué hace: Base del link al seguimiento en los avisos a quien recibe (ADR-040)
+  - Qué hace: Base del link al seguimiento en los avisos a quien recibe (ADR-040) y del QR de las etiquetas (ADR-056)
+  - ¿Hay que redesplegar?: No
+- `rabbit.retiro.dias`
+  - Por defecto: `21`
+  - Qué hace: Días que espera un retiro en depósito antes de volver al comercio (ADR-053). El timer corre a las 04:10
+  - ¿Hay que redesplegar?: No
+- `rabbit.almacenamiento.dias-gratis` / `rabbit.almacenamiento.dias-recargo`
+  - Por defecto: `7` / `120`
+  - Qué hace: Días gratis desde el último ingreso y días sin movimiento desde los que se cobra el recargo por stock antiguo (ADR-065)
+  - ¿Hay que redesplegar?: No
+- `rabbit.tarifa.almacenamiento.pequeno` / `.mediano` / `.grande` / `.recargo-stock-antiguo`
+  - Por defecto: `10` / `30` / `90` / `50` (%)
+  - Qué hace: Precio por unidad y por día de cada tamaño y recargo por stock antiguo (ADR-059 y ADR-065). Con los tres precios en 0 no se cobra almacenamiento
   - ¿Hay que redesplegar?: No
 
 Para ver cuáles están definidas:
@@ -196,16 +246,20 @@ Los `:remove` responden error si la propiedad no existía: no importa.
 Hacelas en este orden: cada bloque usa lo que dejó el anterior. Con la
 base vacía, el recorrido completo lleva alrededor de una hora.
 
-**Estado de partida.** La base se limpió el 29/09/2026: no hay
-comercios, depósitos, repartidores, pedidos, transportistas, zonas ni
-cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
-(`ADMINISTRADOR`, en el realm de WildFly). `demo.comercio`,
-`demo.repartidor` y `demo.erp` se crean en el bloque A.
+**Estado de partida.** Una base vacía (opción B del script de limpieza;
+con Docker, `docker compose down -v` y `up` dejan la base nueva, pero la
+semilla vuelve a cargar la demo): no hay comercios, depósitos, repartidores, pedidos,
+transportistas, zonas ni cuentas de demo. La única cuenta es el primer
+administrador: con Docker, `ADMIN_USER` del `.env`; con WildFly instalado,
+el creado con `add-user.sh` (en esta guía, `claude-cb-admin`).
+`demo.comercio`, `demo.repartidor` y `demo.erp` se crean en el bloque A.
+Con la semilla de Docker ya cargada, el bloque A se puede saltear.
 
 ### A. Arranque y datos base (como `claude-cb-admin`)
 
 - [ ] **A1. Login.** Entrar a https://localhost:8443/Rabbit → cae en
-  `personal/pedidos.xhtml`, vacío y sin errores; el menú marca "Pedidos".
+  `personal/inicio.xhtml` (Inicio, con "Requiere atención"), sin errores;
+  el menú marca "Inicio".
 - [ ] **A2. Comercio.** Comercios → registrar uno (CUIT `XX-XXXXXXXX-X`).
   Aparece Activo.
 - [ ] **A3. Punto de picking.** Desde la fila del comercio, "Puntos de
@@ -272,9 +326,12 @@ cuentas en la tabla `usuarios`. La única cuenta es `claude-cb-admin`
 - [ ] **C2. Banco rechaza.** Un pedido prepago de más de $500.000 → el
   banco lo rechaza, el pedido sigue Pendiente y no queda repartidor
   tomado.
-- [ ] **C3. Reversa compensatoria.** Con los repartidores ocupados,
-  confirmar un prepago → se cobra, falla la asignación, se deshace todo y
-  en el log aparece `[Banco legado] Reversado ...`.
+- [ ] **C3. Sin lugar no se cobra (ADR-037).** Con los repartidores
+  ocupados, confirmar un prepago → queda "En espera", **sin cobrar** (no se
+  llama al banco). La reversa compensatoria (`[Banco legado] Reversado ...`
+  en el log) aparece al cancelar un prepago confirmado (C5, como
+  administrador) o si otro se queda con el lugar entre la consulta y la
+  asignación.
 - [ ] **C4. Contra entrega.** Confirmar uno contra entrega: Cobro "A
   cobrar"; al entregarlo (bloque D) pasa a "Cobrado" (lo acredita el
   suscriptor de Pagos del tópico).
@@ -397,7 +454,7 @@ se prueba en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/R
 
   ```bash
   export RABBIT_ERP_USUARIO=demo.erp RABBIT_ERP_CLAVE=<contraseña>
-  export RABBIT_ID_COMERCIO=<id> RABBIT_ID_PUNTO=<id>
+  export WILDFLY_HOME=~/wildfly RABBIT_ID_PUNTO=<id del punto de picking activo>
   python3 scripts/prueba_escalabilidad.py 1 4 8 --pedidos 100
   ```
 

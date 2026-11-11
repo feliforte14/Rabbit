@@ -402,30 +402,6 @@ class PedidosEnSegundoPlanoTest {
         }
 
         @Test
-        void cuentaLosComentariosQueClasificoLaIa() {
-            LocalDate hoy = LocalDate.now();
-            LocalDateTime inicio = hoy.minusDays(6).atStartOfDay();
-            when(repository.listarRecibidosEntre(inicio, hoy.plusDays(1).atStartOfDay(), 3L)).thenReturn(List.of(
-                    pedido(1L, EstadoPedido.ENTREGADO, hoy.atTime(9, 0)), pedido(2L, EstadoPedido.ENTREGADO, hoy.atTime(10, 0)),
-                    pedido(3L, EstadoPedido.ENTREGADO, hoy.atTime(11, 0)), pedido(4L, EstadoPedido.ENTREGADO, hoy.atTime(12, 0))));
-            when(repository.listarRecibidosEntre(hoy.minusDays(13).atStartOfDay(), inicio, 3L)).thenReturn(List.of());
-            when(repository.estrellasDePedidos(List.of(1L, 2L, 3L, 4L))).thenReturn(Map.of(1L, 5, 2L, 1, 3L, 3, 4L, 4));
-            // El pedido 4 tiene calificación pero su comentario no se llegó a clasificar (la IA no respondió).
-            when(repository.sentimientosDePedidos(any())).thenReturn(Map.of(1L, "POSITIVO", 2L, "NEGATIVO", 3L, "NEUTRO"));
-
-            IndicadoresDTO tablero = indicadores.calcular(7, 3L);
-
-            assertEquals(1, tablero.comentariosPositivos);
-            assertEquals(1, tablero.comentariosNeutros);
-            assertEquals(1, tablero.comentariosNegativos);
-            assertEquals(3, tablero.getComentariosClasificados());
-            // La página lee estos valores por getters (EL no ve los campos públicos).
-            assertEquals(1, tablero.getComentariosPositivos());
-            assertEquals(1, tablero.getComentariosNeutros());
-            assertEquals(1, tablero.getComentariosNegativos());
-        }
-
-        @Test
         void elComercioVeSoloLoSuyoYElPeriodoEsFijo() {
             when(contextoUsuario.idComercioActual()).thenReturn(4L);
             when(repository.listarRecibidosEntre(any(), any(), eq(4L))).thenReturn(List.of());

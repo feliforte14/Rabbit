@@ -168,6 +168,8 @@ no por aviso: un transportista legado no avisa (ver ADR-016).
   - Endpoint del simulado: `http://localhost:8080/Rabbit/TransportistaLegadoService?wsdl`
   - Estados que usa: `RECIBIDO`, `EN_VIAJE`, `ENTREGADO`, `ANULADO`
 
+Las clases que intervienen:
+
 - `IAdaptadorTransportista`: Contrato común: `cotizarEnvio`, `solicitarEnvio`, `consultarEstado`, `cancelarEnvio`
 - `AdaptadorRestTransportista`: Cliente JAX-RS, timeout de 5 s; 201 → tomado, 422 → rechazado; cotización: 200 → precio y plazo
 - `AdaptadorSoapTransportista`: Proxy JAX-WS desde el WSDL, timeout de 5 s; el fault `EnvioRechazado` → rechazado; no cotiza (el WSDL no tiene esa operación)
@@ -261,15 +263,15 @@ Postman.
 - `POST /api/v1/pedidos-externos`
   - Quién: ERP (HTTP Basic) + header `Idempotency-Key`
   - Qué hace: Registra un pedido externo de **su** comercio
-  - Respuestas: `201` + `Location` · `400` · `401` · `403` · `422`
+  - Respuestas: `201` + `Location` + `ETag` · `400` · `401` · `403` · `415` · `422`
 - `GET /api/v1/pedidos-externos/{id}`
   - Quién: ERP
   - Qué hace: Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`, `estadoPedido` y `codigoSeguimiento`; si está `PENDIENTE`, también `enListaDeEspera`, ADR-037), `Descartado` (con `motivo`) o `Cancelado`
-  - Respuestas: `200` · `404`
+  - Respuestas: `200` + `ETag` · `304` (con `If-None-Match` igual al `ETag`: no cambió) · `404`
 - `POST /api/v1/pedidos-externos/{id}/cancelacion`
   - Quién: ERP
   - Qué hace: Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE` que nunca salió a reparto)
-  - Respuestas: `200` · `404` · `409`
+  - Respuestas: `200` + `ETag` · `404` · `409` · `412` (con `If-Match` distinto del `ETag` actual: el pedido cambió desde que el ERP lo leyó) · `422`
 - `GET /api/v1/seguimiento/{codigo}`
   - Quién: Público
   - Qué hace: Estado actual del pedido, día prometido (ADR-042) y, en camino, parada y franja (ADR-043)
@@ -338,6 +340,13 @@ Ruteo ubica el pedido en su zona (ADR-017).
   también puede salir si devolver el stock de una línea choca con otra
   sesión tocando el mismo ítem al mismo tiempo (`stock-en-conflicto`):
   a diferencia del anterior, este es pasajero — reintentar alcanza.
+- **Concurrencia optimista con `ETag`:** cada respuesta con un pedido
+  externo trae un `ETag` (huella SHA-256 de la representación, sin los
+  `_links`). Un `GET` con `If-None-Match` igual responde `304` sin cuerpo:
+  el ERP ya tiene esa versión. La cancelación acepta `If-Match`: si el
+  pedido cambió desde que el ERP lo consultó (por ejemplo, ya se
+  confirmó), responde `412` con el `ETag` nuevo, para que decida con el
+  estado real. Sin `If-Match` cancela igual, como antes: es opcional.
 - **Errores con Problem Details (RFC 9457):** las respuestas de error de
   Rabbit son `application/problem+json` con `type`, `title`, `status` y
   `detail` (el equivalente REST del SOAP Fault). `400` es formato (falta
@@ -369,11 +378,15 @@ Ruteo ubica el pedido en su zona (ADR-017).
   negocio confirma su propia transacción, así un error al confirmar llega
   al recurso y se responde bien.
 
+### Clases de la API
+
 - `ApiRest`: Activa JAX-RS bajo `/Rabbit/api`
 - `PedidosExternosResource`: Endpoints del ERP; delega en `IGestionPedidos` / `ISeguimientoPedido`
 - `PedidoExternoRequest`: Cuerpo del alta, con Bean Validation
 - `SeguimientoResource`: Endpoint público de seguimiento
 - `Problema` / `ProblemaMapper`: Errores en Problem Details
+
+### Por qué sincrónico y por qué REST
 
 - **Por qué sincrónico:** el ERP necesita saber en el momento si Rabbit
   aceptó el pedido (validación de datos) y con qué ID. La **conversión**
@@ -404,16 +417,18 @@ sequenceDiagram
         API->>PS: registrarPedidoExterno(datos, clave)
         alt la clave ya se usó con el mismo pedido (reintento)
             PS-->>API: id del pedido externo existente
+            API-->>ERP: 201 Created + Location (el mismo pedido, no se duplica)
         else regla de negocio violada
             PS-->>API: ValidacionException
             API-->>ERP: 422 problem+json
         else pedido nuevo
             PS->>PS: INSERT pedidos_externos (comercio de la cuenta ERP)
             PS-)Q: aviso (después del commit)
+            PS-->>API: id del pedido externo nuevo
+            API-->>ERP: 201 Created + Location {resultado: Pendiente, _links}
+            Q-)MDB: onMessage
+            MDB->>PS: sincronizarPedidoExterno
         end
-        API-->>ERP: 201 Created + Location {resultado: Pendiente, _links}
-        Q-)MDB: onMessage
-        MDB->>PS: sincronizarPedidoExterno
     end
     ERP->>API: GET /api/v1/pedidos-externos/{id}
     API-->>ERP: 200 {resultado: Sincronizado, estadoPedido, codigoSeguimiento, _links}

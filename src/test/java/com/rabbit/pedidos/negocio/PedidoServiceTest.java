@@ -94,7 +94,6 @@ class PedidoServiceTest {
     @Mock private Event<PedidoExternoRegistrado> pedidoExternoRegistrado;
     @Mock private Event<EstadoPedidoCambiado> estadoPedidoCambiado;
     @Mock private Event<EntregaModificada> entregaModificada;
-    @Mock private Event<ComentarioCalificado> comentarioCalificado;
     @Mock private IAsignacionRepartidores repartidores;
     @Mock private IRegistroCobros cobros;
     @Mock private IEnvios envios;
@@ -1322,35 +1321,6 @@ class PedidoServiceTest {
             assertEquals("Norte (Av 1)", servicio.consultarSeguimiento("RB-ABC").depositoRetiro);
             p.setIdDepositoRetiro(null);
             assertNull(servicio.consultarSeguimiento("RB-ABC").depositoRetiro);
-        }
-
-        @Test
-        void unComentarioDispararaLaClasificacionConSuIdYSuTextoYSinComentarioNo() {
-            pedido(EstadoPedido.ENTREGADO);
-            org.mockito.Mockito.doAnswer(inv -> { setId(inv.getArgument(0), 77L); return null; }).when(repository).guardarCalificacion(any());
-
-            servicio.calificarEntrega("RB-ABC", 2, "  Llegó tarde  ");
-
-            ArgumentCaptor<ComentarioCalificado> e = ArgumentCaptor.forClass(ComentarioCalificado.class);
-            verify(comentarioCalificado).fire(e.capture());
-            assertEquals("Llegó tarde", e.getValue().comentario());
-            assertEquals(77L, e.getValue().idCalificacion());
-
-            org.mockito.Mockito.clearInvocations(comentarioCalificado);
-            servicio.calificarEntrega("RB-ABC", 5, null);
-            servicio.calificarEntrega("RB-ABC", 5, "   ");
-            org.mockito.Mockito.verifyNoInteractions(comentarioCalificado);
-        }
-
-        // La entidad no tiene setter del ID (lo pone JPA): se lo pone por reflexión para probar.
-        private static void setId(CalificacionEntrega c, Long id) {
-            try {
-                var campo = CalificacionEntrega.class.getDeclaredField("id");
-                campo.setAccessible(true);
-                campo.set(c, id);
-            } catch (ReflectiveOperationException ex) {
-                throw new IllegalStateException(ex);
-            }
         }
 
         @Test

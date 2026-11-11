@@ -1,0 +1,378 @@
+# Rabbit · pedidos de la API para REST Client (extensión humao.rest-client de VS Code)
+#
+# Cómo se usa:
+#   1. Levantar Rabbit con Docker (README, "Con Docker") o con un WildFly propio.
+#   2. En VS Code, Settings → "Rest-client: Proxy Strict SSL" desmarcado: el certificado de
+#      https://localhost:8443 es autofirmado.
+#   3. Completar @idItem y @idPuntoPicking (abajo). Con Docker, el ítem sale en el log de la semilla:
+#      docker compose logs semilla | grep item=
+#      El punto de picking, en Comercios → Puntos de picking del "Almacén Demo 1".
+#   4. Clic en "Send Request" arriba de cada pedido. Van en orden: los de abajo usan lo que
+#      devolvieron los de arriba (por eso los nombres `# @name`).
+#
+# Las contraseñas se leen del .env de la raíz del repo ({{$dotenv ...}}): no se escriben acá.
+# Todo lo que se da de alta lleva [TEST] en la dirección: lo borra la opción A de
+# scripts/Rabbit-limpieza-datos-de-prueba.sql.
+# Contrato completo: docs/integraciones/openapi.yaml · Detalle: docs/integraciones/MENSAJERIA-SINCRONICA.md
+
+@base = https://localhost:8443/Rabbit/api/v1
+@simuladores = http://localhost:8080/Rabbit
+@clave = {{$dotenv DEMO_PASSWORD}}
+
+# Cuentas de la semilla de Docker (README, "Cuentas de prueba")
+@erp = demo.erp
+@erp2 = demo.erp2
+@comercio = demo.comercio
+
+# Datos de la semilla: completar (ver arriba)
+@idItem = 1
+@idPuntoPicking = 1
+
+
+############################################################################
+# 1 · ALTA, IDEMPOTENCIA Y CONSULTA (ERP)
+############################################################################
+
+### 1.1 Alta con stock consignado (PREPAGO) → 201 + Location + ETag
+# @name alta
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "origen": "STOCK_CONSIGNADO",
+  "lineas": [{ "idItem": {{idItem}}, "cantidad": 1 }],
+  "importe": 2500,
+  "medioPago": "PREPAGO",
+  "direccionEntrega": "[TEST] Av. Corrientes 1234, CABA",
+  "codigoPostalEntrega": "1043",
+  "nombreDestinatario": "Ana Pérez",
+  "telefonoDestinatario": "+54 11 4567-8901",
+  "emailDestinatario": "cliente@correo.test"
+}
+
+### 1.2 Reintento con la MISMA clave y el mismo cuerpo → 201 con el mismo idPedidoExterno (no se duplica)
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: application/json
+Idempotency-Key: {{alta.request.headers.Idempotency-Key}}
+
+{
+  "origen": "STOCK_CONSIGNADO",
+  "lineas": [{ "idItem": {{idItem}}, "cantidad": 1 }],
+  "importe": 2500,
+  "medioPago": "PREPAGO",
+  "direccionEntrega": "[TEST] Av. Corrientes 1234, CABA",
+  "codigoPostalEntrega": "1043",
+  "nombreDestinatario": "Ana Pérez",
+  "telefonoDestinatario": "+54 11 4567-8901",
+  "emailDestinatario": "cliente@correo.test"
+}
+
+### 1.3 La misma clave con OTRO cuerpo → 422 clave-idempotencia-reutilizada
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: application/json
+Idempotency-Key: {{alta.request.headers.Idempotency-Key}}
+
+{
+  "origen": "STOCK_CONSIGNADO",
+  "lineas": [{ "idItem": {{idItem}}, "cantidad": 2 }],
+  "importe": 5000,
+  "medioPago": "PREPAGO",
+  "direccionEntrega": "[TEST] Av. Corrientes 1234, CABA",
+  "codigoPostalEntrega": "1043",
+  "emailDestinatario": "cliente@correo.test"
+}
+
+### 1.4 Consulta → 200 Sincronizado (idPedido, estadoPedido, codigoSeguimiento, fechaPrometida, _links) + ETag
+# La cola lo convierte en pedido real en milisegundos; si todavía dice Pendiente, volver a mandarlo.
+# @name consulta
+GET {{base}}/pedidos-externos/{{alta.response.body.$.idPedidoExterno}}
+Authorization: Basic {{erp}}:{{clave}}
+
+### 1.5 Consulta con If-None-Match igual al ETag → 304 (el ERP ya tiene esta versión)
+GET {{base}}/pedidos-externos/{{alta.response.body.$.idPedidoExterno}}
+Authorization: Basic {{erp}}:{{clave}}
+If-None-Match: {{consulta.response.headers.ETag}}
+
+
+############################################################################
+# 2 · SEGUIMIENTO PÚBLICO (sin login)
+############################################################################
+
+### 2.1 Por código → 200 (estado y fecha prometida; en camino, parada, franja y ubicación). Sin datos de quien recibe
+GET {{base}}/seguimiento/{{consulta.response.body.$.codigoSeguimiento}}
+
+### 2.2 Código inexistente → 404 problem+json
+GET {{base}}/seguimiento/RB-NOEXISTE00
+
+
+############################################################################
+# 3 · CANCELACIÓN (ERP) con concurrencia optimista
+############################################################################
+
+### 3.1 If-Match con un ETag viejo → 412 pedido-modificado (trae el ETag actual)
+POST {{base}}/pedidos-externos/{{alta.response.body.$.idPedidoExterno}}/cancelacion
+Authorization: Basic {{erp}}:{{clave}}
+If-Match: "etag-viejo"
+
+### 3.2 If-Match con el ETag actual → 200 (Sincronizado con estadoPedido CANCELADO, sin link "cancelar")
+# Si entre 1.4 y acá el pedido cambió (por ejemplo, alguien lo confirmó), da 412: volver a correr 1.4.
+POST {{base}}/pedidos-externos/{{alta.response.body.$.idPedidoExterno}}/cancelacion
+Authorization: Basic {{erp}}:{{clave}}
+If-Match: {{consulta.response.headers.ETag}}
+
+### 3.3 Cancelar otra vez → 200 con el mismo estado (idempotente)
+POST {{base}}/pedidos-externos/{{alta.response.body.$.idPedidoExterno}}/cancelacion
+Authorization: Basic {{erp}}:{{clave}}
+
+
+############################################################################
+# 4 · OTROS TIPOS DE PEDIDO
+############################################################################
+
+### 4.1 Punto de picking (CONTRA_ENTREGA): la mercadería está en el comercio, con peso declarado → 201
+# @name picking
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "origen": "PUNTO_PICKING",
+  "idPuntoPicking": {{idPuntoPicking}},
+  "lineas": [{ "producto": "[TEST] Caja de zapatillas", "cantidad": 1 }],
+  "importe": 18000,
+  "medioPago": "CONTRA_ENTREGA",
+  "direccionEntrega": "[TEST] Av. Cabildo 2000, CABA",
+  "codigoPostalEntrega": "1428",
+  "pesoKg": 1.2,
+  "bultos": 2,
+  "emailDestinatario": "cliente@correo.test"
+}
+
+### 4.2 Retiro en depósito (ADR-053): sin dirección; se entrega con el código de seguimiento → 201
+# Si nadie lo retira en 21 días, vuelve al comercio.
+# @name retiro
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "origen": "STOCK_CONSIGNADO",
+  "tipoEntrega": "RETIRO_EN_DEPOSITO",
+  "lineas": [{ "idItem": {{idItem}}, "cantidad": 1 }],
+  "importe": 2500,
+  "medioPago": "CONTRA_ENTREGA",
+  "emailDestinatario": "cliente@correo.test"
+}
+
+### 4.3 Retiro en depósito con punto de picking → 422 (el retiro solo es con stock consignado)
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "origen": "PUNTO_PICKING",
+  "tipoEntrega": "RETIRO_EN_DEPOSITO",
+  "idPuntoPicking": {{idPuntoPicking}},
+  "lineas": [{ "producto": "[TEST] Caja", "cantidad": 1 }],
+  "importe": 1500,
+  "medioPago": "CONTRA_ENTREGA",
+  "pesoKg": 1,
+  "emailDestinatario": "cliente@correo.test"
+}
+
+
+############################################################################
+# 5 · ERRORES DE VALIDACIÓN (todos en Problem Details: application/problem+json)
+############################################################################
+
+### 5.1 A domicilio sin dirección ni email → 400 con "errores" por campo
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "origen": "STOCK_CONSIGNADO",
+  "lineas": [{ "idItem": {{idItem}}, "cantidad": 1 }],
+  "importe": 2500,
+  "medioPago": "PREPAGO"
+}
+
+### 5.2 Sin Idempotency-Key → 400 clave-idempotencia-invalida
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: application/json
+
+{
+  "origen": "STOCK_CONSIGNADO",
+  "lineas": [{ "idItem": {{idItem}}, "cantidad": 1 }],
+  "importe": 2500,
+  "medioPago": "PREPAGO",
+  "direccionEntrega": "[TEST] Av. Corrientes 1234, CABA",
+  "emailDestinatario": "cliente@correo.test"
+}
+
+### 5.3 Código postal "12": el JSON está bien, pero no es un CP argentino → 422 datos-invalidos
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: application/json
+Idempotency-Key: {{$guid}}
+
+{
+  "origen": "STOCK_CONSIGNADO",
+  "lineas": [{ "idItem": {{idItem}}, "cantidad": 1 }],
+  "importe": 2500,
+  "medioPago": "PREPAGO",
+  "direccionEntrega": "[TEST] Av. Corrientes 1234, CABA",
+  "codigoPostalEntrega": "12",
+  "emailDestinatario": "cliente@correo.test"
+}
+
+### 5.4 Cuerpo que no es JSON → 415 formato-no-admitido
+POST {{base}}/pedidos-externos
+Authorization: Basic {{erp}}:{{clave}}
+Content-Type: text/plain
+Idempotency-Key: {{$guid}}
+
+esto no es un pedido
+
+### 5.5 Pedido externo inexistente → 404
+GET {{base}}/pedidos-externos/999999999
+Authorization: Basic {{erp}}:{{clave}}
+
+
+############################################################################
+# 6 · SEGURIDAD
+############################################################################
+
+### 6.1 Sin credenciales → 401 (lo responde WildFly, en HTML)
+GET {{base}}/pedidos-externos/{{alta.response.body.$.idPedidoExterno}}
+
+### 6.2 Con un usuario COMERCIO (no ERP) → 403 (WildFly, en HTML)
+GET {{base}}/pedidos-externos/{{alta.response.body.$.idPedidoExterno}}
+Authorization: Basic {{comercio}}:{{clave}}
+
+### 6.3 BOLA: el ERP de OTRO comercio consulta el pedido → 404, igual que uno inexistente
+GET {{base}}/pedidos-externos/{{picking.response.body.$.idPedidoExterno}}
+Authorization: Basic {{erp2}}:{{clave}}
+
+### 6.4 BOLA: el ERP de otro comercio intenta cancelarlo → 404, y el pedido sigue intacto
+POST {{base}}/pedidos-externos/{{picking.response.body.$.idPedidoExterno}}/cancelacion
+Authorization: Basic {{erp2}}:{{clave}}
+
+### 6.5 Cancelar el pedido de picking (con su ERP) → 200, para no dejarlo pendiente
+POST {{base}}/pedidos-externos/{{picking.response.body.$.idPedidoExterno}}/cancelacion
+Authorization: Basic {{erp}}:{{clave}}
+
+### 6.6 Cancelar el retiro de 4.2 → 200
+POST {{base}}/pedidos-externos/{{retiro.response.body.$.idPedidoExterno}}/cancelacion
+Authorization: Basic {{erp}}:{{clave}}
+
+
+############################################################################
+# 7 · SISTEMAS EXTERNOS SIMULADOS (por HTTP, puerto 8080, sin autenticación)
+############################################################################
+
+### 7.1 Transportista moderno (REST) · cotizar → 200 {precio, plazoHoras}
+POST {{simuladores}}/api/simulador/transportista-rest/cotizaciones
+Content-Type: application/json
+
+{ "bultos": 2, "cobrarAlEntregar": true }
+
+### 7.2 Transportista moderno · solicitar envío → 201 {codigoSeguimiento}
+# @name envio
+POST {{simuladores}}/api/simulador/transportista-rest/envios
+Content-Type: application/json
+
+{
+  "referencia": "PEDIDO-PRUEBA",
+  "direccionRetiro": "Av. Rivadavia 5000, CABA",
+  "direccionEntrega": "Av. Corrientes 1234, CABA",
+  "bultos": 2
+}
+
+### 7.3 Transportista moderno · consultar → 200 (avanza solo cada 20 s: SOLICITADO → EN_TRANSITO → ENTREGADO)
+GET {{simuladores}}/api/simulador/transportista-rest/envios/{{envio.response.body.$.codigoSeguimiento}}
+
+### 7.4 Transportista moderno · cancelar → 204 (409 si ya se entregó)
+DELETE {{simuladores}}/api/simulador/transportista-rest/envios/{{envio.response.body.$.codigoSeguimiento}}
+
+### 7.5 Transportista moderno · más de 50 bultos → 422 {error}
+POST {{simuladores}}/api/simulador/transportista-rest/envios
+Content-Type: application/json
+
+{ "referencia": "PEDIDO-GRANDE", "direccionEntrega": "Av. Corrientes 1234, CABA", "bultos": 51 }
+
+### 7.6 Transportista legado (SOAP) · registrarEnvio → 200 con codigoSeguimiento
+POST {{simuladores}}/TransportistaLegadoService
+Content-Type: text/xml; charset=utf-8
+SOAPAction: ""
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://rabbit.example/legado/transportista">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <x:registrarEnvio>
+      <referencia>PEDIDO-PRUEBA</referencia>
+      <direccionRetiro>Av. Rivadavia 5000, CABA</direccionRetiro>
+      <direccionEntrega>Av. Corrientes 1234, CABA</direccionEntrega>
+      <bultos>2</bultos>
+    </x:registrarEnvio>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+### 7.7 Transportista legado · más de 50 bultos → 500 con soap:Fault EnvioRechazado
+POST {{simuladores}}/TransportistaLegadoService
+Content-Type: text/xml; charset=utf-8
+SOAPAction: ""
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://rabbit.example/legado/transportista">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <x:registrarEnvio>
+      <referencia>PEDIDO-GRANDE</referencia>
+      <direccionRetiro>Av. Rivadavia 5000, CABA</direccionRetiro>
+      <direccionEntrega>Av. Corrientes 1234, CABA</direccionEntrega>
+      <bultos>51</bultos>
+    </x:registrarEnvio>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+### 7.8 Banco legado (SOAP) · autorizarPago → 200 con codigoAutorizacion (AUT-n)
+POST {{simuladores}}/BancoLegadoService
+Content-Type: text/xml; charset=utf-8
+SOAPAction: ""
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://rabbit.example/legado/banco">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <x:autorizarPago>
+      <referencia>PEDIDO-PRUEBA</referencia>
+      <importe>2500</importe>
+    </x:autorizarPago>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+### 7.9 Banco legado · más de $500.000 → 500 con soap:Fault PagoRechazado
+POST {{simuladores}}/BancoLegadoService
+Content-Type: text/xml; charset=utf-8
+SOAPAction: ""
+
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:x="http://rabbit.example/legado/banco">
+  <soapenv:Header/>
+  <soapenv:Body>
+    <x:autorizarPago>
+      <referencia>PEDIDO-CARO</referencia>
+      <importe>600000</importe>
+    </x:autorizarPago>
+  </soapenv:Body>
+</soapenv:Envelope>
+
+### 7.10 WSDL del banco → 200
+GET {{simuladores}}/BancoLegadoService?wsdl

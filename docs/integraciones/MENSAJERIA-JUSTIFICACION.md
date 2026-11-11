@@ -1,7 +1,8 @@
 # Mensajería en Rabbit: qué se usa en cada integración y por qué
 
-Rabbit se integra con ocho sistemas o consumidores distintos, y no todos
-con la misma tecnología. Este documento justifica **cada elección** con un
+Rabbit tiene nueve integraciones (dos internas, entre sus componentes, y
+siete con sistemas o consumidores externos), y no todas usan la misma
+tecnología. Este documento justifica **cada elección** con un
 mismo criterio de decisión, para que se vea que la tecnología sale del
 problema y no al revés.
 
@@ -172,7 +173,7 @@ reaccionar:
 
 - **Notificaciones** avisa al comercio ("tu pedido está en camino"): lo
   deja en su portal y, si hay un servidor de correo configurado, se lo
-  manda por mail (integración 9: después del commit, nadie lo espera; si
+  manda por mail (integración 8: después del commit, nadie lo espera; si
   el correo falla, el aviso igual queda en el portal).
 - **Notificaciones** también le avisa por mail a **quien recibe** el
   pedido, con el link al seguimiento (un segundo suscriptor propio,
@@ -232,7 +233,7 @@ define la tecnología es el contrato que expone el otro sistema.
 
 **Cómo se maneja que el banco no conteste (el costo de lo sincrónico):**
 
-- **El banco no responde en **5 s****: El pedido sigue `PENDIENTE` (sin respuesta no se sabe si cobró); el usuario puede reintentar
+- **El banco no responde en 5 s**: El pedido sigue `PENDIENTE` (sin respuesta no se sabe si cobró); el usuario puede reintentar
 - **El banco falló 3 veces seguidas**: **Circuit breaker** abierto: las llamadas se cortan al instante, sin esperar 5 s cada una, para que la caída del banco no agote los hilos de Rabbit (ADR-011). A los 30 s prueba de nuevo
 - **El banco rechaza (`soap:Fault`)**: Es una respuesta válida: el pedido sigue `PENDIENTE` con el motivo del banco
 - **El banco cobró pero Rabbit falla después**: El rollback deshace lo de Rabbit, pero no lo del banco: **transacción compensatoria** (`reversarPago`, ADR-010)
@@ -284,7 +285,7 @@ espera** por ellas, así que una demora o caída del transportista no frena
 a Rabbit. Un webhook para que los modernos avisen se descartó para
 simplificar: hasta 15 s de demora es aceptable para un envío (ADR-029).
 
-- **El transportista no responde en **5 s** al pedir el envío**: El pedido sigue `PENDIENTE`: "probá de nuevo o con otro transportista"
+- **El transportista no responde en 5 s al pedir el envío**: El pedido sigue `PENDIENTE`: "probá de nuevo o con otro transportista"
 - **Lo rechaza (fault `EnvioRechazado` o `422`)**: El pedido sigue `PENDIENTE` con el motivo; si ya se había cobrado, se reversa en el banco
 - **No responde a una consulta de seguimiento**: Se reintenta en la próxima pasada (15 s)
 - **Falla al derivarle desde el despacho por zona**: Se cotiza con los demás y se deriva al más barato que cotice

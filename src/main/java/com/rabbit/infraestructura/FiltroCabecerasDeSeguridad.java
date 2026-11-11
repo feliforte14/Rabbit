@@ -27,7 +27,8 @@ import java.util.Map;
  * - Referrer-Policy: a otro sitio (los tiles del mapa) va solo el origen, no
  *   la URL con el número de pedido.
  *
- * La cookie de sesión lleva SameSite=Lax desde el web.xml (cookie-config).
+ * La cookie de sesión lleva SameSite=Lax desde WEB-INF/undertow-handlers.conf (WildFly 41 ignora ese
+ * atributo en el cookie-config del web.xml).
  */
 @WebFilter(urlPatterns = "/*")
 public class FiltroCabecerasDeSeguridad implements Filter {

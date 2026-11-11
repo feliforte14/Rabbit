@@ -7,12 +7,13 @@ package com.rabbit.pedidos.negocio;
  * QUÉ RESUELVE
  * Cada cambio de estado de un pedido le interesa a más de un componente,
  * cada uno por su motivo: Pagos (con ENTREGADO y CONTRA_ENTREGA efectiviza
- * el cobro) y Notificaciones (avisa al comercio). Esta clase publica cada
+ * el cobro; con DEVUELTO_AL_COMERCIO lo anula) y Notificaciones (avisa al
+ * comercio y, con otro suscriptor, a quien recibe: ADR-040). Esta clase publica cada
  * EstadoPedidoCambiado en "topico.pedidos.estado"; Pedidos no sabe quién
  * lo escucha, así que sumar un suscriptor no toca este componente.
  *
  * POR QUÉ TOPIC Y NO QUEUE
- * Es 1 → N: el MISMO evento lo tienen que recibir Pagos Y Notificaciones.
+ * Es 1 → N: el MISMO evento lo tienen que recibir los tres suscriptores.
  * Con una cola, cada mensaje lo consumiría uno solo de ellos. Es el caso
  * opuesto a cola.pedidos.externos (PublicadorPedidosExternos), donde cada
  * pedido lo tiene que procesar exactamente un consumidor.
@@ -28,7 +29,7 @@ package com.rabbit.pedidos.negocio;
  * MENSAJE: TextMessage con el JSON {idPedido, idComercio, estado,
  * fechaCambio} y dos propiedades JMS (estado, idPedido): los suscriptores
  * pueden filtrar con un messageSelector sin leer el body — Pagos, por
- * ejemplo, solo se suscribe a estado = 'ENTREGADO'.
+ * ejemplo, solo se suscribe a estado IN ('ENTREGADO', 'DEVUELTO_AL_COMERCIO').
  */
 
 import jakarta.annotation.Priority;

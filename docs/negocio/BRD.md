@@ -66,7 +66,7 @@ Los valores objetivo son la propuesta del equipo para el primer semestre de oper
 - Asignación de repartidores propios por zona y capacidad del vehículo, lista de espera, despacho por zona y hoja de ruta.
 - Derivación a transportistas externos (REST y SOAP) con cotización y seguimiento automático.
 - Entrega con prueba (foto del remito, código de 4 dígitos, ubicación), visitas fallidas con evidencia y devolución al comercio.
-- Retiro en depósito por parte de quien compró.
+- Retiro en depósito por parte de quien compró (si no lo busca en 21 días, vuelve al comercio).
 - Seguimiento público sin cuenta, avisos por mail y opciones de quien recibe (reprogramar, instrucciones, persona autorizada), y calificación de la entrega.
 - Portal del comercio: pedidos, avisos, stock, puntos de picking, liquidaciones e indicadores.
 - Liquidación mensual del servicio al comercio (abono, envíos, kilos y almacenamiento) cobrada por el banco.
@@ -111,7 +111,7 @@ Prioridad MoSCoW: **Must** = sin esto Rabbit no opera; **Should** = importante, 
 | BR-08 | Should | El comercio controla su stock en los depósitos y lo que Rabbit le cobra. | El comercio ve su stock, sus liquidaciones y la vista previa del mes en curso. Toda mercadería que entra queda registrada con lo esperado y lo recibido. | O-4 |
 | BR-09 | Should | El personal ve la operación del día y la mejora con datos. | Tablero de entregas en curso, mapa de repartidores e indicadores a tiempo / primer intento / costo por envío, por comercio y por repartidor. | O-2, O-3 |
 | BR-10 | Could | Los picos y las zonas que la flota no cubre se resuelven con transportistas externos, sin perder el seguimiento. | 100 % de los pedidos derivados con estado actualizado automáticamente. El personal elige el transportista comparando precio y plazo. | O-2 |
-| BR-11 | Could | Quien compra puede retirar en un depósito y calificar la entrega; el almacenamiento se cobra según lo que ocupa. | Retiro con código. Calificación de 1 a 5 visible en Indicadores. Cargo por unidad y día según tamaño en la liquidación. | O-4 |
+| BR-11 | Could | Quien compra puede retirar en un depósito y calificar la entrega; el almacenamiento se cobra según lo que ocupa. | Retiro con código. Calificación de 1 a 5 visible en Indicadores. Cargo por unidad y día según tamaño en la liquidación, con 7 días gratis y un recargo por stock antiguo. | O-4 |
 
 El ejemplo de la cátedra para el formato de un BR ("Las clínicas facturan a obras sociales sin carga manual. Métrica: 0 prestaciones cargadas a mano") corresponde acá a **BR-01**.
 

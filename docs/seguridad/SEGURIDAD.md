@@ -19,6 +19,13 @@
   `add-user.sh` (README, paso 5).
 - Al iniciar sesión se renueva el ID de sesión (`changeSessionId`),
   contra *session fixation*.
+- **Sesión del servidor, sin JWT (ADR-067):** la web usa sesión y la API del ERP, HTTP Basic. La cookie va solo
+  en cookie (nunca en la URL), con `HttpOnly`, `Secure` y `SameSite=Lax`; la sesión **expira a los 30 minutos** de
+  inactividad (`session-timeout` del `web.xml`) y hay logout que la invalida. Contra CSRF, los formularios llevan el
+  `ViewState` de JSF; la API con Basic no usa cookie de sesión. Las cuentas ERP se crean desde **Usuarios** y se guardan
+  en la base con bcrypt, como las demás; solo las de demo de Docker toman la contraseña de una variable de entorno
+  (`DEMO_PASSWORD` del `.env`, que la semilla guarda como bcrypt). El rol se valida en el backend en cada operación
+  (`@RolesAllowed`).
 - Contraseñas: **bcrypt** (costo 10, con sal propia) en
   `usuarios.hash_clave` (`Claves`), y es lo que valida el login. El realm
   JDBC solo lee el hash de cuentas activas: una baja corta el acceso en
@@ -222,6 +229,24 @@ usa un certificado autofirmado).
   navegador. Si un ERP manda un pedido por HTTP, sus credenciales ya
   viajaron en claro antes del `302`.
 
+### Cabeceras de seguridad (SEC-05)
+
+`FiltroCabecerasDeSeguridad` agrega a todas las respuestas:
+
+- **`Content-Security-Policy`:** scripts, estilos, fuentes y conexiones solo de Rabbit (y de
+  `cdnjs.cloudflare.com` para las librerías; imágenes también de los tiles de OpenStreetMap);
+  `object-src 'none'`, `base-uri 'self'`, `form-action 'self'` y `frame-ancestors 'none'`.
+  Lleva `'unsafe-inline'` en scripts y estilos como desvío aceptado: JSF escribe los manejadores de
+  `f:ajax` en el HTML y no ofrece *nonce*.
+- **`X-Content-Type-Options: nosniff`** y **`X-Frame-Options: DENY`** (contra *clickjacking*).
+- **`Permissions-Policy`:** solo la ubicación (repartidor) y la cámara (fotos del remito y de la
+  visita fallida), y solo para Rabbit.
+- **`Referrer-Policy: strict-origin-when-cross-origin`:** a otro sitio va solo el origen, no la URL
+  con el número de pedido.
+
+La cookie de sesión lleva `SameSite=Lax`, que agrega Undertow (`WEB-INF/undertow-handlers.conf`):
+WildFly 41 ignora ese atributo en el `cookie-config` del `web.xml`.
+
 ### HSTS (SEC-05, ADR-050)
 
 `CONFIDENTIAL` redirige un pedido por HTTP *después* de que ya viajó en
@@ -278,8 +303,8 @@ base viven en el datasource de WildFly y las de management (para
   franja (ADR-042 y 043); el código aleatorio es lo único que la abre.
   Nunca muestra los datos de quien recibe (ADR-039).
 - **Calificar la entrega** (ADR-052): desde `seguimiento.xhtml`, quien recibe el
-  pedido deja de 1 a 5 estrellas y un comentario opcional. Es la **única
-  escritura pública** de Rabbit, así que está acotada: la autoriza el código
+  pedido deja de 1 a 5 estrellas y un comentario opcional. Es una de las **dos
+  escrituras públicas** de Rabbit (la otra es la de abajo), así que está acotada: la autoriza el código
   aleatorio del pedido; solo se acepta si el pedido ya está ENTREGADO; una sola
   vez por pedido (`idPedido` único: una segunda, o dos a la vez, se rechazan);
   1 a 5 estrellas; comentario de hasta 500 caracteres, sin caracteres de control
@@ -287,6 +312,15 @@ base viven en el datasource de WildFly y las de management (para
   texto de un tercero: se muestra siempre escapado (`#{...}` de JSF) y no se escribe
   en el log. El formulario lleva el ViewState de JSF (protección contra CSRF). No se
   guarda quién calificó.
+- **Cambiar la entrega** (ADR-057, `modificarEntrega`, sin rol): desde `seguimiento.xhtml`,
+  quien recibe puede reprogramar el día, dejar instrucciones o autorizar a otra persona. Es la
+  otra escritura pública, también acotada: la autoriza el código aleatorio; solo mientras el
+  pedido está PENDIENTE o CONFIRMADO con un repartidor de Rabbit (no si salió a reparto, si lo
+  lleva un transportista o si es un retiro en depósito); el día, hasta 7 días desde hoy y no
+  antes de lo prometido; instrucciones hasta 200 caracteres y nombre hasta 100; como máximo 5
+  cambios por pedido (`ReglaDeOpcionesDeEntrega`, probada en `ReglaDeOpcionesDeEntregaTest`).
+  Cada cambio le llega por mail a quien recibe, así que un cambio hecho por un tercero no pasa
+  inadvertido. No reemplaza el código de entrega (ADR-055): quien reciba igual tiene que darlo.
 - `GET /api/v1/seguimiento/{codigo}` (`SeguimientoResource`, `@PermitAll`),
   a propósito: devuelve solo el estado del pedido, la fecha prometida y la
   parada/franja, sin importes, cobros, direcciones ni datos del comercio o

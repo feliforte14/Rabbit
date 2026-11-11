@@ -59,7 +59,7 @@ sequenceDiagram
 - **El consumidor no está**: El mensaje espera en la cola
 - **Cola y polling llegan a la vez**: Lock `PESSIMISTIC_WRITE` + flag `sincronizado`: el segundo recibe `PedidoYaSincronizadoException` y la ignora
 - **Falla de negocio (comercio de baja, sin stock)**: Se descarta el pedido con motivo y el mensaje se consume (reintentarlo no lo arregla)
-- **Mensaje ilegible**: Se loguea y se consume
+- **Mensaje ilegible (no es `TextMessage`, JSON roto, sin `idPedidoExterno`)**: Se loguea y se relanza (`MensajeIlegibleException`): el broker reintenta 5 veces (2 s entre intentos) y lo manda a la DLQ, donde queda para inspeccionarlo y reprocesarlo con `scripts/dlq.sh` (ADR-064)
 - **Error transitorio (base caída)**: Se relanza; el broker reintenta la entrega
 - **Un componente rechaza la llamada por permisos**: El consumidor y el polling corren **sin usuario**: todo lo que llaman tiene que estar permitido sin rol. Si no, cada intento falla y el pedido queda "Pendiente" en "Recibidos del ERP" hasta que se corrija (pasó con el peso de los ítems; se agregó `pesosPorItem` sin rol, ADR-032)
 
@@ -71,7 +71,7 @@ sequenceDiagram
 componente le interesa, por motivos distintos:
 
 - **Notificaciones (comercio)**
-  - Qué hace: Avisa al comercio del cambio: en su portal y, si hay servidor de correo configurado, por mail (`AvisosPorMail`, después del commit, timeout de 5 s)
+  - Qué hace: Avisa al comercio del cambio: en su portal y, si hay servidor de correo configurado, por mail. El mail se guarda en la bandeja de correos (`BandejaDeCorreos`) en la misma transacción que el aviso, sale después del commit (`AvisosPorMail`, timeout de 5 s) y, si el servidor de correo no responde, `EnvioDeCorreosPendientes` lo reintenta cada minuto hasta 24 horas
   - Por qué: Seguimiento del pedido
 - **Notificaciones (quien recibe, ADR-040)**
   - Qué hace: Le avisa a quien recibe (el email es obligatorio en el alta desde el 18/10; los pedidos anteriores sin email no reciben avisos) por mail con el link al seguimiento ("recibimos tu pedido, llega hoy", "en camino", "no pudimos entregarlo"...)
@@ -87,7 +87,8 @@ Así se sumó el aviso a quien recibe (ADR-040): un MDB nuevo con su
 suscripción, sin cambiar una línea de Pedidos ni de los otros dos.
 
 - `EstadoPedidoCambiado`: Evento CDI que dispara `PedidoService` en cada cambio de estado
-- `PublicadorEstadosPedido`: Productor JMS + declaración del tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`, igual que la cola)
+- `PublicadorEstadosPedido`: Productor JMS + declaración del tópico. Guarda el aviso en la bandeja de salida (`BandejaDeEstados`) dentro de la transacción y lo manda después del commit (`AFTER_SUCCESS` + `NOT_SUPPORTED`, igual que la cola)
+- `EnvioDeEstadosPendientes`: Timer (cada 15 s) que reenvía los avisos de la bandeja que no salieron
 - `SuscriptorPagosEstadoPedido`: MDB de Pagos, filtra `estado IN ('ENTREGADO', 'DEVUELTO_AL_COMERCIO')`
 - `SuscriptorNotificacionesEstadoPedido`: MDB de Notificaciones, recibe todos los cambios (a un pedido devuelto al depósito le avisa "volvió al depósito")
 - `SuscriptorDestinatarioEstadoPedido`: MDB de Notificaciones para quien recibe (ADR-040), recibe todos los cambios; `AvisoDestinatarioService` arma el texto y lo guarda en `avisos_destinatario`
@@ -107,15 +108,20 @@ sequenceDiagram
     participant T as topico.pedidos.estado
     participant Pag as SuscriptorPagos
     participant Not as SuscriptorNotificaciones
+    participant Dest as SuscriptorDestinatario
     U->>PS: registrarEntrega(id, foto del remito)
     PS->>PS: UPDATE estado = ENTREGADO
     PS-)Pub: evento EstadoPedidoCambiado
-    Note over PS,Pub: commit, recién después corre el observer (AFTER_SUCCESS)
+    Pub->>Pub: INSERT eventos_estado_pedido (bandeja de salida, misma transacción)
+    Note over PS,Pub: commit, recién después corre el envío (AFTER_SUCCESS)
     Pub->>T: send {idPedido, estado: ENTREGADO, ...}
+    Note over Pub,T: si el broker falla, el aviso queda en la bandeja y se reenvía cada 15 s
     T-)Pag: onMessage (selector estado IN ENTREGADO, DEVUELTO_AL_COMERCIO)
     Pag->>Pag: registrarCobroContraEntrega → ACREDITADO
     T-)Not: onMessage
-    Not->>Not: aviso "Tu pedido fue entregado"
+    Not->>Not: aviso al comercio "Tu pedido fue entregado"
+    T-)Dest: onMessage
+    Dest->>Dest: aviso por mail a quien recibe
 ```
 
 ### Suscripciones durables
@@ -139,5 +145,4 @@ consola de WildFly), entregando un pedido contra entrega (el cobro quedó
 - **El mismo evento llega dos veces**: Pagos es idempotente (si ya está `ACREDITADO` o `ANULADO` no hace nada, con bloqueo pesimista sobre el cobro). Los dos suscriptores de Notificaciones descartan el repetido por `fechaCambio`
 - **Los eventos llegan desordenados**: Cada suscriptor de Notificaciones guarda la `fechaCambio` por pedido e ignora los más viejos. A Pagos no le afecta: `ENTREGADO` y `DEVUELTO_AL_COMERCIO` son finales
 - **Cambia el selector de una suscripción durable**: Artemis la borra y la recrea al desplegar: los mensajes pendientes de esa suscripción se pierden. Pasó al sumar `DEVUELTO_AL_COMERCIO` al selector de Pagos (ADR-041)
-- **Mensaje ilegible**: Se loguea y se consume
 - **Error transitorio en Pagos (base caída)**: Se relanza; el broker reintenta la entrega

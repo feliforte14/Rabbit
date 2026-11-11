@@ -54,9 +54,6 @@ services:
       DB_USER: ${DB_USER:-rabbit}
       DB_PASSWORD: ${DB_PASSWORD}
       RABBIT_HORA_CORTE: ${RABBIT_HORA_CORTE:-ninguno}
-      # Opcional: la clave de la API de Claude para clasificar los comentarios de las calificaciones. Vacía, no hay
-      # IA y el sistema funciona igual (ver integracion.ia).
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "8080:8080"
       - "8443:8443"

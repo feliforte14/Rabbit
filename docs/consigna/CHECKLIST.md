@@ -38,11 +38,11 @@ rápido en la defensa.
   - Dónde: Commits desde agosto, de varios integrantes
 - **Tests automatizados (no lo exige la consigna)**
   - Estado: Hay
-  - Dónde: 151 tests unitarios (JUnit 5) en cada build y 17 tests de integración de la API con REST Assured (`mvn verify -Pintegracion`). Ver el README
+  - Dónde: 1147 tests unitarios (JUnit 5) en cada build y 51 pruebas de integración de la API y de seguridad con REST Assured (`ApiRestIT`, `SeguridadIT` y `MejorasUltimaMillaIT`, `mvn verify -Pintegracion`), más E2E con Playwright, contrato, carga y mutación en el CI. Ver el README y [docs/testing](../testing/README.md)
 
 ## Desafíos opcionales
 
-- **Al menos 2 ADR**: Cumple: 61 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md)
+- **Al menos 2 ADR**: Cumple: 72 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md), ordenados por componente
 - **Resiliencia ante fallas**: Cumple ([DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)): Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md)
 - **Heterogeneidad tecnológica**: Cumple, en la [rama `desafio-heterogeneidad`](https://github.com/feliforte14/Rabbit/tree/desafio-heterogeneidad) (ADR-030): el banco legado implementado también en Node.js, que Rabbit consume por el mismo WSDL, y el transportista moderno en Python, por REST. `main` queda con el sistema interno solo
 - **Prueba de escalabilidad**: Cumple: el consumidor de la cola escala con `rabbit.cola.consumidores`; con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido). Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)

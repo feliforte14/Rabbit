@@ -65,7 +65,8 @@ ignoraba). Si lo volvés a ver en el log, es una regresión.
 
 1. Entrá a `https://localhost:8443/Rabbit/login.xhtml`.
 2. Ingresá con `claude-cb-admin`.
-3. Deberías caer en `personal/pedidos.xhtml` (la pantalla de Pedidos).
+3. Deberías caer en `personal/inicio.xhtml` (Inicio, con "Requiere atención"
+   y los accesos a cada pantalla).
 
 **Qué mirar:** el menú lateral muestra "Administrador" como rol; no
 aparece ningún error.
@@ -88,9 +89,9 @@ exactamente tres operaciones bloqueadas por rol, no por la vista:
    pantalla (igual que el 7 para `demo.comercio`).
 4. Las tres operaciones que el operador **no puede** hacer:
    - **Comercios** → en un comercio dado de baja, el botón **Eliminar**
-     (no **Dar de baja**, que sí puede): falla con un mensaje de negocio
-     (no el stack trace), porque el EJB rechaza con `EJBAccessException`
-     antes de llegar a `eliminarComercio`.
+     (no **Dar de baja**, que sí puede) **no se le muestra**: la vista lo
+     oculta y, además, el EJB rechazaría la operación (`EJBAccessException`)
+     si llegara a `eliminarComercio`. Solo ve **Reactivar**.
    - **Pedidos** → cancelar un pedido que ya está `CONFIRMADO` (o más
      adelante): falla igual, porque cancelar desde ahí pasa por
      `PagoService.anularCobro` (solo `ADMINISTRADOR`). Cancelar un pedido
@@ -308,11 +309,13 @@ tiempo real`). En **Pedidos → Recibidos del ERP** el pedido aparece como
    de ruta recomendada** con todas sus paradas en orden (retiros primero)
    y **Abrir en Google Maps** (ADR-038). En cada pedido, **Ya retiré el
    pedido** y después **Entregar pedido**, que abre una ventana para
-   subir la foto del remito.
+   el código de 4 dígitos que le da quien recibe (le llegó por mail con
+   el aviso "en camino", ADR-055) y la foto del remito.
 4. Logueate como `demo.comercio` → **Mis pedidos**: el pedido figura
    "Entregado", con su **código de seguimiento para el cliente** y el
-   enlace "Ver lo que ve el cliente" (la API pública), y en "Avisos de
-   Rabbit" aparece un aviso por cada cambio de estado. Eso confirma que el tópico `topico.pedidos.estado` distribuye
+   enlace "Ver lo que ve el cliente" (la página pública de seguimiento),
+   y en la **campana** de la cabecera aparece un aviso por cada cambio de
+   estado (ADR-051). Eso confirma que el tópico `topico.pedidos.estado` distribuye
    los cambios a sus tres suscriptores (aviso al comercio, aviso a quien recibe y Pagos).
 
 **Qué mirar:** en **Pedidos** (vista del personal) el pedido pasa por
@@ -459,9 +462,14 @@ lo exige, así que para reproducir el caso hay que dar de baja el comercio
 asociado a una cuenta ya creada (o borrarlo) y volver a entrar como esa
 cuenta a **Puntos de picking**.
 
-**Resultado esperado:** el mensaje
-*"Tu cuenta no está asociada a un comercio activo. Contactá a un
-administrador."* — no el mensaje interno `Comercio no encontrado: <id>`.
+**Resultado esperado (actualizado el 10/11/2026):** hoy, al dar de baja un
+comercio, **sus cuentas también quedan dadas de baja**: la cuenta ya no puede
+ni entrar, y el login responde "Usuario o contraseña incorrectos" (genérico, sin
+revelar nada). El mensaje *"Tu cuenta no está asociada a un comercio activo.
+Contactá a un administrador."* queda como red de seguridad de la pantalla de
+Puntos de picking (`PuntoPickingBean`) para una cuenta activa cuyo comercio
+no lo está; en ningún caso se ve el mensaje interno
+`Comercio no encontrado: <id>`.
 
 ---
 
@@ -676,7 +684,9 @@ Misma rama. Necesita salida a internet (OpenStreetMap).
 
 1. Confirmar dos o tres pedidos del mismo repartidor a direcciones reales
    (por ejemplo, en barrios distintos de CABA). Dentro del minuto, en el
-   log: `[Ruteo][Mapa] Av. … -> -34.…, -58.…` por cada dirección y por el
+   log: `[Ruteo][Mapa] dirección ubicada (N de M)` por cada dirección (o
+   `dirección no encontrada`; el log no muestra la dirección ni las coordenadas
+   por SEC-09) y por el
    depósito.
 2. Como repartidor → Mis entregas → "Hoja de ruta recomendada": primero
    el retiro y después la entrega más cercana al depósito, y así. Puede no
@@ -690,7 +700,7 @@ Misma rama. Necesita salida a internet (OpenStreetMap).
 
 ## Checklist rápido
 
-- **Login admin**: Entra a personal/pedidos.xhtml sin error
+- **Login admin**: Entra a personal/inicio.xhtml sin error
 - **Login operador**: Mismas pantallas que admin, sin **Usuarios** en el menú
 - **Operador intenta eliminar comercio / cancelar pedido confirmado**: Rechazado con mensaje de negocio, no una excepción cruda
 - **Alta comercio/depósito/stock/repartidor**: Aparecen en sus listados; CUIT duplicado se rechaza con mensaje claro
