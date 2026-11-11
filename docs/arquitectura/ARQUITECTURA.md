@@ -30,9 +30,9 @@ un timer o un MDB.
 ## Componentes
 
 Rabbit tiene **9 componentes de negocio**. El ítem "Integración banco
-legado" es la capa técnica `integracion` (cliente SOAP del banco,
-adaptadores de transportistas y el gateway de IA, `integracion.ia`, ADR-066):
-tiene interfaces `@Local` (`IBancoClient`, `IClasificadorIa`) pero no es un componente de negocio.
+legado" es la capa técnica `integracion` (cliente SOAP del banco y
+adaptadores de transportistas): tiene interfaces `@Local` (`IBancoClient`)
+pero no es un componente de negocio.
 
 Cada componente expone interfaces `@Local` separadas por uso (lectura vs.
 escritura) y nunca expone sus entidades ni sus excepciones internas a
@@ -61,8 +61,8 @@ otro componente. Las referencias entre componentes se guardan como IDs
   - Por qué ese tipo: Idem Comercios
 - **Integración banco legado (capa técnica, no componente de negocio)**
   - Estado: Implementado
-  - Interfaces: `IBancoClient` (`autorizar`, `autorizarReferencia`, `reversar`) e `IClasificadorIa` (`clasificar`, ADR-066)
-  - Tipo de EJB: `@Stateless` + `@Singleton` (`CircuitBreakerBanco`); el gateway de IA es un bean CDI `@ApplicationScoped` (`ClasificadorIa`)
+  - Interfaces: `IBancoClient` (`autorizar`, `autorizarReferencia`, `reversar`)
+  - Tipo de EJB: `@Stateless` + `@Singleton` (`CircuitBreakerBanco`)
   - Por qué ese tipo: Cliente SOAP sin estado de conversación; el estado del circuit breaker es uno solo, compartido por todas las llamadas
 - **Pagos y Cobranzas**
   - Estado: Implementado
@@ -117,7 +117,7 @@ otro componente. Las referencias entre componentes se guardan como IDs
     - Operaciones: `registrarPedidoExterno`, `cancelarPedidoExterno`, `sincronizarPedidoExterno`, `descartarPedidoExterno`, `confirmarPedido`, `confirmarPedidoEnZona` (null = quedó en lista de espera), `asignarDesdeEspera`, `sacarDeEspera`, `devolverADeposito` (motivo fijo e intentos: ADR-037 y 041), `listarIntentosDeEntrega` y `obtenerFotoDeVisita` (evidencia de cada visita, ADR-045), `derivarATransportista`, `cotizarDerivacion`, `despacharPedido`, `registrarEntrega` (con remito: ADR-033), `registrarEntregaDeTransportista`, `obtenerRemito`, `cancelarPedido`, `entregarEnDeposito`, `idsDeRetirosVencidos` y `vencerRetiro` (retiro en depósito y su vencimiento a los 21 días, ADR-053)
     - Quién la usa: `PedidoBean`, `MisEntregasBean`, `RemitoServlet`, Ruteo, MDB, timer
   - `ISeguimientoPedido`
-    - Operaciones: `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `consultarSeguimiento`, `consultarCalificacion` y `calificarEntrega` (públicas, ADR-052; un comentario dispara la clasificación del gateway de IA, ADR-066), `consultarCodigoDeEntrega` y `consultarUbicacionDeEntrega` (ADR-055), `modificarEntrega` (pública, ADR-057), `listarPendientes`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual`, `listarEntregasEnCursoDeRepartidor` (ADR-043), `resumenEntregas`, `resumenEntregasDelComercioActual` (ADR-034)
+    - Operaciones: `listarPedidosExternos`, `consultarPedidoExterno`, `consultarEstadoPedido`, `consultarSeguimiento`, `consultarCalificacion` y `calificarEntrega` (públicas, ADR-052), `consultarCodigoDeEntrega` y `consultarUbicacionDeEntrega` (ADR-055), `modificarEntrega` (pública, ADR-057), `listarPendientes`, `listarTodos`, `listarPedidosDeComercio`, `listarEntregasEnCurso`, `listarPedidosDelComercioActual`, `listarPedidosDelRepartidorActual`, `listarEntregasEnCursoDeRepartidor` (ADR-043), `resumenEntregas`, `resumenEntregasDelComercioActual` (ADR-034)
     - Quién la usa: `PedidoBean`, `PortalComercioBean`, Ruteo, Pagos, Notificaciones, API REST
   - `IIndicadores`
     - Operaciones: `calcular` (personal: toda la red o un comercio), `calcularDelComercioActual` (ADR-044)
@@ -320,8 +320,8 @@ flowchart LR
     Comercios -.->|ComercioEliminado| Transportistas
 ```
 
-**Integraciones con sistemas externos.** El banco y la IA pasan por la
-capa técnica `integracion` (no es un componente de negocio). El detalle de
+**Integraciones con sistemas externos.** El banco pasa por la capa
+técnica `integracion` (no es un componente de negocio). El detalle de
 cada una está en el [mapa de integración](#mapa-de-integración).
 
 ```mermaid
@@ -335,12 +335,9 @@ flowchart LR
         Transportistas
         Notificaciones
         Banco[Integración banco]
-        IA[Gateway de IA]
     end
     Pagos -->|IBancoClient| Banco
-    Pedidos -->|IClasificadorIa| IA
     Banco -->|SOAP/HTTP| Legado[(Banco legado<br/>simulado)]
-    IA -->|"HTTPS, opcional"| Claude[(API de Claude)]
     Ruteo -->|HTTP/JSON| OSM[(OpenStreetMap<br/>Nominatim)]
     Transportistas -->|REST/JSON| TransREST[(Transportista REST<br/>simulado)]
     Transportistas -->|SOAP/HTTP| TransSOAP[(Transportista legado<br/>simulado)]
@@ -406,10 +403,6 @@ el repartidor sale siempre de la identidad autenticada
   - Mecanismo: REST/HTTP saliente (Nominatim), desde un timer y con caché
   - Estado: Implementado
   - Detalle: [DECISIONES.md](DECISIONES.md#adr-046-hoja-de-ruta-por-distancia-con-openstreetmap)
-- **Pedidos → API de Claude (ADR-066)**
-  - Mecanismo: REST/HTTPS saliente, a través del gateway `integracion.ia`; en segundo plano (`@Asynchronous`) y después del commit, con timeout de 5 s y sin clasificar si falla
-  - Estado: Implementado (si se configura la clave)
-  - Detalle: [DECISIONES.md](DECISIONES.md#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones)
 - **Pedidos → Comercios, Inventario, Pagos, Repartidores, Transportistas**
   - Mecanismo: Llamada local EJB
   - Estado: Implementado

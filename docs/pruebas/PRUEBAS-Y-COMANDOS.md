@@ -45,7 +45,7 @@ ADMIN_USER=... ADMIN_PASSWORD=... DEMO_PASSWORD=... ITEM=<id del producto> \
   BASE=https://localhost:8443/Rabbit npx playwright test
 ```
 
-Las variables salen del `.env`. La IA (ADR-066) queda apagada si `ANTHROPIC_API_KEY` está vacía: es el estado normal de las pruebas.
+Las variables salen del `.env`.
 
 Todos los comandos asumen:
 
@@ -213,10 +213,6 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 - `rabbit.tarifa.almacenamiento.pequeno` / `.mediano` / `.grande` / `.recargo-stock-antiguo`
   - Por defecto: `10` / `30` / `90` / `50` (%)
   - Qué hace: Precio por unidad y por día de cada tamaño y recargo por stock antiguo (ADR-059 y ADR-065). Con los tres precios en 0 no se cobra almacenamiento
-  - ¿Hay que redesplegar?: No
-- `rabbit.ia.clave` (o la variable de entorno `ANTHROPIC_API_KEY`), `rabbit.ia.modelo`, `rabbit.ia.url`
-  - Por defecto: sin clave (IA apagada), `claude-haiku-5-5`, `https://api.anthropic.com/v1/messages`
-  - Qué hace: Gateway de IA que clasifica los comentarios de las calificaciones (ADR-066). Sin clave, los comentarios quedan sin clasificar
   - ¿Hay que redesplegar?: No
 
 Para ver cuáles están definidas:

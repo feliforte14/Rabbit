@@ -43,12 +43,12 @@ explican en una línea.
 - **Idempotent Receiver**: `Idempotency-Key` más una huella del pedido y una restricción única (ver la [sección](#idempotency-key)). **ADR:** ADR-018.
 - **Polling de respaldo**: `SincronizadorDePedidos`, por timer, por si falla la cola **ADR:** ADR-001.
 - **Transactional Outbox**: la bandeja de salida de los avisos de estado (`BandejaDeEstados`, tabla `eventos_estado_pedido`) y la de los mails (`BandejaDeCorreos`, tabla `correos_pendientes`): se guardan en la misma transacción que el cambio y un timer los publica o reintenta. **ADR:** [ADR-063](DECISIONES.md#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado).
-- **Gateway**: `BancoClient` oculta el SOAP del banco legado, y `ClasificadorIa` oculta al proveedor de IA (con timeout de 5 s, fallback y validación de entrada y salida; ADR-066) **ADR:** ADR-010 y [ADR-066](DECISIONES.md#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones).
+- **Gateway**: `BancoClient` oculta el SOAP del banco legado **ADR:** ADR-010.
 
 ### Resiliencia y concurrencia
 
 - **Circuit Breaker**: `CircuitBreakerBanco` (ver la [sección](#circuit-breaker)). **ADR:** ADR-011.
-- **Timeout y degradación controlada**: Corte a los 5 s; la falta de respuesta viaja como resultado (`NO_DISPONIBLE`) **ADR:** ADR-010, ADR-011 y ADR-066.
+- **Timeout y degradación controlada**: Corte a los 5 s; la falta de respuesta viaja como resultado (`NO_DISPONIBLE`) **ADR:** ADR-010 y ADR-011.
 - **Transacción compensatoria**: `ReversasBancarias` y `CancelacionesDeEnvios` (ver la [sección](#transacción-compensatoria)). **ADR:** ADR-010.
 - **Bloqueo pesimista**: Stock y estado del pedido (`PESSIMISTIC`) **ADR:** ADR-025 y ADR-026.
 

@@ -85,10 +85,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   cola de mensajes muertos (ADR-063 y ADR-064).
 - **Calificación de la entrega:** cuando el pedido está entregado, la página
   de seguimiento le pregunta a quien lo recibió cómo fue (de 1 a 5 estrellas y
-  un comentario opcional). Una sola vez por pedido (ADR-052). Un gateway de IA
-  clasifica el comentario (positivo, neutro o negativo, y de qué habla) y los
-  indicadores muestran el resumen; sin clave de API no hay IA y todo lo demás
-  funciona igual (ADR-066).
+  un comentario opcional). Una sola vez por pedido (ADR-052).
 - **Indicadores:** tablero para el personal (toda la red, un comercio y
   por repartidor) y para cada comercio: entregas a tiempo, al primer
   intento, horas de recibido a entregado, lista de espera y costo por
@@ -106,8 +103,7 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
 Jakarta EE 10 sobre WildFly (perfil `standalone-full`), Java 17, JSF +
 Facelets, EJB, JPA/Hibernate, PostgreSQL (local con Docker, o la base compartida en Supabase), JMS (ActiveMQ
 Artemis embebido), JAX-WS (SOAP), JAX-RS (REST), Jakarta Security,
-Jakarta Mail, Maven (WAR), JUnit 5 y REST Assured. Pruebas de punta a punta con Playwright, carga con k6 y, como
-proveedor de la funcionalidad de IA (opcional), la API de Claude.
+Jakarta Mail, Maven (WAR), JUnit 5 y REST Assured. Pruebas de punta a punta con Playwright y carga con k6.
 
 Esta rama (`main`) es el sistema de Rabbit solo: el banco y los
 transportistas con los que se integra están simulados dentro del mismo
@@ -178,9 +174,6 @@ docker/                    ← configuración de WildFly y semilla de datos para
 - **Integración con el banco legado (SOAP)**
   - Paquete: `integracion.banco`
   - Estado: Implementado
-- **Gateway de IA (clasifica los comentarios de las calificaciones)**
-  - Paquete: `integracion.ia`
-  - Estado: Implementado (ADR-066)
 - **Notificaciones**
   - Paquete: `notificaciones`
   - Estado: Implementado
@@ -193,7 +186,7 @@ docker/                    ← configuración de WildFly y semilla de datos para
 
 ## Integraciones
 
-2 SOAP, 5 REST, 1 cola punto a punto y 1 tópico pub/sub, más el mail (opcional):
+2 SOAP, 4 REST, 1 cola punto a punto y 1 tópico pub/sub, más el mail (opcional):
 
 - **Pagos → banco legado (cobro y reversa, con circuit breaker)**
   - Tipo: Sincrónica, **SOAP**
@@ -222,9 +215,6 @@ docker/                    ← configuración de WildFly y semilla de datos para
 - **Notificaciones → comercio y quien recibe (ADR-040)**
   - Tipo: SMTP (Jakarta Mail), después del commit, con bandeja de correos: si el servidor no responde, se reintenta cada minuto durante 24 horas (ADR-063)
   - Dirección: Saliente (opcional, por configuración)
-- **Rabbit → proveedor de IA (clasifica el comentario de una calificación)**
-  - Tipo: Sincrónica, **REST/JSON por HTTPS** (API de Claude), a través del gateway `integracion.ia`, con timeout de 5 s y fallback
-  - Dirección: Saliente (opcional: sin clave de API no hay IA)
 
 El seguimiento de los envíos derivados es por consulta periódica (cada
 15 s) a todos los transportistas, modernos y legados (ADR-029).
@@ -236,14 +226,14 @@ El detalle y la justificación de cada decisión están en
 
 - **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (72 ADR)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MENSAJERIA-JUSTIFICACION.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
-- **Negocio y funcional** (`docs/negocio/`, `docs/funcional/`): [BRD](docs/negocio/BRD.md), [Documentación funcional](docs/funcional/DOCUMENTACION-FUNCIONAL.md) (37 historias de usuario en Gherkin y matriz de trazabilidad).
+- **Negocio y funcional** (`docs/negocio/`, `docs/funcional/`): [BRD](docs/negocio/BRD.md), [Documentación funcional](docs/funcional/DOCUMENTACION-FUNCIONAL.md) (36 historias de usuario en Gherkin y matriz de trazabilidad).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md) (qué protege Rabbit), [Informe de seguridad](docs/seguridad/INFORME-SEGURIDAD.md) (matriz del Eje D con evidencia), [Pruebas de seguridad](docs/seguridad/PRUEBAS-DE-SEGURIDAD.md) (cómo repetirlas) y el [incidente de secretos en el historial](docs/seguridad/INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar, y las pruebas del CI: [contrato](docs/pruebas/CONTRATO.md) y [punta a punta y accesibilidad](docs/pruebas/E2E.md).
 - **Consigna** (`docs/consigna/`): [Checklist](docs/consigna/CHECKLIST.md) de requisitos (Sección 6 y anexo), [Desafíos opcionales](docs/consigna/DESAFIOS-OPCIONALES.md) y [Uso de IA](docs/consigna/USO-DE-IA.md).
 
 ## Cumplimiento de la consigna
 
-- **Mínimo 6 componentes con interfaz explícita**: 9 componentes de negocio, cada uno con interfaces `@Local`, más una capa técnica de integración (`integracion`: cliente del banco, adaptadores de transportistas y gateway de IA)
+- **Mínimo 6 componentes con interfaz explícita**: 9 componentes de negocio, cada uno con interfaces `@Local`, más una capa técnica de integración (`integracion`: cliente del banco y adaptadores de transportistas)
 - **1 componente stateful y 1 stateless**: `InventarioService` (`@Stateful`: la reserva de stock es una conversación) y el resto `@Stateless`
 - **Arquitectura en capas**: `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente
 - **3 patrones de diseño**: DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, State, transacción compensatoria y Circuit Breaker
@@ -274,9 +264,6 @@ es el checklist de qué necesita cada quien y dónde se consigue o se crea
 - **Servidor SMTP (host, puerto, remitente)**
   - Para qué: Avisos por mail al comercio (paso 7, opcional)
   - De dónde sale: El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal
-- **Clave de la API de Claude (`ANTHROPIC_API_KEY`)**
-  - Para qué: Clasificar los comentarios de las calificaciones con IA (ADR-066, opcional)
-  - De dónde sale: La cuenta de Anthropic del equipo; va en el `.env` (Docker) o en la propiedad `rabbit.ia.clave`, nunca en el repositorio — sin ella, la app funciona igual y los comentarios quedan sin clasificar
 
 ### Cuentas de la aplicación
 

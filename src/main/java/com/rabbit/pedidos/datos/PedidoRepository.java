@@ -353,27 +353,6 @@ public class PedidoRepository {
         return estrellas;
     }
 
-    /** Guarda lo que dijo la IA del comentario de una calificación (sentimiento y tema). */
-    public void guardarClasificacion(Long idCalificacion, String sentimiento, String tema) {
-        em.createQuery("UPDATE CalificacionEntrega c SET c.sentimiento = :s, c.tema = :t WHERE c.id = :id")
-                .setParameter("s", sentimiento).setParameter("t", tema).setParameter("id", idCalificacion)
-                .executeUpdate();
-    }
-
-    /** El sentimiento de cada pedido con comentario clasificado, por ID de pedido (los demás no aparecen). */
-    public java.util.Map<Long, String> sentimientosDePedidos(java.util.Collection<Long> idsPedidos) {
-        java.util.Map<Long, String> sentimientos = new java.util.HashMap<>();
-        java.util.List<Long> ids = new java.util.ArrayList<>(idsPedidos);
-        for (int i = 0; i < ids.size(); i += 500) {
-            em.createQuery("SELECT c.idPedido, c.sentimiento FROM CalificacionEntrega c "
-                            + "WHERE c.idPedido IN :ids AND c.sentimiento IS NOT NULL", Object[].class)
-                    .setParameter("ids", ids.subList(i, Math.min(i + 500, ids.size())))
-                    .getResultList()
-                    .forEach(f -> sentimientos.put((Long) f[0], (String) f[1]));
-        }
-        return sentimientos;
-    }
-
     // --- Visitas fallidas y sus fotos (ADR-045) ---
 
     public void guardarIntento(IntentoEntrega intento) {

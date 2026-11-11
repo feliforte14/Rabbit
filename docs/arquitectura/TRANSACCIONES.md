@@ -68,9 +68,6 @@
 - `NOT_SUPPORTED` + `REQUIRES_NEW`
   - Dónde: `VencimientoDeRetiros` → `PedidoService.vencerRetiro`
   - Por qué: La pasada diaria (04:10) no abre transacción; cada retiro vencido vuelve al comercio en la suya, así uno que falla no frena a los demás (ADR-053)
-- `@Asynchronous`, transacción propia
-  - Dónde: `ClasificadorEnSegundoPlano` (lo dispara `ClasificacionDeComentarios` con `AFTER_SUCCESS`)
-  - Por qué: La calificación ya se confirmó cuando se llama a la IA: quien califica no espera, y si la IA falla la calificación queda guardada igual, sin clasificar (ADR-066)
 - `NOT_SUPPORTED`
   - Dónde: `CircuitBreakerBanco`
   - Por qué: Solo cambia estado en memoria: no tiene nada que hacer en la transacción del llamador

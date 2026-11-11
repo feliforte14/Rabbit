@@ -10,7 +10,7 @@ están en el [README principal](../README.md).
 
 ## Cómo leer esta documentación
 
-*Última revisión general: 10/11/2026 (ADR por componente, ADR-060 a 072, gateway de IA, defectos cerrados y mediciones del punto 10 del informe de ejecución).*
+*Última revisión general: 10/11/2026 (ADR por componente, ADR-060 a 072, defectos cerrados y mediciones del punto 10 del informe de ejecución). El 11/11 la funcionalidad de IA salió de `dev` para trabajarse en la rama `AI-GateWay` (ADR-066).*
 
 - **Un documento por tema.** Cada uno describe lo **implementado**, con las clases donde vive.
 - **Las mejoras pendientes** están marcadas como tales dentro de cada documento y en las "Consecuencias" de los ADR.
@@ -62,7 +62,7 @@ docs/
 ### [negocio/](negocio/) y [funcional/](funcional/)
 
 - [BRD.md](negocio/BRD.md): Documento de requisitos de negocio: objetivos, alcance y requisitos BR-xx
-- [DOCUMENTACION-FUNCIONAL.md](funcional/DOCUMENTACION-FUNCIONAL.md): 37 historias de usuario en Gherkin, reglas de negocio, requisitos no funcionales y matriz de trazabilidad BR → HU → CA → CP
+- [DOCUMENTACION-FUNCIONAL.md](funcional/DOCUMENTACION-FUNCIONAL.md): 36 historias de usuario en Gherkin, reglas de negocio, requisitos no funcionales y matriz de trazabilidad BR → HU → CA → CP
 
 ### [arquitectura/](arquitectura/)
 
