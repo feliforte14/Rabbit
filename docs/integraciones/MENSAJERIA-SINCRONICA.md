@@ -263,15 +263,15 @@ Postman.
 - `POST /api/v1/pedidos-externos`
   - Quién: ERP (HTTP Basic) + header `Idempotency-Key`
   - Qué hace: Registra un pedido externo de **su** comercio
-  - Respuestas: `201` + `Location` · `400` · `401` · `403` · `422`
+  - Respuestas: `201` + `Location` + `ETag` · `400` · `401` · `403` · `415` · `422`
 - `GET /api/v1/pedidos-externos/{id}`
   - Quién: ERP
   - Qué hace: Cómo terminó: `Pendiente`, `Sincronizado` (con `idPedido`, `estadoPedido` y `codigoSeguimiento`; si está `PENDIENTE`, también `enListaDeEspera`, ADR-037), `Descartado` (con `motivo`) o `Cancelado`
-  - Respuestas: `200` · `404`
+  - Respuestas: `200` + `ETag` · `304` (con `If-None-Match` igual al `ETag`: no cambió) · `404`
 - `POST /api/v1/pedidos-externos/{id}/cancelacion`
   - Quién: ERP
   - Qué hace: Cancela el pedido (pendiente de sincronizar, o pedido `PENDIENTE` que nunca salió a reparto)
-  - Respuestas: `200` · `404` · `409`
+  - Respuestas: `200` + `ETag` · `404` · `409` · `412` (con `If-Match` distinto del `ETag` actual: el pedido cambió desde que el ERP lo leyó) · `422`
 - `GET /api/v1/seguimiento/{codigo}`
   - Quién: Público
   - Qué hace: Estado actual del pedido, día prometido (ADR-042) y, en camino, parada y franja (ADR-043)
@@ -340,6 +340,13 @@ Ruteo ubica el pedido en su zona (ADR-017).
   también puede salir si devolver el stock de una línea choca con otra
   sesión tocando el mismo ítem al mismo tiempo (`stock-en-conflicto`):
   a diferencia del anterior, este es pasajero — reintentar alcanza.
+- **Concurrencia optimista con `ETag`:** cada respuesta con un pedido
+  externo trae un `ETag` (huella SHA-256 de la representación, sin los
+  `_links`). Un `GET` con `If-None-Match` igual responde `304` sin cuerpo:
+  el ERP ya tiene esa versión. La cancelación acepta `If-Match`: si el
+  pedido cambió desde que el ERP lo consultó (por ejemplo, ya se
+  confirmó), responde `412` con el `ETag` nuevo, para que decida con el
+  estado real. Sin `If-Match` cancela igual, como antes: es opcional.
 - **Errores con Problem Details (RFC 9457):** las respuestas de error de
   Rabbit son `application/problem+json` con `type`, `title`, `status` y
   `detail` (el equivalente REST del SOAP Fault). `400` es formato (falta

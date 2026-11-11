@@ -17,8 +17,8 @@ criterios de aceptación en Gherkin de [DOCUMENTACION-FUNCIONAL.md](../funcional
 
 ## Resumen
 
-- Casos: **129**. Positivos: **73**. Negativos: **47**. De borde: **9**.
-- Negativos o de borde: **56 de 129 = 43 %** (el mínimo exigido es 40 %).
+- Casos: **130**. Positivos: **73**. Negativos: **48**. De borde: **9**.
+- Negativos o de borde: **57 de 130 = 44 %** (el mínimo exigido es 40 %).
 
 ## Casos
 
@@ -129,6 +129,7 @@ criterios de aceptación en Gherkin de [DOCUMENTACION-FUNCIONAL.md](../funcional
 | CP-29.2 | HU-29 | Entrega con el código | un retiro CONFIRMADO | el personal ingresa el código de seguimiento (sin importar mayúsculas ni espacios) | el pedido pasa directo a ENTREGADO sin pasar por EN_CAMINO | Media (Should) | Positivo | Sí |
 | CP-29.3 | HU-29 | Productos en distintos depósitos o con punto de picking | — | los productos están en distintos depósitos o el pedido usa un punto de picking | responde 422 explicando por qué | Media (Should) | Negativo | Sí |
 | CP-29.4 | HU-29 | Operaciones de reparto | un retiro | se intenta despachar, derivar, cotizar o devolver al depósito | se rechaza con un mensaje claro | Media (Should) | Negativo | Sí |
+| CP-29.5 | HU-29 | Retiro vencido | un retiro CONFIRMADO que nadie buscó en 21 días (configurable) | corre la revisión diaria de retiros | el pedido vuelve al comercio (DEVUELTO_AL_COMERCIO) con el motivo y el stock vuelve a quedar disponible y el cobro se anula | Media (Should) | Negativo | Sí |
 | CP-30.1 | HU-30 | Calificar | un pedido ENTREGADO | quien recibe elige de 1 a 5 estrellas y, si quiere, un comentario de hasta 500 caracteres | se guarda y el seguimiento muestra lo calificado sin el formulario | Baja (Could) | Negativo | Sí |
 | CP-30.2 | HU-30 | Una sola vez | un pedido ya calificado | se intenta calificar de nuevo | no se acepta | Baja (Could) | Positivo | Sí |
 | CP-30.3 | HU-30 | Pedido no entregado o datos inválidos | — | el pedido no está ENTREGADO, o las estrellas no están entre 1 y 5 | no se acepta la calificación y el comentario se muestra siempre escapado y no va al log | Baja (Could) | Negativo | Sí |

@@ -59,7 +59,7 @@ sequenceDiagram
 - **El consumidor no está**: El mensaje espera en la cola
 - **Cola y polling llegan a la vez**: Lock `PESSIMISTIC_WRITE` + flag `sincronizado`: el segundo recibe `PedidoYaSincronizadoException` y la ignora
 - **Falla de negocio (comercio de baja, sin stock)**: Se descarta el pedido con motivo y el mensaje se consume (reintentarlo no lo arregla)
-- **Mensaje ilegible**: Se loguea y se consume
+- **Mensaje ilegible (no es `TextMessage`, JSON roto, sin `idPedidoExterno`)**: Se loguea y se relanza (`MensajeIlegibleException`): el broker reintenta 5 veces (2 s entre intentos) y lo manda a la DLQ, donde queda para inspeccionarlo y reprocesarlo con `scripts/dlq.sh` (ADR-064)
 - **Error transitorio (base caída)**: Se relanza; el broker reintenta la entrega
 - **Un componente rechaza la llamada por permisos**: El consumidor y el polling corren **sin usuario**: todo lo que llaman tiene que estar permitido sin rol. Si no, cada intento falla y el pedido queda "Pendiente" en "Recibidos del ERP" hasta que se corrija (pasó con el peso de los ítems; se agregó `pesosPorItem` sin rol, ADR-032)
 
@@ -145,5 +145,4 @@ consola de WildFly), entregando un pedido contra entrega (el cobro quedó
 - **El mismo evento llega dos veces**: Pagos es idempotente (si ya está `ACREDITADO` o `ANULADO` no hace nada, con bloqueo pesimista sobre el cobro). Los dos suscriptores de Notificaciones descartan el repetido por `fechaCambio`
 - **Los eventos llegan desordenados**: Cada suscriptor de Notificaciones guarda la `fechaCambio` por pedido e ignora los más viejos. A Pagos no le afecta: `ENTREGADO` y `DEVUELTO_AL_COMERCIO` son finales
 - **Cambia el selector de una suscripción durable**: Artemis la borra y la recrea al desplegar: los mensajes pendientes de esa suscripción se pierden. Pasó al sumar `DEVUELTO_AL_COMERCIO` al selector de Pagos (ADR-041)
-- **Mensaje ilegible**: Se loguea y se consume
 - **Error transitorio en Pagos (base caída)**: Se relanza; el broker reintenta la entrega

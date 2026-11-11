@@ -614,6 +614,14 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
   carga, actualizado en el mismo cambio. Las cuentas ERP creadas con
   `add-user.sh` dejan de funcionar (`403`) hasta crearlas desde la app.
   Los pedidos anteriores no tienen código de seguimiento.
+- **Concurrencia (29/10/2026):** cada respuesta con un pedido externo trae
+  un `ETag` (huella SHA-256 de la representación, sin `_links`). `GET` con
+  `If-None-Match` igual responde `304`; la cancelación con `If-Match`
+  distinto responde `412` (`pedido-modificado`) con el `ETag` nuevo, así el
+  ERP no cancela a ciegas algo que cambió desde que lo leyó. `If-Match` es
+  opcional para no romper a los ERP que ya cancelaban sin él. Está en el
+  contrato (`openapi.yaml`) y lo prueba Schemathesis (ver
+  `docs/pruebas/CONTRATO.md`).
 
 ## ADR-019: HTTPS obligatorio, salvo los sistemas externos simulados
 
@@ -783,8 +791,9 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
   (`flush` + `detach` + `find` con bloqueo) para releer el estado real tras
   el bloqueo, no una copia de antes. Si el pedido no se pudo mover (regla
   de negocio) o el envío cambió mientras tanto, se deshace todo y se
-  responde `409` (`PEDIDO_EN_CONFLICTO`): el webhook lo reintenta solo, el
-  polling lo vuelve a tomar en la próxima pasada.
+  lanza `NovedadRechazadaException`: el polling la vuelve a tomar en la
+  próxima pasada. (Mientras existió el webhook, ADR-022, ese caso respondía
+  `409` y el transportista reintentaba; ADR-029 lo sacó.)
 - **Alternativas descartadas:**
   - *Bloquear siempre el envío primero:* invierte el problema en vez de
     resolverlo (la cancelación sería la que corre el riesgo).
@@ -792,8 +801,8 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
     abortando una transacción; agregar un reintento acá duplicaría esa
     lógica sin eliminar la causa (el orden cruzado).
 - **Consecuencias:** sin deadlocks entre estos dos caminos. El contrato de
-  `recibirNovedad`/`registrarNovedad` ahora incluye `409` como respuesta
-  posible (documentado en `ISeguimientoEnvios` y el OpenAPI del webhook).
+  `registrarNovedad` incluye `NovedadRechazadaException` (documentado en
+  `ISeguimientoEnvios`).
 
 ## ADR-026: Cierre de una reserva de stock, con el mismo bloqueo que abrirla
 
@@ -1808,9 +1817,14 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
   - **Quien compró lo ve:** seguimiento con tres pasos (Recibido → Listo para retirar →
     Retirado), con el depósito y el código; los mails dicen "listo para retirar" en vez de
     "ya tiene quién lo lleve".
-- **Consecuencias:** un retiro que nadie busca queda CONFIRMADO hasta que se cancele (no
-  hay vencimiento; mientras espera, las unidades siguen ocupando lugar y
-  cuentan para el cobro por almacenamiento, ADR-059). La prueba de entrega es solo el
+- **Vencimiento (10/11/2026):** un retiro que nadie busca no queda CONFIRMADO para siempre.
+  `VencimientoDeRetiros` (timer diario a las 04:10) busca los retiros CONFIRMADO con más de
+  21 días (`PlazoDeRetiro`, configurable con `rabbit.retiro.dias`) y cada uno, en su propia
+  transacción (`vencerRetiro`), vuelve al comercio: el stock consignado se repone, el pedido
+  pasa a DEVUELTO_AL_COMERCIO con el motivo "No se retiró del depósito en N días" y Pagos anula
+  el cobro al recibir el cambio por el tópico, como en ADR-041.
+- **Consecuencias:** mientras espera el retiro, las unidades siguen ocupando lugar y cuentan
+  para el cobro por almacenamiento (ADR-059). La prueba de entrega es solo el
   código, más débil que la foto del remito; el código lo conoce quien tenga el enlace.
 
 ## ADR-054: Mejoras de diseño visual
@@ -1942,8 +1956,9 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
   autorizada tiene que conocerlo para recibir el pedido, así que alguien que solo tenga el enlace no
   se puede hacer pasar por quien recibe.
 - **Consecuencias:** quien tenga el enlace del seguimiento puede reprogramar o dejar instrucciones
-  (no puede recibir el pedido). No se le avisa por mail a quien recibe que cambió algo: queda como
-  mejora, y sería la mitigación natural contra un cambio hecho por un tercero. Reprogramar no
+  (no puede recibir el pedido). Desde el 09/11/2026 cada cambio le manda un mail a quien recibe
+  con lo que quedó guardado (`EntregaModificada` → `AvisosPorMail`, por la bandeja de correos
+  de ADR-063): si el cambio lo hizo un tercero, quien recibe se entera. Reprogramar no
   retiene el pedido hasta esa fecha: lo decide el personal al confirmar y asignar.
 
 ## ADR-058: Órdenes de recepción de mercadería
@@ -2050,6 +2065,17 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
   reintentos contados) y, al restaurarlo, el timer los publicó y llegaron todas las
   notificaciones. En los tests: `BandejaDeEstadosTest`, `EnvioDeEstadosPendientesTest` y
   `PublicadorEstadosPedidoTest`.
+- **Extensión a los mails (10/11/2026):** los mails tenían el mismo problema: salían después
+  del commit y, si el servidor de correo no respondía, se perdían. Ahora `AvisosPorMail`
+  guarda cada mail en la tabla `correos_pendientes` (`CorreoPendiente`, `BandejaDeCorreos`)
+  **dentro de la transacción** del aviso y lo manda después del commit
+  (`EnvioDeCorreosPendientes`). Si el servidor no responde, el mail queda PENDIENTE y un
+  timer lo reintenta cada minuto; si rechaza la dirección para siempre, se DESCARTA y se
+  sigue con el siguiente. Un mail que lleva más de 24 horas esperando también se descarta
+  (un "llega hoy" al otro día confunde). Los enviados se borran al día siguiente y los
+  descartados a los 7 días (timer diario a las 03:40). Sin servidor SMTP configurado no se
+  guarda nada. Tests: `BandejaDeCorreosTest`, `EnvioDeCorreosPendientesTest`,
+  `CorreoPendienteRepositoryTest` y `AvisosPorMailTest`.
 
 ## ADR-064: Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados
 
@@ -2235,9 +2261,13 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 
 - **Estado:** Aceptada (decisión del diseño original, documentada el 10/11/2026); patrón *Repository / DAO*.
 - **Contexto:** las reglas de negocio no deberían depender de JPQL ni del `EntityManager`.
-- **Decisión:** cada componente tiene un repositorio (`ComercioRepository`, `InventarioRepository`, `PedidoRepository`,
-  `CobroRepository`, `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`, `TransportistaRepository`,
-  `ZonaRepository`) que es la **única clase que toca el `EntityManager`**. También encapsula decisiones de acceso, como el
+- **Decisión:** cada componente tiene su repositorio principal (`ComercioRepository`, `InventarioRepository`,
+  `PedidoRepository`, `CobroRepository`, `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`,
+  `TransportistaRepository`, `ZonaRepository`) y, cuando una tabla tiene un uso propio, uno más dentro del mismo
+  componente: `EventoEstadoRepository` (Pedidos, bandeja de salida, ADR-063), `LiquidacionRepository` (Pagos, ADR-034),
+  `CorreoPendienteRepository` (Notificaciones, bandeja de correos) y `CoordenadaRepository` (Ruteo, caché de
+  coordenadas, ADR-046). Son 13 y son las **únicas clases de negocio que tocan el `EntityManager`**; las otras dos
+  son técnicas y corren al desplegar (`AlineadorDeRestriccionesEnum` y `LimpiezaDeCredenciales`). También encapsula decisiones de acceso, como el
   bloqueo `PESSIMISTIC_WRITE`.
 - **Consecuencias:** las reglas se leen sin consultas mezcladas y los EJB se prueban con el repositorio simulado.
 - **Descartado:** usar el `EntityManager` directo en los EJB (mezcla consultas con reglas).
@@ -2277,8 +2307,9 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 - **Decisión:** `@Singleton @Startup` del contenedor, con `@Schedule` para las tareas: `BarredorDeReservas`,
   `SincronizadorDePedidos`, `SeguimientoDeEnvios`, `AsignadorDeEspera` (ADR-037), `EnvioDeEstadosPendientes` y
   `EnvioDeCorreosPendientes` (ADR-063), `LiquidacionMensual` (ADR-034), `FotoDiariaDeOcupacion` (ADR-059),
-  `VencimientoDeRetiros` (ADR-053), `AlineadorDeRestriccionesEnum` (corre una vez al desplegar) y `CircuitBreakerBanco`
-  (ADR-011).
+  `VencimientoDeRetiros` (ADR-053), `Geocodificador` (ADR-046), `AlineadorDeRestriccionesEnum` y
+  `LimpiezaDeCredenciales` (corren una vez al desplegar), `AvisosDeEspera` (ADR-037) y `CircuitBreakerBanco` (ADR-011).
+  Son 14.
 - **Consecuencias:** cada tarea corre en una sola pasada a la vez. Con varios nodos habría que coordinar las tareas (hoy hay uno).
 - **Descartado:** tareas en `@Stateless` (una por instancia del pool) y estado del circuit breaker por llamada.
 

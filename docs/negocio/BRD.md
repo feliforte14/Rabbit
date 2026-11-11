@@ -66,7 +66,7 @@ Los valores objetivo son la propuesta del equipo para el primer semestre de oper
 - Asignación de repartidores propios por zona y capacidad del vehículo, lista de espera, despacho por zona y hoja de ruta.
 - Derivación a transportistas externos (REST y SOAP) con cotización y seguimiento automático.
 - Entrega con prueba (foto del remito, código de 4 dígitos, ubicación), visitas fallidas con evidencia y devolución al comercio.
-- Retiro en depósito por parte de quien compró.
+- Retiro en depósito por parte de quien compró (si no lo busca en 21 días, vuelve al comercio).
 - Seguimiento público sin cuenta, avisos por mail y opciones de quien recibe (reprogramar, instrucciones, persona autorizada), y calificación de la entrega.
 - Portal del comercio: pedidos, avisos, stock, puntos de picking, liquidaciones e indicadores.
 - Liquidación mensual del servicio al comercio (abono, envíos, kilos y almacenamiento) cobrada por el banco.

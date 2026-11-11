@@ -41,7 +41,7 @@ la fila pasaron en el CI; no distingue qué criterio cubre cada una (eso lo dice
 | HU-26 | Probar un pedido sin un ERP | Could | 26.1–26.3 | `PedidoServiceTest`; manual | Automatizado: pasa (CI, `b696023`). Manual: sin ejecutar | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) + manual pendiente | — |
 | HU-27 | Administrar las cuentas | Must | 27.1–27.5 | `UsuarioServiceTest`, `ClavesTest`, `LimiteDeIntentosTest`, `LoginBeanTest`, `SeguridadIT` (429), E2E-1 | Pasa (CI, `b696023`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) | — |
 | HU-28 | Liquidar el mes a los comercios | Must | 28.1–28.3 | `LiquidacionesTest`, `TarifaMensualTest`, `PagoServiceTest` | Pasa (CI, `b696023`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) | — |
-| HU-29 | Retirar el pedido en un depósito | Should | 29.1–29.4 | `ReglaDeRetiroTest`, `EstadoDelPedidoTest` | Pasa (CI, `b696023`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) | — |
+| HU-29 | Retirar el pedido en un depósito | Should | 29.1–29.5 | `ReglaDeRetiroTest`, `EstadoDelPedidoTest`; 29.5: `PlazoDeRetiroTest`, `VencimientoDeRetirosTest` | Pasa (CI, `b696023`; 29.5 en `73094da`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013), [CI 29.5](https://github.com/feliforte14/Rabbit/actions/runs/42885588643) | — |
 | HU-30 | Calificar la entrega | Could | 30.1–30.3 | `ReglaDeCalificacionTest` | Pasa (CI, `b696023`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) | — |
 | HU-31 | Cambiar algo de la entrega | Should | 31.1–31.3 | `ReglaDeOpcionesDeEntregaTest` | Pasa (CI, `b696023`) | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) | — |
 | HU-32 | Etiquetar los bultos y retirar escaneando | Could | 32.1–32.3 | `BultosTest`; manual (impresión y escaneo) | Automatizado: pasa (CI, `b696023`). Manual: sin ejecutar | [CI](https://github.com/feliforte14/Rabbit/actions/runs/41564819013) + manual pendiente | — |
@@ -53,7 +53,7 @@ la fila pasaron en el CI; no distingue qué criterio cubre cada una (eso lo dice
 
 ## Resumen
 
-- HU en el alcance: **37**; casos de prueba (CP): **129**.
+- HU en el alcance: **37**; casos de prueba (CP): **130**.
 - Con prueba automatizada que pasa: **29** HU. Mixtas (automatizada y manual): **8**. Solo manual, sin ejecutar: **0**.
 - Cada HU del alcance tiene al menos un criterio y un caso (sin huecos en HU → CA → CP).
 - Ninguna HU «Must» tiene un criterio fallado en la última corrida automatizada.

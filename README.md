@@ -193,7 +193,7 @@ docker/                    ← configuración de WildFly y semilla de datos para
 
 ## Integraciones
 
-2 SOAP, 3 REST, 1 cola punto a punto y 1 tópico pub/sub (más el mail, opcional):
+2 SOAP, 5 REST, 1 cola punto a punto y 1 tópico pub/sub, más el mail (opcional):
 
 - **Pagos → banco legado (cobro y reversa, con circuit breaker)**
   - Tipo: Sincrónica, **SOAP**
@@ -216,8 +216,11 @@ docker/                    ← configuración de WildFly y semilla de datos para
 - **Cambios de estado del pedido → Pagos y Notificaciones (`topico.pedidos.estado`)**
   - Tipo: Asincrónica, **tópico JMS**
   - Dirección: Interna
-- **Notificaciones → comercio**
-  - Tipo: SMTP (Jakarta Mail), después del commit
+- **Ruteo → OpenStreetMap (ubica las direcciones de la hoja de ruta, ADR-046)**
+  - Tipo: Sincrónica, **REST/JSON** (Nominatim), desde un timer y con caché: nadie la espera
+  - Dirección: Saliente
+- **Notificaciones → comercio y quien recibe (ADR-040)**
+  - Tipo: SMTP (Jakarta Mail), después del commit, con bandeja de correos: si el servidor no responde, se reintenta cada minuto durante 24 horas (ADR-063)
   - Dirección: Saliente (opcional, por configuración)
 - **Rabbit → proveedor de IA (clasifica el comentario de una calificación)**
   - Tipo: Sincrónica, **REST/JSON por HTTPS** (API de Claude), a través del gateway `integracion.ia`, con timeout de 5 s y fallback
@@ -240,7 +243,7 @@ El detalle y la justificación de cada decisión están en
 
 ## Cumplimiento de la consigna
 
-- **Mínimo 6 componentes con interfaz explícita**: 9 componentes de negocio, cada uno con interfaces `@Local`, más una capa técnica de integración (`integracion`: cliente del banco y adaptadores de transportistas)
+- **Mínimo 6 componentes con interfaz explícita**: 9 componentes de negocio, cada uno con interfaces `@Local`, más una capa técnica de integración (`integracion`: cliente del banco, adaptadores de transportistas y gateway de IA)
 - **1 componente stateful y 1 stateless**: `InventarioService` (`@Stateful`: la reserva de stock es una conversación) y el resto `@Stateless`
 - **Arquitectura en capas**: `presentacion/`, `negocio/`, `datos/`, `dto/` en cada componente
 - **3 patrones de diseño**: DAO, DTO, Facade, Adapter, Singleton, Provider, Observer, State, transacción compensatoria y Circuit Breaker
@@ -290,7 +293,7 @@ desde cualquier máquina entra en el WildFly de todos (paso 5, ADR-031).
   - Qué usa/ve: Comercios, Depósitos y stock, Pedidos, Repartidores, Transportistas, Ruteo — el `OPERADOR` no ve **Usuarios** ni puede eliminar nada ni anular cobros
 - `COMERCIO`
   - Cómo se crea: Desde **Usuarios**, asociándola a un comercio ya dado de alta
-  - Qué usa/ve: Sus pedidos (con el remito de cada entrega), su stock (solo lectura), sus puntos de picking y sus liquidaciones mensuales
+  - Qué usa/ve: Sus pedidos (con el remito de cada entrega), sus indicadores, su stock (solo lectura, y el anuncio de la mercadería que va a mandar, ADR-058), sus puntos de picking y sus liquidaciones mensuales
 - `REPARTIDOR`
   - Cómo se crea: Desde **Usuarios**, asociándola a un repartidor ya dado de alta
   - Qué usa/ve: Su hoja de ruta; marca retiro y entrega (con foto del remito) y comparte su ubicación mientras reparte
@@ -682,8 +685,9 @@ es la misma cuenta (Gmail no deja mandar como otra). Otro proveedor:
 `rabbit.mail.smtp.port`, `rabbit.mail.smtp.seguridad` (`starttls`, `ssl`
 para el 465, o `ninguna`) y `rabbit.mail.remitente`. Gmail permite unos
 500 mails por día desde una cuenta común. Si un mail no sale, el log dice
-`[Notificaciones][Mail] No se pudo mandar el aviso…` con el motivo, y el
-aviso igual queda en Rabbit.
+`[Notificaciones][Mail] No se pudo mandar el aviso…` con el motivo, el
+aviso igual queda en Rabbit y el mail queda en la bandeja: se reintenta
+cada minuto y, si a las 24 horas no salió, se descarta (ADR-063).
 
 Para probar en local sin un servidor real:
 `python3 -m smtpd -n -c DebuggingServer localhost:2525` (Python hasta 3.11)

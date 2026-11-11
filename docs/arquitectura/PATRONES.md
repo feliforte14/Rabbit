@@ -14,7 +14,7 @@ explican en una línea.
 - **Observer** (comportamiento): Eventos CDI (`EstadoPedidoCambiado`, `PedidoExternoRegistrado`, `EstadoEnvioCambiado`) y eventos síncronos de eliminación (ver la [sección](#observer-eventos-cdi)). **ADR:** [ADR-006](DECISIONES.md#adr-006-tópico-para-los-cambios-de-estado-del-pedido), ADR-009 y ADR-040.
 - **Adapter** (estructural): `IAdaptadorTransportista` con su adaptador REST y su adaptador SOAP legado; el cliente del banco legado (ver la [sección](#adapter)). **ADR:** [ADR-062](DECISIONES.md#adr-062-adapter-para-los-transportistas-externos) y ADR-016.
 - **Facade** (estructural): `IGestionPedidos`, `IConsultaStock`, `IRegistroComercios`, `IRegistroUsuarios` (ver la [sección](#facade)). **ADR:** [ADR-070](DECISIONES.md#adr-070-facade-en-la-entrada-de-cada-componente).
-- **Singleton** (creacional): `@Singleton @Startup` del contenedor: timers, `CircuitBreakerBanco`, `AsignadorDeEspera` (ver la [sección](#singleton)). **ADR:** [ADR-071](DECISIONES.md#adr-071-tareas-periódicas-y-estado-compartido-como-singleton), ADR-011 y ADR-037.
+- **Singleton** (creacional): `@Singleton` del contenedor (14): timers, bandejas de salida, `CircuitBreakerBanco`, `AsignadorDeEspera` (ver la [sección](#singleton)). **ADR:** [ADR-071](DECISIONES.md#adr-071-tareas-periódicas-y-estado-compartido-como-singleton), ADR-011 y ADR-037.
 - **Factory / Provider** (creacional): `Instance<IReservaStock>` en `PedidoService`; métodos de fábrica estáticos como `EstadoDelPedido.de(...)` y `TarifaMensual.vigente()` (ver la [sección](#provider-instancet-como-fábrica)). **ADR:** [ADR-072](DECISIONES.md#adr-072-provider-instancet-para-el-ejb-stateful-de-la-reserva).
 - **Chain of Responsibility** (comportamiento): `FiltroHsts`, un filtro de servlet dentro de la cadena de filtros. Una línea: agrega la cabecera HSTS y deja seguir la cadena **ADR:** ADR-050 (HSTS).
 - **Proxy** (estructural): Lo provee el contenedor (EJB y CDI); no hay código propio
@@ -28,7 +28,7 @@ explican en una línea.
 
 ### Arquitectura (PoEAA)
 
-- **Repository / DAO**: Un repositorio por componente (`PedidoRepository`, …) (ver la [sección](#dao-repository)). **ADR:** [ADR-068](DECISIONES.md#adr-068-un-repositorio-dao-por-componente).
+- **Repository / DAO**: Un repositorio principal por componente (`PedidoRepository`, …) y otro cuando una tabla tiene un uso propio: 13 en total (ver la [sección](#dao-repository)). **ADR:** [ADR-068](DECISIONES.md#adr-068-un-repositorio-dao-por-componente).
 - **DTO**: Las clases `*DTO` entre capas y hacia la API (ver la [sección](#dto)). **ADR:** [ADR-069](DECISIONES.md#adr-069-dto-entre-capas-y-componentes).
 - **Service Layer**: Los servicios `@Stateless` (`PedidoService`, `PagoService`, …)
 - **MVC / Backing Bean**: Vistas JSF (`.xhtml`) y beans de presentación
@@ -61,11 +61,17 @@ explican en una línea.
 
 - **Problema:** que las reglas de negocio no dependan de JPQL ni del
   `EntityManager`.
-- **Dónde:** un repositorio por componente: `ComercioRepository`,
+- **Dónde:** un repositorio principal por componente: `ComercioRepository`,
   `InventarioRepository`, `PedidoRepository`, `CobroRepository`,
   `RepartidorRepository`, `NotificacionRepository`, `UsuarioRepository`,
-  `TransportistaRepository` y `ZonaRepository` (Ruteo).
-- **Cómo:** el repositorio es la única clase que toca el `EntityManager`.
+  `TransportistaRepository` y `ZonaRepository` (Ruteo). Cuando una tabla
+  tiene un uso propio, el componente suma otro: `EventoEstadoRepository`
+  (Pedidos, bandeja de salida), `LiquidacionRepository` (Pagos),
+  `CorreoPendienteRepository` (Notificaciones, bandeja de correos) y
+  `CoordenadaRepository` (Ruteo, caché de coordenadas). Son 13.
+- **Cómo:** los repositorios son las únicas clases de negocio que tocan el
+  `EntityManager` (fuera de ellos, solo dos tareas técnicas que corren al
+  desplegar: `AlineadorDeRestriccionesEnum` y `LimpiezaDeCredenciales`).
   También encapsula decisiones de acceso, como el bloqueo
   `PESSIMISTIC_WRITE` de `buscarPedidoExternoParaActualizar`.
 - **Descartado:** usar el `EntityManager` directo en los EJB (mezcla
@@ -127,6 +133,14 @@ explican en una línea.
   `AsignadorDeEspera` (`@Singleton @Startup`, ADR-037) recorre la lista de
   espera de a una pasada; con concurrencia `BEAN`, un aviso que llega
   durante una pasada no espera: pide otra vuelta al terminar.
+  Con el mismo criterio, el resto de las tareas periódicas también son
+  `@Singleton`: `EnvioDeEstadosPendientes` y `EnvioDeCorreosPendientes`
+  (las bandejas de salida, ADR-063: con la concurrencia `WRITE` por
+  defecto, el envío inmediato y el timer no mandan dos veces lo mismo),
+  `LiquidacionMensual` (ADR-034), `FotoDiariaDeOcupacion` (ADR-059),
+  `VencimientoDeRetiros` (ADR-053) y `Geocodificador` (ADR-046). Además
+  `LimpiezaDeCredenciales` (corre al desplegar) y `AvisosDeEspera`. Son 14
+  (ver ADR-071).
 
 ## Provider (`Instance<T>` como fábrica)
 

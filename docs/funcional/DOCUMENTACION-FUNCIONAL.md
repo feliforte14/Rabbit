@@ -31,7 +31,7 @@ Rabbit recibe pedidos de los ERP de los comercios, guarda su mercadería en dep�
 
 **Entra en esta versión:** las 37 historias de la sección 3: las 28 de la entrega del diseño (HU-01 a HU-28), con HU-14 actualizada por la ADR-055, 7 historias que formalizan funciones agregadas entre el 21 y el 26/10 (HU-29 a HU-35, ADR-052 a 059) y 2 del 10/11 (HU-36 y HU-37, ADR-065 y 066).
 
-**Queda fuera:** catálogo de productos (vive en el ERP), facturación fiscal, app nativa del repartidor, devoluciones iniciadas por quien compra, lotes y vencimientos, días gratis y recargo por stock antiguo en el almacenamiento (ADR-059, sin valores definidos).
+**Queda fuera:** catálogo de productos (vive en el ERP), facturación fiscal, app nativa del repartidor, devoluciones iniciadas por quien compra, lotes y vencimientos. (Los días gratis y el recargo por stock antiguo, que antes quedaban fuera, entraron con HU-36 y ADR-065.)
 
 ## 2. Actores
 
@@ -746,6 +746,12 @@ Escenario: CA-29.4 Operaciones de reparto
   Dado un retiro
   Cuando se intenta despachar, derivar, cotizar o devolver al depósito
   Entonces se rechaza con un mensaje claro
+
+Escenario: CA-29.5 Retiro vencido
+  Dado un retiro CONFIRMADO que nadie buscó en 21 días (configurable)
+  Cuando corre la revisión diaria de retiros
+  Entonces el pedido vuelve al comercio (DEVUELTO_AL_COMERCIO) con el motivo
+  Y el stock vuelve a quedar disponible y el cobro se anula
 ```
 
 #### HU-30 · Calificar la entrega · Could · BR-11
@@ -936,12 +942,13 @@ Escenario: CA-37.3 Respuesta no válida
 | RN-17 | Almacenamiento: categoría por peso y medidas; tarifas por unidad y día $10, $30 y $90; sin medidas cuenta como mediano; fuera de rango no se acepta | HU-35, 17 | `CategoriaDeTamano`, `UnidadesDia` |
 | RN-18 | Almacenamiento: 7 días gratis desde el último ingreso del producto; 120 días sin ingresos ni ventas pagan un recargo del 50 %; los productos anteriores no reciben recargo retroactivo | HU-36 | `PoliticaDeAlmacenamiento`, `TarifaMensual` |
 | RN-19 | IA: solo viaja el texto del comentario, la respuesta es de una lista cerrada, y sin respuesta en 5 s el comentario queda sin clasificar | HU-37 | `ClasificadorIa` |
-| RN-18 | Opciones de quien recibe: reprogramar hasta 7 días y no antes de lo prometido; instrucciones ≤ 200; autorizado ≤ 100; máximo 5 cambios | HU-31 | `ReglaDeOpcionesDeEntrega` |
-| RN-19 | Calificación: solo ENTREGADO, 1 a 5 estrellas, comentario ≤ 500, una por pedido | HU-30 | `ReglaDeCalificacion` |
-| RN-20 | Recepción: 1 a 50 productos sin repetir, cantidad 1 a 100.000; se suma solo lo recibido; PARCIAL si faltó algo | HU-33, 34 | `ReglaDeRecepcion` |
-| RN-21 | Cuentas: no hay alta pública; 5 intentos fallidos bloquean 15 minutos; no se puede dar de baja la propia cuenta ni al último administrador | HU-27 | `UsuarioService`, `LimiteDeIntentos` |
-| RN-22 | Transportistas: el estado del envío se consulta cada 15 s; el pedido avanza solo hasta ENTREGADO | HU-21 | `SeguimientoDeEnvios` |
-| RN-23 | Zonas: rangos de código postal sin superposición; cada zona define quién reparte y un transportista de respaldo | HU-22 | `ZonaService` |
+| RN-20 | Opciones de quien recibe: reprogramar hasta 7 días y no antes de lo prometido; instrucciones ≤ 200; autorizado ≤ 100; máximo 5 cambios | HU-31 | `ReglaDeOpcionesDeEntrega` |
+| RN-21 | Calificación: solo ENTREGADO, 1 a 5 estrellas, comentario ≤ 500, una por pedido | HU-30 | `ReglaDeCalificacion` |
+| RN-22 | Recepción: 1 a 50 productos sin repetir, cantidad 1 a 100.000; se suma solo lo recibido; PARCIAL si faltó algo | HU-33, 34 | `ReglaDeRecepcion` |
+| RN-23 | Cuentas: no hay alta pública; 5 intentos fallidos bloquean 15 minutos; no se puede dar de baja la propia cuenta ni al último administrador | HU-27 | `UsuarioService`, `LimiteDeIntentos` |
+| RN-24 | Transportistas: el estado del envío se consulta cada 15 s; el pedido avanza solo hasta ENTREGADO | HU-21 | `SeguimientoDeEnvios` |
+| RN-25 | Zonas: rangos de código postal sin superposición; cada zona define quién reparte y un transportista de respaldo | HU-22 | `ZonaService` |
+| RN-26 | Retiro en depósito: solo con stock consignado en un mismo depósito; se entrega con el código de seguimiento; a los 21 días sin retirar vuelve al comercio (stock repuesto, cobro anulado) | HU-29 | `ReglaDeRetiro`, `PlazoDeRetiro`, `VencimientoDeRetiros` |
 
 ## 5. Requisitos no funcionales (ISO/IEC 25010:2023)
 
@@ -1001,7 +1008,7 @@ Cada criterio de aceptación CA-xx.y tiene su caso de prueba CP-xx.y con el mism
 | BR-01 | HU-26 | Could | 26.1–26.3 | `PedidoServiceTest`; manual |
 | BR-04 | HU-27 | Must | 27.1–27.5 | `UsuarioServiceTest`, `ClavesTest`, `LimiteDeIntentosTest`, `LoginBeanTest`, `SeguridadIT` (429), E2E-1 |
 | BR-03 | HU-28 | Must | 28.1–28.3 | `LiquidacionesTest`, `TarifaMensualTest`, `PagoServiceTest` |
-| BR-11 | HU-29 | Should | 29.1–29.4 | `ReglaDeRetiroTest`, `EstadoDelPedidoTest` |
+| BR-11 | HU-29 | Should | 29.1–29.5 | `ReglaDeRetiroTest`, `EstadoDelPedidoTest`, `PlazoDeRetiroTest`, `VencimientoDeRetirosTest` |
 | BR-11 | HU-30 | Could | 30.1–30.3 | `ReglaDeCalificacionTest` |
 | BR-07 | HU-31 | Should | 31.1–31.3 | `ReglaDeOpcionesDeEntregaTest` |
 | BR-05 | HU-32 | Could | 32.1–32.3 | `BultosTest`; manual (impresión y escaneo) |
@@ -1011,6 +1018,6 @@ Cada criterio de aceptación CA-xx.y tiene su caso de prueba CP-xx.y con el mism
 | BR-11, BR-03 | HU-36 | Could | 36.1–36.3 | `PoliticaDeAlmacenamientoTest`, `TarifaMensualTest`, `AlmacenamientoDelMesTest`, `MovimientosDeStockTest` |
 | BR-11 | HU-37 | Could | 37.1–37.3 | `ClasificadorIaTest`, `ProveedorClaudeTest`, `ClasificacionDeComentariosTest` |
 
-**Cobertura de la matriz:** los 11 BR tienen al menos una HU; las 37 HU tienen entre 3 y 6 criterios (129 en total); todos los criterios tienen un caso de prueba. Los criterios de seguridad de la matriz SEC-01 a SEC-10 (Clase 11) se trazan a HU-01, 02, 04, 05, 07, 14, 19 y 27.
+**Cobertura de la matriz:** los 11 BR tienen al menos una HU; las 37 HU tienen entre 3 y 6 criterios (130 en total); todos los criterios tienen un caso de prueba. Los criterios de seguridad de la matriz SEC-01 a SEC-10 (Clase 11) se trazan a HU-01, 02, 04, 05, 07, 14, 19 y 27.
 
 **Para la matriz del QA (entregable 2):** esta tabla se extiende con el resultado de la última ejecución, la evidencia (run del CI o captura) y el defecto si lo hay.

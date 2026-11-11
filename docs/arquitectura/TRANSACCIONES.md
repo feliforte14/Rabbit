@@ -26,6 +26,12 @@
 - `NOT_SUPPORTED`
   - Dónde: `PublicadorPedidosExternos` y `PublicadorEstadosPedido`
   - Por qué: El envío JMS corre fuera de la transacción: si el broker falla, no deshace lo ya guardado
+- Observer sin fase (dentro de la transacción) + `AFTER_SUCCESS`
+  - Dónde: `PublicadorEstadosPedido` (`BandejaDeEstados`) y `AvisosPorMail` (`BandejaDeCorreos`)
+  - Por qué: Bandeja de salida (ADR-063): el aviso de estado y el mail se guardan en la misma transacción que el cambio (si se deshace, no queda nada) y se mandan después del commit; lo que no sale queda pendiente
+- `NOT_SUPPORTED`
+  - Dónde: `EnvioDeEstadosPendientes` (cada 15 s) y `EnvioDeCorreosPendientes` (cada minuto)
+  - Por qué: Los timers que reenvían lo pendiente de cada bandeja no abren transacción: cada aviso o mail se marca en la suya, así uno que falla no arrastra a los demás
 - `NOT_SUPPORTED`
   - Dónde: `ReversasBancarias`
   - Por qué: La reversa en el banco corre después de que la transacción de Rabbit terminó (se deshizo o se confirmó)
@@ -34,7 +40,7 @@
   - Por qué: La pasada del timer no abre transacción: cada fila se sincroniza en la suya (`REQUIRES_NEW`), así una fila fallida no arrastra a las demás
 - `AFTER_SUCCESS` (observer)
   - Dónde: `AvisosPorMail`
-  - Por qué: El mail del aviso sale recién después del commit, y fuera de la transacción: un servidor de correo caído no deshace el aviso
+  - Por qué: El mail del aviso sale recién después del commit, y fuera de la transacción: un servidor de correo caído no deshace el aviso (el mail queda en la bandeja y se reintenta)
 - `NOT_SUPPORTED`
   - Dónde: `PedidoService.cotizarDerivacion`
   - Por qué: Lee el pedido (con sus líneas, en una sola consulta) y le pide precios a los transportistas sin abrir transacción: no retiene una conexión a la base mientras espera hasta 5 s por transportista
@@ -59,6 +65,12 @@
 - `AFTER_SUCCESS` (observer)
   - Dónde: `AvisosDeEspera`
   - Por qué: Después del commit de una entrega, cancelación o devolución programa una pasada de la lista de espera en un timer: no demora la pantalla de quien hizo el cambio ni corre con su usuario
+- `NOT_SUPPORTED` + `REQUIRES_NEW`
+  - Dónde: `VencimientoDeRetiros` → `PedidoService.vencerRetiro`
+  - Por qué: La pasada diaria (04:10) no abre transacción; cada retiro vencido vuelve al comercio en la suya, así uno que falla no frena a los demás (ADR-053)
+- `@Asynchronous`, transacción propia
+  - Dónde: `ClasificadorEnSegundoPlano` (lo dispara `ClasificacionDeComentarios` con `AFTER_SUCCESS`)
+  - Por qué: La calificación ya se confirmó cuando se llama a la IA: quien califica no espera, y si la IA falla la calificación queda guardada igual, sin clasificar (ADR-066)
 - `NOT_SUPPORTED`
   - Dónde: `CircuitBreakerBanco`
   - Por qué: Solo cambia estado en memoria: no tiene nada que hacer en la transacción del llamador
@@ -90,7 +102,7 @@ una devolución, se deshacen también las anteriores.
 - **2. `IRegistroCobros.registrarCobro` (PREPAGO: `autorizarPago` en el banco por SOAP), salvo que ya tenga cobro (devuelto al depósito)**: Banco rechaza o no responde: rollback, el pedido sigue PENDIENTE
 - **3. `IAsignacionRepartidores.asignarRepartidor`**: Otro se quedó con el lugar justo después del paso 1b: rollback en Rabbit **y reversa en el banco** (el rollback no alcanza al sistema externo)
 - **4. Estado CONFIRMADO + `EstadoPedidoCambiado`**: Rollback de todo
-- **5. Publicación en el tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`)**: Se loguea; no deshace la confirmación (misma decisión que ADR-002)
+- **5. Publicación en el tópico (`AFTER_SUCCESS` + `NOT_SUPPORTED`)**: Si el broker falla, no deshace la confirmación: el aviso ya quedó en la bandeja de salida (`eventos_estado_pedido`, guardado en el paso 4, dentro de la transacción) y `EnvioDeEstadosPendientes` lo reenvía cada 15 s (ADR-063)
 
 **Por qué no hace falta XA:** las tres escrituras (repartidor, cobro,
 pedido) van a la misma base; el mensaje JMS queda fuera de la
@@ -204,7 +216,8 @@ el envío. Antes el seguimiento bloqueaba al revés y, si coincidían sobre
 el mismo pedido en el mismo instante, PostgreSQL abortaba una de las dos
 por deadlock. Con el mismo orden en los dos caminos, la segunda espera y
 ve el estado real: un envío ya entregado no se cancela, y una novedad
-sobre un pedido recién cancelado se rechaza (`409`, reintento).
+sobre un pedido recién cancelado se rechaza (`NovedadRechazadaException`)
+y el seguimiento la reintenta en la próxima pasada.
 
 Lo mismo en Inventario: cerrar una reserva (confirmar, liberar, devolver
 o expirar) la lee con `PESSIMISTIC_WRITE`, y cada escritura del item hace
@@ -213,7 +226,7 @@ del método y traducirla a un mensaje ("otro usuario modificó el stock,
 volvé a intentar"). El barredor expira cada reserva vencida en su propia
 transacción: un choque sobre un item no deshace la pasada entera.
 
-## Flujo 6: liquidación mensual (implementado, ADR-034)
+## Flujo 7: liquidación mensual (implementado, ADR-034)
 
 `LiquidacionService.liquidarMes`, `NOT_SUPPORTED`: no abre una
 transacción propia y recorre los comercios activos. Por cada uno:

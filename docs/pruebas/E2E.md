@@ -22,6 +22,12 @@ todo lo demás se hace por la pantalla.
 | E2E-3 | Quien recibe | Sigue su pedido con el código, sin login y sin ver datos personales. Un código que no existe no muestra nada. |
 | E2E-4 | Comercio | Ve en "Mis pedidos" el pedido que mandó su ERP. |
 | E2E-5 | Otro comercio | No ve ese pedido (BOLA) y no puede entrar a una pantalla del personal (BFLA). |
+| E2E-6 | Quien recibe | Cambia su entrega desde el seguimiento (día, instrucciones, persona autorizada) y queda guardado (ADR-057). |
+| E2E-7 | Comercio | En Mi stock, "Agregar otro producto" no borra lo que ya escribió (depósito, productos y cantidades). |
+| E2E-8 | Personal, repartidor y quien recibe | El pedido se confirma, sale y se entrega; quien recibe lo califica, ve el agradecimiento y no se le vuelve a pedir (ADR-052). |
+| E2E-9 | Personal, repartidor y cualquiera | La etiqueta lleva un QR a `escaneo.xhtml`: sin sesión abre el seguimiento; el repartidor del pedido marca el retiro y queda en camino (ADR-056). |
+| E2E-10 | Cualquiera | Cada pantalla declara su ícono y responde 200, así el navegador no pide `/favicon.ico` (OBS-01). |
+| E2E-11 | Personal | Indicadores carga con las calificaciones y la clasificación de comentarios por IA, sin la página de error. |
 
 ## Accesibilidad y responsive (bloquean el CI)
 
@@ -33,15 +39,13 @@ todo lo demás se hace por la pantalla.
 - **Lighthouse** (accesibilidad y buenas prácticas) sobre 5 pantallas,
   también las que piden login. El mínimo de accesibilidad es 90.
 
-Resultado del 29/10/2026:
+Último resultado (ver [INFORME-DE-EJECUCION.md](../testing/INFORME-DE-EJECUCION.md)): **100** de
+accesibilidad en las 5 pantallas (login, seguimiento, personal/inicio, personal/pedidos y
+comercio/mis-pedidos). En buenas prácticas daban 96 por un error de consola, el pedido de
+`/favicon.ico` (OBS-01, cerrado el 10/11/2026; lo cubre el E2E-10).
 
-| Pantalla | Lighthouse (accesibilidad) | Buenas prácticas |
-|---|---|---|
-| login | 96 | 100 |
-| seguimiento | 95 | 100 |
-| personal/inicio | 95 | 100 |
-| personal/pedidos | **88** | 100 |
-| comercio/mis-pedidos | 95 | 96 |
+La medición anterior, del 29/10/2026, daba 88 de accesibilidad en `personal/pedidos` y entre 95 y 96 en
+las demás.
 
 ### Defectos encontrados (A11Y-01 a 04 corregidos en la PR #15; A11Y-05 en la PR #17)
 
@@ -66,3 +70,4 @@ En [`e2e/tests/seguridad.spec.js`](../../e2e/tests/seguridad.spec.js), paso prop
 | SEG-2 | El `mapa.js` desplegado muestra como texto el título de un punto con HTML (nombre de un repartidor o descripción de un depósito). Falla con el `mapa.js` anterior: era un XSS (defecto SEG-01, corregido en la PR #17). |
 | SEG-3 | La cookie de sesión es `Secure`, `HttpOnly` y `SameSite=Lax`, JavaScript no la lee, y después del logout la misma cookie no entra desde otro navegador. |
 | SEG-4 | Con la sesión vencida, un botón de la página abierta lleva al login y no a la página de error (defecto SES-01, corregido en la PR #17). |
+| SEG-5 | Un código de seguimiento con un byte nulo o larguísimo responde 404 en la API y la página de seguimiento carga sin error del servidor (prueba exploratoria del 10/11/2026). |

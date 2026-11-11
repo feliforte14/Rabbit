@@ -65,7 +65,8 @@ ignoraba). Si lo volvés a ver en el log, es una regresión.
 
 1. Entrá a `https://localhost:8443/Rabbit/login.xhtml`.
 2. Ingresá con `claude-cb-admin`.
-3. Deberías caer en `personal/pedidos.xhtml` (la pantalla de Pedidos).
+3. Deberías caer en `personal/inicio.xhtml` (Inicio, con "Requiere atención"
+   y los accesos a cada pantalla).
 
 **Qué mirar:** el menú lateral muestra "Administrador" como rol; no
 aparece ningún error.
@@ -308,11 +309,13 @@ tiempo real`). En **Pedidos → Recibidos del ERP** el pedido aparece como
    de ruta recomendada** con todas sus paradas en orden (retiros primero)
    y **Abrir en Google Maps** (ADR-038). En cada pedido, **Ya retiré el
    pedido** y después **Entregar pedido**, que abre una ventana para
-   subir la foto del remito.
+   el código de 4 dígitos que le da quien recibe (le llegó por mail con
+   el aviso "en camino", ADR-055) y la foto del remito.
 4. Logueate como `demo.comercio` → **Mis pedidos**: el pedido figura
    "Entregado", con su **código de seguimiento para el cliente** y el
-   enlace "Ver lo que ve el cliente" (la API pública), y en "Avisos de
-   Rabbit" aparece un aviso por cada cambio de estado. Eso confirma que el tópico `topico.pedidos.estado` distribuye
+   enlace "Ver lo que ve el cliente" (la página pública de seguimiento),
+   y en la **campana** de la cabecera aparece un aviso por cada cambio de
+   estado (ADR-051). Eso confirma que el tópico `topico.pedidos.estado` distribuye
    los cambios a sus tres suscriptores (aviso al comercio, aviso a quien recibe y Pagos).
 
 **Qué mirar:** en **Pedidos** (vista del personal) el pedido pasa por
@@ -697,7 +700,7 @@ Misma rama. Necesita salida a internet (OpenStreetMap).
 
 ## Checklist rápido
 
-- **Login admin**: Entra a personal/pedidos.xhtml sin error
+- **Login admin**: Entra a personal/inicio.xhtml sin error
 - **Login operador**: Mismas pantallas que admin, sin **Usuarios** en el menú
 - **Operador intenta eliminar comercio / cancelar pedido confirmado**: Rechazado con mensaje de negocio, no una excepción cruda
 - **Alta comercio/depósito/stock/repartidor**: Aparecen en sus listados; CUIT duplicado se rechaza con mensaje claro
