@@ -11,9 +11,8 @@ ActiveMQ Artemis, API REST, SOAP y vistas JSF). Versión: etiqueta `v1.0-testing
 
 **Dentro del alcance**
 
-- Las **36 historias de usuario** de [DOCUMENTACION-FUNCIONAL.md](../funcional/DOCUMENTACION-FUNCIONAL.md): las 28 de la
-  entrega del diseño (HU-01 a HU-28) y las 8 agregadas después (HU-29 a HU-36), con sus 127 criterios de aceptación. La de IA (HU-37, ADR-066) se trabaja
-  aparte, en la rama `AI-GateWay`.
+- Las **37 historias de usuario** de [DOCUMENTACION-FUNCIONAL.md](../funcional/DOCUMENTACION-FUNCIONAL.md): las 28 de la
+  entrega del diseño (HU-01 a HU-28) y las 9 agregadas después (HU-29 a HU-37), con sus 130 criterios de aceptación.
 - API REST del ERP (`/api/v1/pedidos-externos`) y seguimiento público.
 - Integraciones: SOAP con el banco legado, transportistas (REST y SOAP), cola y tópico JMS.
 - Seguridad (Eje D), accesibilidad, rendimiento y estabilidad de las pruebas.
@@ -31,7 +30,7 @@ ActiveMQ Artemis, API REST, SOAP y vistas JSF). Versión: etiqueta `v1.0-testing
 
 | Nivel | Herramienta | Dónde corre | Qué prueba |
 |---|---|---|---|
-| Unitario | JUnit 5 + Mockito | Job «Build, tests y cobertura» | Reglas de negocio, validaciones, estados, textos, límites (1147 pruebas al 11/11/2026) |
+| Unitario | JUnit 5 + Mockito | Job «Build, tests y cobertura» | Reglas de negocio, validaciones, estados, textos, límites (1169 pruebas al 11/11/2026) |
 | Integración | REST Assured (`*IT`) contra el sistema levantado con `docker compose` (base PostgreSQL y broker Artemis reales) | Job «Compose, integración y Newman» | API REST, SOAP, seguridad, errores, pertenencia (51 pruebas) |
 | API | Postman + Newman, colección versionada en el repo | Mismo job | 50 requests y 71 aserciones |
 | Contrato | Schemathesis (OpenAPI) y `scripts/contrato/soap.py` (WSDL) | Job «Contrato» | Respuestas contra `openapi.yaml` y los WSDL publicados |

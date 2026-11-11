@@ -75,6 +75,17 @@ public class IndicadoresService implements IIndicadores {
         List<Long> entregados = pedidos.stream().filter(p -> p.getEstado() == EstadoPedido.ENTREGADO)
                 .map(Pedido::getId).collect(Collectors.toList());
         Map<Long, Integer> estrellas = entregados.isEmpty() ? Map.of() : repository.estrellasDePedidos(entregados);
-        return CalculoDeIndicadores.calcular(pedidos, desde, hasta, enEspera, estrellas);
+        IndicadoresDTO dto = CalculoDeIndicadores.calcular(pedidos, desde, hasta, enEspera, estrellas);
+        // Lo que dijo la IA de los comentarios (puede faltar: sin IA o sin comentario no hay clasificación).
+        if (!estrellas.isEmpty()) {
+            repository.sentimientosDePedidos(estrellas.keySet()).values().forEach(s -> {
+                switch (s) {
+                    case "POSITIVO" -> dto.comentariosPositivos++;
+                    case "NEGATIVO" -> dto.comentariosNegativos++;
+                    default -> dto.comentariosNeutros++;
+                }
+            });
+        }
+        return dto;
     }
 }

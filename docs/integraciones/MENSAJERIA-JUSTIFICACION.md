@@ -1,7 +1,7 @@
 # Mensajería en Rabbit: qué se usa en cada integración y por qué
 
-Rabbit tiene nueve integraciones (dos internas, entre sus componentes, y
-siete con sistemas o consumidores externos), y no todas usan la misma
+Rabbit tiene diez integraciones (dos internas, entre sus componentes, y
+ocho con sistemas o consumidores externos), y no todas usan la misma
 tecnología. Este documento justifica **cada elección** con un
 mismo criterio de decisión, para que se vea que la tecnología sale del
 problema y no al revés.
@@ -123,6 +123,12 @@ solo se justificaría si el consumidor exigiera un contrato WSDL o WS-\*.
   - ¿Necesita la respuesta para seguir?: **Sí** (para guardar la coordenada), pero desde un timer: el usuario no espera
   - ¿Expone/exige SOAP?: **No** (API pública JSON)
   - Tecnología: **REST/HTTP** (Nominatim)
+- **10**
+  - Integración: Clasificar los comentarios de las calificaciones con IA (ADR-066)
+  - Dirección: Saliente (Rabbit → API de Claude)
+  - ¿Necesita la respuesta para seguir?: **Sí** (para guardar la clasificación), pero en segundo plano y después del commit: quien califica no espera, y si no hay respuesta en 5 s el comentario queda sin clasificar
+  - ¿Expone/exige SOAP?: **No** (API JSON sobre HTTPS)
+  - Tecnología: **REST/HTTPS**, detrás del gateway `integracion.ia`
 
 Un mismo pedido, de punta a punta, pasa por las tres tecnologías (ver la
 sección 4): **no se elige una sola mensajería para todo el sistema; se

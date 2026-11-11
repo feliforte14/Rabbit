@@ -94,7 +94,7 @@ de siempre. Un ADR que toca a varios componentes lo dice en su texto.
 
 - [ADR-011](#adr-011-circuit-breaker-propio-frente-al-banco-legado): Circuit breaker propio frente al banco legado (Aceptada)
 - [ADR-015](#adr-015-banco-legado-en-nodejs-detrás-del-mismo-wsdl): Banco legado en Node.js, detrás del mismo WSDL (Aceptada)
-- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Retirada de `dev`: rama `AI-GateWay`)
+- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Aceptada)
 
 ### Mensajería y plataforma (transversal)
 
@@ -191,7 +191,7 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 - [ADR-063](#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado): Bandeja de salida (outbox) para los avisos de estado (Aceptada)
 - [ADR-064](#adr-064-mensajes-ilegibles-a-la-cola-de-mensajes-muertos-dlq-con-reintentos-acotados): Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados (Aceptada)
 - [ADR-065](#adr-065-días-gratis-y-recargo-por-stock-antiguo): Días gratis y recargo por stock antiguo (Aceptada)
-- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Retirada de `dev`: rama `AI-GateWay`)
+- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Aceptada)
 - [ADR-067](#adr-067-autenticación-con-sesión-en-la-web-y-http-basic-en-la-api-del-erp-sin-jwt): Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT) (Aceptada)
 - [ADR-068](#adr-068-un-repositorio-dao-por-componente): Un repositorio (DAO) por componente (Aceptada)
 - [ADR-069](#adr-069-dto-entre-capas-y-componentes): DTO entre capas y componentes (Aceptada)
@@ -2148,11 +2148,36 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 
 ## ADR-066: Gateway de IA para clasificar los comentarios de las calificaciones
 
-- **Estado:** Retirada de `dev` (11/11/2026). La funcionalidad de IA se trabaja aparte, en la rama `AI-GateWay`, y no
-  está en `dev`. Se aceptó el 10/11/2026 (pedido de la cátedra: la funcionalidad de IA es obligatoria y la llamada al
-  modelo tiene que pasar por una capa propia, con desacople del proveedor, timeout de 5 s con fallback y validación de
-  entrada y salida). En la rama se está reemplazando la clasificación de comentarios por indicaciones para el repartidor
-  sacadas de las instrucciones de entrega. Cuando vuelva a `dev`, esta ADR se actualiza con la decisión final.
+- **Estado:** Aceptada (10/11/2026). Pedido de la cátedra: la funcionalidad de IA es obligatoria y la llamada al modelo
+  tiene que pasar por una capa propia (desacople del proveedor, timeout de 5 s con fallback y validación de entrada y
+  salida). El proveedor concreto y la clave de la API los tiene que confirmar el equipo.
+- **Contexto:** quien recibe un pedido puede dejar un comentario al calificar la entrega (ADR-052). Nadie los lee uno por
+  uno: un resumen de cómo suenan (positivo, neutro, negativo) y de qué hablan (puntualidad, trato, estado del paquete) le
+  sirve al comercio y al personal. Es un caso acotado y con sentido en el dominio.
+- **Decisión:** una capa técnica `integracion.ia`, igual que `integracion.banco` (no es un componente de negocio):
+  - **Desacople del proveedor:** `ClasificadorIa` habla con la interfaz `ProveedorIa`. Hay dos implementaciones: `ProveedorClaude`
+    (API de mensajes de Claude por HTTPS; modelo `claude-haiku-5-5` por defecto, configurable con `rabbit.ia.modelo`) y
+    `ProveedorNoConfigurado`. Cambiar de proveedor es escribir otra implementación.
+  - **Timeout de 5 s y fallback:** el proveedor tiene 5 s en total. Si no hay clave, no responde, falla o contesta mal, el
+    resultado es "sin clasificar" y la calificación ya está guardada igual: la IA es un extra y nada de Rabbit depende de ella.
+  - **Validación de entrada:** solo el texto del comentario, de hasta 500 caracteres, sin caracteres de control y sin las
+    marcas `<` y `>`. Va entre marcas `<comentario>` como dato, con una consigna que dice que se ignoren sus órdenes.
+    **No se manda nada del pedido ni de quien recibe** (nombre, teléfono, dirección: SEC-09).
+  - **Validación de salida:** la respuesta tiene que ser exactamente `SENTIMIENTO;TEMA` con valores de dos listas cerradas
+    (`POSITIVO|NEUTRO|NEGATIVO` y `PUNTUALIDAD|TRATO|ESTADO_DEL_PAQUETE|OTRO`). Cualquier otra cosa se descarta: un comentario
+    que intente darle órdenes al modelo no puede hacer que se guarde texto libre.
+  - **Cómo se usa:** `PedidoService.calificarEntrega` dispara el evento `ComentarioCalificado`; después del commit
+    (AFTER_SUCCESS) `ClasificacionDeComentarios` llama a `ClasificadorEnSegundoPlano` (`@Asynchronous`, transacción propia),
+    que guarda `sentimiento` y `tema` en la calificación. Quien califica no espera a la IA. Los indicadores muestran el
+    resumen ("Qué dicen los comentarios").
+- **Configuración:** `ANTHROPIC_API_KEY` (variable de entorno, opcional en el `.env`) o `rabbit.ia.clave`; `rabbit.ia.url`
+  para apuntar a otro servidor (los tests usan uno propio). La clave es un secreto y no va al repositorio.
+- **Consecuencias:** sin clave no hay IA y el sistema funciona igual (es el estado del CI y de los tests). Con clave hay
+  un costo por comentario, mínimo con este modelo. El comentario sale de Rabbit hacia un tercero: por eso es solo el texto,
+  sin identificar a nadie, y no se escribe en el log. No se agregó circuit breaker (la IA se llama una vez por comentario y
+  en segundo plano; un proveedor caído solo deja comentarios sin clasificar). Probado con un servidor HTTP propio (respuesta
+  válida, inválida, caído y lento) y tests unitarios; **no se probó contra la API real** por falta de clave.
+
 
 ## ADR-067: Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT)
 

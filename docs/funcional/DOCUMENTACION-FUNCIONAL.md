@@ -29,7 +29,7 @@ BR-01 ──► HU-01 Enviar un pedido ──► CA-01.1 (Gherkin) ──► CP-
 
 Rabbit recibe pedidos de los ERP de los comercios, guarda su mercadería en depósitos, la reparte con su flota o con transportistas, cobra el pedido y su propio servicio, y le da a cada actor una vista de lo que le toca. El alcance detallado (incluye / excluye) está en la sección 4 del [BRD](../negocio/BRD.md).
 
-**Entra en esta versión:** las 36 historias de la sección 3: las 28 de la entrega del diseño (HU-01 a HU-28), con HU-14 actualizada por la ADR-055, 7 historias que formalizan funciones agregadas entre el 21 y el 26/10 (HU-29 a HU-35, ADR-052 a 059) y 1 del 10/11 (HU-36, ADR-065). La de IA (ADR-066) se trabaja aparte, en la rama `AI-GateWay`.
+**Entra en esta versión:** las 37 historias de la sección 3: las 28 de la entrega del diseño (HU-01 a HU-28), con HU-14 actualizada por la ADR-055, 7 historias que formalizan funciones agregadas entre el 21 y el 26/10 (HU-29 a HU-35, ADR-052 a 059) y 2 del 10/11 (HU-36 y HU-37, ADR-065 y 066).
 
 **Queda fuera:** catálogo de productos (vive en el ERP), facturación fiscal, app nativa del repartidor, devoluciones iniciadas por quien compra, lotes y vencimientos. (Los días gratis y el recargo por stock antiguo, que antes quedaban fuera, entraron con HU-36 y ADR-065.)
 
@@ -898,6 +898,27 @@ Escenario: CA-36.3 Productos anteriores
   Entonces su fecha de movimiento arranca ese día, sin recargo retroactivo ni días gratis
 ```
 
+#### HU-37 · Clasificar con IA el comentario de una calificación · Could · BR-11
+
+**Como** comercio o personal de Rabbit, **quiero** ver de un vistazo si los comentarios de las calificaciones son positivos o negativos y de qué hablan, **para** detectar problemas de entrega sin leerlos uno por uno. *Dónde:* Indicadores (tarjeta "Qué dicen los comentarios") · ADR-066
+
+```gherkin
+Escenario: CA-37.1 Comentario clasificado
+  Dado un comentario en una calificación y un proveedor de IA configurado
+  Cuando quien recibió el pedido envía la calificación
+  Entonces se guarda enseguida y, en segundo plano, se le agrega el sentimiento (positivo, neutro o negativo) y el tema (puntualidad, trato, estado del paquete u otro)
+
+Escenario: CA-37.2 Sin respuesta de la IA
+  Dado que no hay clave de API, o el proveedor no responde en 5 segundos o falla
+  Cuando se envía la calificación
+  Entonces la calificación se guarda igual y el comentario queda sin clasificar
+
+Escenario: CA-37.3 Respuesta no válida
+  Dado un comentario que intenta darle órdenes al modelo, o una respuesta fuera de las listas cerradas
+  Cuando se valida lo que contestó el modelo
+  Entonces se descarta: no se guarda texto libre, y al modelo solo se le manda el texto del comentario, sin datos del pedido ni de quien recibe
+```
+
 ## 4. Reglas de negocio (RN-xx)
 
 | Id | Regla | HU | Dónde se implementa |
@@ -920,13 +941,14 @@ Escenario: CA-36.3 Productos anteriores
 | RN-16 | Liquidación: solo meses cerrados; abono $15.000 + $1.200 por envío + $80 por kilo (por defecto) + almacenamiento; se cobra por el banco | HU-28, 10 | `TarifaMensual`, `LiquidacionMensual` |
 | RN-17 | Almacenamiento: categoría por peso y medidas; tarifas por unidad y día $10, $30 y $90; sin medidas cuenta como mediano; fuera de rango no se acepta | HU-35, 17 | `CategoriaDeTamano`, `UnidadesDia` |
 | RN-18 | Almacenamiento: 7 días gratis desde el último ingreso del producto; 120 días sin ingresos ni ventas pagan un recargo del 50 %; los productos anteriores no reciben recargo retroactivo | HU-36 | `PoliticaDeAlmacenamiento`, `TarifaMensual` |
-| RN-19 | Opciones de quien recibe: reprogramar hasta 7 días y no antes de lo prometido; instrucciones ≤ 200; autorizado ≤ 100; máximo 5 cambios | HU-31 | `ReglaDeOpcionesDeEntrega` |
-| RN-20 | Calificación: solo ENTREGADO, 1 a 5 estrellas, comentario ≤ 500, una por pedido | HU-30 | `ReglaDeCalificacion` |
-| RN-21 | Recepción: 1 a 50 productos sin repetir, cantidad 1 a 100.000; se suma solo lo recibido; PARCIAL si faltó algo | HU-33, 34 | `ReglaDeRecepcion` |
-| RN-22 | Cuentas: no hay alta pública; 5 intentos fallidos bloquean 15 minutos; no se puede dar de baja la propia cuenta ni al último administrador | HU-27 | `UsuarioService`, `LimiteDeIntentos` |
-| RN-23 | Transportistas: el estado del envío se consulta cada 15 s; el pedido avanza solo hasta ENTREGADO | HU-21 | `SeguimientoDeEnvios` |
-| RN-24 | Zonas: rangos de código postal sin superposición; cada zona define quién reparte y un transportista de respaldo | HU-22 | `ZonaService` |
-| RN-25 | Retiro en depósito: solo con stock consignado en un mismo depósito; se entrega con el código de seguimiento; a los 21 días sin retirar vuelve al comercio (stock repuesto, cobro anulado) | HU-29 | `ReglaDeRetiro`, `PlazoDeRetiro`, `VencimientoDeRetiros` |
+| RN-19 | IA: solo viaja el texto del comentario, la respuesta es de una lista cerrada, y sin respuesta en 5 s el comentario queda sin clasificar | HU-37 | `ClasificadorIa` |
+| RN-20 | Opciones de quien recibe: reprogramar hasta 7 días y no antes de lo prometido; instrucciones ≤ 200; autorizado ≤ 100; máximo 5 cambios | HU-31 | `ReglaDeOpcionesDeEntrega` |
+| RN-21 | Calificación: solo ENTREGADO, 1 a 5 estrellas, comentario ≤ 500, una por pedido | HU-30 | `ReglaDeCalificacion` |
+| RN-22 | Recepción: 1 a 50 productos sin repetir, cantidad 1 a 100.000; se suma solo lo recibido; PARCIAL si faltó algo | HU-33, 34 | `ReglaDeRecepcion` |
+| RN-23 | Cuentas: no hay alta pública; 5 intentos fallidos bloquean 15 minutos; no se puede dar de baja la propia cuenta ni al último administrador | HU-27 | `UsuarioService`, `LimiteDeIntentos` |
+| RN-24 | Transportistas: el estado del envío se consulta cada 15 s; el pedido avanza solo hasta ENTREGADO | HU-21 | `SeguimientoDeEnvios` |
+| RN-25 | Zonas: rangos de código postal sin superposición; cada zona define quién reparte y un transportista de respaldo | HU-22 | `ZonaService` |
+| RN-26 | Retiro en depósito: solo con stock consignado en un mismo depósito; se entrega con el código de seguimiento; a los 21 días sin retirar vuelve al comercio (stock repuesto, cobro anulado) | HU-29 | `ReglaDeRetiro`, `PlazoDeRetiro`, `VencimientoDeRetiros` |
 
 ## 5. Requisitos no funcionales (ISO/IEC 25010:2023)
 
@@ -994,7 +1016,8 @@ Cada criterio de aceptación CA-xx.y tiene su caso de prueba CP-xx.y con el mism
 | BR-08 | HU-34 | Should | 34.1–34.3 | `ReglaDeRecepcionTest`, `MovimientosDeStockTest` |
 | BR-11, BR-03 | HU-35 | Could | 35.1–35.3 | `CategoriaDeTamanoTest`, `UnidadesDiaTest`, `TarifaMensualTest` |
 | BR-11, BR-03 | HU-36 | Could | 36.1–36.3 | `PoliticaDeAlmacenamientoTest`, `TarifaMensualTest`, `AlmacenamientoDelMesTest`, `MovimientosDeStockTest` |
+| BR-11 | HU-37 | Could | 37.1–37.3 | `ClasificadorIaTest`, `ProveedorClaudeTest`, `ClasificacionDeComentariosTest` |
 
-**Cobertura de la matriz:** los 11 BR tienen al menos una HU; las 36 HU tienen entre 3 y 6 criterios (127 en total); todos los criterios tienen un caso de prueba. Los criterios de seguridad de la matriz SEC-01 a SEC-10 (Clase 11) se trazan a HU-01, 02, 04, 05, 07, 14, 19 y 27.
+**Cobertura de la matriz:** los 11 BR tienen al menos una HU; las 37 HU tienen entre 3 y 6 criterios (130 en total); todos los criterios tienen un caso de prueba. Los criterios de seguridad de la matriz SEC-01 a SEC-10 (Clase 11) se trazan a HU-01, 02, 04, 05, 07, 14, 19 y 27.
 
 **Para la matriz del QA (entregable 2):** esta tabla se extiende con el resultado de la última ejecución, la evidencia (run del CI o captura) y el defecto si lo hay.

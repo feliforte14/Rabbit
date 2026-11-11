@@ -281,6 +281,15 @@ mucho tiempo. Reglas:
 Probado en `DatosPersonalesTest` y, para el geocodificador, en
 `RuteoServiciosTest.elLogNoTraeLaDireccionNiLasCoordenadas`.
 
+### Datos que salen hacia el proveedor de IA (ADR-066)
+
+El gateway de IA (`integracion.ia`) manda a un tercero (la API de Claude) **solo el texto del comentario** de una
+calificación: hasta 500 caracteres, sin caracteres de control y entre marcas `<comentario>`, como dato y no como
+instrucción. **No se manda nada del pedido ni de quien recibe** (nombre, teléfono, email, dirección o código de
+seguimiento). La respuesta se valida contra listas cerradas, así que un comentario que intente darle órdenes al modelo no
+puede hacer que se guarde texto libre. El comentario no se escribe en el log y la clave de la API es un secreto: va en el
+entorno (`ANTHROPIC_API_KEY`), nunca en el repositorio. Sin clave no hay IA ni salida de datos.
+
 ### Mensajes JMS mínimos (SEC-08)
 
 La cola lleva solo `idPedidoExterno`; el tópico, `idPedido`, `idComercio`,
