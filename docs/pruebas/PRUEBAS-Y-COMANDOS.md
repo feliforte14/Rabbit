@@ -131,10 +131,10 @@ avisar al equipo antes de la C o la B.
 ### Colección de Postman
 
 [`Rabbit.postman_collection.json`](Rabbit.postman_collection.json):
-**Import → File** en Postman. Trae 64 requests ordenados por prueba (los
+**Import → File** en Postman. Trae 71 requests ordenados por prueba (los
 códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 
-- **1 · API del ERP**: Alta, idempotencia, punto de picking, sin stock, cancelación y comercio dado de baja. En orden: cada alta guarda su id y la consulta de al lado lo usa
+- **1 · API del ERP**: Alta, idempotencia, punto de picking, sin stock, cancelación, concurrencia con ETag (If-None-Match 304, If-Match 412) y comercio dado de baja. En orden: cada alta guarda su id y la consulta de al lado lo usa
 - **2 · Validaciones y seguridad**: 400, 422, 401, 403, 404, 404 y 302
 - **3 · Seguimiento público**: 200 y 404, sin login
 - **4 · Pedidos de apoyo**: Pedidos para seguir probando en la web (banco que rechaza, ruteo por zona)
