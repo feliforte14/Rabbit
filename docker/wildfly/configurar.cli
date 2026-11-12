@@ -66,6 +66,14 @@ data-source add --name=RabbitDS --jndi-name=java:jboss/datasources/RabbitDS --dr
 # Demos y pruebas durante el día: sin hora de corte (README, paso 7b).
 /system-property=rabbit.ruteo.hora-corte:add(value="${env.RABBIT_HORA_CORTE:ninguno}")
 
+# Avisos por mail (README, paso 8). Opcionales: sin RABBIT_MAIL_HOST no se manda
+# mail y los avisos quedan solo en la campana. Acá van las expresiones, no los
+# valores: el usuario y la contraseña se leen del entorno al arrancar y no
+# quedan dentro de la imagen.
+/system-property=rabbit.mail.smtp.host:add(value="${env.RABBIT_MAIL_HOST:}")
+/system-property=rabbit.mail.smtp.usuario:add(value="${env.RABBIT_MAIL_USUARIO:}")
+/system-property=rabbit.mail.smtp.password:add(value="${env.RABBIT_MAIL_PASSWORD:}")
+
 run-batch
 
 stop-embedded-server

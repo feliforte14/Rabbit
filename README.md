@@ -655,6 +655,13 @@ salgan por mail (al email que cargó el comercio y al de quien recibe),
 configurar el servidor de correo con system properties. Se leen en cada
 envío: no hace falta redesplegar (ADR-047).
 
+**Con Docker** no hace falta tocar el WildFly: se completan en el `.env`
+`RABBIT_MAIL_HOST`, `RABBIT_MAIL_USUARIO` y `RABBIT_MAIL_PASSWORD` (el
+`.env.example` trae el ejemplo para Gmail, comentado) y se aplica con
+`docker compose up -d --force-recreate wildfly`. Queda configurado cada vez
+que se levanta, incluso después de un `down`. Sin `RABBIT_MAIL_HOST` no se
+manda ningún mail.
+
 **Con Gmail** (llega a casillas reales). Hace falta una cuenta de Gmail
 para Rabbit con verificación en dos pasos y una **contraseña de
 aplicación** (Cuenta de Google → Seguridad → Contraseñas de aplicaciones):
