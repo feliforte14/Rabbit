@@ -34,8 +34,12 @@ import java.util.List;
                 columnNames = {"idComercio", "claveIdempotencia"}))
 public class PedidoExterno {
 
+    // De a uno, no en bloques de 50: con el valor por defecto cada reinicio del servidor
+    // descartaba el resto del bloque y los números saltaban (de 2 a 52). Un pedido se ve en
+    // pantalla, los demás ids no.
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "pedidos_externos_seq")
+    @SequenceGenerator(name = "pedidos_externos_seq", sequenceName = "pedidos_externos_seq", allocationSize = 1)
     private Long id;
 
     private Long idComercio;

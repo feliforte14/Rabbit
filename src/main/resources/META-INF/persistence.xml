@@ -40,6 +40,13 @@
                 el alcance de este proyecto es suficiente.
             -->
             <property name="hibernate.hbm2ddl.auto" value="update"/>
+            <!--
+                Pedidos y pedidos externos piden su id de a uno (allocationSize = 1). Una base creada
+                antes de ese cambio tiene esas dos secuencias con incremento 50: con FIX Hibernate se
+                ajusta al de la base y arranca igual, en vez de cortar el despliegue. Para pasarla a 1:
+                ALTER SEQUENCE pedidos_seq INCREMENT BY 1; ALTER SEQUENCE pedidos_externos_seq INCREMENT BY 1;
+            -->
+            <property name="hibernate.id.sequence.increment_size_mismatch_strategy" value="FIX"/>
         </properties>
     </persistence-unit>
 
