@@ -132,7 +132,7 @@ job «Comparar las 3 vueltas» incluido: [corrida](https://github.com/feliforte1
 Sobre lo automatizado, **cumplen todos los umbrales medidos**: cobertura, mutación, rendimiento, tiempos, estabilidad y
 análisis estático sobre todo el proyecto (SonarCloud, punto 4, tras las correcciones SON-01 a SON-05). Eso no equivale a
 «el sistema está probado de punta a punta»: lo manual y la resiliencia con el broker real siguen pendientes, y los dos
-defectos que quedaban abiertos (SEG-04, cuentas con hash MD5, y OBS-01) se cerraron el 10/11/2026: hoy no hay defectos abiertos. El detalle está en el
+defectos que quedaban abiertos (SEG-04, cuentas con hash MD5, y OBS-01) se cerraron el 10/11/2026. El 12/11/2026 la prueba de punta a punta con Gmail como servidor de correo encontró uno menor, EXP-03 (un `ERROR` en el log cuando dos mails piden enviar la bandeja a la vez; los mails salían igual), que se corrigió ese mismo día: hoy no hay defectos abiertos. El detalle está en el
 [registro de defectos](REGISTRO-DE-DEFECTOS.md).
 
 ## 9. Cambios posteriores a la medición: resiliencia del broker (PR #24, 08/11/2026)

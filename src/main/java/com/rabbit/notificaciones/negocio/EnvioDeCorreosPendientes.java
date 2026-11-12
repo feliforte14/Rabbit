@@ -19,8 +19,11 @@ package com.rabbit.notificaciones.negocio;
  * Sin servidor SMTP configurado no se intenta (un entorno de desarrollo sin correo funciona igual, con los
  * avisos en el portal), y tampoco se registran mails en la bandeja.
  *
- * @Singleton: con la concurrencia por defecto (WRITE) los dos caminos no se pisan dentro del mismo servidor, así
- * que no se manda dos veces el mismo mail. Entre servidores distintos podría repetirse uno: es "al menos una vez".
+ * @Singleton con @Lock(READ) y un cerrojo propio (tryLock): los dos caminos no se pisan dentro del mismo servidor,
+ * así que no se manda dos veces el mismo mail. Si ya hay una pasada en curso, quien llega no espera ni falla: deja
+ * una marca y la pasada en curso hace otra vuelta al terminar (EXP-03: con el bloqueo del contenedor, el que
+ * esperaba se rendía a los 5 s porque cada envío por SMTP tarda unos 3 s). Entre servidores distintos podría
+ * repetirse uno: es "al menos una vez".
  *
  * SEC-09: el log lleva el ID del pedido y el email enmascarado, nunca completo.
  */
@@ -29,6 +32,8 @@ import com.rabbit.infraestructura.DatosPersonales;
 import com.rabbit.notificaciones.negocio.BandejaDeCorreos.Correo;
 import com.rabbit.notificaciones.negocio.BandejaDeCorreos.Pendiente;
 import jakarta.annotation.PostConstruct;
+import jakarta.ejb.Lock;
+import jakarta.ejb.LockType;
 import jakarta.ejb.Schedule;
 import jakarta.ejb.Singleton;
 import jakarta.ejb.Startup;
@@ -52,11 +57,14 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Singleton
 @Startup
+@Lock(LockType.READ)
 public class EnvioDeCorreosPendientes {
 
     private static final Logger LOG = Logger.getLogger(EnvioDeCorreosPendientes.class.getName());
@@ -73,6 +81,16 @@ public class EnvioDeCorreosPendientes {
 
     /** Cómo terminó un intento. */
     enum Resultado { ENVIADO, RECHAZADO, FALLO }
+
+    /** Cuántas vueltas seguidas hace una pasada si mientras tanto le pidieron otra. */
+    static final int PASADAS_MAXIMAS = 3;
+
+    private final ReentrantLock enCurso = new ReentrantLock();
+    private final AtomicBoolean pidieronOtraPasada = new AtomicBoolean();
+
+    /** Lo que dejó una pasada: cuántos salieron y si hubo que cortarla porque el servidor no respondió. */
+    private record Pasada(int enviados, boolean cortada) {
+    }
 
     @Inject
     private BandejaDeCorreos bandeja;
@@ -110,6 +128,29 @@ public class EnvioDeCorreosPendientes {
         if (smtp == null) {
             return 0;
         }
+        if (!enCurso.tryLock()) {
+            // Ya hay una pasada mandando: no se espera. Esa pasada hace otra vuelta al terminar, o el timer del
+            // minuto siguiente, y el mail que dejó este aviso sale igual.
+            pidieronOtraPasada.set(true);
+            return 0;
+        }
+        try {
+            int enviados = 0;
+            for (int vuelta = 0; vuelta < PASADAS_MAXIMAS; vuelta++) {
+                pidieronOtraPasada.set(false);
+                Pasada pasada = pasada(smtp);
+                enviados += pasada.enviados();
+                if (pasada.cortada() || !pidieronOtraPasada.get()) {
+                    break;
+                }
+            }
+            return enviados;
+        } finally {
+            enCurso.unlock();
+        }
+    }
+
+    private Pasada pasada(ConfiguracionSmtp smtp) {
         List<Pendiente> pendientes;
         try {
             int vencidos = bandeja.descartarVencidos(LocalDateTime.now().minusHours(HORAS_DE_VIGENCIA));
@@ -120,9 +161,10 @@ public class EnvioDeCorreosPendientes {
             pendientes = bandeja.pendientes(LOTE);
         } catch (RuntimeException e) {
             LOG.log(Level.WARNING, "[Notificaciones][Mail] No se pudo leer la bandeja de mails", e);
-            return 0;
+            return new Pasada(0, true);
         }
         int enviados = 0;
+        boolean cortada = false;
         for (Pendiente pendiente : pendientes) {
             Resultado resultado = enviar(smtp, pendiente.correo());
             try {
@@ -141,10 +183,11 @@ public class EnvioDeCorreosPendientes {
             }
             if (resultado == Resultado.FALLO) {
                 // Si el servidor no responde, los demás también fallarían: se reintenta en la próxima pasada.
+                cortada = true;
                 break;
             }
         }
-        return enviados;
+        return new Pasada(enviados, cortada);
     }
 
     private Resultado enviar(ConfiguracionSmtp smtp, Correo correo) {

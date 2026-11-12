@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "Rabbit",
-    "description": "Pruebas de las integraciones de Rabbit (TP DA2 · Grupo 9). Los códigos (A1, A4, J1…) son los de docs/pruebas/FLUJO-DE-PRUEBAS.md.\n\nANTES DE EMPEZAR\n1. Settings → General → apagar \"SSL certificate verification\" (el certificado de WildFly es autofirmado).\n2. Colección → Variables: completar erpClave y adminClave en \"Current value\" (no se exportan).\n3. Revisar idItem e idPuntoPicking, y que el ítem tenga stock (las carpetas 1 y 4 usan unas 9 unidades).\n\nCARPETAS\n1 · API del ERP — la integración REST de la consigna. En orden.\n2 · Validaciones y seguridad — errores 400/401/403/404/302.\n3 · Seguimiento público — sin login.\n4 · Pedidos de apoyo — para pruebas que siguen en la web (banco rechaza, ruteo por zona).\n5 · Transportistas — REST y SOAP legado, llamados directo.\n6 · Banco legado SOAP — autorizar, rechazo y reversa.\n\nSe puede correr una carpeta entera con \"Run folder\" (salvo los pasos marcados ANTES/DESPUÉS, que piden hacer algo en la web).\n7 · Contrato, idempotencia y seguridad cruzada — automatizada: idempotencia, BOLA entre ERPs, rol equivocado, seguimiento público, HSTS y pantallas protegidas. Pide también erp2Clave y comercioClave.",
+    "description": "Pruebas de las integraciones de Rabbit (TP DA2 · Grupo 9). Los códigos (A1, A4, J1…) son los de docs/pruebas/FLUJO-DE-PRUEBAS.md.\n\nANTES DE EMPEZAR\n1. Settings → General → apagar \"SSL certificate verification\" (el certificado de WildFly es autofirmado).\n2. Colección → Variables: completar erpClave y adminClave en \"Current value\" (no se exportan).\n3. Los valores traen los datos de la semilla de Docker (cuentas demo.*, idItem 101, idPuntoPicking 1). Con otra base, revisar usuarios, idItem e idPuntoPicking, y que el ítem tenga stock (las carpetas 1 y 4 usan unas 10 unidades). La clave de todas las cuentas demo.* es DEMO_PASSWORD del .env.\n\nCARPETAS\n1 · API del ERP — la integración REST de la consigna. En orden. Incluye A9: ETag, If-None-Match (304) e If-Match (412).\n2 · Validaciones y seguridad — errores 400/401/403/404/302.\n3 · Seguimiento público — sin login.\n4 · Pedidos de apoyo — para pruebas que siguen en la web (banco rechaza, ruteo por zona).\n5 · Transportistas — REST y SOAP legado, llamados directo.\n6 · Banco legado SOAP — autorizar, rechazo y reversa.\n\nSe puede correr una carpeta entera con \"Run folder\" (salvo los pasos marcados ANTES/DESPUÉS, que piden hacer algo en la web).\n7 · Contrato, idempotencia y seguridad cruzada — automatizada: idempotencia, BOLA entre ERPs, rol equivocado, seguimiento público, HSTS y pantallas protegidas. Pide también erp2Clave y comercioClave.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -15,7 +15,7 @@
     },
     {
       "key": "erpUsuario",
-      "value": "Almacen_Demo1erp"
+      "value": "demo.erp"
     },
     {
       "key": "erpClave",
@@ -31,11 +31,11 @@
     },
     {
       "key": "idItem",
-      "value": "111"
+      "value": "101"
     },
     {
       "key": "idPuntoPicking",
-      "value": "202"
+      "value": "1"
     },
     {
       "key": "idempotencyKey",
@@ -87,7 +87,7 @@
     },
     {
       "key": "erp2Usuario",
-      "value": "Almacen_Demo2erp"
+      "value": "demo.erp2"
     },
     {
       "key": "erp2Clave",
@@ -95,7 +95,7 @@
     },
     {
       "key": "comercioUsuario",
-      "value": "Almacen_Demo2"
+      "value": "demo.comercio2"
     },
     {
       "key": "comercioClave",
@@ -119,6 +119,22 @@
     },
     {
       "key": "codigoCruzadoMin",
+      "value": ""
+    },
+    {
+      "key": "idExternoEtag",
+      "value": ""
+    },
+    {
+      "key": "etagPedido",
+      "value": ""
+    },
+    {
+      "key": "etagViejo",
+      "value": ""
+    },
+    {
+      "key": "idempotencyKeyEtag",
       "value": ""
     }
   ],
@@ -248,6 +264,222 @@
                   }
                 },
                 "description": "Correr inmediatamente después de A1 (no genera clave nueva). Esperado: 201 con el MISMO idPedidoExterno. En la web, Pedidos muestra uno solo."
+              }
+            }
+          ]
+        },
+        {
+          "name": "A9 · Concurrencia: ETag, If-None-Match e If-Match",
+          "description": "Cada respuesta con un pedido lleva un ETag (hash de su estado). Un GET con If-None-Match igual al ETag responde 304 sin cuerpo. La cancelación con If-Match de un ETag viejo responde 412 con el ETag actual; con el ETag vigente cancela. Sin If-Match cancela igual (los ERP anteriores no lo mandan). Correr en orden y esperar 1 o 2 segundos antes del paso 2: la cola JMS sincroniza el pedido un instante después del alta y eso cambia su ETag.",
+          "item": [
+            {
+              "name": "1. Registrar un pedido y ver su ETag → 201",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"idempotencyKeyEtag\", pm.variables.replaceIn(\"{{$guid}}\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 201\", () => pm.response.to.have.status(201));",
+                      "const r = pm.response.json();",
+                      "pm.collectionVariables.set(\"idExternoEtag\", r.idPedidoExterno);",
+                      "pm.test(\"Trae el header ETag\", () => pm.expect(pm.response.headers.get(\"ETag\")).to.be.a(\"string\").and.not.empty);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idempotencyKeyEtag}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos",
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"origen\": \"STOCK_CONSIGNADO\",\n  \"lineas\": [\n    {\n      \"idItem\": {{idItem}},\n      \"cantidad\": 1\n    }\n  ],\n  \"importe\": 2500,\n  \"medioPago\": \"PREPAGO\",\n  \"direccionEntrega\": \"Av. Corrientes 1234, CABA\",\n  \"codigoPostalEntrega\": \"1043\",\n  \"emailDestinatario\": \"cliente@correo.test\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "description": "Esperado: 201 Created con Location, idPedidoExterno y ETag."
+              }
+            },
+            {
+              "name": "2. Consultar (esperar 1 o 2 s antes) → 200 con ETag",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const e = pm.response.headers.get(\"ETag\");",
+                      "pm.test(\"Trae el header ETag\", () => pm.expect(e).to.be.a(\"string\").and.not.empty);",
+                      "pm.collectionVariables.set(\"etagPedido\", e);",
+                      "pm.test(\"Ya está sincronizado\", () => pm.expect(pm.response.json().resultado).to.eql(\"Sincronizado\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoEtag}}",
+                "description": "Guarda el ETag vigente en etagPedido. Si el resultado todavía no es Sincronizado, esperar un instante y repetir este paso."
+              }
+            },
+            {
+              "name": "3. Consultar con If-None-Match igual al ETag → 304",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 304\", () => pm.response.to.have.status(304));",
+                      "pm.test(\"Sin cuerpo\", () => pm.expect(pm.response.text()).to.eql(\"\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "If-None-Match",
+                    "value": "{{etagPedido}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoEtag}}",
+                "description": "El pedido no cambió desde el paso 2: 304 Not Modified, sin cuerpo."
+              }
+            },
+            {
+              "name": "4. Cancelar con If-Match de un ETag viejo → 412",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 412\", () => pm.response.to.have.status(412));",
+                      "pm.test(\"Devuelve el ETag actual\", () => pm.expect(pm.response.headers.get(\"ETag\")).to.eql(pm.collectionVariables.get(\"etagPedido\")));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "If-Match",
+                    "value": "\"etag-viejo\""
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoEtag}}/cancelacion",
+                "description": "El ETag que manda no es el del pedido: no cancela y responde 412 Precondition Failed con el ETag actual."
+              }
+            },
+            {
+              "name": "5. Comprobar que el 412 no canceló nada → 200 y mismo ETag",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"Mismo ETag\", () => pm.expect(pm.response.headers.get(\"ETag\")).to.eql(pm.collectionVariables.get(\"etagPedido\")));",
+                      "pm.test(\"Sigue PENDIENTE\", () => pm.expect(pm.response.json().estadoPedido).to.eql(\"PENDIENTE\"));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoEtag}}",
+                "description": "El pedido sigue igual: mismo ETag y estadoPedido PENDIENTE."
+              }
+            },
+            {
+              "name": "6. Cancelar con If-Match vigente → 200",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set(\"etagViejo\", pm.collectionVariables.get(\"etagPedido\"));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "const r = pm.response.json();",
+                      "pm.test(\"Quedó cancelado\", () => pm.expect(r.resultado === \"Cancelado\" || r.estadoPedido === \"CANCELADO\").to.be.true);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "If-Match",
+                    "value": "{{etagPedido}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoEtag}}/cancelacion",
+                "description": "El ETag coincide: cancela y devuelve el stock."
+              }
+            },
+            {
+              "name": "7. Consultar con el ETag anterior → 200 (cambió, ya no es 304)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"Responde 200\", () => pm.response.to.have.status(200));",
+                      "pm.test(\"El ETag cambió\", () => pm.expect(pm.response.headers.get(\"ETag\")).to.not.eql(pm.collectionVariables.get(\"etagViejo\")));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "If-None-Match",
+                    "value": "{{etagViejo}}"
+                  }
+                ],
+                "url": "{{baseUrl}}/api/v1/pedidos-externos/{{idExternoEtag}}",
+                "description": "Después de cancelar el pedido cambió: con el ETag anterior ya no responde 304, sino 200 con el ETag nuevo."
               }
             }
           ]
