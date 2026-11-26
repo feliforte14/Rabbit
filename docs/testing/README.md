@@ -5,13 +5,14 @@ uno. El PDF único que se sube a Teams (`Clase15_Grupo<N>_<Dominio>_Testing.pdf`
 
 | # | Entregable | Documento | Estado |
 |---|---|---|---|
-| 1 | Plan y estrategia de pruebas | [PLAN-DE-PRUEBAS.md](PLAN-DE-PRUEBAS.md) | Redactado; falta Grupo y QA responsable |
+| 1 | Plan y estrategia de pruebas | [PLAN-DE-PRUEBAS.md](PLAN-DE-PRUEBAS.md) | Redactado; falta el QA responsable |
 | 2 | Matriz de trazabilidad | [MATRIZ-DE-TRAZABILIDAD.md](MATRIZ-DE-TRAZABILIDAD.md) | Generada de la documentación funcional; las pruebas manuales siguen sin ejecutar |
 | 3 | Especificación de casos | [ESPECIFICACION-DE-CASOS.md](ESPECIFICACION-DE-CASOS.md) | Generada; el QA revisa la columna «Tipo» |
 | 4 | Informe de ejecución | [INFORME-DE-EJECUCION.md](INFORME-DE-EJECUCION.md) | Con los números del CI; falta la captura del Quality Gate y repetir Estabilidad sobre `main` |
 | 5 | Registro de defectos | [REGISTRO-DE-DEFECTOS.md](REGISTRO-DE-DEFECTOS.md) | Redactado; faltan los Id de Jira y confirmar severidades |
 | 6 | Informe de seguridad | [../seguridad/INFORME-SEGURIDAD.md](../seguridad/INFORME-SEGURIDAD.md) | Hecho |
 | 7 | Declaración y plan de IA | [../consigna/USO-DE-IA.md](../consigna/USO-DE-IA.md) | **Pendiente** (en borrador) |
+| 7b | Pruebas de la IA | [PRUEBAS-DE-IA.md](PRUEBAS-DE-IA.md) | Hecho; el etiquetado con respuesta real del modelo está sin probar |
 | 8 | Lecciones aprendidas | [LECCIONES-APRENDIDAS.md](LECCIONES-APRENDIDAS.md) | Redactado; el equipo revisa la interpretación |
 
 ## Reglas de este directorio

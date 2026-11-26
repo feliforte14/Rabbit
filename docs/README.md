@@ -96,7 +96,7 @@ docs/
 ### [testing/](testing/)
 
 - [README.md](testing/README.md): Los entregables de la prueba del sistema (Clase 15) y el estado de cada uno
-- [PLAN-DE-PRUEBAS.md](testing/PLAN-DE-PRUEBAS.md), [MATRIZ-DE-TRAZABILIDAD.md](testing/MATRIZ-DE-TRAZABILIDAD.md), [ESPECIFICACION-DE-CASOS.md](testing/ESPECIFICACION-DE-CASOS.md), [INFORME-DE-EJECUCION.md](testing/INFORME-DE-EJECUCION.md), [REGISTRO-DE-DEFECTOS.md](testing/REGISTRO-DE-DEFECTOS.md) y [LECCIONES-APRENDIDAS.md](testing/LECCIONES-APRENDIDAS.md)
+- [PLAN-DE-PRUEBAS.md](testing/PLAN-DE-PRUEBAS.md), [MATRIZ-DE-TRAZABILIDAD.md](testing/MATRIZ-DE-TRAZABILIDAD.md), [ESPECIFICACION-DE-CASOS.md](testing/ESPECIFICACION-DE-CASOS.md), [INFORME-DE-EJECUCION.md](testing/INFORME-DE-EJECUCION.md), [REGISTRO-DE-DEFECTOS.md](testing/REGISTRO-DE-DEFECTOS.md), [PRUEBAS-DE-IA.md](testing/PRUEBAS-DE-IA.md) (casos de la IA y qué no se probó) y [LECCIONES-APRENDIDAS.md](testing/LECCIONES-APRENDIDAS.md)
 
 ### [consigna/](consigna/)
 

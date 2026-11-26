@@ -241,6 +241,7 @@ El detalle y la justificación de cada decisión están en
 - **Negocio y funcional** (`docs/negocio/`, `docs/funcional/`): [BRD](docs/negocio/BRD.md), [Documentación funcional](docs/funcional/DOCUMENTACION-FUNCIONAL.md) (37 historias de usuario en Gherkin y matriz de trazabilidad).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md) (qué protege Rabbit), [Informe de seguridad](docs/seguridad/INFORME-SEGURIDAD.md) (matriz del Eje D con evidencia), [Pruebas de seguridad](docs/seguridad/PRUEBAS-DE-SEGURIDAD.md) (cómo repetirlas) y el [incidente de secretos en el historial](docs/seguridad/INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md).
 - **Pruebas** (`docs/pruebas/`): [Flujo de pruebas](docs/pruebas/FLUJO-DE-PRUEBAS.md), recorrido manual de punta a punta para verificar y para la demo, [Pruebas y comandos](docs/pruebas/PRUEBAS-Y-COMANDOS.md), comandos de cada sistema y lista de pruebas para marcar, y las pruebas del CI: [contrato](docs/pruebas/CONTRATO.md) y [punta a punta y accesibilidad](docs/pruebas/E2E.md).
+- **Testing y calidad** (`docs/testing/`): [Plan de pruebas](docs/testing/PLAN-DE-PRUEBAS.md), [Matriz de trazabilidad](docs/testing/MATRIZ-DE-TRAZABILIDAD.md), [Especificación de casos](docs/testing/ESPECIFICACION-DE-CASOS.md), [Informe de ejecución](docs/testing/INFORME-DE-EJECUCION.md), [Registro de defectos](docs/testing/REGISTRO-DE-DEFECTOS.md) y [Pruebas de la IA](docs/testing/PRUEBAS-DE-IA.md) (qué se probó y qué no).
 - **Consigna** (`docs/consigna/`): [Checklist](docs/consigna/CHECKLIST.md) de requisitos (Sección 6 y anexo), [Desafíos opcionales](docs/consigna/DESAFIOS-OPCIONALES.md) y [Uso de IA](docs/consigna/USO-DE-IA.md).
 
 ## Cumplimiento de la consigna
@@ -730,7 +731,7 @@ remito, tarifa mensual, datos de quien recibe, intentos de entrega, fecha
 prometida, horario estimado, textos de los avisos al cliente y al
 comercio, cuándo no se puede cancelar un pedido (ADR-048), cuánto se
 puede corregir o eliminar del stock de un depósito (ADR-049) e
-indicadores (con la comparación contra el período anterior).
+indicadores (con la comparación contra el período anterior) y el gateway de IA (validación de entrada y salida, timeout y fallback, con un proveedor falso; ver [Pruebas de la IA](docs/testing/PRUEBAS-DE-IA.md)).
 
 Tests de integración de la API REST (REST Assured), contra Rabbit ya
 desplegado y con una cuenta ERP:

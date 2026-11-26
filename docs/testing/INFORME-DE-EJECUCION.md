@@ -206,4 +206,4 @@ releerlos de la corrida antes de citarlos en el informe final.
   capacidad del vehículo (10.1 y 10.2), el mapa y el horario estimado desde el celular (10.4 y 12.5), la segunda visita
   fallida, y apagar el broker de verdad para la cola de mensajes muertos (hay prueba manual del 08/11, punto 9).
 - **IA:** el gateway se probó con un servidor HTTP propio (respuesta válida, inválida, caído y lento) y en vivo con un proveedor
-  falso; **no se probó contra la API real de Claude** por falta de clave.
+  falso; **no se probó una respuesta real de Claude**: el 26/11/2026 se probó contra la API real, pero sin saldo en la cuenta, así que solo se verificó el fallback (ver [PRUEBAS-DE-IA.md](PRUEBAS-DE-IA.md)).

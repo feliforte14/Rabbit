@@ -14,8 +14,12 @@ Rabbit tiene un gateway propio (`com.rabbit.integracion.ia`, ADR-073) que desaco
 - **Comentarios de calificaciones:** se clasifican por sentimiento y tema para los indicadores.
 
 Controles: timeout de 5 s, fallback sin IA (sin clave o ante error el flujo sigue y se muestra el texto original), entrada validada,
-salida validada contra una lista cerrada y sin datos personales hacia el proveedor. Pruebas: `EtiquetadoDeInstruccionesTest`
-y los tests del gateway.
+salida validada contra una lista cerrada y sin datos personales hacia el proveedor. Pruebas: ver
+[PRUEBAS-DE-IA.md](../testing/PRUEBAS-DE-IA.md).
+
+**Límite de lo probado:** se verificaron la validación y el comportamiento ante fallas (con un proveedor falso y, el 26/11/2026,
+contra la API real en modo fallback). **No se probó el etiquetado con una respuesta real del modelo**, por falta de saldo en la
+cuenta de Anthropic.
 
 ## IA como asistente de desarrollo
 
