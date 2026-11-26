@@ -3367,6 +3367,7 @@ body.pagina-etiquetas {
 
 .desglose dd {
     margin: 0;
+    white-space: nowrap; /* el signo $ no se separa de la cifra */
     text-align: right;
     font-variant-numeric: tabular-nums;
 }
@@ -3375,4 +3376,23 @@ body.pagina-etiquetas {
     .tabla .col-num {
         text-align: left;
     }
+}
+
+
+/* Tablero de indicadores: las notas de cada KPI describen, no alertan
+   (gris suave, normal), y 7 u 8 tarjetas se reparten de a 4 en escritorio
+   en lugar de dejar una fila de 5 y otra con dos sueltas. */
+.stat-grid-kpi .stat-card .stat-nota {
+    color: var(--texto-suave);
+    font-weight: 400;
+    line-height: 1.35;
+}
+@media (min-width: 981px) {
+    .stat-grid-kpi:has(> .stat-card:nth-child(7)) {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+.tabla .monto {
+    white-space: nowrap;
 }
