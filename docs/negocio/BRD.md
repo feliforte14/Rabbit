@@ -13,7 +13,7 @@ date: "Versión 1.0 · 02/11/2026"
 | Documento | Business Requirements Document (BRD), el "por qué" de Rabbit |
 | Estándar | ISO/IEC/IEEE 29148:2018 (BRS / StRS) · IIBA BABOK v3 |
 | Versión | 1.0 · 02/11/2026 |
-| Integrantes | Felipe Forte · Florencia Ayala · Facundo (a completar apellido) · *(completar si hay más)* |
+| Integrantes | Florencia Ayala · Felipe Forte · Juan Aragon · Facundo Larghero |
 | Fuente versionada | `docs/negocio/BRD.md` en el repositorio |
 | Documentos relacionados | [Documentación funcional](../funcional/DOCUMENTACION-FUNCIONAL.md) (el "qué": HU, reglas, RNF, matriz) · [Arquitectura](../arquitectura/ARQUITECTURA.md) · [Decisiones (ADR)](../arquitectura/DECISIONES.md) |
 
