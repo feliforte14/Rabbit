@@ -10,7 +10,7 @@ están en el [README principal](../README.md).
 
 ## Cómo leer esta documentación
 
-*Última revisión general: 10/11/2026 (ADR por componente, ADR-060 a 072, gateway de IA, defectos cerrados y mediciones del punto 10 del informe de ejecución).*
+*Última revisión general: 26/11/2026 (ADR-073: el gateway de IA también etiqueta las instrucciones de entrega; USO-DE-IA con la IA del producto; antes: ADR por componente, ADR-060 a 072, defectos cerrados y mediciones del punto 10 del informe de ejecución).*
 
 - **Un documento por tema.** Cada uno describe lo **implementado**, con las clases donde vive.
 - **Las mejoras pendientes** están marcadas como tales dentro de cada documento y en las "Consecuencias" de los ADR.
@@ -69,7 +69,7 @@ docs/
 - [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md): Capas, componentes, interfaces entre componentes, stateless vs. stateful, máquina de estados del pedido
 - [PATRONES.md](arquitectura/PATRONES.md): Catálogo de patrones y, para cada uno, qué problema resuelve, dónde está y qué alternativa se descartó
 - [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md): Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo
-- [DECISIONES.md](arquitectura/DECISIONES.md): Registro de decisiones de arquitectura (72 ADR), con índice por componente y cronológico
+- [DECISIONES.md](arquitectura/DECISIONES.md): Registro de decisiones de arquitectura (73 ADR), con índice por componente y cronológico
 
 ### [integraciones/](integraciones/)
 

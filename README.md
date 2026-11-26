@@ -88,7 +88,9 @@ Aplicaciones II (UADE, 2.º cuatrimestre 2026)
   un comentario opcional). Una sola vez por pedido (ADR-052). Un gateway de IA
   clasifica el comentario (positivo, neutro o negativo, y de qué habla) y los
   indicadores muestran el resumen; sin clave de API no hay IA y todo lo demás
-  funciona igual (ADR-066).
+  funciona igual (ADR-066). El mismo gateway convierte las instrucciones de entrega
+  de quien recibe en indicaciones fijas para el repartidor ("Llamar antes",
+  "Dejar en portería"), con timeout de 5 s y fallback al texto original (ADR-073).
 - **Indicadores:** tablero para el personal (toda la red, un comercio y
   por repartidor) y para cada comercio: entregas a tiempo, al primer
   intento, horas de recibido a entregado, lista de espera y costo por
@@ -222,7 +224,7 @@ docker/                    ← configuración de WildFly y semilla de datos para
 - **Notificaciones → comercio y quien recibe (ADR-040)**
   - Tipo: SMTP (Jakarta Mail), después del commit, con bandeja de correos: si el servidor no responde, se reintenta cada minuto durante 24 horas (ADR-063)
   - Dirección: Saliente (opcional, por configuración)
-- **Rabbit → proveedor de IA (clasifica el comentario de una calificación)**
+- **Rabbit → proveedor de IA (clasifica el comentario de una calificación y etiqueta las instrucciones de entrega, ADR-066 y ADR-073)**
   - Tipo: Sincrónica, **REST/JSON por HTTPS** (API de Claude), a través del gateway `integracion.ia`, con timeout de 5 s y fallback
   - Dirección: Saliente (opcional: sin clave de API no hay IA)
 
@@ -234,7 +236,7 @@ El seguimiento de los envíos derivados es por consulta periódica (cada
 El detalle y la justificación de cada decisión están en
 [`docs/`](docs/README.md) (índice de todos los documentos):
 
-- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (72 ADR)](docs/arquitectura/DECISIONES.md).
+- **Arquitectura** (`docs/arquitectura/`): [Arquitectura](docs/arquitectura/ARQUITECTURA.md) (capas, componentes, interfaces y estados del pedido), [Patrones de diseño](docs/arquitectura/PATRONES.md), [Transacciones](docs/arquitectura/TRANSACCIONES.md) y [Decisiones (73 ADR)](docs/arquitectura/DECISIONES.md).
 - **Integraciones** (`docs/integraciones/`): [Mensajería: justificación final](docs/integraciones/MENSAJERIA-JUSTIFICACION.md) (por qué cola, tópico, SOAP o REST), [Mensajería sincrónica](docs/integraciones/MENSAJERIA-SINCRONICA.md) (banco, transportistas y API REST), [Mensajería asincrónica](docs/integraciones/MENSAJERIA-ASINCRONICA.md) (cola, tópico y mail) y el [contrato OpenAPI](docs/integraciones/openapi.yaml).
 - **Negocio y funcional** (`docs/negocio/`, `docs/funcional/`): [BRD](docs/negocio/BRD.md), [Documentación funcional](docs/funcional/DOCUMENTACION-FUNCIONAL.md) (37 historias de usuario en Gherkin y matriz de trazabilidad).
 - **Seguridad** (`docs/seguridad/`): [Seguridad](docs/seguridad/SEGURIDAD.md) (qué protege Rabbit), [Informe de seguridad](docs/seguridad/INFORME-SEGURIDAD.md) (matriz del Eje D con evidencia), [Pruebas de seguridad](docs/seguridad/PRUEBAS-DE-SEGURIDAD.md) (cómo repetirlas) y el [incidente de secretos en el historial](docs/seguridad/INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md).
@@ -275,8 +277,8 @@ es el checklist de qué necesita cada quien y dónde se consigue o se crea
   - Para qué: Avisos por mail al comercio (paso 7, opcional)
   - De dónde sale: El que dé el equipo, o un `smtpd` local de prueba (ver paso 7) — sin esto configurado, la app funciona igual y los avisos solo quedan en el portal
 - **Clave de la API de Claude (`ANTHROPIC_API_KEY`)**
-  - Para qué: Clasificar los comentarios de las calificaciones con IA (ADR-066, opcional)
-  - De dónde sale: La cuenta de Anthropic del equipo; va en el `.env` (Docker) o en la propiedad `rabbit.ia.clave`, nunca en el repositorio — sin ella, la app funciona igual y los comentarios quedan sin clasificar
+  - Para qué: Clasificar los comentarios de las calificaciones y etiquetar las instrucciones de entrega con IA (ADR-066 y ADR-073, opcional)
+  - De dónde sale: La cuenta de Anthropic del equipo; va en el `.env` (Docker) o en la propiedad `rabbit.ia.clave`, nunca en el repositorio — sin ella, la app funciona igual y los comentarios quedan sin clasificar y el repartidor ve las instrucciones tal como se escribieron
 
 ### Cuentas de la aplicación
 

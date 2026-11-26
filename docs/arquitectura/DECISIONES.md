@@ -3,7 +3,7 @@
 Formato: contexto → decisión → consecuencias. Estado: Aceptada,
 Propuesta o Reemplazada.
 
-Última revisión del registro: 10/11/2026 (se agregan ADR-060 a 062 de la Clase 12, ADR-065 a 067 y los ADR de patrones 068 a 072, y el índice por componente). Hay 72 ADR.
+Última revisión del registro: 26/11/2026 (se agrega ADR-073, gateway de IA para las instrucciones de entrega; antes: se agregan ADR-060 a 062 de la Clase 12, ADR-065 a 067 y los ADR de patrones 068 a 072, y el índice por componente). Hay 73 ADR.
 
 ## Índice por componente
 
@@ -95,6 +95,7 @@ de siempre. Un ADR que toca a varios componentes lo dice en su texto.
 - [ADR-011](#adr-011-circuit-breaker-propio-frente-al-banco-legado): Circuit breaker propio frente al banco legado (Aceptada)
 - [ADR-015](#adr-015-banco-legado-en-nodejs-detrás-del-mismo-wsdl): Banco legado en Node.js, detrás del mismo WSDL (Aceptada)
 - [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Aceptada)
+- [ADR-073](#adr-073-gateway-de-ia-que-etiqueta-las-instrucciones-de-entrega): Gateway de IA que etiqueta las instrucciones de entrega (Aceptada)
 
 ### Mensajería y plataforma (transversal)
 
@@ -198,6 +199,7 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 - [ADR-070](#adr-070-facade-en-la-entrada-de-cada-componente): Facade en la entrada de cada componente (Aceptada)
 - [ADR-071](#adr-071-tareas-periódicas-y-estado-compartido-como-singleton): Tareas periódicas y estado compartido como Singleton (Aceptada)
 - [ADR-072](#adr-072-provider-instancet-para-el-ejb-stateful-de-la-reserva): Provider (`Instance<T>`) para el EJB stateful de la reserva (Aceptada)
+- [ADR-073](#adr-073-gateway-de-ia-que-etiqueta-las-instrucciones-de-entrega): Gateway de IA que etiqueta las instrucciones de entrega (Aceptada)
 
 ## ADR-001: Cola JMS + polling de respaldo para sincronizar pedidos
 
@@ -2324,3 +2326,21 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 - **Consecuencias:** cada reserva tiene su propia conversación y no se cruzan entre pedidos. A cambio, hay que acordarse de destruir
   la instancia.
 - **Descartado:** inyectar `IReservaStock` como campo del servicio.
+
+
+## ADR-073: Gateway de IA que etiqueta las instrucciones de entrega
+
+- **Estado:** Aceptada (26/11/2026); patrones *Gateway* y *Strategy* (proveedor intercambiable).
+- **Contexto:** quien recibe un pedido puede dejar instrucciones en texto libre ("tocá timbre 2 veces, si no, llamame"). El
+  repartidor necesita indicaciones fijas y rápidas de leer. El proveedor de IA puede estar caído, lento o sin clave.
+- **Decisión:** el texto pasa por `IEtiquetadorIa` (`integracion.ia`), que lo valida (no vacío, tope de largo, escapa `<` y `>`, tapa números largos), llama al `ProveedorIa`
+  con **timeout de 5 s** y valida la salida contra una **lista cerrada** (`IndicacionDeEntrega`: llamar antes, dejar en portería,
+  dejar con vecino, timbre no funciona, horario restringido, acceso difícil, mascota). Lo que no está en la lista se descarta.
+  El etiquetado corre **después de confirmar la transacción** (`@Observes(during = AFTER_SUCCESS)`) y en segundo plano
+  (`@Asynchronous`), así que no demora ni rompe el alta o la edición del pedido. Se guarda con
+  `UPDATE ... WHERE instruccionesEntrega = :texto`, para descartar respuestas viejas si el texto cambió mientras tanto.
+- **Consecuencias:** sin clave, con error o con timeout, el pedido se guarda igual y el repartidor ve el texto original
+  (fallback). El código de negocio no conoce al proveedor: cambiarlo es cambiar `ProveedorClaude`. El proveedor recibe solo el texto
+  de la instrucción, sin datos del pedido, y las instrucciones no se registran en el log.
+- **Descartado:** llamar al proveedor dentro de la transacción del pedido (la bloquearía hasta 5 s) y aceptar texto libre como salida
+  de la IA (no se podría validar).
