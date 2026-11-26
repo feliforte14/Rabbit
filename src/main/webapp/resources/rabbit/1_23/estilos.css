@@ -3336,3 +3336,43 @@ body.pagina-etiquetas {
 .campo-medidas > .error-campo {
     grid-column: 1 / -1;
 }
+
+
+/* Liquidaciones: importes y cantidades alineados a la derecha (se comparan de arriba abajo) y el detalle del
+   cobro como lista concepto / importe. En el celular, las tablas son tarjetas y esto se alinea a la izquierda. */
+.tabla .col-num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.monto {
+    font-size: 1.05rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.desglose {
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: start;
+    column-gap: 1.25rem;
+    row-gap: 0.1rem;
+    margin: 0;
+    font-size: 0.85rem;
+}
+
+.desglose dt {
+    color: var(--texto-suave);
+}
+
+.desglose dd {
+    margin: 0;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 860px) {
+    .tabla .col-num {
+        text-align: left;
+    }
+}

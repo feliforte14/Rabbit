@@ -96,14 +96,14 @@
                 <f:facet name="header">Mes</f:facet>
                 #{misLiquidacionesBean.nombreMes(l.periodo)}
             </h:column>
-            <h:column>
+            <h:column styleClass="col-num" headerClass="col-num">
                 <f:facet name="header">Entregas</f:facet>
-                #{l.cantidadEnvios}
+                <b>#{l.cantidadEnvios}</b>
                 <span class="dato-secundario">#{etiquetas.kilos(l.kilos)}</span>
             </h:column>
-            <h:column>
+            <h:column styleClass="col-num" headerClass="col-num">
                 <f:facet name="header">Total</f:facet>
-                <b><h:outputText value="#{l.total}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
+                <b class="monto">#{etiquetas.pesos(l.total)}</b>
                 <h:panelGroup rendered="#{l.unidadesDia > 0}">
                     <span class="dato-secundario">Incluye almacenamiento: #{etiquetas.pesos(l.cargoAlmacenamiento)} (#{l.unidadesDia} u.-día)</span>
                     <h:panelGroup rendered="#{l.unidadesDiaGratis > 0}">
