@@ -126,6 +126,11 @@
                         </span>
                     </h:panelGroup>
                     <!-- Lo que pidio quien recibe (ADR-057). Texto de un tercero: siempre escapado. -->
+                    <h:panelGroup rendered="#{not empty e.indicaciones}">
+                        <span class="cobrar">Indicaciones:
+                            <ui:repeat value="#{e.indicaciones}" var="ind"><b class="etiqueta-indicacion">#{ind}</b> </ui:repeat>
+                        </span>
+                    </h:panelGroup>
                     <h:panelGroup rendered="#{not empty e.instrucciones}">
                         <span class="cobrar">Instrucciones del cliente: <b>#{e.instrucciones}</b></span>
                     </h:panelGroup>

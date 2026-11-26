@@ -170,6 +170,10 @@ public class Pedido {
     private LocalDate fechaPrometidaOriginal;
     @Column(length = 200)
     private String instruccionesEntrega;
+    // Lo que la IA sacó de las instrucciones (gateway de IA): nombres de IndicacionDeEntrega separados por coma.
+    // Null si no hay instrucciones o si la IA no estaba disponible: el repartidor ve el texto igual.
+    @Column(length = 200)
+    private String indicacionesEntrega;
     @Column(length = 100)
     private String nombreAutorizado;
     private Integer cambiosDelCliente;
@@ -295,6 +299,8 @@ public class Pedido {
     public void setFechaPrometidaOriginal(LocalDate fechaPrometidaOriginal) { this.fechaPrometidaOriginal = fechaPrometidaOriginal; }
     public String getInstruccionesEntrega() { return instruccionesEntrega; }
     public void setInstruccionesEntrega(String instruccionesEntrega) { this.instruccionesEntrega = instruccionesEntrega; }
+    public String getIndicacionesEntrega() { return indicacionesEntrega; }
+    public void setIndicacionesEntrega(String indicacionesEntrega) { this.indicacionesEntrega = indicacionesEntrega; }
     public String getNombreAutorizado() { return nombreAutorizado; }
     public void setNombreAutorizado(String nombreAutorizado) { this.nombreAutorizado = nombreAutorizado; }
     public int getCambiosDelCliente() { return cambiosDelCliente == null ? 0 : cambiosDelCliente; }

@@ -95,6 +95,7 @@ class PedidoServiceTest {
     @Mock private Event<EstadoPedidoCambiado> estadoPedidoCambiado;
     @Mock private Event<EntregaModificada> entregaModificada;
     @Mock private Event<ComentarioCalificado> comentarioCalificado;
+    @Mock private Event<InstruccionesModificadas> instruccionesModificadas;
     @Mock private IAsignacionRepartidores repartidores;
     @Mock private IRegistroCobros cobros;
     @Mock private IEnvios envios;
@@ -1395,6 +1396,8 @@ class PedidoServiceTest {
             assertEquals("Juan", p.getNombreAutorizado());
             assertEquals(1, p.getCambiosDelCliente());
             assertEquals("Timbre B", dto.instruccionesEntrega);
+            // Instrucciones nuevas: la IA las etiqueta aparte, con el pedido y el texto guardado.
+            verify(instruccionesModificadas).fire(new InstruccionesModificadas(p.getId(), "Timbre B"));
 
             servicio.modificarEntrega("RB-ABC", LocalDate.now().plusDays(4), "Timbre B", "Juan");
             assertEquals(prometida, p.getFechaPrometidaOriginal());

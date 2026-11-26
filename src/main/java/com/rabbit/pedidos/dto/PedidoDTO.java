@@ -43,6 +43,7 @@ public class PedidoDTO {
     // Lo que eligió quien recibe (ADR-057): instrucciones, persona autorizada y si reprogramó (con el
     // día que se había prometido antes). El repartidor las ve en su hoja de ruta.
     public String instruccionesEntrega;
+    public String indicacionesEntrega;
     public String nombreAutorizado;
     public LocalDate fechaPrometidaOriginal;
     // Lo completa PedidoService al consultar el seguimiento público (ADR-057); en el resto es false.
@@ -97,6 +98,7 @@ public class PedidoDTO {
         dto.idDepositoRetiro = p.getIdDepositoRetiro();
         dto.cantidadDeBultos = p.getCantidadDeBultos();
         dto.instruccionesEntrega = p.getInstruccionesEntrega();
+        dto.indicacionesEntrega = p.getIndicacionesEntrega();
         dto.nombreAutorizado = p.getNombreAutorizado();
         dto.fechaPrometidaOriginal = p.getFechaPrometidaOriginal();
         dto.modificableDesdeSeguimiento = false; // lo completa PedidoService.consultarSeguimiento
@@ -155,6 +157,7 @@ public class PedidoDTO {
     public Long getIdDepositoRetiro() { return idDepositoRetiro; }
     public int getCantidadDeBultos() { return cantidadDeBultos; }
     public String getInstruccionesEntrega() { return instruccionesEntrega; }
+    public String getIndicacionesEntrega() { return indicacionesEntrega; }
     public String getNombreAutorizado() { return nombreAutorizado; }
     public LocalDate getFechaPrometidaOriginal() { return fechaPrometidaOriginal; }
     public boolean isReprogramado() { return fechaPrometidaOriginal != null; }

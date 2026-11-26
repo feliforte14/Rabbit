@@ -354,6 +354,17 @@ public class PedidoRepository {
     }
 
     /** Guarda lo que dijo la IA del comentario de una calificación (sentimiento y tema). */
+    /**
+     * Guarda las indicaciones que la IA sacó de las instrucciones, solo si el pedido todavía tiene ese mismo texto:
+     * si quien recibe lo cambió mientras la IA contestaba, la respuesta quedó vieja y se descarta.
+     */
+    public int guardarIndicaciones(Long idPedido, String textoEtiquetado, String indicaciones) {
+        return em.createQuery("UPDATE Pedido p SET p.indicacionesEntrega = :i "
+                        + "WHERE p.id = :id AND p.instruccionesEntrega = :t")
+                .setParameter("i", indicaciones).setParameter("id", idPedido).setParameter("t", textoEtiquetado)
+                .executeUpdate();
+    }
+
     public void guardarClasificacion(Long idCalificacion, String sentimiento, String tema) {
         em.createQuery("UPDATE CalificacionEntrega c SET c.sentimiento = :s, c.tema = :t WHERE c.id = :id")
                 .setParameter("s", sentimiento).setParameter("t", tema).setParameter("id", idCalificacion)

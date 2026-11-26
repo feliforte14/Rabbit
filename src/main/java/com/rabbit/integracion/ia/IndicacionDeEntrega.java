@@ -21,6 +21,28 @@ public enum IndicacionDeEntrega {
         this.texto = texto;
     }
 
+    /** Guardado: los nombres separados por coma, o null si no hay ninguna. */
+    public static String guardar(java.util.Collection<IndicacionDeEntrega> indicaciones) {
+        return indicaciones.isEmpty() ? null : indicaciones.stream().map(Enum::name)
+                .collect(java.util.stream.Collectors.joining(","));
+    }
+
+    /** Lo guardado, como textos para mostrar. Ignora cualquier nombre que ya no exista. */
+    public static java.util.List<String> textos(String guardado) {
+        if (guardado == null || guardado.isBlank()) {
+            return java.util.List.of();
+        }
+        java.util.List<String> textos = new java.util.ArrayList<>();
+        for (String nombre : guardado.split(",")) {
+            try {
+                textos.add(valueOf(nombre.trim()).getTexto());
+            } catch (IllegalArgumentException e) {
+                // un nombre que ya no está en la lista cerrada: se ignora
+            }
+        }
+        return textos;
+    }
+
     /** Cómo se muestra en pantalla. */
     public String getTexto() {
         return texto;

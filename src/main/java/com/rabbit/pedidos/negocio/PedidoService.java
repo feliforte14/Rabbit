@@ -180,6 +180,10 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
     @Inject
     private Event<EntregaModificada> entregaModificada;
 
+    // Instrucciones de entrega nuevas: el gateway de IA las pasa a indicaciones fijas después de guardarlas.
+    @Inject
+    private Event<InstruccionesModificadas> instruccionesModificadas;
+
     // Un comentario nuevo en una calificación: el gateway de IA lo clasifica después de guardarlo.
     @Inject
     private Event<ComentarioCalificado> comentarioCalificado;
@@ -1285,7 +1289,11 @@ public class PedidoService implements IGestionPedidos, ISeguimientoPedido {
         }
         if (!Objects.equals(cambios.instrucciones(), pedido.getInstruccionesEntrega())) {
             pedido.setInstruccionesEntrega(cambios.instrucciones());
+            pedido.setIndicacionesEntrega(null); // las de antes ya no valen: la IA las vuelve a sacar
             hechos.add("instrucciones");
+            if (cambios.instrucciones() != null && !cambios.instrucciones().isBlank()) {
+                instruccionesModificadas.fire(new InstruccionesModificadas(pedido.getId(), cambios.instrucciones()));
+            }
         }
         if (!Objects.equals(cambios.nombreAutorizado(), pedido.getNombreAutorizado())) {
             pedido.setNombreAutorizado(cambios.nombreAutorizado());
