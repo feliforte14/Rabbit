@@ -60,6 +60,7 @@ public class HojaDeRutaDTO {
     // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getIdPedido() { return idPedido; }
     public String getInstrucciones() { return instrucciones; }
+    public java.util.List<String> getIndicaciones() { return indicaciones; }
     public String getAutorizado() { return autorizado; }
     public String getDiaPedidoPorElCliente() { return diaPedidoPorElCliente; }
     public String getComercio() { return comercio; }
