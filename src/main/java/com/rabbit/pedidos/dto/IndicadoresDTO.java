@@ -47,6 +47,12 @@ public class IndicadoresDTO {
     public int calificaciones;
     public int sumaEstrellas;
 
+    // Lo que la IA clasificó de los comentarios de esas calificaciones (gateway de IA). Solo cuentan los
+    // comentarios que llegaron a clasificarse.
+    public int comentariosPositivos;
+    public int comentariosNeutros;
+    public int comentariosNegativos;
+
     // En la lista de espera ahora (no depende del período).
     public long enEsperaAhora;
 
@@ -201,6 +207,10 @@ public class IndicadoresDTO {
     public int getCalificaciones() { return calificaciones; }
     public BigDecimal getPromedioCalificacion() { return promedio(sumaEstrellas, calificaciones); }
     public String getPromedioCalificacionTexto() { return estrellas(getPromedioCalificacion()); }
+    public int getComentariosPositivos() { return comentariosPositivos; }
+    public int getComentariosNeutros() { return comentariosNeutros; }
+    public int getComentariosNegativos() { return comentariosNegativos; }
+    public int getComentariosClasificados() { return comentariosPositivos + comentariosNeutros + comentariosNegativos; }
     public long getEnEsperaAhora() { return enEsperaAhora; }
     public BigDecimal getCostoPorEnvio() { return costoPorEnvio; }
     public List<Motivo> getMotivosFallidos() { return motivosFallidos; }

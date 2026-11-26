@@ -175,13 +175,12 @@ cola y volvió a la DLQ por seguir roto. Uno roto en el tópico llegó a la DLQ 
 Después del punto 9 entraron a `main` las PR #26 (mails HTML, avisos de cambio de entrega, vencimiento de retiros, reintento
 de mails), #27 (días gratis y recargo por stock antiguo, ADR-065), #28 (correcciones de la prueba exploratoria) y #29
 (gateway de IA, ADR-066, y `session-timeout` explícito). La etiqueta `v1.0-testing` apunta a `7ba59bf` (PR #28).
-El 11/11 el gateway de IA salió de `dev` para trabajarse en la rama `AI-GateWay` (el `session-timeout` queda): sin
-sus tests, `dev` corre **1147** pruebas unitarias, 0 fallos.
 
 | Medida | Resultado | Fuente |
 |---|---|---|
 | Pruebas unitarias | **1169** ejecutadas, 0 fallos, 0 omitidas (eran 1042) | `mvn verify`, local |
 | Cobertura de la capa de negocio | **98,1 %** de líneas (4103 de 4181 sobre `7ba59bf`) y **92,1 %** de ramas | JaCoCo, local |
+| Cobertura del gateway de IA (`integracion.ia`) | 90 % a 95 % de líneas por clase | JaCoCo, local |
 | Punta a punta (Playwright) | **24 de 24**: 11 flujos (E2E-1 a 11), 5 de seguridad (SEG-1 a 5) y 8 pantallas con axe | local, contra el compose |
 | CI, Seguridad, Carga y Estabilidad sobre `7ba59bf` | Los cuatro en verde, todos los jobs: [CI](https://github.com/feliforte14/Rabbit/actions/runs/42872802861) · [Seguridad](https://github.com/feliforte14/Rabbit/actions/runs/42872808400) · [Carga](https://github.com/feliforte14/Rabbit/actions/runs/42872815161) · [Estabilidad](https://github.com/feliforte14/Rabbit/actions/runs/42872820718) | GitHub Actions |
 | CI, Seguridad y Carga sobre `73094da` (con el gateway de IA) | Los tres en verde: [CI](https://github.com/feliforte14/Rabbit/actions/runs/42885588643) · [Seguridad](https://github.com/feliforte14/Rabbit/actions/runs/42885594490) | GitHub Actions |

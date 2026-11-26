@@ -57,6 +57,9 @@ services:
       RABBIT_MAIL_HOST: ${RABBIT_MAIL_HOST:-}
       RABBIT_MAIL_USUARIO: ${RABBIT_MAIL_USUARIO:-}
       RABBIT_MAIL_PASSWORD: ${RABBIT_MAIL_PASSWORD:-}
+      # Opcional: la clave de la API de Claude para clasificar los comentarios de las calificaciones. Vacía, no hay
+      # IA y el sistema funciona igual (ver integracion.ia).
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     ports:
       - "8080:8080"
       - "8443:8443"
