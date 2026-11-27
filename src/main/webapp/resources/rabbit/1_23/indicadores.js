@@ -113,7 +113,7 @@ var RabbitGraficos = (function () {
 
     // Zona sensible: mas grande que la marca. Se activa con mouse, toque o teclado.
     function zonaSensible(padre, atributos, datos, fila, grupo, etiquetaAccesible) {
-        var zona = svg('rect', Object.assign({fill: 'transparent', tabindex: '0', 'class': 'viz-zona',
+        var zona = svg('rect', Object.assign({fill: 'transparent', tabindex: '0', role: 'img', 'class': 'viz-zona',
             'aria-label': etiquetaAccesible}, atributos), padre);
         function entrar(e) {
             grupo.classList.add('viz-activa');
