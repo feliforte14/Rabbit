@@ -60,18 +60,18 @@ Todo lo técnico está terminado y medido. Lo que falta es **gestión** (Jira, Q
 |---|---|---|
 | 5 | Confirmar que el Grupo es el 9 (salió de la colección de Postman) y escribir el nombre del QA responsable en `docs/testing/PLAN-DE-PRUEBAS.md` | Equipo |
 | 6 | Ensayo en vivo (ver abajo) | Todos los que presenten |
+| 7 | Ensayo del desafío de heterogeneidad en la rama `desafio-heterogeneidad` (ver abajo). **La rama se mantiene, no se borra** | Todos los que presenten |
 
 ### 🟡 UX
 | # | Pendiente |
 |---|---|
-| 7 | Mirar `comercio/mis-liquidaciones` y `comercio/mis-indicadores` entrando como `demo.comercio` |
-| 8 | Mirar desde un celular que los montos con `$` no se partan y que los gráficos se vean con datos |
+| 8 | Mirar `comercio/mis-liquidaciones` y `comercio/mis-indicadores` entrando como `demo.comercio` |
+| 9 | Mirar desde un celular que los montos con `$` no se partan y que los gráficos se vean con datos |
 
 ### 🟢 Menores
 | # | Pendiente |
 |---|---|
-| 9 | Dejar la base limpia justo antes de presentar (comando abajo). Cualquier prueba la ensucia |
-| 10 | Borrar la rama `desafio-heterogeneidad` cuando el equipo lo decida |
+| 10 | Dejar la base limpia justo antes de presentar (comando abajo). Cualquier prueba la ensucia |
 
 ## 3. Ensayo de la demo en vivo (G6)
 Hay que mostrar y poder explicar cada una de estas cuatro cosas:
@@ -79,6 +79,13 @@ Hay que mostrar y poder explicar cada una de estas cuatro cosas:
 2. **Mensajería:** cola, tópico y DLQ, también con el broker apagado.
 3. **Mail real:** necesita hotspot del celular. El wifi de la facultad bloquea SMTP.
 4. **Repartidor:** pantalla "Mis entregas".
+
+### Desafío de heterogeneidad (opcional, en su propia rama)
+`DESAFIOS-OPCIONALES.md` en `main` dice "Cumple, en la rama `desafio-heterogeneidad`" y linkea a ella: **por eso la rama no se puede borrar**. Reimplementa dos sistemas externos en otras tecnologías (ADR-030) y Rabbit los consume sin cambiar su código:
+- el banco legado en **Node.js** (`banco-legado/`), por SOAP;
+- el transportista moderno en **Python** (`transportista-moderno/`), por REST.
+
+La rama está al día con `main` y sus tests unitarios pasan, pero **nadie levantó todavía el banco en Node ni el transportista en Python**. Hay que ensayarlo una vez antes del lunes para poder mostrarlo en la defensa.
 
 Entrar a `https://localhost:8443/Rabbit`. El navegador avisa del certificado: es autofirmado, hay que aceptarlo. Cada vez que se reconstruye WildFly el certificado cambia y se pierde la sesión.
 
