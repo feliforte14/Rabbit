@@ -45,6 +45,17 @@ class EtiquetadoDeInstruccionesTest {
     }
 
     @Test
+    void siElTextoCambioMientrasLaIaContestabaLaRespuestaSeDescartaSinFallar() {
+        when(gateway.etiquetar("Dejar en portería"))
+                .thenReturn(Optional.of(Set.of(IndicacionDeEntrega.DEJAR_EN_PORTERIA)));
+        when(repository.guardarIndicaciones(10L, "Dejar en portería", "DEJAR_EN_PORTERIA")).thenReturn(0);
+
+        segundoPlano.etiquetar(10L, "Dejar en portería");
+
+        verify(repository).guardarIndicaciones(10L, "Dejar en portería", "DEJAR_EN_PORTERIA");
+    }
+
+    @Test
     void sinIndicacionesConcretasSeGuardaNull() {
         when(gateway.etiquetar("Gracias")).thenReturn(Optional.of(Set.of()));
 

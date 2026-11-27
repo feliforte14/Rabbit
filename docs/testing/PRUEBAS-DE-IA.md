@@ -29,7 +29,7 @@ Por eso, lo que se afirma de la IA es el **comportamiento ante fallas y la valid
 | IA-09 | Un texto que intenta darle órdenes al modelo | no se puede colar texto libre: solo se aceptan valores de la lista | `EtiquetadorIaTest.unTextoQueIntentaDarOrdenesNoPuedeColarTextoLibre`, `ClasificadorIaTest.unComentarioQueIntentaDarOrdenesNoPuedeColarTextoLibre` | Pasa |
 | IA-10 | Respuesta fuera de la lista, nula o con formato raro | se descarta; se aceptan espacios y saltos y hasta 4 indicaciones | `EtiquetadorIaTest.unaRespuestaNulaSeDescarta`, `aceptaHastaCuatroIndicaciones`, `aceptaLaRespuestaConEspaciosYSaltos`, `ClasificadorIaTest.lasRespuestasFueraDeLaListaSeDescartan` | Pasa |
 | IA-11 | "Ninguna" como respuesta | es válida y no deja etiquetas | `EtiquetadorIaTest.ningunaEsUnaRespuestaValidaSinEtiquetas`, `EtiquetadoDeInstruccionesTest.sinIndicacionesConcretasSeGuardaNull` | Pasa |
-| IA-12 | El cliente cambia las instrucciones mientras la IA responde | la respuesta vieja se descarta (`UPDATE ... WHERE instrucciones = :texto`) | diseño del ADR-073; `EtiquetadoDeInstruccionesTest` cubre el guardado, **sin prueba específica de la carrera** | Parcial |
+| IA-12 | El cliente cambia las instrucciones mientras la IA responde | la respuesta vieja se descarta (`UPDATE ... WHERE instruccionesEntrega = :texto`) y no se rompe nada | `PedidoRepositoryTest.laRespuestaVieja_deLaIaSeDescartaPorqueLaConsultaExigeElMismoTexto` (la consulta exige el mismo texto), `EtiquetadoDeInstruccionesTest.siElTextoCambioMientrasLaIaContestabaLaRespuestaSeDescartaSinFallar` y prueba directa en PostgreSQL el 26/11/2026 (con el texto viejo actualiza 0 filas; con el vigente, 1) | Pasa (verifica la guarda de la consulta, no una carrera real de dos hilos) |
 | IA-13 | Editar las instrucciones dispara el etiquetado después del commit | se dispara una vez y no bloquea el alta | `PedidoServiceTest.elDestinatarioReprogramaYDejaInstrucciones`, `EtiquetadoDeInstruccionesTest.elObservadorLePasaLasInstruccionesAlSegundoPlano` | Pasa |
 | IA-14 | La pantalla del repartidor muestra las indicaciones | se ven antes de las instrucciones del cliente | `HojaDeRutaDTOTest` (propiedades que usa la vista), E2E-8 | Pasa (CI) |
 | IA-15 | Fallback en vivo contra la API real, en Docker | instrucción guardada, texto original visible, sin errores | prueba manual del 26/11/2026 | Pasa |
@@ -40,4 +40,4 @@ Por eso, lo que se afirma de la IA es el **comportamiento ante fallas y la valid
 - La calidad del etiquetado depende del modelo y no está medida (IA-16).
 - La lista cerrada limita el daño de una respuesta inesperada, pero una etiqueta equivocada válida (por ejemplo "Mascota" donde no
   hay) no se detecta: por eso el texto original se muestra siempre al lado.
-- IA-12 está cubierta por diseño y no por un test de concurrencia.
+- IA-12 verifica la guarda de la consulta y su efecto en PostgreSQL, pero no reproduce dos hilos compitiendo de verdad.
