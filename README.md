@@ -1,6 +1,6 @@
 # Rabbit — Qué se pide para el lunes y dónde estamos
 
-**Entrega y presentación: lunes 30/11/2026.** Estado al viernes 27/11/2026, sobre el commit `4e27df1` de `main`.
+**Entrega y presentación: lunes 30/11/2026.** Estado al viernes 27/11/2026, sobre el commit `6e78693` de `main`.
 Leyenda: ✅ listo y verificado · ⚠️ listo con una salvedad que hay que saber decir · ⏳ falta, y lo tiene que hacer una persona del equipo.
 
 ## En una frase
@@ -14,6 +14,7 @@ Todo lo técnico está terminado y medido. Lo que falta es **gestión** (Jira, Q
 | Integración SOAP legado con Fault y protección XXE | ✅ XXE rechazado con Fault; el banco rechaza importes menores o iguales a cero | `docs/seguridad/INFORME-SEGURIDAD.md` |
 | API REST con Idempotency-Key, ETag y Problem Details | ✅ Newman: 50 requests, 71 aserciones, 0 fallas | `docs/testing/` |
 | Mensajería con cola, tópico y DLQ | ✅ implementada y probada | `docs/arquitectura/DECISIONES.md` |
+| Banco y transportistas simulados | ✅ probados en vivo: el banco rechaza importes ≤0 y >$500.000 con Fault; el transportista REST cotiza, rechaza >50 bultos y cancela. Se corrigió que la cotización sumara recargo con `cobrarAlEntregar: false` |
 | Resiliencia: timeout de 5 s y fallback | ✅ circuit breaker del banco; **falta mostrarlo en vivo** (ver G6) | ADR y `INFORME-DE-EJECUCION.md` |
 | IA a través de un gateway propio | ⚠️ gateway con validación, timeout y fallback, todo probado. **La respuesta real del modelo no se verificó** (cuenta sin crédito) | `docs/consigna/USO-DE-IA.md`, `docs/testing/PRUEBAS-DE-IA.md` |
 | QA designado en Jira | ⏳ | Jira |
@@ -43,7 +44,7 @@ Todo lo técnico está terminado y medido. Lo que falta es **gestión** (Jira, Q
 | G7 | Declaración de uso de IA | ⏳ falta la parte de cada integrante |
 | G8 | Informe honesto | ⏳ faltan los 31 ids de Jira |
 
-**Nota sobre el CI:** la última corrida en `4e27df1` pasó en verde (CI, Carga, Seguridad y CodeQL). El job de E2E falló una vez porque Maven Central no respondió al bajar el driver de PostgreSQL. No tuvo que ver con el código y pasó al reintentar. Si pasa de nuevo, reintenten el job y no toquen nada.
+**Nota sobre el CI:** la última corrida en `6e78693` pasó en verde (CI, Carga, Seguridad y CodeQL), con 1.281 tests unitarios sin fallas. Hoy un job falló dos veces (E2E y Carga) porque Maven Central devolvió un error (429) al bajar el driver de PostgreSQL. No tuvo que ver con el código y pasó al reintentar. Si pasa de nuevo, reintenten el job (`Re-run failed jobs` en GitHub) y no toquen nada. Se decidió no cambiar el Dockerfile para no sumar riesgo.
 
 ## 2. Lo que falta, con responsable
 ### 🔴 Críticos
