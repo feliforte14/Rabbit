@@ -10,7 +10,9 @@ package com.rabbit.integracion.transportistas.simulador;
  */
 
 import jakarta.json.Json;
+import jakarta.json.JsonNumber;
 import jakarta.json.JsonObject;
+import jakarta.json.JsonValue;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -45,7 +47,7 @@ public class TransportistaRestSimuladoResource {
             return error(422, motivo);
         }
         return Response.ok(Json.createObjectBuilder()
-                .add("precio", SIMULADOR.precio(bultos, pedido.containsKey("cobrarAlEntregar")))
+                .add("precio", SIMULADOR.precio(bultos, cobraAlEntregar(pedido)))
                 .add("plazoHoras", SimuladorDeEnvios.PLAZO_HORAS)
                 .build().toString()).build();
     }
@@ -89,6 +91,17 @@ public class TransportistaRestSimuladoResource {
             case YA_ENTREGADO: return error(409, "El envío ya fue entregado: no se puede cancelar");
             default: return error(404, "Envío inexistente");
         }
+    }
+
+    // Hay recargo solo si el pedido trae un importe a cobrar: el campo ausente, null, false o en cero
+    // significa que ya está pagado.
+    static boolean cobraAlEntregar(JsonObject pedido) {
+        JsonValue valor = pedido.get("cobrarAlEntregar");
+        if (valor == null || valor.getValueType() == JsonValue.ValueType.NULL
+                || valor.getValueType() == JsonValue.ValueType.FALSE) {
+            return false;
+        }
+        return !(valor instanceof JsonNumber numero) || numero.bigDecimalValue().signum() > 0;
     }
 
     private static JsonObject leer(String cuerpo) {
