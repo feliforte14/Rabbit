@@ -24,13 +24,43 @@ class FiltroCabecerasDeSeguridadTest {
     }
 
     @Test
-    void mandaLasCincoCabeceras() {
+    void mandaLasSieteCabeceras() {
         assertEquals(Map.of(
                 "Content-Security-Policy", FiltroCabecerasDeSeguridad.CSP,
                 "X-Content-Type-Options", "nosniff",
                 "X-Frame-Options", "DENY",
                 "Permissions-Policy", FiltroCabecerasDeSeguridad.PERMISOS,
-                "Referrer-Policy", "strict-origin-when-cross-origin"), FiltroCabecerasDeSeguridad.CABECERAS);
+                "Referrer-Policy", "strict-origin-when-cross-origin",
+                "Cross-Origin-Opener-Policy", "same-origin",
+                "Cross-Origin-Resource-Policy", "same-origin"), FiltroCabecerasDeSeguridad.CABECERAS);
+    }
+
+    @Test
+    void noMandaEmbedderPolicyPorqueRompeElMapa() {
+        assertFalse(FiltroCabecerasDeSeguridad.CABECERAS.containsKey("Cross-Origin-Embedder-Policy"));
+    }
+
+    @Test
+    void laPaginaDeSeguimientoNoSeGuardaEnCache() throws Exception {
+        jakarta.servlet.http.HttpServletRequest request = mock(jakarta.servlet.http.HttpServletRequest.class);
+        org.mockito.Mockito.when(request.getRequestURI()).thenReturn("/Rabbit/seguimiento.xhtml");
+        HttpServletResponse response = mock(HttpServletResponse.class);
+
+        new FiltroCabecerasDeSeguridad().doFilter(request, response, mock(FilterChain.class));
+
+        verify(response).setHeader("Cache-Control", "no-store");
+    }
+
+    @Test
+    void lasDemasPaginasNoCambianElCache() throws Exception {
+        jakarta.servlet.http.HttpServletRequest request = mock(jakarta.servlet.http.HttpServletRequest.class);
+        org.mockito.Mockito.when(request.getRequestURI()).thenReturn("/Rabbit/login.xhtml");
+        HttpServletResponse response = mock(HttpServletResponse.class);
+
+        new FiltroCabecerasDeSeguridad().doFilter(request, response, mock(FilterChain.class));
+
+        org.mockito.Mockito.verify(response, org.mockito.Mockito.never()).setHeader(
+                org.mockito.ArgumentMatchers.eq("Cache-Control"), org.mockito.ArgumentMatchers.anyString());
     }
 
     @Test

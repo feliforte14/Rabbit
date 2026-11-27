@@ -24,7 +24,7 @@ aplica (no hay app móvil nativa en este alcance).
 | 10 | Headers, CORS y cookies | CUMPLE | `FiltroCabecerasDeSeguridad` (CSP, `nosniff`, `X-Frame-Options`, `Permissions-Policy`, `Referrer-Policy`), `FiltroHsts`, cookie `Secure`/`HttpOnly`/`SameSite`; `unOrigenAjenoNoRecibeCabecerasCors`; `laCookieDeSesionYLasCabecerasDeSeguridad`. |
 | 11 | Logs y errores sin stack traces, PII ni tokens | CUMPLE (parcial en logs) | Errores: `losErroresNoMuestranDetallesInternos`, `ProblemaMapper`, `error.html`. Logs: `DatosPersonales` (email enmascarado), probado en `DatosPersonalesTest`; el geocodificador no escribe direcciones ni coordenadas, probado en `RuteoServiciosTest.elLogNoTraeLaDireccionNiLasCoordenadas` (ver hallazgos). Que ningún log escriba credenciales no está cubierto por un test: NO VERIFICABLE. |
 | 12 | Cifrado en tránsito | CUMPLE | `transport-guarantee CONFIDENTIAL` (HTTP redirige a HTTPS); `SeguridadIT.porHttpRedirigeAHttps`. |
-| 13 | Contraseñas con hash adaptativo | **NO CUMPLE (parcial)** | Las cuentas de la base usan bcrypt (costo 10, `ClavesTest`). Las cuentas que siguen en los archivos de `add-user.sh` (el administrador inicial y las anteriores a ADR-031) están en MD5. |
+| 13 | Contraseñas con hash adaptativo | **CUMPLE en el entorno de la demo (Docker); parcial en instalaciones manuales** | Las cuentas de la base usan bcrypt (costo 10, `ClavesTest`). En el Docker de la demo el archivo de usuarios del realm queda vacío (verificado el 26/11/2026), así que no hay cuentas en MD5. Una instalación manual con `add-user.sh` sí las guarda en MD5 hasta que un administrador restablezca la clave. |
 | 14 | Datos sensibles minimizados | CUMPLE | Mensajes JMS mínimos (`MensajesJmsMinimosTest`); el seguimiento público no muestra datos de quien recibe. |
 | G6 | Sin secretos en el historial | CUMPLE | Incidente del 27/10 documentado en `INCIDENTE-2026-10-27-SECRETOS-EN-HISTORIAL.md`: contraseñas rotadas, historial reescrito y `.gitleaks.toml` propio en el CI. |
 
@@ -32,7 +32,7 @@ aplica (no hay app móvil nativa en este alcance).
 
 | Hallazgo | Severidad | Tratamiento |
 |---|---|---|
-| Cuentas en MD5 (administrador inicial y viejas) | Mayor | Abierto. Mitigación: un administrador restablece la contraseña desde `personal/usuarios.xhtml` y la cuenta pasa a bcrypt. Pendiente de hacer en el entorno de la demo. |
+| Cuentas en MD5 (administrador inicial y viejas) | Mayor | Abierto solo para instalaciones manuales con `add-user.sh`. Mitigación: un administrador restablece la contraseña desde `personal/usuarios.xhtml` y la cuenta pasa a bcrypt. **En el Docker de la demo no hay cuentas en MD5** (verificado el 26/11/2026: el archivo de usuarios del realm está vacío). |
 | Contraseña mínima de 6 caracteres | Menor | **Corregido**: ahora 8 (ASVS 5.0, V6.2.1). `UsuarioService.LARGO_MINIMO_CLAVE`, probado en `UsuarioServiceTest`. |
 | Documentación decía que la API del ERP no tenía freno de intentos | Menor | **Corregido** en `SEGURIDAD.md`: lo tiene (`FiltroAutenticacionErp`). |
 | Test de mass assignment no verificaba el comercio | Menor | **Corregido**: ahora verifica que `idComercio` no sea el del cuerpo. |
@@ -49,6 +49,21 @@ aplica (no hay app móvil nativa en este alcance).
   y no ofrece nonce para eso. La CSP igual bloquea scripts de otro origen,
   conexiones a otros sitios, plugins, formularios hacia afuera y iframes.
   Regla `10055` en `WARN` en `.zap/reglas.tsv`.
+
+Corrida de `main` del 26/11/2026 (`d7eec35`): ZAP baseline con **0 High, 2 Medium (las dos del CSP, arriba)**, 3 Low y
+8 informativas (antes de los cambios de cabeceras de este mismo día); ZAP API con 0 High y 0 Medium. Las demás, una por una:
+
+| Alerta (regla) | Nivel | Qué es y por qué se acepta |
+|---|---|---|
+| Cross-Origin-Embedder-Policy, Cross-Origin-Opener-Policy y Cross-Origin-Resource-Policy faltan (`90004`) | Low | **Corregido a medias el 26/11/2026:** `FiltroCabecerasDeSeguridad` ahora manda COOP y CORP en `same-origin` (probado en `FiltroCabecerasDeSeguridadTest` y en vivo). **COEP no se manda a propósito:** exigiría que Leaflet (cdnjs) y los tiles de OpenStreetMap traigan su propia cabecera CORP y se rompería el mapa. Esa alerta queda aceptada |
+| Unexpected Content-Type (`100001`, solo en ZAP API) | Low | El escaneo de la API también pide la raíz y páginas HTML de la app, que devuelven `text/html`. Las rutas `/api/v1` devuelven `application/json` y `application/problem+json` |
+| Re-examine Cache-control, Non-Storable y Storable and Cacheable Content (`10015`, `10049`) | Info | Aparecen en páginas públicas: la raíz, `/robots.txt`, `/sitemap.xml`, el login y `seguimiento.xhtml`. **Corregido el 26/11/2026 en el seguimiento:** responde `Cache-Control: no-store` porque muestra datos de un envío a quien tiene el código (probado en el test del filtro y en vivo). En el resto, ZAP solo pide revisar a mano |
+| User Controllable HTML Element Attribute (`10031`) | Info | Las 4 instancias son los campos del propio formulario de login (`formLogin:username`, `formLogin:password` y el botón). Es el aviso genérico de ZAP para cualquier formulario, no una inyección confirmada. JSF escapa las salidas y el E2E de XSS (SEG-01) falla si vuelve |
+| Suspicious Comments (`10027`) | Info | Una sola instancia, en `mejoras.js`: un comentario sobre que la pantalla anda igual sin JavaScript. Sin datos sensibles |
+| Authentication Request, Session Management Response, Modern Web Application, A Client Error response code, User Agent Fuzzer (`10111`, `10112`, `10109`, `100000`, `10104`) | Info | Avisos de ZAP sobre lo que detecta (el login, la cookie de sesión, el uso de JS) y no hallazgos |
+
+**Revisión:** las instancias de `10027`, `10031`, `10015` y `10049` se leyeron en el JSON del reporte de ZAP (artefacto del CI).
+Las explicaciones de las cabeceras COOP, COEP y CORP son el criterio del equipo.
 
 Cualquier otra alerta Medium que aparezca en una corrida nueva hay que
 justificarla acá, una por una, antes de la defensa.
