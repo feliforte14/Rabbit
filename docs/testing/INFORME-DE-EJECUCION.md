@@ -132,7 +132,7 @@ job «Comparar las 3 vueltas» incluido: [corrida](https://github.com/feliforte1
 Sobre lo automatizado, **cumplen todos los umbrales medidos**: cobertura, mutación, rendimiento, tiempos, estabilidad y
 análisis estático sobre todo el proyecto (SonarCloud, punto 4, tras las correcciones SON-01 a SON-05). Eso no equivale a
 «el sistema está probado de punta a punta»: lo manual y la resiliencia con el broker real siguen pendientes, y los dos
-defectos que quedaban abiertos (SEG-04, cuentas con hash MD5, y OBS-01) se cerraron el 10/11/2026: hoy no hay defectos abiertos. El detalle está en el
+defectos que quedaban abiertos (SEG-04, cuentas con hash MD5, y OBS-01) se cerraron el 10/11/2026. El 12/11/2026 la prueba de punta a punta con Gmail como servidor de correo encontró uno menor, EXP-03 (un `ERROR` en el log cuando dos mails piden enviar la bandeja a la vez; los mails salían igual), que se corrigió ese mismo día: hoy no hay defectos abiertos. El detalle está en el
 [registro de defectos](REGISTRO-DE-DEFECTOS.md).
 
 ## 9. Cambios posteriores a la medición: resiliencia del broker (PR #24, 08/11/2026)
@@ -175,13 +175,12 @@ cola y volvió a la DLQ por seguir roto. Uno roto en el tópico llegó a la DLQ 
 Después del punto 9 entraron a `main` las PR #26 (mails HTML, avisos de cambio de entrega, vencimiento de retiros, reintento
 de mails), #27 (días gratis y recargo por stock antiguo, ADR-065), #28 (correcciones de la prueba exploratoria) y #29
 (gateway de IA, ADR-066, y `session-timeout` explícito). La etiqueta `v1.0-testing` apunta a `7ba59bf` (PR #28).
-El 11/11 el gateway de IA salió de `dev` para trabajarse en la rama `AI-GateWay` (el `session-timeout` queda): sin
-sus tests, `dev` corre **1147** pruebas unitarias, 0 fallos.
 
 | Medida | Resultado | Fuente |
 |---|---|---|
 | Pruebas unitarias | **1169** ejecutadas, 0 fallos, 0 omitidas (eran 1042) | `mvn verify`, local |
 | Cobertura de la capa de negocio | **98,1 %** de líneas (4103 de 4181 sobre `7ba59bf`) y **92,1 %** de ramas | JaCoCo, local |
+| Cobertura del gateway de IA (`integracion.ia`) | 90 % a 95 % de líneas por clase | JaCoCo, local |
 | Punta a punta (Playwright) | **24 de 24**: 11 flujos (E2E-1 a 11), 5 de seguridad (SEG-1 a 5) y 8 pantallas con axe | local, contra el compose |
 | CI, Seguridad, Carga y Estabilidad sobre `7ba59bf` | Los cuatro en verde, todos los jobs: [CI](https://github.com/feliforte14/Rabbit/actions/runs/42872802861) · [Seguridad](https://github.com/feliforte14/Rabbit/actions/runs/42872808400) · [Carga](https://github.com/feliforte14/Rabbit/actions/runs/42872815161) · [Estabilidad](https://github.com/feliforte14/Rabbit/actions/runs/42872820718) | GitHub Actions |
 | CI, Seguridad y Carga sobre `73094da` (con el gateway de IA) | Los tres en verde: [CI](https://github.com/feliforte14/Rabbit/actions/runs/42885588643) · [Seguridad](https://github.com/feliforte14/Rabbit/actions/runs/42885594490) | GitHub Actions |
@@ -207,4 +206,4 @@ releerlos de la corrida antes de citarlos en el informe final.
   capacidad del vehículo (10.1 y 10.2), el mapa y el horario estimado desde el celular (10.4 y 12.5), la segunda visita
   fallida, y apagar el broker de verdad para la cola de mensajes muertos (hay prueba manual del 08/11, punto 9).
 - **IA:** el gateway se probó con un servidor HTTP propio (respuesta válida, inválida, caído y lento) y en vivo con un proveedor
-  falso; **no se probó contra la API real de Claude** por falta de clave.
+  falso; **no se probó una respuesta real de Claude**: el 26/11/2026 se probó contra la API real, pero sin saldo en la cuenta, así que solo se verificó el fallback (ver [PRUEBAS-DE-IA.md](PRUEBAS-DE-IA.md)).

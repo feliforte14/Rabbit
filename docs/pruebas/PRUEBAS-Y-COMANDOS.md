@@ -45,7 +45,7 @@ ADMIN_USER=... ADMIN_PASSWORD=... DEMO_PASSWORD=... ITEM=<id del producto> \
   BASE=https://localhost:8443/Rabbit npx playwright test
 ```
 
-Las variables salen del `.env`.
+Las variables salen del `.env`. La IA (ADR-066) queda apagada si `ANTHROPIC_API_KEY` está vacía: es el estado normal de las pruebas.
 
 Todos los comandos asumen:
 
@@ -163,10 +163,10 @@ momento, no al que lo autorizó (ver Limitaciones en
 ### Colección de Postman
 
 [`Rabbit.postman_collection.json`](Rabbit.postman_collection.json):
-**Import → File** en Postman. Trae 75 requests ordenados por prueba (los
+**Import → File** en Postman. Trae 82 requests ordenados por prueba (los
 códigos A1, A4, J1... de esta guía y de FLUJO-DE-PRUEBAS):
 
-- **1 · API del ERP**: Alta, idempotencia, punto de picking, sin stock, cancelación y comercio dado de baja. En orden: cada alta guarda su id y la consulta de al lado lo usa
+- **1 · API del ERP**: Alta, idempotencia, punto de picking, sin stock, cancelación, concurrencia con ETag (If-None-Match 304, If-Match 412) y comercio dado de baja. En orden: cada alta guarda su id y la consulta de al lado lo usa
 - **2 · Validaciones y seguridad**: 400, 422, 401, 403, 404, 404 y 302
 - **3 · Seguimiento público**: 200 y 404, sin login
 - **4 · Pedidos de apoyo**: Pedidos para seguir probando en la web (banco que rechaza, ruteo por zona)
@@ -193,6 +193,10 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 - `rabbit.banco.simular.caida`
   - Por defecto: sin definir
   - Qué hace: `true`: el banco en Java tarda 10 s y no responde a tiempo
+  - ¿Hay que redesplegar?: No
+- `rabbit.cola.simular.ilegible`
+  - Por defecto: sin definir
+  - Qué hace: `true`: el próximo pedido del ERP se publica en la cola con el cuerpo roto. El broker lo reintenta 5 veces (unos 10 s) y lo deja en la DLQ (`scripts/dlq.sh listar`); el pedido igual se sincroniza por el polling antes de un minuto. Quitarla después de dar de alta el pedido
   - ¿Hay que redesplegar?: No
 - `rabbit.banco.wsdl`
   - Por defecto: el banco en Java
@@ -245,6 +249,10 @@ y se quitan con `cli --command="/system-property=<nombre>:remove"`.
 - `rabbit.tarifa.almacenamiento.pequeno` / `.mediano` / `.grande` / `.recargo-stock-antiguo`
   - Por defecto: `10` / `30` / `90` / `50` (%)
   - Qué hace: Precio por unidad y por día de cada tamaño y recargo por stock antiguo (ADR-059 y ADR-065). Con los tres precios en 0 no se cobra almacenamiento
+  - ¿Hay que redesplegar?: No
+- `rabbit.ia.clave` (o la variable de entorno `ANTHROPIC_API_KEY`), `rabbit.ia.modelo`, `rabbit.ia.url`
+  - Por defecto: sin clave (IA apagada), `claude-haiku-5-5`, `https://api.anthropic.com/v1/messages`
+  - Qué hace: Gateway de IA que clasifica los comentarios de las calificaciones (ADR-066). Sin clave, los comentarios quedan sin clasificar
   - ¿Hay que redesplegar?: No
 
 Para ver cuáles están definidas:

@@ -5,6 +5,24 @@ declarar qué se usó y para qué en cada entrega obligatoria.
 
 > **Borrador:** completar con lo que usó cada integrante.
 
+## IA dentro del producto (funcionalidad)
+
+Rabbit tiene un gateway propio (`com.rabbit.integracion.ia`, ADR-073) que desacopla al negocio del proveedor (API de Claude):
+
+- **Instrucciones de entrega:** el texto libre de quien recibe se convierte en indicaciones fijas para el repartidor
+  (por ejemplo "Llamar antes", "Dejar en portería").
+- **Comentarios de calificaciones:** se clasifican por sentimiento y tema para los indicadores.
+
+Controles: timeout de 5 s, fallback sin IA (sin clave o ante error el flujo sigue y se muestra el texto original), entrada validada,
+salida validada contra una lista cerrada y sin datos personales hacia el proveedor. Pruebas: ver
+[PRUEBAS-DE-IA.md](../testing/PRUEBAS-DE-IA.md).
+
+**Límite de lo probado:** se verificaron la validación y el comportamiento ante fallas (con un proveedor falso y, el 26/11/2026,
+contra la API real en modo fallback). **No se probó el etiquetado con una respuesta real del modelo**, por falta de saldo en la
+cuenta de Anthropic.
+
+## IA como asistente de desarrollo
+
 - **Claude Code (Anthropic)**: Implementación asistida de componentes (Pagos, Repartidores, Notificaciones, tópico JMS, integración SOAP con el banco, API REST, circuit breaker, vistas por tipo de usuario y ruteo), revisión de seguridad y sus correcciones, optimización de consultas (N+1), robustez (pool de conexiones, integridad al eliminar comercios), desafíos opcionales (prueba de escalabilidad y su script, banco legado en Node.js), componente Transportistas (adaptadores REST y SOAP, simuladores y seguimiento), ruteo por zona (zonas por código postal y despacho automático), organización de las vistas por tipo de usuario, link al recorrido en el mapa, revisión de la API REST contra la Clase 10 y sus correcciones (versión `/v1`, idempotencia, Problem Details, Bean Validation, cancelación, HATEOAS, seguimiento por código, ERP atado a su comercio y contrato OpenAPI), cotización con transportistas, HTTPS obligatorio, código de seguimiento en el portal del comercio, página pública de seguimiento, mejoras visuales (tablas como tarjetas en el celular, encabezado compacto, resumen de pedidos), revisiones de código y sus correcciones, deuda técnica (webhook de transportistas, después retirado por ADR-029; transportista moderno en Python, avisos por mail, contraseñas solo en el realm y límite de intentos de login, plan B en el despacho por zona), tests automatizados (JUnit 5 y REST Assured), mejoras del tablero de Trello (peso y capacidad, remito, liquidación mensual, mapa en vivo, cuentas compartidas, eliminación por el administrador) y sus correcciones (lista de espera, hora de corte, devolución al depósito, hoja de ruta recomendada, propuesta de cobro por almacenamiento), mejoras frente a los líderes de última milla (datos y avisos por mail a quien recibe, visitas fallidas con evidencia y devolución al comercio, fecha prometida, franja horaria en el seguimiento, indicadores con gráficos y CSV, hoja de ruta con OpenStreetMap, mails reales por SMTP, hora de corte a las 07:00, email obligatorio, no cancelar lo que salió a reparto, editar y eliminar stock), revisión responsive, pruebas funcionales sobre la app desplegada, redacción de la documentación técnica, del manual de usuario, de la documentación funcional y del dossier de contexto verificado contra el código, con sus diagramas (`docs/entrega/`, retirado después del repositorio)
 
 Todo el código generado con asistencia fue revisado por el equipo, y

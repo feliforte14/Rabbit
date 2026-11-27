@@ -83,6 +83,17 @@ public class PublicadorPedidosExternos {
 
     private static final Logger LOG = Logger.getLogger(PublicadorPedidosExternos.class.getName());
 
+    /**
+     * Perilla para la demo de la DLQ (docs/pruebas/PRUEBAS-Y-COMANDOS.md, "Perillas
+     * para las demos"): con esta system property en "true", el mensaje sale con el
+     * cuerpo roto. El consumidor no lo puede leer, el broker lo reintenta 5 veces
+     * y lo deja en la cola de mensajes muertos (scripts/dlq.sh listar). El pedido
+     * no se pierde: sigue en la base sin sincronizar y lo toma el polling de
+     * SincronizadorDePedidos antes de un minuto. Sin definir (lo normal), no hace nada.
+     */
+    static final String PERILLA_MENSAJE_ILEGIBLE = "rabbit.cola.simular.ilegible";
+    static final String CUERPO_ILEGIBLE = "{\"idPedidoExterno\": mensaje roto a propósito";
+
     @Resource(lookup = "java:/jms/rabbit/ConnectionFactory")
     private ConnectionFactory connectionFactory;
 
@@ -117,14 +128,20 @@ public class PublicadorPedidosExternos {
         Long idPedidoExterno = evento.idPedidoExterno();
         OrigenPedido origen = evento.origen();
         try (JMSContext contexto = connectionFactory.createContext()) {
-            TextMessage mensaje = contexto.createTextMessage(construirPayload(idPedidoExterno));
+            boolean roto = Boolean.getBoolean(PERILLA_MENSAJE_ILEGIBLE);
+            TextMessage mensaje = contexto.createTextMessage(roto ? CUERPO_ILEGIBLE : construirPayload(idPedidoExterno));
             // Property JMS (no forma parte del body): permite en el futuro
             // que un consumidor filtre por tipo de origen sin deserializar
             // el body — mismo concepto de "Properties" visto en la clase.
             mensaje.setStringProperty("origen", origen.name());
 
             contexto.createProducer().send(colaPedidosExternos, mensaje);
-            LOG.info("[Pedidos] Publicado en cola.pedidos.externos: pedido externo " + idPedidoExterno);
+            if (roto) {
+                LOG.warning("[Pedidos] " + PERILLA_MENSAJE_ILEGIBLE + "=true: el mensaje del pedido externo "
+                        + idPedidoExterno + " se publicó ilegible a propósito (demo de la DLQ)");
+            } else {
+                LOG.info("[Pedidos] Publicado en cola.pedidos.externos: pedido externo " + idPedidoExterno);
+            }
         } catch (RuntimeException | JMSException e) {
             // No se relanza: ver el comentario del método. El polling de
             // SincronizadorDePedidos es la red de contención para este caso.

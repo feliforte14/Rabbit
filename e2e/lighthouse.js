@@ -19,6 +19,10 @@ const PANTALLAS = [
   { ruta: 'personal/inicio', cuenta: 'admin' },
   { ruta: 'personal/pedidos', cuenta: 'admin' },
   { ruta: 'comercio/mis-pedidos', cuenta: 'comercio' },
+  { ruta: 'personal/liquidaciones', cuenta: 'admin' },
+  { ruta: 'personal/indicadores', cuenta: 'admin' },
+  { ruta: 'comercio/mis-liquidaciones', cuenta: 'comercio' },
+  { ruta: 'comercio/mis-indicadores', cuenta: 'comercio' },
 ];
 
 async function cookieDe(cuenta) {

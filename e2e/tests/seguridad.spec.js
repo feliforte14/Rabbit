@@ -101,3 +101,73 @@ test('SEG-5 · Un código de seguimiento con un byte nulo o larguísimo no da er
   expect(respuesta.status()).toBe(200);
   await expect(page.getByText('Algo salió mal')).toHaveCount(0);
 });
+
+// CSRF (condición de la cátedra para usar sesión en vez de JWT, ADR-067). El formulario de JSF lleva un
+// token por sesión y por vista (jakarta.faces.ViewState). Un sitio ajeno puede hacer que el navegador de
+// la víctima mande el POST con su cookie, pero no conoce ese token. Acá se captura el POST real del botón
+// "Confirmar" (sin dejarlo llegar) y se lo reenvía con la cookie válida de la víctima en las tres formas
+// en que lo podría armar un atacante: sin token, con un token inventado y con el token de SU propia sesión.
+// Ninguna confirma el pedido. Al final, el mismo POST con el token correcto sí lo confirma: eso prueba que
+// lo único que frenaba a los otros tres era el token.
+test('SEG-6 · CSRF: un POST con la cookie válida pero sin el token de la vista no confirma el pedido', async ({ page, request, browser, baseURL }) => {
+  const pedido = await pedidoDelErp(request);
+  const TOKEN = 'jakarta.faces.ViewState';
+
+  // El POST que arma el navegador al apretar "Confirmar", capturado y cortado antes de salir.
+  async function capturarConfirmar(pagina) {
+    await pagina.goto('personal/pedidos.xhtml');
+    let capturado;
+    await pagina.route('**/personal/pedidos.xhtml', async (ruta) => {
+      const pedidoHttp = ruta.request();
+      if (pedidoHttp.method() !== 'POST') return ruta.continue();
+      capturado = { url: pedidoHttp.url(), cuerpo: new URLSearchParams(pedidoHttp.postData()), cabeceras: pedidoHttp.headers() };
+      return ruta.abort();
+    });
+    await pagina.locator('tr', { hasText: pedido.codigoSeguimiento }).getByRole('button', { name: 'Confirmar' }).click();
+    await expect.poll(() => capturado, { message: 'el botón Confirmar tiene que mandar un POST' }).toBeTruthy();
+    await pagina.unroute('**/personal/pedidos.xhtml');
+    return capturado;
+  }
+
+  // El estado se lee por el seguimiento público: no depende de la sesión que se está probando.
+  const estado = async () => (await (await request.get(`api/v1/seguimiento/${pedido.codigoSeguimiento}`)).json()).estado;
+
+  // La víctima: un administrador con la sesión abierta.
+  await ingresar(page, cuentas.admin());
+  await expect(page).toHaveURL(/personal\/inicio\.xhtml/);
+  const legitimo = await capturarConfirmar(page);
+  expect(legitimo.cuerpo.get(TOKEN), 'el formulario lleva el token de la vista').toBeTruthy();
+
+  // El atacante: otra cuenta del personal, en otro navegador, con su propio token válido.
+  const otroNavegador = await browser.newContext({ ignoreHTTPSErrors: true, baseURL });
+  const paginaAtacante = await otroNavegador.newPage();
+  await ingresar(paginaAtacante, cuentas.operador());
+  await expect(paginaAtacante).toHaveURL(/personal\/inicio\.xhtml/);
+  const delAtacante = await capturarConfirmar(paginaAtacante);
+  await otroNavegador.close();
+  expect(delAtacante.cuerpo.get(TOKEN)).not.toBe(legitimo.cuerpo.get(TOKEN));
+
+  // Reenvía el POST con la cookie de la víctima (page.request la manda sola) y el token que se indique.
+  const cabeceras = { 'content-type': legitimo.cabeceras['content-type'] };
+  if (legitimo.cabeceras['faces-request']) cabeceras['faces-request'] = legitimo.cabeceras['faces-request'];
+  async function reenviar(token) {
+    const cuerpo = new URLSearchParams(legitimo.cuerpo);
+    if (token === null) cuerpo.delete(TOKEN); else cuerpo.set(TOKEN, token);
+    return page.request.post(legitimo.url, { headers: cabeceras, data: cuerpo.toString(), maxRedirects: 0 });
+  }
+
+  const ataques = [
+    ['sin token', null],
+    ['con un token inventado', '-1234567890123456789:9876543210987654321'],
+    ['con el token de la sesión del atacante', delAtacante.cuerpo.get(TOKEN)],
+  ];
+  for (const [nombre, token] of ataques) {
+    const respuesta = await reenviar(token);
+    expect(respuesta.status(), `${nombre}: no es un error del servidor`).toBeLessThan(500);
+    expect(await estado(), `${nombre}: el pedido no se confirma`).toBe('PENDIENTE');
+  }
+
+  // Control: el mismo POST, con el token de la propia vista, sí confirma.
+  await reenviar(legitimo.cuerpo.get(TOKEN));
+  await expect.poll(estado, { message: 'con el token correcto el pedido se confirma' }).toBe('CONFIRMADO');
+});

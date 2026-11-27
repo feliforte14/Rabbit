@@ -258,6 +258,7 @@ public class RuteoService implements IRuteo {
         hoja.nombreDestinatario = p.getNombreDestinatario();
         hoja.telefonoDestinatario = p.getTelefonoDestinatario();
         hoja.instrucciones = p.getInstruccionesEntrega();
+        hoja.indicaciones = com.rabbit.integracion.ia.IndicacionDeEntrega.textos(p.getIndicacionesEntrega());
         hoja.autorizado = p.getNombreAutorizado();
         hoja.diaPedidoPorElCliente = p.isReprogramado() && p.getFechaPrometida() != null
                 ? p.getFechaPrometida().format(java.time.format.DateTimeFormatter.ofPattern("dd/MM")) : null;

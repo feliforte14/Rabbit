@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.annotation.WebFilter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Map;
@@ -26,6 +27,14 @@ import java.util.Map;
  *   del remito y de la visita fallida), y solo para Rabbit; el resto apagado.
  * - Referrer-Policy: a otro sitio (los tiles del mapa) va solo el origen, no
  *   la URL con el número de pedido.
+ *
+ * - Cross-Origin-Opener-Policy y Cross-Origin-Resource-Policy: same-origin: las
+ *   ventanas y los recursos de Rabbit no se comparten con otros orígenes (aísla
+ *   contra ataques de canal lateral). No se manda Cross-Origin-Embedder-Policy:
+ *   exigiría que Leaflet (cdnjs) y los tiles de OpenStreetMap traigan su
+ *   propia cabecera CORP y se rompería el mapa.
+ * - Cache-Control: no-store en la página de seguimiento, que muestra datos de
+ *   un envío a quien tiene el código: no se guarda en cachés ni en el historial.
  *
  * La cookie de sesión lleva SameSite=Lax desde WEB-INF/undertow-handlers.conf (WildFly 41 ignora ese
  * atributo en el cookie-config del web.xml).
@@ -66,14 +75,23 @@ public class FiltroCabecerasDeSeguridad implements Filter {
             "X-Content-Type-Options", "nosniff",
             "X-Frame-Options", "DENY",
             "Permissions-Policy", PERMISOS,
-            "Referrer-Policy", "strict-origin-when-cross-origin");
+            "Referrer-Policy", "strict-origin-when-cross-origin",
+            "Cross-Origin-Opener-Policy", "same-origin",
+            "Cross-Origin-Resource-Policy", "same-origin");
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
         if (response instanceof HttpServletResponse http) {
             CABECERAS.forEach(http::setHeader);
+            if (request instanceof HttpServletRequest req && esPaginaDeSeguimiento(req.getRequestURI())) {
+                http.setHeader("Cache-Control", "no-store");
+            }
         }
         chain.doFilter(request, response);
+    }
+
+    static boolean esPaginaDeSeguimiento(String uri) {
+        return uri != null && uri.endsWith("/seguimiento.xhtml");
     }
 }

@@ -213,6 +213,7 @@ class PedidosEnSegundoPlanoTest {
     class ListenerDePedidosExternos {
 
         @Mock private IGestionPedidos gestionPedidos;
+        @Mock private jakarta.ejb.MessageDrivenContext contextoDelMensaje;
         @InjectMocks private PedidoExternoListener listener;
 
         private TextMessage mensaje(String texto) throws JMSException {
@@ -226,6 +227,7 @@ class PedidosEnSegundoPlanoTest {
             listener.onMessage(mensaje("{\"idPedidoExterno\":77}"));
 
             verify(gestionPedidos).sincronizarPedidoExterno(77L);
+            verify(contextoDelMensaje, never()).setRollbackOnly();
         }
 
         @Test
@@ -237,15 +239,23 @@ class PedidosEnSegundoPlanoTest {
             when(gestionPedidos.sincronizarPedidoExterno(78L)).thenThrow(new ValidacionException("sin stock"));
             listener.onMessage(mensaje("{\"idPedidoExterno\":78}"));
             verify(gestionPedidos).descartarPedidoExterno(78L, "sin stock");
+            // Ninguno de los dos vuelve al broker: reintentarlos no cambia nada.
+            verify(contextoDelMensaje, never()).setRollbackOnly();
         }
 
         @Test
-        void losErroresPasajerosVuelvenAlContenedorParaReintentar() throws Exception {
-            ConflictoDeStockException choque = new ConflictoDeStockException("choque");
-            when(gestionPedidos.sincronizarPedidoExterno(77L)).thenThrow(choque);
-            assertSame(choque, assertThrows(ConflictoDeStockException.class,
-                    () -> listener.onMessage(mensaje("{\"idPedidoExterno\":77}"))));
+        void unConflictoDeStockVuelveAlBrokerSinLanzarLaExcepcion() throws Exception {
+            when(gestionPedidos.sincronizarPedidoExterno(77L)).thenThrow(new ConflictoDeStockException("choque"));
 
+            // Sin excepción: si se lanzara, el adaptador de JMS escribiría un ERROR con la traza en cada intento.
+            listener.onMessage(mensaje("{\"idPedidoExterno\":77}"));
+
+            verify(contextoDelMensaje).setRollbackOnly();
+            verify(gestionPedidos, never()).descartarPedidoExterno(anyLong(), any());
+        }
+
+        @Test
+        void losErroresInesperadosVuelvenAlContenedorParaReintentar() throws Exception {
             IllegalStateException caida = new IllegalStateException("base");
             when(gestionPedidos.sincronizarPedidoExterno(78L)).thenThrow(caida);
             assertSame(caida, assertThrows(IllegalStateException.class,
@@ -254,16 +264,19 @@ class PedidosEnSegundoPlanoTest {
         }
 
         @Test
-        void unMensajeIlegibleSeRelanzaParaQueElBrokerLoMandeALaDLQ() throws Exception {
+        void unMensajeIlegibleVuelveAlBrokerParaQueLoMandeALaDLQ() throws Exception {
             TextMessage roto = mock(TextMessage.class);
             when(roto.getText()).thenThrow(new JMSException("roto"));
 
-            for (jakarta.jms.Message ilegible : List.of(mock(BytesMessage.class), mensaje("no es json"),
-                    mensaje("{\"otro\":1}"), mensaje("{\"idPedidoExterno\":\"77\"}"), mensaje(null), roto)) {
-                assertThrows(com.rabbit.infraestructura.MensajeIlegibleException.class,
-                        () -> listener.onMessage(ilegible));
+            List<jakarta.jms.Message> ilegibles = List.of(mock(BytesMessage.class), mensaje("no es json"),
+                    mensaje("{\"otro\":1}"), mensaje("{\"idPedidoExterno\":\"77\"}"), mensaje(null), roto,
+                    mensaje(PublicadorPedidosExternos.CUERPO_ILEGIBLE));
+            for (jakarta.jms.Message ilegible : ilegibles) {
+                listener.onMessage(ilegible);
             }
 
+            // Cada uno marcó su transacción para rollback: el broker cuenta el intento y, al quinto, lo manda a la DLQ.
+            verify(contextoDelMensaje, times(ilegibles.size())).setRollbackOnly();
             verifyNoInteractions(gestionPedidos);
         }
     }
@@ -352,6 +365,21 @@ class PedidosEnSegundoPlanoTest {
         }
 
         @Test
+        void conLaPerillaDeLaDemoElMensajeSaleIlegible() throws Exception {
+            System.setProperty(PublicadorPedidosExternos.PERILLA_MENSAJE_ILEGIBLE, "true");
+            try {
+                externos.publicarPedidoExternoRegistrado(new PedidoExternoRegistrado(77L, OrigenPedido.STOCK_CONSIGNADO));
+            } finally {
+                System.clearProperty(PublicadorPedidosExternos.PERILLA_MENSAJE_ILEGIBLE);
+            }
+
+            verify(contexto).createTextMessage(PublicadorPedidosExternos.CUERPO_ILEGIBLE);
+            verify(contexto, never()).createTextMessage("{\"idPedidoExterno\":77}");
+            // Se publica igual: lo que se prueba es qué hace el consumidor con un mensaje roto.
+            verify(productor).send(colaPedidosExternos, mensaje);
+        }
+
+        @Test
         void siElBrokerFallaNoRompeLaOperacion() throws Exception {
             doThrow(new JMSException("prop")).when(mensaje).setStringProperty(anyString(), anyString());
             externos.publicarPedidoExternoRegistrado(new PedidoExternoRegistrado(77L, OrigenPedido.STOCK_CONSIGNADO));
@@ -399,6 +427,30 @@ class PedidosEnSegundoPlanoTest {
             assertEquals(hoy.minusDays(7), tablero.anterior.hasta);
             assertEquals(hoy.minusDays(13), tablero.anterior.desde);
             verify(repository, times(1)).estrellasDePedidos(any());
+        }
+
+        @Test
+        void cuentaLosComentariosQueClasificoLaIa() {
+            LocalDate hoy = LocalDate.now();
+            LocalDateTime inicio = hoy.minusDays(6).atStartOfDay();
+            when(repository.listarRecibidosEntre(inicio, hoy.plusDays(1).atStartOfDay(), 3L)).thenReturn(List.of(
+                    pedido(1L, EstadoPedido.ENTREGADO, hoy.atTime(9, 0)), pedido(2L, EstadoPedido.ENTREGADO, hoy.atTime(10, 0)),
+                    pedido(3L, EstadoPedido.ENTREGADO, hoy.atTime(11, 0)), pedido(4L, EstadoPedido.ENTREGADO, hoy.atTime(12, 0))));
+            when(repository.listarRecibidosEntre(hoy.minusDays(13).atStartOfDay(), inicio, 3L)).thenReturn(List.of());
+            when(repository.estrellasDePedidos(List.of(1L, 2L, 3L, 4L))).thenReturn(Map.of(1L, 5, 2L, 1, 3L, 3, 4L, 4));
+            // El pedido 4 tiene calificación pero su comentario no se llegó a clasificar (la IA no respondió).
+            when(repository.sentimientosDePedidos(any())).thenReturn(Map.of(1L, "POSITIVO", 2L, "NEGATIVO", 3L, "NEUTRO"));
+
+            IndicadoresDTO tablero = indicadores.calcular(7, 3L);
+
+            assertEquals(1, tablero.comentariosPositivos);
+            assertEquals(1, tablero.comentariosNeutros);
+            assertEquals(1, tablero.comentariosNegativos);
+            assertEquals(3, tablero.getComentariosClasificados());
+            // La página lee estos valores por getters (EL no ve los campos públicos).
+            assertEquals(1, tablero.getComentariosPositivos());
+            assertEquals(1, tablero.getComentariosNeutros());
+            assertEquals(1, tablero.getComentariosNegativos());
         }
 
         @Test

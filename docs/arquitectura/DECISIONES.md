@@ -3,7 +3,7 @@
 Formato: contexto → decisión → consecuencias. Estado: Aceptada,
 Propuesta o Reemplazada.
 
-Última revisión del registro: 10/11/2026 (se agregan ADR-060 a 062 de la Clase 12, ADR-065 a 067 y los ADR de patrones 068 a 072, y el índice por componente). Hay 72 ADR.
+Última revisión del registro: 26/11/2026 (se agrega ADR-073, gateway de IA para las instrucciones de entrega; antes: se agregan ADR-060 a 062 de la Clase 12, ADR-065 a 067 y los ADR de patrones 068 a 072, y el índice por componente). Hay 73 ADR.
 
 ## Índice por componente
 
@@ -94,7 +94,8 @@ de siempre. Un ADR que toca a varios componentes lo dice en su texto.
 
 - [ADR-011](#adr-011-circuit-breaker-propio-frente-al-banco-legado): Circuit breaker propio frente al banco legado (Aceptada)
 - [ADR-015](#adr-015-banco-legado-en-nodejs-detrás-del-mismo-wsdl): Banco legado en Node.js, detrás del mismo WSDL (Aceptada)
-- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Retirada de `dev`: rama `AI-GateWay`)
+- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Aceptada)
+- [ADR-073](#adr-073-gateway-de-ia-que-etiqueta-las-instrucciones-de-entrega): Gateway de IA que etiqueta las instrucciones de entrega (Aceptada)
 
 ### Mensajería y plataforma (transversal)
 
@@ -191,13 +192,14 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 - [ADR-063](#adr-063-bandeja-de-salida-outbox-para-los-avisos-de-estado): Bandeja de salida (outbox) para los avisos de estado (Aceptada)
 - [ADR-064](#adr-064-mensajes-ilegibles-a-la-cola-de-mensajes-muertos-dlq-con-reintentos-acotados): Mensajes ilegibles a la cola de mensajes muertos (DLQ), con reintentos acotados (Aceptada)
 - [ADR-065](#adr-065-días-gratis-y-recargo-por-stock-antiguo): Días gratis y recargo por stock antiguo (Aceptada)
-- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Retirada de `dev`: rama `AI-GateWay`)
+- [ADR-066](#adr-066-gateway-de-ia-para-clasificar-los-comentarios-de-las-calificaciones): Gateway de IA para clasificar los comentarios de las calificaciones (Aceptada)
 - [ADR-067](#adr-067-autenticación-con-sesión-en-la-web-y-http-basic-en-la-api-del-erp-sin-jwt): Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT) (Aceptada)
 - [ADR-068](#adr-068-un-repositorio-dao-por-componente): Un repositorio (DAO) por componente (Aceptada)
 - [ADR-069](#adr-069-dto-entre-capas-y-componentes): DTO entre capas y componentes (Aceptada)
 - [ADR-070](#adr-070-facade-en-la-entrada-de-cada-componente): Facade en la entrada de cada componente (Aceptada)
 - [ADR-071](#adr-071-tareas-periódicas-y-estado-compartido-como-singleton): Tareas periódicas y estado compartido como Singleton (Aceptada)
 - [ADR-072](#adr-072-provider-instancet-para-el-ejb-stateful-de-la-reserva): Provider (`Instance<T>`) para el EJB stateful de la reserva (Aceptada)
+- [ADR-073](#adr-073-gateway-de-ia-que-etiqueta-las-instrucciones-de-entrega): Gateway de IA que etiqueta las instrucciones de entrega (Aceptada)
 
 ## ADR-001: Cola JMS + polling de respaldo para sincronizar pedidos
 
@@ -2151,11 +2153,36 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 
 ## ADR-066: Gateway de IA para clasificar los comentarios de las calificaciones
 
-- **Estado:** Retirada de `dev` (11/11/2026). La funcionalidad de IA se trabaja aparte, en la rama `AI-GateWay`, y no
-  está en `dev`. Se aceptó el 10/11/2026 (pedido de la cátedra: la funcionalidad de IA es obligatoria y la llamada al
-  modelo tiene que pasar por una capa propia, con desacople del proveedor, timeout de 5 s con fallback y validación de
-  entrada y salida). En la rama se está reemplazando la clasificación de comentarios por indicaciones para el repartidor
-  sacadas de las instrucciones de entrega. Cuando vuelva a `dev`, esta ADR se actualiza con la decisión final.
+- **Estado:** Aceptada (10/11/2026). Pedido de la cátedra: la funcionalidad de IA es obligatoria y la llamada al modelo
+  tiene que pasar por una capa propia (desacople del proveedor, timeout de 5 s con fallback y validación de entrada y
+  salida). El proveedor concreto y la clave de la API los tiene que confirmar el equipo.
+- **Contexto:** quien recibe un pedido puede dejar un comentario al calificar la entrega (ADR-052). Nadie los lee uno por
+  uno: un resumen de cómo suenan (positivo, neutro, negativo) y de qué hablan (puntualidad, trato, estado del paquete) le
+  sirve al comercio y al personal. Es un caso acotado y con sentido en el dominio.
+- **Decisión:** una capa técnica `integracion.ia`, igual que `integracion.banco` (no es un componente de negocio):
+  - **Desacople del proveedor:** `ClasificadorIa` habla con la interfaz `ProveedorIa`. Hay dos implementaciones: `ProveedorClaude`
+    (API de mensajes de Claude por HTTPS; modelo `claude-haiku-5-5` por defecto, configurable con `rabbit.ia.modelo`) y
+    `ProveedorNoConfigurado`. Cambiar de proveedor es escribir otra implementación.
+  - **Timeout de 5 s y fallback:** el proveedor tiene 5 s en total. Si no hay clave, no responde, falla o contesta mal, el
+    resultado es "sin clasificar" y la calificación ya está guardada igual: la IA es un extra y nada de Rabbit depende de ella.
+  - **Validación de entrada:** solo el texto del comentario, de hasta 500 caracteres, sin caracteres de control y sin las
+    marcas `<` y `>`. Va entre marcas `<comentario>` como dato, con una consigna que dice que se ignoren sus órdenes.
+    **No se manda nada del pedido ni de quien recibe** (nombre, teléfono, dirección: SEC-09).
+  - **Validación de salida:** la respuesta tiene que ser exactamente `SENTIMIENTO;TEMA` con valores de dos listas cerradas
+    (`POSITIVO|NEUTRO|NEGATIVO` y `PUNTUALIDAD|TRATO|ESTADO_DEL_PAQUETE|OTRO`). Cualquier otra cosa se descarta: un comentario
+    que intente darle órdenes al modelo no puede hacer que se guarde texto libre.
+  - **Cómo se usa:** `PedidoService.calificarEntrega` dispara el evento `ComentarioCalificado`; después del commit
+    (AFTER_SUCCESS) `ClasificacionDeComentarios` llama a `ClasificadorEnSegundoPlano` (`@Asynchronous`, transacción propia),
+    que guarda `sentimiento` y `tema` en la calificación. Quien califica no espera a la IA. Los indicadores muestran el
+    resumen ("Qué dicen los comentarios").
+- **Configuración:** `ANTHROPIC_API_KEY` (variable de entorno, opcional en el `.env`) o `rabbit.ia.clave`; `rabbit.ia.url`
+  para apuntar a otro servidor (los tests usan uno propio). La clave es un secreto y no va al repositorio.
+- **Consecuencias:** sin clave no hay IA y el sistema funciona igual (es el estado del CI y de los tests). Con clave hay
+  un costo por comentario, mínimo con este modelo. El comentario sale de Rabbit hacia un tercero: por eso es solo el texto,
+  sin identificar a nadie, y no se escribe en el log. No se agregó circuit breaker (la IA se llama una vez por comentario y
+  en segundo plano; un proveedor caído solo deja comentarios sin clasificar). Probado con un servidor HTTP propio (respuesta
+  válida, inválida, caído y lento) y tests unitarios; **no se probó contra la API real** por falta de clave.
+
 
 ## ADR-067: Autenticación con sesión en la web y HTTP Basic en la API del ERP (sin JWT)
 
@@ -2174,7 +2201,8 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
      URL; el ID se **regenera al loguearse** (`changeSessionId`); **expira a los 30 minutos** de inactividad
      (`session-timeout`) y hay **logout** que la invalida. Probado en el E2E SEG-3.
   4. **CSRF:** los formularios de la web llevan el `ViewState` de JSF, que hace de token anti-CSRF por vista y por sesión (y
-     la vista vencida vuelve al login, SEG-4). La API con Basic no usa cookie de sesión, así que no es atacable por CSRF.
+     la vista vencida vuelve al login, SEG-4). Probado en el E2E SEG-6: el mismo POST con la cookie válida pero sin token, con
+     un token inventado o con el de otra sesión no ejecuta la acción. La API con Basic no usa cookie de sesión, así que no es atacable por CSRF.
   5. **Credenciales del ERP sin hardcodear:** salen de variables de entorno (`.env`) y la semilla las guarda como bcrypt.
   6. **Rol validado en el backend en cada operación:** `@RolesAllowed` en los EJB y restricciones de seguridad en el `web.xml`;
      la vista oculta botones pero no es la barrera. Probado con BOLA/BFLA en `SeguridadIT` y el E2E-5.
@@ -2301,3 +2329,21 @@ Todos los ADR por número (el orden en que se tomaron las decisiones).
 - **Consecuencias:** cada reserva tiene su propia conversación y no se cruzan entre pedidos. A cambio, hay que acordarse de destruir
   la instancia.
 - **Descartado:** inyectar `IReservaStock` como campo del servicio.
+
+
+## ADR-073: Gateway de IA que etiqueta las instrucciones de entrega
+
+- **Estado:** Aceptada (26/11/2026); patrones *Gateway* y *Strategy* (proveedor intercambiable).
+- **Contexto:** quien recibe un pedido puede dejar instrucciones en texto libre ("tocá timbre 2 veces, si no, llamame"). El
+  repartidor necesita indicaciones fijas y rápidas de leer. El proveedor de IA puede estar caído, lento o sin clave.
+- **Decisión:** el texto pasa por `IEtiquetadorIa` (`integracion.ia`), que lo valida (no vacío, tope de largo, escapa `<` y `>`, tapa números largos), llama al `ProveedorIa`
+  con **timeout de 5 s** y valida la salida contra una **lista cerrada** (`IndicacionDeEntrega`: llamar antes, dejar en portería,
+  dejar con vecino, timbre no funciona, horario restringido, acceso difícil, mascota). Lo que no está en la lista se descarta.
+  El etiquetado corre **después de confirmar la transacción** (`@Observes(during = AFTER_SUCCESS)`) y en segundo plano
+  (`@Asynchronous`), así que no demora ni rompe el alta o la edición del pedido. Se guarda con
+  `UPDATE ... WHERE instruccionesEntrega = :texto`, para descartar respuestas viejas si el texto cambió mientras tanto.
+- **Consecuencias:** sin clave, con error o con timeout, el pedido se guarda igual y el repartidor ve el texto original
+  (fallback). El código de negocio no conoce al proveedor: cambiarlo es cambiar `ProveedorClaude`. El proveedor recibe solo el texto
+  de la instrucción, sin datos del pedido, y las instrucciones no se registran en el log.
+- **Descartado:** llamar al proveedor dentro de la transacción del pedido (la bloquearía hasta 5 s) y aceptar texto libre como salida
+  de la IA (no se podría validar).

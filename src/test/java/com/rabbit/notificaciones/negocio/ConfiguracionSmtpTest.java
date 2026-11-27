@@ -65,4 +65,24 @@ class ConfiguracionSmtpTest {
                 "rabbit.mail.smtp.usuario", "rabbit.avisos@gmail.com"));
         assertFalse(c.conLogin());
     }
+
+    @Test
+    void conLosValoresVaciosDelDockerNoSeMandaNada() {
+        // docker/wildfly/configurar.cli deja las tres propiedades con valor vacío
+        // si el .env no define RABBIT_MAIL_*: es lo mismo que no configurarlas.
+        assertNull(ConfiguracionSmtp.desde(props(
+                "rabbit.mail.smtp.host", "",
+                "rabbit.mail.smtp.usuario", "",
+                "rabbit.mail.smtp.password", "")));
+    }
+
+    @Test
+    void conServidorPeroSinUsuarioNiClaveNoPideLogin() {
+        ConfiguracionSmtp c = ConfiguracionSmtp.desde(props(
+                "rabbit.mail.smtp.host", "localhost",
+                "rabbit.mail.smtp.usuario", "",
+                "rabbit.mail.smtp.password", ""));
+        assertFalse(c.conLogin());
+        assertEquals("false", c.propiedades.getProperty("mail.smtp.auth"));
+    }
 }

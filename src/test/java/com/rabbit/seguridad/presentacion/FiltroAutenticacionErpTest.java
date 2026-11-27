@@ -61,6 +61,8 @@ class FiltroAutenticacionErpTest {
         filtro.usarLimiteDeIntentos(limite);
         when(response.getWriter()).thenReturn(new PrintWriter(cuerpo, true));
         when(request.getRemoteAddr()).thenReturn("10.0.0.9");
+        // Por defecto, el que se autentica es un ERP; los tests del 403 lo cambian.
+        when(request.isUserInRole("ERP")).thenReturn(true);
         doThrow(new ServletException("incorrecta")).when(request).login(anyString(), anyString());
     }
 
@@ -113,6 +115,37 @@ class FiltroAutenticacionErpTest {
 
         verify(chain).doFilter(request, response);
         verify(request, never()).login(anyString(), anyString());
+        verify(request, never()).logout();
+    }
+
+    @Test
+    void unUsuarioValidoSinRolErpEs403SinLlegarAlRecurso() throws Exception {
+        claveCorrecta("comercio", "bien");
+        con(basic("comercio:bien"));
+        when(request.isUserInRole("ERP")).thenReturn(false);
+
+        filtro.doFilter(request, response, chain);
+
+        // Si llegara al EJB, WildFly escribiría un ERROR con el stack trace por cada pedido.
+        verify(chain, never()).doFilter(any(), any());
+        verify(response).setStatus(403);
+        verify(response).setContentType("application/problem+json;charset=UTF-8");
+        assertTrue(cuerpo.toString().contains("\"type\":\"/problemas/acceso-denegado\""), cuerpo.toString());
+        // La clave era correcta: no cuenta como intento fallido, y la identidad se cierra igual.
+        assertTrue(limite.esperaPara("comercio").isZero());
+        verify(request).logout();
+    }
+
+    @Test
+    void unaSesionWebSinRolErpEs403() throws Exception {
+        when(request.getUserPrincipal()).thenReturn(() -> "admin");
+        when(request.isUserInRole("ERP")).thenReturn(false);
+
+        filtro.doFilter(request, response, chain);
+
+        verify(chain, never()).doFilter(any(), any());
+        verify(response).setStatus(403);
+        // La sesión web no es de este filtro: no la cierra.
         verify(request, never()).logout();
     }
 

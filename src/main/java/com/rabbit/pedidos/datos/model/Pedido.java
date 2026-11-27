@@ -27,8 +27,12 @@ import java.util.List;
 @Table(name = "pedidos")
 public class Pedido {
 
+    // De a uno, no en bloques de 50: con el valor por defecto cada reinicio del servidor
+    // descartaba el resto del bloque y los números saltaban (de 2 a 52). Un pedido se ve en
+    // pantalla, los demás ids no.
     @Id
-    @GeneratedValue(strategy = GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "pedidos_seq")
+    @SequenceGenerator(name = "pedidos_seq", sequenceName = "pedidos_seq", allocationSize = 1)
     private Long id;
 
     private Long idComercio;
@@ -166,6 +170,10 @@ public class Pedido {
     private LocalDate fechaPrometidaOriginal;
     @Column(length = 200)
     private String instruccionesEntrega;
+    // Lo que la IA sacó de las instrucciones (gateway de IA): nombres de IndicacionDeEntrega separados por coma.
+    // Null si no hay instrucciones o si la IA no estaba disponible: el repartidor ve el texto igual.
+    @Column(length = 200)
+    private String indicacionesEntrega;
     @Column(length = 100)
     private String nombreAutorizado;
     private Integer cambiosDelCliente;
@@ -291,6 +299,8 @@ public class Pedido {
     public void setFechaPrometidaOriginal(LocalDate fechaPrometidaOriginal) { this.fechaPrometidaOriginal = fechaPrometidaOriginal; }
     public String getInstruccionesEntrega() { return instruccionesEntrega; }
     public void setInstruccionesEntrega(String instruccionesEntrega) { this.instruccionesEntrega = instruccionesEntrega; }
+    public String getIndicacionesEntrega() { return indicacionesEntrega; }
+    public void setIndicacionesEntrega(String indicacionesEntrega) { this.indicacionesEntrega = indicacionesEntrega; }
     public String getNombreAutorizado() { return nombreAutorizado; }
     public void setNombreAutorizado(String nombreAutorizado) { this.nombreAutorizado = nombreAutorizado; }
     public int getCambiosDelCliente() { return cambiosDelCliente == null ? 0 : cambiosDelCliente; }

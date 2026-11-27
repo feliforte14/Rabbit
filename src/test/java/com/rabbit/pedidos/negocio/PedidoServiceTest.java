@@ -94,6 +94,8 @@ class PedidoServiceTest {
     @Mock private Event<PedidoExternoRegistrado> pedidoExternoRegistrado;
     @Mock private Event<EstadoPedidoCambiado> estadoPedidoCambiado;
     @Mock private Event<EntregaModificada> entregaModificada;
+    @Mock private Event<ComentarioCalificado> comentarioCalificado;
+    @Mock private Event<InstruccionesModificadas> instruccionesModificadas;
     @Mock private IAsignacionRepartidores repartidores;
     @Mock private IRegistroCobros cobros;
     @Mock private IEnvios envios;
@@ -1324,6 +1326,35 @@ class PedidoServiceTest {
         }
 
         @Test
+        void unComentarioDispararaLaClasificacionConSuIdYSuTextoYSinComentarioNo() {
+            pedido(EstadoPedido.ENTREGADO);
+            org.mockito.Mockito.doAnswer(inv -> { setId(inv.getArgument(0), 77L); return null; }).when(repository).guardarCalificacion(any());
+
+            servicio.calificarEntrega("RB-ABC", 2, "  Llegó tarde  ");
+
+            ArgumentCaptor<ComentarioCalificado> e = ArgumentCaptor.forClass(ComentarioCalificado.class);
+            verify(comentarioCalificado).fire(e.capture());
+            assertEquals("Llegó tarde", e.getValue().comentario());
+            assertEquals(77L, e.getValue().idCalificacion());
+
+            org.mockito.Mockito.clearInvocations(comentarioCalificado);
+            servicio.calificarEntrega("RB-ABC", 5, null);
+            servicio.calificarEntrega("RB-ABC", 5, "   ");
+            org.mockito.Mockito.verifyNoInteractions(comentarioCalificado);
+        }
+
+        // La entidad no tiene setter del ID (lo pone JPA): se lo pone por reflexión para probar.
+        private static void setId(CalificacionEntrega c, Long id) {
+            try {
+                var campo = CalificacionEntrega.class.getDeclaredField("id");
+                campo.setAccessible(true);
+                campo.set(c, id);
+            } catch (ReflectiveOperationException ex) {
+                throw new IllegalStateException(ex);
+            }
+        }
+
+        @Test
         void calificaUnaSolaVezUnaEntregaHecha() {
             pedido(EstadoPedido.ENTREGADO);
 
@@ -1365,6 +1396,8 @@ class PedidoServiceTest {
             assertEquals("Juan", p.getNombreAutorizado());
             assertEquals(1, p.getCambiosDelCliente());
             assertEquals("Timbre B", dto.instruccionesEntrega);
+            // Instrucciones nuevas: la IA las etiqueta aparte, con el pedido y el texto guardado.
+            verify(instruccionesModificadas).fire(new InstruccionesModificadas(p.getId(), "Timbre B"));
 
             servicio.modificarEntrega("RB-ABC", LocalDate.now().plusDays(4), "Timbre B", "Juan");
             assertEquals(prometida, p.getFechaPrometidaOriginal());

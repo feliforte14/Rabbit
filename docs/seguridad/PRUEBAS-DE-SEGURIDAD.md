@@ -45,6 +45,7 @@ máquina propia (macOS o Linux con Docker). Qué protege Rabbit y cómo está en
 | ZAP baseline + activo | 0 altas; 2 medias justificadas | Workflow Seguridad |
 | Dependencias | 0 críticas o altas | OSV, Trivy, Dependency-Check |
 | Headers, CORS, cookies | Todas las cabeceras; sin CORS para orígenes ajenos; cookie Secure, HttpOnly, SameSite=Lax | `SeguridadIT`, E2E SEG-3 |
+| CSRF (condición de ADR-067) | Un POST con la cookie válida pero sin el token de la vista, con uno inventado o con el de otra sesión no ejecuta la acción ni da 500 | E2E SEG-6 |
 | Logs y mensajes de error | Sin stack traces; el log tiene solo IDs | `SeguridadIT`, `revisar_logs.sh` |
 | Datos sensibles | Solo TLS ≥ 1.2; bcrypt costo 10; seguimiento con solo código y estado | `SeguridadIT.porHttpRedirigeAHttps`, E2E-3 |
 
@@ -107,8 +108,9 @@ cd e2e && npm ci && npx playwright install chromium
 BASE=https://localhost:8443/Rabbit npx playwright test tests/seguridad.spec.js
 ```
 
-SEG-1 (HTML escapado en el portal del comercio), SEG-2 (tooltip del mapa como texto), SEG-3 (cookie y logout) y SEG-4
-(sesión vencida → login). Con `--headed` se ve el navegador.
+SEG-1 (HTML escapado en el portal del comercio), SEG-2 (tooltip del mapa como texto), SEG-3 (cookie y logout), SEG-4
+(sesión vencida → login), SEG-5 (código de seguimiento con byte nulo) y SEG-6 (CSRF: sin el token de la vista no se
+ejecuta la acción). Con `--headed` se ve el navegador.
 
 ### 4.4 ZAP baseline y API activo
 

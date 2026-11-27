@@ -10,7 +10,7 @@ están en el [README principal](../README.md).
 
 ## Cómo leer esta documentación
 
-*Última revisión general: 10/11/2026 (ADR por componente, ADR-060 a 072, defectos cerrados y mediciones del punto 10 del informe de ejecución). El 11/11 la funcionalidad de IA salió de `dev` para trabajarse en la rama `AI-GateWay` (ADR-066).*
+*Última revisión general: 26/11/2026 (ADR-073: el gateway de IA también etiqueta las instrucciones de entrega; USO-DE-IA con la IA del producto; antes: ADR por componente, ADR-060 a 072, defectos cerrados y mediciones del punto 10 del informe de ejecución).*
 
 - **Un documento por tema.** Cada uno describe lo **implementado**, con las clases donde vive.
 - **Las mejoras pendientes** están marcadas como tales dentro de cada documento y en las "Consecuencias" de los ADR.
@@ -62,14 +62,14 @@ docs/
 ### [negocio/](negocio/) y [funcional/](funcional/)
 
 - [BRD.md](negocio/BRD.md): Documento de requisitos de negocio: objetivos, alcance y requisitos BR-xx
-- [DOCUMENTACION-FUNCIONAL.md](funcional/DOCUMENTACION-FUNCIONAL.md): 36 historias de usuario en Gherkin, reglas de negocio, requisitos no funcionales y matriz de trazabilidad BR → HU → CA → CP
+- [DOCUMENTACION-FUNCIONAL.md](funcional/DOCUMENTACION-FUNCIONAL.md): 37 historias de usuario en Gherkin, reglas de negocio, requisitos no funcionales y matriz de trazabilidad BR → HU → CA → CP
 
 ### [arquitectura/](arquitectura/)
 
 - [ARQUITECTURA.md](arquitectura/ARQUITECTURA.md): Capas, componentes, interfaces entre componentes, stateless vs. stateful, máquina de estados del pedido
 - [PATRONES.md](arquitectura/PATRONES.md): Catálogo de patrones y, para cada uno, qué problema resuelve, dónde está y qué alternativa se descartó
 - [TRANSACCIONES.md](arquitectura/TRANSACCIONES.md): Atributos transaccionales usados y qué pasa ante una falla a mitad de cada flujo
-- [DECISIONES.md](arquitectura/DECISIONES.md): Registro de decisiones de arquitectura (72 ADR), con índice por componente y cronológico
+- [DECISIONES.md](arquitectura/DECISIONES.md): Registro de decisiones de arquitectura (73 ADR), con índice por componente y cronológico
 
 ### [integraciones/](integraciones/)
 
@@ -96,7 +96,7 @@ docs/
 ### [testing/](testing/)
 
 - [README.md](testing/README.md): Los entregables de la prueba del sistema (Clase 15) y el estado de cada uno
-- [PLAN-DE-PRUEBAS.md](testing/PLAN-DE-PRUEBAS.md), [MATRIZ-DE-TRAZABILIDAD.md](testing/MATRIZ-DE-TRAZABILIDAD.md), [ESPECIFICACION-DE-CASOS.md](testing/ESPECIFICACION-DE-CASOS.md), [INFORME-DE-EJECUCION.md](testing/INFORME-DE-EJECUCION.md), [REGISTRO-DE-DEFECTOS.md](testing/REGISTRO-DE-DEFECTOS.md) y [LECCIONES-APRENDIDAS.md](testing/LECCIONES-APRENDIDAS.md)
+- [PLAN-DE-PRUEBAS.md](testing/PLAN-DE-PRUEBAS.md), [MATRIZ-DE-TRAZABILIDAD.md](testing/MATRIZ-DE-TRAZABILIDAD.md), [ESPECIFICACION-DE-CASOS.md](testing/ESPECIFICACION-DE-CASOS.md), [INFORME-DE-EJECUCION.md](testing/INFORME-DE-EJECUCION.md), [REGISTRO-DE-DEFECTOS.md](testing/REGISTRO-DE-DEFECTOS.md), [PRUEBAS-DE-IA.md](testing/PRUEBAS-DE-IA.md) (casos de la IA y qué no se probó) y [LECCIONES-APRENDIDAS.md](testing/LECCIONES-APRENDIDAS.md)
 
 ### [consigna/](consigna/)
 

@@ -5,7 +5,7 @@ rápido en la defensa.
 
 - **Mínimo 6 componentes de negocio con interfaz explícita y documentada**
   - Estado: Cumple (9 de negocio)
-  - Dónde: Comercios, Inventario, Pedidos, Pagos y Cobranzas, Repartidores, Notificaciones, Seguridad, Ruteo y Transportistas, más la capa técnica de integración (`integracion`: cliente del banco con su circuit breaker y adaptadores de transportistas), que no es un componente de negocio. Interfaces en [ARQUITECTURA.md](../arquitectura/ARQUITECTURA.md)
+  - Dónde: Comercios, Inventario, Pedidos, Pagos y Cobranzas, Repartidores, Notificaciones, Seguridad, Ruteo y Transportistas, más la capa técnica de integración (`integracion`: cliente del banco con su circuit breaker, adaptadores de transportistas y gateway de IA), que no es un componente de negocio. Interfaces en [ARQUITECTURA.md](../arquitectura/ARQUITECTURA.md)
 - **Al menos 1 componente stateful y 1 stateless, justificados**
   - Estado: Cumple
   - Dónde: `InventarioService` (`@Stateful`, la reserva es una conversación) y el resto `@Stateless`, incluidas las consultas de stock (`ConsultaStockService`, ADR-027); `@PostConstruct` / `@PreDestroy` como evidencia del ciclo de vida. Ver [ARQUITECTURA.md](../arquitectura/ARQUITECTURA.md)
@@ -38,11 +38,11 @@ rápido en la defensa.
   - Dónde: Commits desde agosto, de varios integrantes
 - **Tests automatizados (no lo exige la consigna)**
   - Estado: Hay
-  - Dónde: 1147 tests unitarios (JUnit 5) en cada build y 51 pruebas de integración de la API y de seguridad con REST Assured (`ApiRestIT`, `SeguridadIT` y `MejorasUltimaMillaIT`, `mvn verify -Pintegracion`), más E2E con Playwright, contrato, carga y mutación en el CI. Ver el README y [docs/testing](../testing/README.md)
+  - Dónde: 1217 tests unitarios (JUnit 5) en cada build y 51 pruebas de integración de la API y de seguridad con REST Assured (`ApiRestIT`, `SeguridadIT` y `MejorasUltimaMillaIT`, `mvn verify -Pintegracion`), más E2E con Playwright, contrato, carga y mutación en el CI. Ver el README y [docs/testing](../testing/README.md)
 
 ## Desafíos opcionales
 
-- **Al menos 2 ADR**: Cumple: 72 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md), ordenados por componente
+- **Al menos 2 ADR**: Cumple: 73 ADR en [DECISIONES.md](../arquitectura/DECISIONES.md), ordenados por componente
 - **Resiliencia ante fallas**: Cumple ([DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)): Circuit Breaker frente al banco legado (`CircuitBreakerBanco`, ADR-011) con demo por system property; timeout de 5 s; transacción compensatoria; si el broker falla, el polling recupera los pedidos externos. Ver [MENSAJERIA-SINCRONICA.md](../integraciones/MENSAJERIA-SINCRONICA.md)
 - **Heterogeneidad tecnológica**: Cumple (en esta rama, ADR-030): el banco legado está implementado también en Node.js (`banco-legado/`) y Rabbit lo consume por el mismo WSDL; el transportista moderno, en Python (`transportista-moderno/`), por REST. Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md#4-heterogeneidad-tecnológica)
 - **Prueba de escalabilidad**: Cumple: el consumidor de la cola escala con `rabbit.cola.consumidores`; con 8 consumidores, 100 pedidos se procesan 6,3 veces más rápido que con uno (medido). Ver [DESAFIOS-OPCIONALES.md](DESAFIOS-OPCIONALES.md)

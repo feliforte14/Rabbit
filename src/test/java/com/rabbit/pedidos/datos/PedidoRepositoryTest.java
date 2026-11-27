@@ -106,4 +106,18 @@ class PedidoRepositoryTest {
         verify(consultaIds).setParameter("tipo", com.rabbit.pedidos.datos.model.TipoEntrega.RETIRO_EN_DEPOSITO);
         verify(consultaIds).setParameter("limite", limite);
     }
+
+    @Test
+    void laRespuestaVieja_deLaIaSeDescartaPorqueLaConsultaExigeElMismoTexto() {
+        when(borrado.executeUpdate()).thenReturn(0);
+
+        int guardadas = repository.guardarIndicaciones(5L, "texto viejo", "LLAMAR_ANTES");
+
+        ArgumentCaptor<String> jpql = ArgumentCaptor.forClass(String.class);
+        verify(em).createQuery(jpql.capture());
+        assertTrue(jpql.getValue().contains("p.instruccionesEntrega = :t"), jpql.getValue());
+        verify(borrado).setParameter("t", "texto viejo");
+        verify(borrado).setParameter("id", 5L);
+        assertEquals(0, guardadas);
+    }
 }

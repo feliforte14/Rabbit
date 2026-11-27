@@ -111,20 +111,25 @@
                     <f:facet name="header">Comercio</f:facet>
                     #{liquidacionBean.nombreComercio(l.idComercio)}
                 </h:column>
-                <h:column>
+                <h:column styleClass="col-num" headerClass="col-num">
                     <f:facet name="header">Entregas</f:facet>
-                    #{l.cantidadEnvios}
+                    <b>#{l.cantidadEnvios}</b>
                     <span class="dato-secundario">#{etiquetas.kilos(l.kilos)}</span>
                 </h:column>
                 <h:column styleClass="col-p2" headerClass="col-p2">
-                    <f:facet name="header">Detalle</f:facet>
-                    <span class="dato-secundario">Abono: #{etiquetas.pesos(l.abono)}</span>
-                    <span class="dato-secundario">Envíos: #{etiquetas.pesos(l.cargoEnvios)}</span>
-                    <span class="dato-secundario">Kilos: #{etiquetas.pesos(l.cargoKilos)}</span>
-                    <!-- Almacenamiento (ADR-059): unidades-dia por tamano y su cargo. -->
+                    <f:facet name="header">Detalle del cobro</f:facet>
+                    <!-- Cada concepto con su importe a la derecha, para sumar de un vistazo; lo accesorio, aparte. -->
+                    <dl class="desglose">
+                        <dt>Abono</dt><dd>#{etiquetas.pesos(l.abono)}</dd>
+                        <dt>Envíos</dt><dd>#{etiquetas.pesos(l.cargoEnvios)}</dd>
+                        <dt>Kilos</dt><dd>#{etiquetas.pesos(l.cargoKilos)}</dd>
+                        <!-- Almacenamiento (ADR-059): unidades-dia por tamano y su cargo. -->
+                        <h:panelGroup rendered="#{liquidacionBean.tarifa.cobraAlmacenamiento() or l.unidadesDia > 0}">
+                            <dt>Almacenamiento</dt><dd>#{etiquetas.pesos(l.cargoAlmacenamiento)}</dd>
+                        </h:panelGroup>
+                    </dl>
                     <h:panelGroup rendered="#{liquidacionBean.tarifa.cobraAlmacenamiento() or l.unidadesDia > 0}">
-                        <span class="dato-secundario">Almacenamiento: #{etiquetas.pesos(l.cargoAlmacenamiento)}
-                            (#{l.unidadesDiaPequeno} chicas · #{l.unidadesDiaMediano} medianas · #{l.unidadesDiaGrande} grandes, en u.-día)</span>
+                        <span class="dato-secundario">#{l.unidadesDiaPequeno} chicas · #{l.unidadesDiaMediano} medianas · #{l.unidadesDiaGrande} grandes (unidades-día)</span>
                         <h:panelGroup rendered="#{l.unidadesDiaGratis > 0}">
                             <span class="dato-secundario">Días gratis: #{l.unidadesDiaGratis} u.-día (ahorro #{etiquetas.pesos(l.ahorroPorDiasGratis)})</span>
                         </h:panelGroup>
@@ -136,9 +141,9 @@
                         <span class="dato-secundario">#{l.productosSinMedidas} producto(s) sin medidas: se cuentan como medianos</span>
                     </h:panelGroup>
                 </h:column>
-                <h:column>
+                <h:column styleClass="col-num" headerClass="col-num">
                     <f:facet name="header">Total</f:facet>
-                    <b><h:outputText value="#{l.total}"><f:convertNumber type="currency" currencySymbol="$" /></h:outputText></b>
+                    <b class="monto">#{etiquetas.pesos(l.total)}</b>
                 </h:column>
                 <h:column>
                     <f:facet name="header">Estado</f:facet>

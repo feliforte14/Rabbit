@@ -49,6 +49,8 @@ public class HojaDeRutaDTO {
     // Lo que pidió quien recibe (ADR-057): instrucciones de entrega, persona autorizada a recibirlo y, si
     // reprogramó, el día que eligió. Texto de un tercero: la vista lo muestra siempre escapado.
     public String instrucciones;
+    // Lo que la IA sacó de las instrucciones (lista cerrada), para que el repartidor lo vea de un vistazo.
+    public java.util.List<String> indicaciones = java.util.List.of();
     public String autorizado;
     public String diaPedidoPorElCliente;
     // Visitas que ya fallaron y por qué (ADR-041).
@@ -58,6 +60,7 @@ public class HojaDeRutaDTO {
     // Getters JavaBean: los requiere Expression Language (JSF).
     public Long getIdPedido() { return idPedido; }
     public String getInstrucciones() { return instrucciones; }
+    public java.util.List<String> getIndicaciones() { return indicaciones; }
     public String getAutorizado() { return autorizado; }
     public String getDiaPedidoPorElCliente() { return diaPedidoPorElCliente; }
     public String getComercio() { return comercio; }

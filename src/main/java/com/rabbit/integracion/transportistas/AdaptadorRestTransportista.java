@@ -17,6 +17,7 @@ package com.rabbit.integracion.transportistas;
  * la falta de respuesta: nunca se escapa una excepción hacia el negocio.
  */
 
+import com.rabbit.infraestructura.Trazas;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.json.Json;
 import jakarta.json.JsonException;
@@ -73,7 +74,7 @@ public class AdaptadorRestTransportista implements IAdaptadorTransportista {
                     + ": si el transportista lo tomó, revisarlo a mano", e);
             return ResultadoSolicitud.noDisponible();
         } catch (ProcessingException | IllegalArgumentException e) {
-            LOG.log(Level.WARNING, "[Transportistas][REST] El transportista no respondió al solicitar " + s.referencia(), e);
+            LOG.warning("[Transportistas][REST] El transportista no respondió al solicitar " + s.referencia() + ": " + Trazas.resumen(e));
             return ResultadoSolicitud.noDisponible();
         }
     }
@@ -95,7 +96,7 @@ public class AdaptadorRestTransportista implements IAdaptadorTransportista {
             LOG.warning("[Transportistas][REST] Respuesta inesperada al cotizar " + s.referencia() + ": HTTP " + r.getStatus());
             return ResultadoCotizacion.noDisponible();
         } catch (ProcessingException | IllegalArgumentException | JsonException | ClassCastException e) {
-            LOG.log(Level.WARNING, "[Transportistas][REST] El transportista no respondió (o respondió algo ilegible) al cotizar " + s.referencia(), e);
+            LOG.warning("[Transportistas][REST] El transportista no respondió (o respondió algo ilegible) al cotizar " + s.referencia() + ": " + Trazas.resumen(e));
             return ResultadoCotizacion.noDisponible();
         }
     }
@@ -124,7 +125,7 @@ public class AdaptadorRestTransportista implements IAdaptadorTransportista {
             }
             return true;
         } catch (ProcessingException | IllegalArgumentException e) {
-            LOG.log(Level.WARNING, "[Transportistas][REST] Sin respuesta al cancelar " + codigo, e);
+            LOG.warning("[Transportistas][REST] Sin respuesta al cancelar " + codigo + ": " + Trazas.resumen(e));
             return false;
         }
     }

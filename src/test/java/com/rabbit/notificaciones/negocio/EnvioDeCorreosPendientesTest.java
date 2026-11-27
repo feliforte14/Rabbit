@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -33,6 +34,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.logging.Handler;
 import java.util.logging.LogRecord;
@@ -405,5 +409,47 @@ class EnvioDeCorreosPendientesTest {
 
     private static long anyLong() {
         return org.mockito.ArgumentMatchers.anyLong();
+    }
+
+    @Test
+    @DisplayName("EXP-03: si ya hay una pasada mandando, el que llega no espera ni falla, y esa pasada hace otra vuelta")
+    void unSegundoLlamadorNoEsperaNiFalla() throws Exception {
+        configurar(puertoCerrado());
+        CountDownLatch entro = new CountDownLatch(1);
+        CountDownLatch soltar = new CountDownLatch(1);
+        AtomicInteger lecturas = new AtomicInteger();
+        when(bandeja.pendientes(anyInt())).thenAnswer(invocacion -> {
+            if (lecturas.incrementAndGet() == 1) {
+                entro.countDown();
+                soltar.await(5, TimeUnit.SECONDS); // un envío lento por SMTP
+            }
+            return List.of();
+        });
+        Thread primero = new Thread(() -> envio.enviarPendientes(), "pasada-en-curso");
+        primero.start();
+        assertTrue(entro.await(5, TimeUnit.SECONDS), "la primera pasada tenía que arrancar");
+
+        long desde = System.nanoTime();
+        int enviados = envio.enviarPendientes(); // mientras la primera sigue mandando
+        long milisegundos = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - desde);
+
+        assertEquals(0, enviados);
+        assertTrue(milisegundos < 1000, "no espera a la pasada en curso (tardó " + milisegundos + " ms)");
+        soltar.countDown();
+        primero.join(5000);
+        assertFalse(primero.isAlive());
+        // La pasada en curso, al terminar, lee la bandeja de nuevo: el aviso del que llegó no queda para el timer.
+        verify(bandeja, times(2)).pendientes(anyInt());
+    }
+
+    @Test
+    @DisplayName("Sin nadie más esperando, la pasada lee la bandeja una sola vez")
+    void sinOtroLlamadorHaceUnaSolaVuelta() throws Exception {
+        configurar(puertoCerrado());
+        when(bandeja.pendientes(anyInt())).thenReturn(List.of());
+
+        assertEquals(0, envio.enviarPendientes());
+
+        verify(bandeja, times(1)).pendientes(anyInt());
     }
 }
