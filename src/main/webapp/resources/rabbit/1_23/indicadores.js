@@ -150,7 +150,7 @@ var RabbitGraficos = (function () {
         });
         var e = escala(Math.max.apply(null, totales.concat([0])));
         var y = function (v) { return m.arriba + altoPlot - v / e.maximo * altoPlot; };
-        var raiz = svg('svg', {width: ancho, height: alto, viewBox: '0 0 ' + ancho + ' ' + alto, 'aria-hidden': 'true'});
+        var raiz = svg('svg', {width: ancho, height: alto, viewBox: '0 0 ' + ancho + ' ' + alto, role: 'group', 'aria-label': 'Gráfico: recorré las barras con el teclado o mirá la vista de tabla'});
 
         for (var t = 0; t <= e.maximo; t += e.paso) {
             svg('line', {x1: m.izquierda, x2: ancho - m.derecha, y1: y(t), y2: y(t),
@@ -209,7 +209,7 @@ var RabbitGraficos = (function () {
             datos.filas.map(function (f) { return Math.max.apply(null, f.valores.map(function (v) { return v || 0; })); })
                 .concat([0]))).maximo;
         var alto = datos.filas.length * altoFila + 4;
-        var raiz = svg('svg', {width: ancho, height: alto, viewBox: '0 0 ' + ancho + ' ' + alto, 'aria-hidden': 'true'});
+        var raiz = svg('svg', {width: ancho, height: alto, viewBox: '0 0 ' + ancho + ' ' + alto, role: 'group', 'aria-label': 'Gráfico: recorré las barras con el teclado o mirá la vista de tabla'});
         var x0 = anchoEtiqueta;
         svg('line', {x1: x0, x2: x0, y1: 0, y2: alto, 'class': 'viz-base'}, raiz);
 

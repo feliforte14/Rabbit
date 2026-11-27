@@ -2471,7 +2471,7 @@ line.viz-base {
     padding: 0.25rem 0;
     background: none;
     border: none;
-    color: var(--naranja);
+    color: var(--acento-texto); /* el naranja puro da 2.8:1 sobre blanco */
     font: inherit;
     font-size: 0.82rem;
     font-weight: 600;

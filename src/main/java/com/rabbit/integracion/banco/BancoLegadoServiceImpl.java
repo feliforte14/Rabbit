@@ -49,8 +49,10 @@ public class BancoLegadoServiceImpl implements BancoLegadoService {
     @Override
     public String autorizarPago(String referencia, BigDecimal importe) throws PagoRechazadoException {
         simularCaidaSiCorresponde();
-        if (importe == null || importe.compareTo(LIMITE) > 0) {
-            String motivo = "El importe supera el límite de $" + LIMITE.toPlainString();
+        if (importe == null || importe.signum() <= 0 || importe.compareTo(LIMITE) > 0) {
+            String motivo = importe == null || importe.signum() <= 0
+                    ? "El importe tiene que ser mayor a cero"
+                    : "El importe supera el límite de $" + LIMITE.toPlainString();
             LOG.info("[Banco legado] Rechazado el pago de " + referencia + ": " + motivo);
             throw new PagoRechazadoException(motivo, new PagoRechazadoFaultInfo(motivo));
         }
